@@ -12,12 +12,13 @@
 #include <string>
 #include <vector>
 #include <uuid/uuid.h>
+#include <mysql++.h>
 
 using namespace std;
 
 class CGQueueManager {
 public:
-    CGQueueManager(char *dcapi_conf);
+    CGQueueManager(char *dcapi_conf, char *db, char *host, char *user, char *passwd);
     ~CGQueueManager();
     bool addAlg(CGAlg &what);
     vector<uuid_t *> *addJobs(vector<CGJob *> &jobs);
@@ -26,11 +27,13 @@ public:
     void removeJob(uuid_t *id);
     vector<CGJobStatus> *getStatuses(vector<uuid_t *> &ids);
     CGJobStatus getStatus(uuid_t *id);
-    void query();
+    void query(int timeout = 5);
+    vector<uuid_t *> *getJobsFromDb();
 private:
     map<string, CGAlgQueue *> algs;
     set<uuid_t *> jobIDs;
     map<uuid_t *, CGAlgQueue *> ID2AlgQ;
+    mysqlpp::Connection con;
 };
 
 #endif  /* __CGQUEUEMANAGER_H */

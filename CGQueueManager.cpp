@@ -4,10 +4,11 @@
 #include <string>
 #include <iostream>
 #include <uuid/uuid.h>
+#include <mysql++.h>
 
 using namespace std;
 
-CGQueueManager::CGQueueManager(char *dcapi_conf)
+CGQueueManager::CGQueueManager(char *dcapi_conf, char *db, char *host, char *user, char *passwd)
 {
     algs.clear();
     
@@ -15,6 +16,12 @@ CGQueueManager::CGQueueManager(char *dcapi_conf)
 	throw DC_initMasterError;
     }
     
+    try {
+	con.connect(db, host, user, passwd);
+    } catch (exception& ex) {
+	cerr << ex.what() << endl;
+	throw -10;
+    }
 }
 
 CGQueueManager::~CGQueueManager()
@@ -96,6 +103,7 @@ uuid_t *CGQueueManager::addJob(CGJob &job)
 	throw DC_submitWUError;
     }
     
+    // Set status of job to RUNNING
     job.setStatus(CG_RUNNING);
     
     // Serialize WU and set the wuID of the job entity
@@ -149,7 +157,7 @@ CGJobStatus CGQueueManager::getStatus(uuid_t *id)
     return ID2AlgQ[id]->getStatus(id);
 }
 
-void CGQueueManager::query()
+void CGQueueManager::query(int timeout)
 {
     DC_MasterEvent *event;
     DC_Workunit *wu;
@@ -160,7 +168,7 @@ void CGQueueManager::query()
     vector<string> outputs;
     string localname;
 
-    event = DC_waitWUEvent(wu, 0);
+    event = DC_waitWUEvent(wu, timeout);
     
     if (event->type == DC_MASTER_RESULT) {
 	wutag = DC_getWUTag(wu);
@@ -195,4 +203,55 @@ void CGQueueManager::query()
 	DC_destroyWU(wu);
     }
     DC_destroyMasterEvent(event);
+}
+
+vector<uuid_t *> *CGQueueManager::getJobsFromDb() {
+    mysqlpp::Query query = con.query();
+    query << "select * from cg_job";
+    mysqlpp::Result res = query.store();
+    
+    vector<CGJob *> jobs;
+    vector<uuid_t *> *IDs;
+    
+    mysqlpp::Row row;
+    mysqlpp::Row::size_type i;
+    for (i = 0; row = res.at(i); ++i) {
+	
+        // Find out which algorithm the job belongs to
+//	for (map<string, CGAlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
+//	    if (it->second->getType().getName() == algs.find(row["algname"].get_string()) 
+//		CGAlg alg = it->second->getType();
+
+	map<string, CGAlgQueue *>::iterator it = algs.find(row["algname"].get_string());
+	if (it == algs.end()) return IDs;
+	CGAlg alg = it->second->getType();
+        CGJob *nJob = new CGJob(row["name"].get_string(), alg);
+	
+	
+//        CGJob *nJob = new CGJob(row["name"].get_string(), it->second->getType());
+//	CGJob *nJob = new CGJob("hello", algs[0]->getType());    
+//    CGAlg a1 = algs[0]->getType();
+//	CGJob *nJob = new CGJob("hello", alg);  
+    
+        // Get inputs for job from db
+	query.reset();
+	query << "select * from inputs where jobid = " << row["id"];
+    	mysqlpp::Result inres = query.store();
+	mysqlpp::Row inrow;
+	mysqlpp::Row::size_type j;
+	for (j = 0; inrow = inres.at(j); ++j) 
+	    nJob->addInput(inrow["localname"].get_string(), inrow["path"].get_string());
+	
+	// Get outputs for job from db
+	query.reset();
+	query << "select * from outputs where jobid = " << row["id"];
+    	mysqlpp::Result outres = query.store();
+	mysqlpp::Row outrow;
+	for (j = 0; outrow = outres.at(j); ++j) 
+	    nJob->addOutput(inrow["localname"].get_string());
+	
+	jobs.push_back(nJob);
+    }
+    IDs = addJobs(jobs);
+    return IDs;
 }

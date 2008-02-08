@@ -12,7 +12,8 @@ int main(int argc, char **argv)
     
       CGAlg a1("flexmol", CG_ALG_GRID);	// Create an algorithm
 
-      CGQueueManager qm(argv[1]);	// Create a Queue Manager
+      // Create a Queue Manager
+      CGQueueManager qm(argv[1], "boinc_szdgr", "0", "boinc-szdgr", "VfxVqw0PHT");
 
       vector<CGJob *> jobs;
       vector<uuid_t *> *IDs;
