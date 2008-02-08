@@ -216,23 +216,13 @@ vector<uuid_t *> *CGQueueManager::getJobsFromDb() {
     mysqlpp::Row row;
     mysqlpp::Row::size_type i;
     for (i = 0; row = res.at(i); ++i) {
-	
         // Find out which algorithm the job belongs to
-//	for (map<string, CGAlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
-//	    if (it->second->getType().getName() == algs.find(row["algname"].get_string()) 
-//		CGAlg alg = it->second->getType();
-
 	map<string, CGAlgQueue *>::iterator it = algs.find(row["algname"].get_string());
 	if (it == algs.end()) return IDs;
 	CGAlg alg = it->second->getType();
+
         CGJob *nJob = new CGJob(row["name"].get_string(), alg);
 	
-	
-//        CGJob *nJob = new CGJob(row["name"].get_string(), it->second->getType());
-//	CGJob *nJob = new CGJob("hello", algs[0]->getType());    
-//    CGAlg a1 = algs[0]->getType();
-//	CGJob *nJob = new CGJob("hello", alg);  
-    
         // Get inputs for job from db
 	query.reset();
 	query << "select * from inputs where jobid = " << row["id"];
