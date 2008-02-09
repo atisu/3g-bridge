@@ -15,7 +15,9 @@ int main(int argc, char **argv)
       // Create a Queue Manager
       CGQueueManager qm(argv[1], "boinc_szdgr", "0", "boinc-szdgr", "VfxVqw0PHT");
 
-      vector<CGJob *> jobs;
+      vector<CGJob *> *jobs;
+//      vector<CGJob *> jobs;
+      
       vector<uuid_t *> *IDs;
 
       // Add the algorithm to the Queue Manager
@@ -23,17 +25,22 @@ int main(int argc, char **argv)
       qm.addAlg(a1);
 
       // Create some jobs belonging to Algorith type A1
-      for (int i = 0; i < 1; i++) {
-	CGJob *nJob = new CGJob("test job " + i, a1);
-  	nJob->addInput("INPUT1", "/tmp/INPUT.1");
-	nJob->addInput("INPUT2", "/tmp/INPUT.2");
-	nJob->addOutput("OUTPUT1");
-	nJob->addOutput("OUTPUT2");
-	jobs.push_back(nJob);
-      }
+//      for (int i = 0; i < 1; i++) {
+//	CGJob *nJob = new CGJob("test job " + i, a1);
+//	nJob->addInput("INPUT1", "/tmp/INPUT.1");
+//	nJob->addInput("INPUT2", "/tmp/INPUT.2");
+//	nJob->addOutput("OUTPUT1");
+//	nJob->addOutput("OUTPUT2");
+//	jobs.push_back(nJob);
+//      }
 
       // Send the jobs to the Queue Manager
-      IDs = qm.addJobs(jobs);
+    jobs = qm.getJobsFromDb();
+    
+//cout <<     jobs->at(0)->getInputPath("INPUT1") << endl;
+//cout <<     jobs->at(0)->getOutputPath("OUTPUT1") << endl;
+    IDs = qm.addJobs(*jobs);
+    //IDs = qm.addJobs(jobs);
 
       qm.removeJob(IDs->at(0));
       

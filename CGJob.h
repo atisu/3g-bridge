@@ -24,6 +24,7 @@ public:
     void addInput(const string localname, const string fsyspath);
     void addOutput(const string localname);
     void setOutputPath(const string &localname, const string fsyspath);
+    string getName() { return name; }
     CGAlg *getType() { return type; }
     vector<string> getInputs() const;
     vector<string> getOutputs() const;

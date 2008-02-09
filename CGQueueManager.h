@@ -13,6 +13,7 @@
 #include <vector>
 #include <uuid/uuid.h>
 #include <mysql++.h>
+#include <custom.h>
 
 using namespace std;
 
@@ -28,7 +29,7 @@ public:
     vector<CGJobStatus> *getStatuses(vector<uuid_t *> &ids);
     CGJobStatus getStatus(uuid_t *id);
     void query(int timeout = 5);
-    vector<uuid_t *> *getJobsFromDb();
+    vector<CGJob *> *getJobsFromDb();
 private:
     map<string, CGAlgQueue *> algs;
     set<uuid_t *> jobIDs;

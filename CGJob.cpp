@@ -10,6 +10,7 @@ CGJob::CGJob(const string tname, CGAlg &aType):name(tname)
     inputs.clear();
     outputs.clear();
     type = &aType;
+    name = tname;
 }
 
 CGJob::~CGJob()

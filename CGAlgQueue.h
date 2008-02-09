@@ -20,7 +20,7 @@ public:
     void remove(uuid_t *id);
     CGJob *getJob(uuid_t *id) { return jobs[id]; }
     CGJobStatus getStatus(uuid_t *id);
-    CGAlg getType() { return type; }
+    CGAlg *getType() { return &type; }
 private:
     CGAlg type;
     map<uuid_t *, CGJob *> jobs;

@@ -1,4 +1,5 @@
 #include "CGQueueManager.h"
+#include "CGSqlStruct.h"
 
 #include <map>
 #include <string>
@@ -59,9 +60,13 @@ vector<uuid_t *> *CGQueueManager::addJobs(vector<CGJob *> &jobs)
  */
 uuid_t *CGQueueManager::addJob(CGJob &job)
 {
+
+// job.getInputPath("INPUT1");
+
     uuid_t *ret;
     DC_Workunit *wu;
     char *tag;
+
     CGAlgQueue *aq = algs[job.getType()->getName()];
     vector<string> inputs = job.getInputs();
     vector<string> outputs = job.getOutputs();
@@ -69,10 +74,13 @@ uuid_t *CGQueueManager::addJob(CGJob &job)
     string inputpath;
     CGAlg *type = job.getType();
     string algName = type->getName();
-        
+    
     ret = aq->add(&job);
+
     jobIDs.insert(ret);		// Add job ID
-    ID2AlgQ.insert(pair<uuid_t *, CGAlgQueue *>(ret, algs[job.getType()->getName()]));	// Add job ID -> AlgQ mapping
+
+    // Add job ID -> AlgQ mapping
+    ID2AlgQ.insert(pair<uuid_t *, CGAlgQueue *>(ret, algs[job.getType()->getName()]));
 
     // Add job id to wu_tag
     uuid_unparse(*ret, tag);
@@ -82,6 +90,7 @@ uuid_t *CGQueueManager::addJob(CGJob &job)
     if (!wu) {
 	throw DC_createWUError;
     }
+
     // Register WU inputs
     for (vector<string>::iterator it = inputs.begin(); it != inputs.end(); it++) {
 	inputpath = job.getInputPath(localname = *it);
@@ -90,6 +99,7 @@ uuid_t *CGQueueManager::addJob(CGJob &job)
 	    throw DC_addWUInputError;
 	}
     }
+
     //Register WU outputs
     for (vector<string>::iterator it = outputs.begin(); it != outputs.end(); it++) {
         localname = *it;
@@ -205,43 +215,46 @@ void CGQueueManager::query(int timeout)
     DC_destroyMasterEvent(event);
 }
 
-vector<uuid_t *> *CGQueueManager::getJobsFromDb() {
+vector<CGJob *> *CGQueueManager::getJobsFromDb() {
+    int id;
+    string name;
+    string algname;
     mysqlpp::Query query = con.query();
-    query << "select * from cg_job";
-    mysqlpp::Result res = query.store();
-    
-    vector<CGJob *> jobs;
-    vector<uuid_t *> *IDs;
-    
-    mysqlpp::Row row;
-    mysqlpp::Row::size_type i;
-    for (i = 0; row = res.at(i); ++i) {
-        // Find out which algorithm the job belongs to
-	map<string, CGAlgQueue *>::iterator it = algs.find(row["algname"].get_string());
-	if (it == algs.end()) return IDs;
-	CGAlg alg = it->second->getType();
+    vector<CGJob *> *jobs = new vector<CGJob *>();
 
-        CGJob *nJob = new CGJob(row["name"].get_string(), alg);
+    query << "select * from cg_job";
+    vector<cg_job> job;
+    query.storein(job);
+    
+    for (vector<cg_job>::iterator it = job.begin(); it != job.end(); it++) {
+	id = it->id;
+	name = it->name;
+	algname = it->algname;
+
+        // Find out which algorithm the job belongs to
+	map<string, CGAlgQueue *>::iterator at = algs.find(algname);
+	if (at == algs.end()) return jobs;
+	CGAlg *alg = at->second->getType();
 	
+        CGJob *nJob = new CGJob(name, *alg);
+
         // Get inputs for job from db
 	query.reset();
-	query << "select * from inputs where jobid = " << row["id"];
-    	mysqlpp::Result inres = query.store();
-	mysqlpp::Row inrow;
-	mysqlpp::Row::size_type j;
-	for (j = 0; inrow = inres.at(j); ++j) 
-	    nJob->addInput(inrow["localname"].get_string(), inrow["path"].get_string());
-	
+	query << "select * from cg_inputs where jobid = " << id;
+	vector<cg_inputs> in;
+	query.storein(in);
+	for (vector<cg_inputs>::iterator init = in.begin(); init != in.end(); init++)
+	    nJob->addInput(init->localname, init->path);
+		
 	// Get outputs for job from db
 	query.reset();
-	query << "select * from outputs where jobid = " << row["id"];
-    	mysqlpp::Result outres = query.store();
-	mysqlpp::Row outrow;
-	for (j = 0; outrow = outres.at(j); ++j) 
-	    nJob->addOutput(inrow["localname"].get_string());
-	
-	jobs.push_back(nJob);
+	query << "select * from cg_outputs where jobid = " << id;
+	vector<cg_outputs> out;
+	query.storein(out);
+	for (vector<cg_outputs>::iterator outit = out.begin(); outit != out.end(); outit++)
+	    nJob->addOutput(outit->localname);
+
+	jobs->push_back(nJob);
     }
-    IDs = addJobs(jobs);
-    return IDs;
+    return jobs;
 }
