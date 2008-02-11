@@ -32,7 +32,7 @@ public:
     string getId() const { return ID; }
     char *getWUId() const { return wuId; }
     void setWUId(char *sId) { wuId = strdup(sId); }
-    string getInputPath(const string &localname) const;
+    string getInputPath(const string localname) const;
     string getOutputPath(const string &localname) const;
     CGJobStatus getStatus() const { return status; }
     void setStatus(CGJobStatus nStat) { status = nStat; }

@@ -49,9 +49,14 @@ bool CGQueueManager::addAlg(CGAlg &what)
  */
 vector<uuid_t *> *CGQueueManager::addJobs(vector<CGJob *> &jobs)
 {
+cout << "Adding jobs from vector of size " << jobs.size() << endl;
+
     vector<uuid_t *> *IDs = new vector<uuid_t *>();
-    for (vector<CGJob *>::iterator it = jobs.begin(); it != jobs.end(); it++)
+    for (vector<CGJob *>::iterator it = jobs.begin(); it != jobs.end(); it++) {
 	IDs->push_back(addJob(**it));
+	break;
+    }
+    
     return IDs;
 }
 
@@ -60,8 +65,7 @@ vector<uuid_t *> *CGQueueManager::addJobs(vector<CGJob *> &jobs)
  */
 uuid_t *CGQueueManager::addJob(CGJob &job)
 {
-
-// job.getInputPath("INPUT1");
+cout << "Adding job..." << endl;
 
     uuid_t *ret;
     DC_Workunit *wu;
@@ -74,16 +78,29 @@ uuid_t *CGQueueManager::addJob(CGJob &job)
     string inputpath;
     CGAlg *type = job.getType();
     string algName = type->getName();
+
+cout << "ok2" << endl;
+cout << inputs.at(0) << endl;
+
     
     ret = aq->add(&job);
 
-    jobIDs.insert(ret);		// Add job ID
+cout << "ok3" << endl;
+
+    // Add job ID
+    jobIDs.insert(ret);
+
+cout << "ok4" << endl;
 
     // Add job ID -> AlgQ mapping
     ID2AlgQ.insert(pair<uuid_t *, CGAlgQueue *>(ret, algs[job.getType()->getName()]));
 
+cout << "ok5" << endl;
+
     // Add job id to wu_tag
     uuid_unparse(*ret, tag);
+
+cout << "ok6" << endl;
 
     // Create WU descriptor
     wu = DC_createWU(algName.c_str(), NULL, 0, tag);
@@ -91,14 +108,24 @@ uuid_t *CGQueueManager::addJob(CGJob &job)
 	throw DC_createWUError;
     }
 
+cout << "ok7" << endl;
+
     // Register WU inputs
     for (vector<string>::iterator it = inputs.begin(); it != inputs.end(); it++) {
-	inputpath = job.getInputPath(localname = *it);
+    localname = *it;
+
+cout << localname << endl;
+inputpath = job.getInputPath(localname);
+cout << inputpath << endl;
+
+//	inputpath = job.getInputPath(localname = *it);
 	
         if (DC_addWUInput(wu, localname.c_str(), inputpath.c_str(), DC_FILE_PERSISTENT)) {
 	    throw DC_addWUInputError;
 	}
     }
+
+cout << "ok8" << endl;
 
     //Register WU outputs
     for (vector<string>::iterator it = outputs.begin(); it != outputs.end(); it++) {
@@ -108,17 +135,26 @@ uuid_t *CGQueueManager::addJob(CGJob &job)
 	    throw DC_addWUOutputError;
 	}
     }
+    
+cout << "ok9" << endl;
+    
     // Submit WU
     if (DC_submitWU(wu)) {
 	throw DC_submitWUError;
     }
+
+cout << "ok10" << endl;
     
     // Set status of job to RUNNING
     job.setStatus(CG_RUNNING);
     
+cout << "ok11" << endl;
+    
     // Serialize WU and set the wuID of the job entity
     //job.setWUId(string(DC_serializeWU(wu)));
     job.setWUId(DC_serializeWU(wu));
+
+cout << "ok12" << endl;
     
     return ret;
 }
@@ -215,8 +251,38 @@ void CGQueueManager::query(int timeout)
     DC_destroyMasterEvent(event);
 }
 
-vector<CGJob *> *CGQueueManager::getJobsFromDb() {
-    int id;
+vector<CGJob *> *CGQueueManager::getJobsFromDb(CGAlg a1) {
+
+cout << "as" << endl;
+
+    vector<CGJob *> *jobs = new vector<CGJob *>();
+
+    // Find out which algorithm the job belongs to
+//    map<string, CGAlgQueue *>::iterator at = algs.find("flexmol");
+//    if (at == algs.end()) return jobs;
+//    CGAlg *alg = at->second->getType();
+    
+
+
+    CGJob *nJob = new CGJob("test", a1);
+
+cout << "as1" << endl;
+
+    nJob->addInput("INPUT1", "/tmp/INPUT.1");
+    nJob->addOutput("OUTPUT1");
+
+cout << "as2 " << nJob->getInputPath("INPUT1") << endl;
+
+    jobs->push_back(nJob);
+
+cout << "as3" << endl;
+
+cout << "Jobs vector size: " << jobs->size() << endl;
+
+    return jobs;
+    
+
+/*    int id;
     string name;
     string algname;
     mysqlpp::Query query = con.query();
@@ -257,4 +323,5 @@ vector<CGJob *> *CGQueueManager::getJobsFromDb() {
 	jobs->push_back(nJob);
     }
     return jobs;
+*/
 }

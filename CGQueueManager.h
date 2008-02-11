@@ -29,7 +29,7 @@ public:
     vector<CGJobStatus> *getStatuses(vector<uuid_t *> &ids);
     CGJobStatus getStatus(uuid_t *id);
     void query(int timeout = 5);
-    vector<CGJob *> *getJobsFromDb();
+    vector<CGJob *> *getJobsFromDb(CGAlg a1);
 private:
     map<string, CGAlgQueue *> algs;
     set<uuid_t *> jobIDs;
