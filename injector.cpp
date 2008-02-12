@@ -25,6 +25,7 @@ int main(int argc, char **argv)
     Connection con;
     CmdLine cmd("--== Prototype job submitter for Cancergrid ==--", ' ', "1.0");
     string jobName = "";
+    string cmdLine = "";
     string algName = "";
     string inLocal = "";
     string inPath = "";
@@ -36,6 +37,8 @@ int main(int argc, char **argv)
 	
 	// Jobname
 	ValueArg<string> jobNameArg("j", "jobname", "Name of job", true, "default", "string");
+	// Command-line params
+	ValueArg<string> cmdLineArg("c", "cmdline", "Command-line arguments to be passed to the job", true, "default", "string");
 	// Algorithm Name
 	ValueArg<string> algNameArg("a", "algname", "Name of algorithm", true, "default", "string");
 	// Comma separated local name of inputs
@@ -47,6 +50,7 @@ int main(int argc, char **argv)
 
 	// add parameters to command-line parse object
 	cmd.add(jobNameArg);
+	cmd.add(cmdLineArg);
 	cmd.add(algNameArg);
 	cmd.add(inLocalArg);
 	cmd.add(inPathArg);
@@ -57,6 +61,7 @@ int main(int argc, char **argv)
 	
 	// Store command-line arguments
 	jobName  = jobNameArg.getValue();
+	cmdLine  = cmdLineArg.getValue();
 	algName  = algNameArg.getValue(); 
 	inLocal  = inLocalArg.getValue();
 	inPath   = inPathArg.getValue();

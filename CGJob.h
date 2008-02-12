@@ -13,6 +13,7 @@ class CGJob {
 private:
     CGAlg *type;
     string name;
+    string cmdline;
     string ID;
     char *wuId;
     map<string, string> inputs;
@@ -25,12 +26,14 @@ public:
     void addOutput(const string localname);
     void setOutputPath(const string &localname, const string fsyspath);
     string getName() { return name; }
+    string getCmdLine() { return cmdline; }
     CGAlg *getType() { return type; }
     vector<string> getInputs() const;
     vector<string> getOutputs() const;
     void setId(const string tID) { ID = tID; }
     string getId() const { return ID; }
     char *getWUId() const { return wuId; }
+    void setCmdLine(string cline) { cmdline = cline; }
     void setWUId(char *sId) { wuId = strdup(sId); }
     string getInputPath(const string localname) const;
     string getOutputPath(const string &localname) const;
