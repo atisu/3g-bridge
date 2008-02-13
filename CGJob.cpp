@@ -1,4 +1,3 @@
-#include <iostream>
 #include <map>
 #include <string>
 
@@ -55,9 +54,7 @@ vector<string> CGJob::getOutputs() const
 
 string CGJob::getInputPath(const string localname) const
 {
-    cout << "Entered getInputPath(), localname to find " << localname <<  endl;
     map<string, string>::const_iterator it = inputs.find(localname);
-    cout << "Inputpath: " << it->second << endl;
     return it->second;
 }
 
