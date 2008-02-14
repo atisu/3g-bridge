@@ -248,7 +248,7 @@ vector<CGJob *> *CGQueueManager::getJobsFromDb() {
     for (vector<cg_job>::iterator it = job.begin(); it != job.end(); it++) {
 	id = it->id;
 	name = it->name;
-	cmdlineargs = it->cmdlineargs;
+	cmdlineargs = it->args;
 	algname = it->algname;
 	
 	// create null terminated list from cmdlineargs string

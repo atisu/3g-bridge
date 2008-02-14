@@ -7,7 +7,7 @@ using namespace std;
 sql_create_4(cg_job, 1, 4,
     int,	id,
     string, 	name,
-    string, 	cmdlineargs,
+    string, 	args,
     string,	algname)
 
 

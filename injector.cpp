@@ -1,7 +1,10 @@
 #include <iostream>
 #include <sstream>
+#include <map>
 #include <string>
 #include <mysql++.h>
+#include <transaction.h>
+#include <null.h>
 #include <custom.h>
 #include <tclap/CmdLine.h>
 
@@ -74,14 +77,45 @@ int main(int argc, char **argv)
 	vector<string> in = explode(',', inLocal);
 	vector<string> inp = explode(',', inPath);
 	vector<string> out = explode(',', outLocal);
+	map<string, string> *inputs = new map<string, string>();
 	
-	// insert into mysql...
-	cg_job job_row(0, jobName, cmdLine, algName);
-	query.insert(job_row);
-	query.execute();
-	query.reset();
+	if (in.size() != inp.size()) {
+	    cerr << "Inlocal and Inpath parameters must have the same number of elements" << endl;
+	    exit(-1);
+	}
+	// make map of input local names and input paths
+	for (int i = 0; i < in.size(); i++)
+	    inputs->insert(make_pair(in.at(i), inp.at(i)));
+	    
+	{ // transaction scope
+	    Transaction trans(con);
+    	    // insert into mysql...
+	    cg_job job_row(0, jobName, cmdLine, algName);
+    	    query.insert(job_row);
+	    query.execute();
+	    query.reset();
 	
-	
+    	    // get row id of new job
+	    query << "SELECT * FROM cg_job WHERE name = \"" << jobName << "\""; 
+	    vector<cg_job> job;
+	    query.storein(job);
+	    int id = job.at(0).id;
+	    
+	    for(map<string, string>::iterator it = inputs->begin(); it != inputs->end(); it++) {
+		cg_inputs input_row(0, it->first, it->second, id);
+		query.insert(input_row);
+		query.execute();
+		query.reset();
+	    }
+	    
+	    for(vector<string>::iterator it = out.begin(); it != out.end(); it++) {
+		cg_outputs output_row(0, *it, "", id);
+		query.insert(output_row);
+		query.execute();
+		query.reset();
+	    }
+	    trans.commit();
+	} // end of transaction scope
     } catch (exception& ex) {
 	cerr << ex.what() << endl;
 	return -1;
