@@ -25,7 +25,7 @@ int main(int argc, char **argv)
 
       // Create some jobs belonging to Algorith type A1
 //      for (int i = 0; i < 10; i++) {
-//	CGJob *nJob = new CGJob("test job " + i, a1);
+//
 //	nJob->addInput("INPUT1", "/tmp/INPUT.1");
 //	nJob->addInput("INPUT2", "/tmp/INPUT.2");
 //	nJob->addOutput("OUTPUT1");
@@ -33,6 +33,7 @@ int main(int argc, char **argv)
 //	jobs.push_back(nJob);
 //      }
 
+	
       // Send the jobs to the Queue Manager
     vector<CGJob *> *jobs;
     jobs = qm.getJobsFromDb();
@@ -41,6 +42,8 @@ int main(int argc, char **argv)
 //cout <<     jobs->at(0)->getOutputPath("OUTPUT1") << endl;
     
 IDs = qm.addJobs(*jobs);
+
+    jobs = qm.getJobsFromDb();
 //    IDs = qm.addJobs(jobs);
     
 cout << "Jobs added to QM, IDs.size = " << IDs->size() << endl;

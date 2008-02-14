@@ -16,6 +16,7 @@
 #include <custom.h>
 
 using namespace std;
+using namespace mysqlpp;
 
 class CGQueueManager {
 public:
@@ -34,7 +35,7 @@ private:
     map<string, CGAlgQueue *> algs;
     set<uuid_t *> jobIDs;
     map<uuid_t *, CGAlgQueue *> ID2AlgQ;
-    mysqlpp::Connection con;
+    Connection con;
 };
 
 #endif  /* __CGQUEUEMANAGER_H */

@@ -2,8 +2,10 @@
 #include "CGSqlStruct.h"
 
 #include <map>
+#include <list>
 #include <string>
 #include <iostream>
+#include <sstream>
 #include <uuid/uuid.h>
 #include <mysql++.h>
 
@@ -49,12 +51,9 @@ bool CGQueueManager::addAlg(CGAlg &what)
  */
 vector<uuid_t *> *CGQueueManager::addJobs(vector<CGJob *> &jobs)
 {
-cout << "Adding jobs from vector of size " << jobs.size() << endl;
-
     vector<uuid_t *> *IDs = new vector<uuid_t *>();
     for (vector<CGJob *>::iterator it = jobs.begin(); it != jobs.end(); it++)
 	IDs->push_back(addJob(**it));
-    
     return IDs;
 }
 
@@ -86,6 +85,8 @@ uuid_t *CGQueueManager::addJob(CGJob &job)
     // Add job id to wu_tag
     uuid_unparse(*ret, tag);
 
+    //const char **arg = job.getCmdLine();
+    
     // Create WU descriptor
     wu = DC_createWU(algName.c_str(), NULL, 0, tag);
     delete [] tag;
@@ -172,17 +173,17 @@ CGJobStatus CGQueueManager::getStatus(uuid_t *id)
 void CGQueueManager::query(int timeout)
 {
     DC_MasterEvent *event;
-    DC_Workunit *wu;
+    static DC_Workunit *wu;
     DC_Result *result;
     char *outfilename, *wutag;
     uuid_t *jobid;
     CGJob *job;
     vector<string> outputs;
     string localname;
-
-    event = DC_waitWUEvent(wu, timeout);
     
-    if (event->type == DC_MASTER_RESULT) {
+    event = DC_waitMasterEvent(NULL, timeout);
+
+    if (event != NULL && event->type == DC_MASTER_RESULT) {
 	wutag = DC_getWUTag(wu);
 	uuid_parse(wutag, *jobid);
 	job = ID2AlgQ[jobid]->getJob(jobid);
@@ -213,32 +214,65 @@ void CGQueueManager::query(int timeout)
 	job->setStatus(CG_FINISHED);
 	
 	DC_destroyWU(wu);
+
     }
     DC_destroyMasterEvent(event);
 }
 
 vector<CGJob *> *CGQueueManager::getJobsFromDb() {
-    int id;
+    int id, i = 0;
     string name;
+    string cmdlineargs;
+    string token;
     string algname;
     mysqlpp::Query query = con.query();
     vector<CGJob *> *jobs = new vector<CGJob *>();
 
-    query << "select * from cg_job";
+    // select new jobs from db, let mysql filter already got jobs
+    query << "SELECT * FROM cg_job WHERE name NOT IN (";
+    string oldjobs = "";
+    for (map<string, CGAlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
+    {
+	CGAlgQueue *aq = it->second;
+	map<uuid_t *, CGJob *> jobs = aq->getJobs();
+	for(map<uuid_t *, CGJob *>::iterator at = jobs.begin(); at != jobs.end(); at++)
+	{
+	    oldjobs += "\"" + at->second->getName() + "\", ";
+	}
+    }
+    oldjobs += "\"\"";
+    query << oldjobs << ")";
     vector<cg_job> job;
     query.storein(job);
     
     for (vector<cg_job>::iterator it = job.begin(); it != job.end(); it++) {
 	id = it->id;
 	name = it->name;
+	cmdlineargs = it->cmdlineargs;
 	algname = it->algname;
-
+	
+	// create null terminated list from cmdlineargs string
+        list<string> *arglist = new list<string>();
+	istringstream iss(cmdlineargs);
+	while (getline(iss, token, ' '))
+	    arglist->push_back(token);
+	int size = arglist->size() + 1; // + null terminator
+	const char *args[size];
+	for (list<string>::iterator it = arglist->begin(); it != arglist->end(); it++) {
+	    int arglength = it->length();
+	    const char *argtoken = new char[arglength];
+	    argtoken = it->c_str();
+	    args[i] = argtoken;
+	    i++;
+	}
+	args[i] = NULL; // null terminator
+	
         // Find out which algorithm the job belongs to
 	map<string, CGAlgQueue *>::iterator at = algs.find(algname);
 	if (at == algs.end()) return jobs;
 	CGAlg *alg = at->second->getType();
 	
-        CGJob *nJob = new CGJob(name, *alg);
+        CGJob *nJob = new CGJob(name, args, *alg);
 
         // Get inputs for job from db
 	query.reset();

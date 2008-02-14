@@ -1,8 +1,11 @@
 #include <iostream>
 #include <sstream>
+#include <string>
 #include <mysql++.h>
 #include <custom.h>
 #include <tclap/CmdLine.h>
+
+#include "CGSqlStruct.h"
 
 using namespace TCLAP;
 using namespace mysqlpp;
@@ -73,6 +76,11 @@ int main(int argc, char **argv)
 	vector<string> out = explode(',', outLocal);
 	
 	// insert into mysql...
+	cg_job job_row(0, jobName, cmdLine, algName);
+	query.insert(job_row);
+	query.execute();
+	query.reset();
+	
 	
     } catch (exception& ex) {
 	cerr << ex.what() << endl;

@@ -19,6 +19,7 @@ public:
     void remove(vector<uuid_t *> *ids);
     void remove(uuid_t *id);
     CGJob *getJob(uuid_t *id) { return jobs[id]; }
+    map<uuid_t *, CGJob *>getJobs() { return jobs; }
     CGJobStatus getStatus(uuid_t *id);
     CGAlg *getType() { return &type; }
 private:
