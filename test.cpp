@@ -43,7 +43,9 @@ int main(int argc, char **argv)
     
 IDs = qm.addJobs(*jobs);
 
-    jobs = qm.getJobsFromDb();
+//    jobs = qm.getJobsFromDb();
+    
+//    jobs->at(0)->ge
 //    IDs = qm.addJobs(jobs);
     
 cout << "Jobs added to QM, IDs.size = " << IDs->size() << endl;

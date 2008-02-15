@@ -13,35 +13,29 @@ int main(int argc, char **argv)
       CGQueueManager qm(argv[1], "boinc_szdgr", "0", "boinc-szdgr", "VfxVqw0PHT");
     
       // Create algorithms
-      CGAlg _2d3dConv("2D/3D Converter", CG_ALG_GRID);
-      CGAlg flexmol("Flexmol", CG_ALG_GRID);
-      CGAlg mopac("Mopac", CG_ALG_GRID);      
-      CGAlg moldesccalc("Molecule Descriptor Calculator", CG_ALG_GRID);
+      CGAlg _2d3dConv("2d3dconv", CG_ALG_GRID);
+      CGAlg flexmol("flexmol", CG_ALG_GRID);
+      CGAlg mopac("mopac", CG_ALG_GRID);      
+      CGAlg molDescCalc("moldesccalc", CG_ALG_GRID);
 
       // Add the algorithm to the Queue Manager
       // The QM creates the Algorithm Queue
       qm.addAlg(_2d3dConv);
       qm.addAlg(flexmol);
       qm.addAlg(mopac);
-      qm.addAlg(moldesccalc);
+      qm.addAlg(molDescCalc);
 
       vector<uuid_t *> *IDs = new vector<uuid_t *>;
       vector<uuid_t *> *tempIDs;
       vector<CGJob *> *jobs;
       
       while (true) {
-	cout << "." << endl;
-        qm.query(5);
         jobs = qm.getJobsFromDb();
 	tempIDs = qm.addJobs(*jobs);
 	for (vector<uuid_t *>::iterator it = tempIDs->begin(); it != tempIDs->end(); it++)
 	    IDs->push_back(*it);
-	
-	for (vector<uuid_t *>::iterator it = IDs->begin(); it != IDs->end(); it++)
-	{
-	    cout << *it << endl;
-	}
-	
+	// Query database for newly returned results
+	qm.query(5);
       }
     } catch (int Error) {
        if (Error == DC_initMasterError  ||

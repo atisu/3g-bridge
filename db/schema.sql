@@ -1,7 +1,12 @@
+/*
+ * Schema description for CG
+ */
+
 
 create table cg_job (
     id                  integer     not null auto_increment,
     name                varchar(254) not null,
+    args		varchar(254) not null,
     algname		varchar(254) not null,
     primary key (id)
 ) type=InnoDB;

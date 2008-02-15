@@ -1,19 +1,17 @@
 #include <map>
 #include <string>
-#include <iostream>
+#include <cstring>
 
 #include "CGJob.h"
 
 using namespace std;
 
-CGJob::CGJob(const string tname, const char *args[], CGAlg &aType):name(tname)
+CGJob::CGJob(const string tname, list<string> *arglist, CGAlg &aType):name(tname)
 {
     inputs.clear();
     outputs.clear();
     type = &aType;
-    cmdlineargs = args;
-
-//    cout << "Job constr: " << cmdlineargs[0] << endl;
+    argv = arglist;
 }
 
 CGJob::~CGJob()

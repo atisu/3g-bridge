@@ -116,6 +116,9 @@ int main(int argc, char **argv)
 	    }
 	    trans.commit();
 	} // end of transaction scope
+    } catch (const BadQuery& er) {
+	 cout << "Job with name '" << jobName << "' already exists. Choose another name!" << endl;
+	 return -1;
     } catch (exception& ex) {
 	cerr << ex.what() << endl;
 	return -1;

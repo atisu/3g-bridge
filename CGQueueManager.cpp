@@ -85,11 +85,27 @@ uuid_t *CGQueueManager::addJob(CGJob &job)
     // Add job id to wu_tag
     uuid_unparse(*ret, tag);
 
-    //const char **arg = job.getCmdLine();
-    
+    // Get command line parameters and create null-terminated list
+    list<string> *arglist = job.getArgv();
+    int i = 0, size = arglist->size() + 1;
+    const char *argv[size];
+    for (list<string>::iterator it = arglist->begin(); it != arglist->end(); it++) {
+	int arglength = it->length();
+	const char *argtoken = new char[arglength];
+	argtoken = it->c_str();
+	argv[i] = argtoken;
+	i++;
+    }
+    argv[i] = NULL;
+
     // Create WU descriptor
-    wu = DC_createWU(algName.c_str(), NULL, 0, tag);
+    wu = DC_createWU(algName.c_str(), argv, 0, tag);
+    // Free allocated c strings
     delete [] tag;
+    for (i = size - 1; i = 0; i--) {
+	delete [] argv[i];
+    }
+
     if (!wu) {
 	throw DC_createWUError;
     }
@@ -106,8 +122,7 @@ uuid_t *CGQueueManager::addJob(CGJob &job)
     //Register WU outputs
     for (vector<string>::iterator it = outputs.begin(); it != outputs.end(); it++) {
         localname = *it;
-	
-        if (DC_addWUOutput(wu, localname.c_str())) {
+	if (DC_addWUOutput(wu, localname.c_str())) {
 	    throw DC_addWUOutputError;
 	}
     }
@@ -170,6 +185,10 @@ CGJobStatus CGQueueManager::getStatus(uuid_t *id)
     return ID2AlgQ[id]->getStatus(id);
 }
 
+/*
+ * Query database for any returning results 
+ * and set output paths of jobs, if ready
+ */
 void CGQueueManager::query(int timeout)
 {
     DC_MasterEvent *event;
@@ -183,7 +202,7 @@ void CGQueueManager::query(int timeout)
     
     event = DC_waitMasterEvent(NULL, timeout);
 
-    if (event != NULL && event->type == DC_MASTER_RESULT) {
+    if (event && event->type == DC_MASTER_RESULT) {
 	wutag = DC_getWUTag(wu);
 	uuid_parse(wutag, *jobid);
 	job = ID2AlgQ[jobid]->getJob(jobid);
@@ -195,30 +214,30 @@ void CGQueueManager::query(int timeout)
 	    return;
 	}
     
+	// Retreive paths of result
 	outputs = job->getOutputs();
-	
 	for (vector<string>::iterator it = outputs.begin(); it != outputs.end(); it++) {
 	    localname = *it;
 	    
 	    outfilename = DC_getResultOutput(event->result, localname.c_str());
-	    
 	    if (!outfilename) {
 	    	cerr << "No output for job with id " << wutag << endl;
     		job->setStatus(CG_ERROR);
     		DC_destroyWU(wu);
 		return;
 	    }
-	    
 	    job->setOutputPath(localname, outfilename);
 	}
 	job->setStatus(CG_FINISHED);
 	
 	DC_destroyWU(wu);
-
     }
     DC_destroyMasterEvent(event);
 }
 
+/*
+ * Call this periodically to check for new jobs to be submitted
+ */
 vector<CGJob *> *CGQueueManager::getJobsFromDb() {
     int id, i = 0;
     string name;
@@ -228,7 +247,7 @@ vector<CGJob *> *CGQueueManager::getJobsFromDb() {
     mysqlpp::Query query = con.query();
     vector<CGJob *> *jobs = new vector<CGJob *>();
 
-    // select new jobs from db, let mysql filter already got jobs
+    // select new jobs from db, let mysql filter jobs already queued
     query << "SELECT * FROM cg_job WHERE name NOT IN (";
     string oldjobs = "";
     for (map<string, CGAlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
@@ -246,33 +265,25 @@ vector<CGJob *> *CGQueueManager::getJobsFromDb() {
     query.storein(job);
     
     for (vector<cg_job>::iterator it = job.begin(); it != job.end(); it++) {
+    
 	id = it->id;
 	name = it->name;
 	cmdlineargs = it->args;
 	algname = it->algname;
 	
-	// create null terminated list from cmdlineargs string
+	// Vectorize cmdlineargs string
         list<string> *arglist = new list<string>();
 	istringstream iss(cmdlineargs);
 	while (getline(iss, token, ' '))
 	    arglist->push_back(token);
-	int size = arglist->size() + 1; // + null terminator
-	const char *args[size];
-	for (list<string>::iterator it = arglist->begin(); it != arglist->end(); it++) {
-	    int arglength = it->length();
-	    const char *argtoken = new char[arglength];
-	    argtoken = it->c_str();
-	    args[i] = argtoken;
-	    i++;
-	}
-	args[i] = NULL; // null terminator
 	
         // Find out which algorithm the job belongs to
 	map<string, CGAlgQueue *>::iterator at = algs.find(algname);
 	if (at == algs.end()) return jobs;
 	CGAlg *alg = at->second->getType();
-	
-        CGJob *nJob = new CGJob(name, args, *alg);
+
+	// Create new job descriptor	
+        CGJob *nJob = new CGJob(name, arglist, *alg);
 
         // Get inputs for job from db
 	query.reset();
