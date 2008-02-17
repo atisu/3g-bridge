@@ -95,19 +95,21 @@ int main(int argc, char **argv)
 	    query.execute();
 	    query.reset();
 	
-    	    // get row id of new job
+    	    // Get row id of new job
 	    query << "SELECT * FROM cg_job WHERE name = \"" << jobName << "\""; 
 	    vector<cg_job> job;
 	    query.storein(job);
 	    int id = job.at(0).id;
 	    
+	    // Put inputs in cg_inputs table
 	    for(map<string, string>::iterator it = inputs->begin(); it != inputs->end(); it++) {
 		cg_inputs input_row(0, it->first, it->second, id);
 		query.insert(input_row);
 		query.execute();
 		query.reset();
 	    }
-	    
+
+	    // Put outputs in cg_outputs table
 	    for(vector<string>::iterator it = out.begin(); it != out.end(); it++) {
 		cg_outputs output_row(0, *it, "", id);
 		query.insert(output_row);

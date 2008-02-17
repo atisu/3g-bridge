@@ -31,6 +31,7 @@ public:
     CGJobStatus getStatus(uuid_t *id);
     void query(int timeout = 5);
     vector<CGJob *> *getJobsFromDb();
+    void putOutputsToDb();
 private:
     map<string, CGAlgQueue *> algs;
     set<uuid_t *> jobIDs;

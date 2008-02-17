@@ -25,7 +25,7 @@ public:
     ~CGJob();
     void addInput(const string localname, const string fsyspath);
     void addOutput(const string localname);
-    void setOutputPath(const string &localname, const string fsyspath);
+    void setOutputPath(const string localname, const string fsyspath);
     string getName() { return name; }
     list<string> *getArgv() { return argv; }
     CGAlg *getType() { return type; }
@@ -36,7 +36,7 @@ public:
     char *getWUId() const { return wuId; }
     void setWUId(char *sId) { wuId = strdup(sId); }
     string getInputPath(const string localname) const;
-    string getOutputPath(const string &localname) const;
+    string getOutputPath(const string localname);
     CGJobStatus getStatus() const { return status; }
     void setStatus(CGJobStatus nStat) { status = nStat; }
 };

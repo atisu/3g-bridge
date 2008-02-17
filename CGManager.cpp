@@ -26,22 +26,23 @@ int main(int argc, char **argv)
       qm.addAlg(molDescCalc);
 
       vector<uuid_t *> *IDs = new vector<uuid_t *>;
-      vector<uuid_t *> *tempIDs;
       vector<CGJob *> *jobs;
       
       while (true) {
         jobs = qm.getJobsFromDb();
-	tempIDs = qm.addJobs(*jobs);
+        vector<uuid_t *> *tempIDs = qm.addJobs(*jobs);
 	for (vector<uuid_t *>::iterator it = tempIDs->begin(); it != tempIDs->end(); it++)
-	    IDs->push_back(*it);
+    	    IDs->push_back(*it);
+
 	// Query database for newly returned results
 	qm.query(5);
+	qm.putOutputsToDb();
       }
     } catch (int Error) {
-       if (Error == DC_initMasterError  ||
+       if (Error == DC_initMasterError  || 
            Error == DC_createWUError    || 
-	   Error == DC_addWUInputError  ||
-	   Error == DC_addWUOutputError ||
+	   Error == DC_addWUInputError  || 
+	   Error == DC_addWUOutputError || 
 	   Error == DC_submitWUError) {
            cerr << "DC-API has encountered an error, see DC-API logs for specific error messages" << endl;
 	   return -1;
