@@ -4,12 +4,12 @@
 
 using namespace std;
 
-sql_create_4(cg_job, 1, 4,
+sql_create_5(cg_job, 1, 5,
     int,	id,
     string, 	name,
     string, 	args,
-    string,	algname)
-
+    string,	algname,
+    string,	status)
 
 sql_create_4(cg_inputs, 1, 4,
     int, 	id,

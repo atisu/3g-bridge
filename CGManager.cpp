@@ -27,11 +27,12 @@ int main(int argc, char **argv)
 
       vector<uuid_t *> *IDs = new vector<uuid_t *>;
       vector<CGJob *> *jobs;
-      
+
       while (true) {
+        // Get new jobs from database
         jobs = qm.getJobsFromDb();
         vector<uuid_t *> *tempIDs = qm.addJobs(*jobs);
-	for (vector<uuid_t *>::iterator it = tempIDs->begin(); it != tempIDs->end(); it++)
+        for (vector<uuid_t *>::iterator it = tempIDs->begin(); it != tempIDs->end(); it++)
     	    IDs->push_back(*it);
 
 	// Query database for newly returned results

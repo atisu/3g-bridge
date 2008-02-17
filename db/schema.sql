@@ -8,6 +8,7 @@ create table cg_job (
     name                varchar(254) not null,
     args		varchar(254) not null,
     algname		varchar(254) not null,
+    status		varchar(254) not null,
     primary key (id)
 ) type=InnoDB;
 

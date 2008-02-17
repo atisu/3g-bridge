@@ -70,8 +70,7 @@ uuid_t *CGQueueManager::addJob(CGJob &job)
     CGAlgQueue *aq = algs[job.getType()->getName()];
     vector<string> inputs = job.getInputs();
     vector<string> outputs = job.getOutputs();
-    string localname;
-    string inputpath;
+    string localname, inputpath;
     CGAlg *type = job.getType();
     string algName = type->getName();
 
@@ -123,9 +122,10 @@ uuid_t *CGQueueManager::addJob(CGJob &job)
     //Register WU outputs
     for (vector<string>::iterator it = outputs.begin(); it != outputs.end(); it++) {
         localname = *it;
-	if (DC_addWUOutput(wu, localname.c_str())) {
-	    throw DC_addWUOutputError;
-	}
+	// Do not register stdout and stderr as inputs
+	if (localname.compare("stdout.txt") && localname.compare("stderr.txt"))
+	    if (DC_addWUOutput(wu, localname.c_str()))
+		throw DC_addWUOutputError;
     }
     
     // Submit WU
@@ -192,7 +192,7 @@ CGJobStatus CGQueueManager::getStatus(uuid_t *id)
  */
 void CGQueueManager::query(int timeout)
 {
-    CGJob *job;
+    CGJob *job = NULL;
     DC_MasterEvent *event;
     char *wutag;
     uuid_t *id = new uuid_t[1];
@@ -203,7 +203,6 @@ void CGQueueManager::query(int timeout)
 
     // If we have a result
     if (event && event->type == DC_MASTER_RESULT) {
-
 	wutag = DC_getWUTag(event->wu);
 	if(uuid_parse(wutag, *id) == -1) {
 	    cerr << "Failed to parse uuid" << endl;
@@ -217,17 +216,28 @@ void CGQueueManager::query(int timeout)
 		job = ID2AlgQ[*it]->getJob(*it);
         }
 	free(id);
-
+	
+	// If we could not find the corresponding job
+	if (!job) {
+	    cerr << "Could not find job!" << endl;
+	    return;
+	}
+	    
         if (!event->result) {
     	    cerr << "Job with id " << wutag << " has failed" << endl;
 	    job->setStatus(CG_ERROR);
 	    return;
 	}
-        // Retreive paths of result
+        // Retreive paths of result, including stdout and stderr
         outputs = job->getOutputs();
 	for (vector<string>::iterator it = outputs.begin(); it != outputs.end(); it++) {
 	    localname = *it;
-    	    outfilename = string(DC_getResultOutput(event->result, localname.c_str()));
+	    if (localname.compare("stdout.txt") == 0)
+		outfilename = string(DC_getResultOutput(event->result, DC_LABEL_STDOUT));
+	    else if (localname.compare("stderr.txt") == 0)
+		outfilename = string(DC_getResultOutput(event->result, DC_LABEL_STDERR));
+	    else
+		outfilename = string(DC_getResultOutput(event->result, localname.c_str()));
 	    if (outfilename.empty()) {
     	        cerr << "No output for job with id " << wutag << endl;
     		job->setStatus(CG_ERROR);
@@ -235,12 +245,6 @@ void CGQueueManager::query(int timeout)
 	    }
 	    job->setOutputPath(localname, outfilename);
 	}
-	// Also set the path of stdout and stderr
-//	job->addOutput("stdout.txt");
-//	job->setOutputPath("stdout.txt", string(DC_getResultOutput(event->result, "DC_LABEL_STDOUT")));
-//	job->addOutput("stderr.txt");
-//	job->setOutputPath("stderr.txt", string(DC_getResultOutput(event->result, "DC_LABEL_STDERR")));
-
 	// Set status of job to finished
         job->setStatus(CG_FINISHED);
     }
@@ -265,31 +269,37 @@ void CGQueueManager::putOutputsToDb() {
     		vector<cg_job> s_job;
 		query.storein(s_job);
 		int id = s_job.at(0).id;
+		string status = s_job.at(0).status;
 
-		// Put stdout and stderr rows in cg_outputs, before setting path values
-//		cg_outputs row_1(0, "stdout.txt", "", id);
-//		query.reset();
-//		query.insert(row_1);
-//		query.execute();
-//		cg_outputs row_2(0, "stderr.txt", "", id);
-//		query.reset();
-//		query.insert(row_2);
-//		query.execute();
-		
-		// Update the path fields of cg_outputs table
-		query.reset();
-		query << "SELECT * FROM cg_outputs WHERE jobid = " << id;
-		vector<cg_outputs> outputs;
-		query.storein(outputs);
-		for (vector<cg_outputs>::iterator it = outputs.begin(); it != outputs.end(); it++) {
+		// Select only jobs that are in CG_RUNNING state
+		if (status.compare("CG_RUNNING") == 0) {
+		    // Put stdout and stderr rows in cg_outputs, 
+		    // before setting path values
+    	    	    cg_outputs row_1(0, "stdout.txt", "", id);
 		    query.reset();
-		    query << "UPDATE cg_outputs SET path = \"" 
-			  << job->getOutputPath(it->localname)
-			  << "\" WHERE jobid = " << id 
-			  << " AND localname = \"" << it->localname << "\"";
-
-//cout << query.preview() << endl;
+		    query.insert(row_1);
 		    query.execute();
+		    cg_outputs row_2(0, "stderr.txt", "", id);
+		    query.reset();
+		    query.insert(row_2);
+		    query.execute();
+		    
+    	    	    // Update the path fields of cg_outputs table
+		    query.reset();
+		    query << "SELECT * FROM cg_outputs WHERE jobid = " << id;
+		    vector<cg_outputs> outputs;
+		    query.storein(outputs);
+		    for (vector<cg_outputs>::iterator it = outputs.begin(); it != outputs.end(); it++) {
+			query.reset();
+			query << "UPDATE cg_outputs SET path = \"" 
+			      << job->getOutputPath(it->localname)
+			    << "\" WHERE jobid = " << id 
+			    << " AND localname = \"" << it->localname << "\"";
+			query.execute();
+		    }
+		    // Set status of job to CG_FINISHED
+		    query << "UPDATE cg_job SET status = \"CG_FINISHED\" WHERE id = " << id; 
+		    query.execute();	
 		}
 	    }
 	}
@@ -309,23 +319,11 @@ vector<CGJob *> *CGQueueManager::getJobsFromDb() {
     vector<CGJob *> *jobs = new vector<CGJob *>();
 
     // select new jobs from db, let mysql filter jobs already queued
-    query << "SELECT * FROM cg_job WHERE name NOT IN (";
-    string oldjobs = "";
-    for (map<string, CGAlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
-    {
-	CGAlgQueue *aq = it->second;
-	map<uuid_t *, CGJob *> jobs = aq->getJobs();
-	for(map<uuid_t *, CGJob *>::iterator at = jobs.begin(); at != jobs.end(); at++)
-	{
-	    oldjobs += "\"" + at->second->getName() + "\", ";
-	}
-    }
-    oldjobs += "\"\"";
-    query << oldjobs << ")";
-    vector<cg_job> job;
-    query.storein(job);
+    query << "SELECT * FROM cg_job WHERE status = \"CG_INIT\"";
+    vector<cg_job> nJobs;
+    query.storein(nJobs);
     
-    for (vector<cg_job>::iterator it = job.begin(); it != job.end(); it++) {
+    for (vector<cg_job>::iterator it = nJobs.begin(); it != nJobs.end(); it++) {
     	id = it->id;
 	name = it->name;
 	cmdlineargs = it->args;
@@ -359,9 +357,17 @@ vector<CGJob *> *CGQueueManager::getJobsFromDb() {
 	vector<cg_outputs> out;
 	query.storein(out);
 	for (vector<cg_outputs>::iterator it = out.begin(); it != out.end(); it++)
-	    nJob->addOutput(it->localname);
+	    nJob->addOutput(string(it->localname));
+	// Also register stdout and stderr	
+	nJob->addOutput("stdout.txt");
+	nJob->addOutput("stderr.txt");
 
 	jobs->push_back(nJob);
+	
+	// Set status of job in cg_job table to running
+	query.reset();
+	query << "UPDATE cg_job SET status = \"CG_RUNNING\" WHERE id = " << id;
+	query.execute();
     }
     return jobs;
 }

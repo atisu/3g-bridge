@@ -11,7 +11,7 @@
 using namespace std;
 
 class CGJob {
-public:
+private:
     CGAlg *type;
     string name;
     list<string> *argv;

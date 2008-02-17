@@ -90,7 +90,7 @@ int main(int argc, char **argv)
 	{ // transaction scope
 	    Transaction trans(con);
     	    // insert into mysql...
-	    cg_job job_row(0, jobName, cmdLine, algName);
+	    cg_job job_row(0, jobName, cmdLine, algName, "CG_INIT");
     	    query.insert(job_row);
 	    query.execute();
 	    query.reset();
