@@ -197,7 +197,7 @@ void CGQueueManager::query(int timeout)
     char *wutag;
     uuid_t *id = new uuid_t[1];
     vector<string> outputs;
-    string localname, outfilename;
+    string localname, outfilename, algname, workdir;
     
     event = DC_waitMasterEvent(NULL, timeout);
 
@@ -214,6 +214,7 @@ void CGQueueManager::query(int timeout)
 	    uuid_t * p = *it;
 	    if (uuid_compare(*p, *id) == 0) 
 		job = ID2AlgQ[*it]->getJob(*it);
+		algname = ID2AlgQ[*it]->getType()->getName();
         }
 	free(id);
 	
@@ -229,24 +230,60 @@ void CGQueueManager::query(int timeout)
 	    return;
 	}
         // Retreive paths of result, including stdout and stderr
+	char *cwd = getcwd(NULL, 0);
+	workdir = string(cwd);
+	free(cwd);
+	workdir += "/";
+	workdir += algname;
+	workdir += "/";
+	workdir += wutag;
+	workdir += "/";
+	string cmd = "mkdir -p ";
+	cmd += workdir;
+	system(cmd.c_str());
         outputs = job->getOutputs();
 	for (vector<string>::iterator it = outputs.begin(); it != outputs.end(); it++) {
 	    localname = *it;
-	    if (localname.compare("stdout.txt") == 0)
-		outfilename = string(DC_getResultOutput(event->result, DC_LABEL_STDOUT));
-	    else if (localname.compare("stderr.txt") == 0)
-		outfilename = string(DC_getResultOutput(event->result, DC_LABEL_STDERR));
-	    else
-		outfilename = string(DC_getResultOutput(event->result, localname.c_str()));
-	    if (outfilename.empty()) {
-    	        cerr << "No output for job with id " << wutag << endl;
-    		job->setStatus(CG_ERROR);
-    	        return;
+	    if (localname.compare("stdout.txt") == 0) {
+		cmd = "cp ";
+		cmd += string(DC_getResultOutput(event->result, DC_LABEL_STDOUT));
+		cmd += " ";
+		cmd += workdir;
+		cmd += "stdout.txt";
+		system(cmd.c_str());
+		outfilename = workdir;
+		outfilename += "stdout.txt";
+	    } else if (localname.compare("stderr.txt") == 0) {
+		cmd = "cp ";
+		cmd += string(DC_getResultOutput(event->result, DC_LABEL_STDERR));
+		cmd += " ";
+		cmd += workdir;
+		cmd += "stderr.txt";
+		system(cmd.c_str());
+		outfilename = workdir;
+		outfilename += "stderr.txt";
+	    } else {
+		string src = string(DC_getResultOutput(event->result, localname.c_str()));
+		cmd = "cp ";
+		cmd += src;
+		cmd += " ";
+		cmd += workdir;
+		cmd += localname;
+		system(cmd.c_str());
+		outfilename = workdir;
+		outfilename += localname;
+		if (src.empty()) {
+    	    	    cerr << "No output for job with id " << wutag << endl;
+		    job->setStatus(CG_ERROR);
+    	    	    return;
+		}
 	    }
 	    job->setOutputPath(localname, outfilename);
 	}
 	// Set status of job to finished
         job->setStatus(CG_FINISHED);
+	// Destroy the wu as it is no longer needed
+	DC_destroyWU(event->wu);
     }
     DC_destroyMasterEvent(event);
 }
@@ -300,7 +337,11 @@ void CGQueueManager::putOutputsToDb() {
 		    // Set status of job to CG_FINISHED
 		    query << "UPDATE cg_job SET status = \"CG_FINISHED\" WHERE id = " << id; 
 		    query.execute();	
-		}
+		} else if (status.compare("CG_ERROR") == 0) {
+		    // Set status of failed job to CG_ERROR
+		    query << "UPDATE cg_job SET status = \"CG_ERROR\" WHERE id = " << id; 
+		    query.execute();	
+    		}
 	    }
 	}
     }

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <sstream>
+#include <fstream>
 #include <map>
 #include <string>
 #include <mysql++.h>
@@ -83,9 +84,28 @@ int main(int argc, char **argv)
 	    cerr << "Inlocal and Inpath parameters must have the same number of elements" << endl;
 	    exit(-1);
 	}
+	
 	// make map of input local names and input paths
 	for (int i = 0; i < in.size(); i++)
 	    inputs->insert(make_pair(in.at(i), inp.at(i)));
+	    
+	// Check if input is already available, wait if it isn't
+	fstream fin;
+	while (true) {
+    	    bool existing = true;
+	    for(map<string, string>::iterator it = inputs.begin(); it != inputs.end(); it++) {
+		fin.open(it->second->c_str(), fstream::in);
+	        if(!fin.is_open()) {
+		    existing = false;
+		} else
+		    fin.close();
+	    }
+	    if (existing == true)
+		break;
+	    else 
+		sleep(10);
+	}
+	    
 	    
 	{ // transaction scope
 	    Transaction trans(con);
