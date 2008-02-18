@@ -37,6 +37,8 @@ int main(int argc, char **argv)
     string inLocal = "";
     string inPath = "";
     string outLocal = "";
+    bool wait = true;
+    int jobid = 0;
     
     try {
         con.connect("boinc_szdgr", "0", "boinc-szdgr", "VfxVqw0PHT");
@@ -54,6 +56,8 @@ int main(int argc, char **argv)
 	ValueArg<string> inPathArg("p", "inpath", "Comma separated list of path of input files", true, "default", "string");
 	// Comma separated local name of inputs
 	ValueArg<string> outLocalArg("o", "outlocal", "Comma separated list of local names of output files", true, "default", "string");
+	// Wait for job
+	ValueArg<int> waitArg("w", "wait", "Set to 0 if you don't want to wait for job to finish", false, 1, "int");
 
 	// add parameters to command-line parse object
 	cmd.add(jobNameArg);
@@ -62,6 +66,7 @@ int main(int argc, char **argv)
 	cmd.add(inLocalArg);
 	cmd.add(inPathArg);
 	cmd.add(outLocalArg);
+	cmd.add(waitArg);
 
 	// Parse command-line arguments into ValueArgs
 	cmd.parse(argc, argv);
@@ -73,6 +78,11 @@ int main(int argc, char **argv)
 	inLocal  = inLocalArg.getValue();
 	inPath   = inPathArg.getValue();
 	outLocal = outLocalArg.getValue();
+	int tmp = waitArg.getValue();
+	if (tmp >= 1)
+	    wait = true;
+	else
+	    wait = false; 
 	
 	// explode list into vector<string>
 	vector<string> in = explode(',', inLocal);
@@ -81,31 +91,13 @@ int main(int argc, char **argv)
 	map<string, string> *inputs = new map<string, string>();
 	
 	if (in.size() != inp.size()) {
-	    cerr << "Inlocal and Inpath parameters must have the same number of elements" << endl;
+	    cerr << "Input local names and input path parameters must have the same number of elements" << endl;
 	    exit(-1);
 	}
 	
 	// make map of input local names and input paths
 	for (int i = 0; i < in.size(); i++)
 	    inputs->insert(make_pair(in.at(i), inp.at(i)));
-	    
-	// Check if input is already available, wait if it isn't
-	fstream fin;
-	while (true) {
-    	    bool existing = true;
-	    for(map<string, string>::iterator it = inputs.begin(); it != inputs.end(); it++) {
-		fin.open(it->second->c_str(), fstream::in);
-	        if(!fin.is_open()) {
-		    existing = false;
-		} else
-		    fin.close();
-	    }
-	    if (existing == true)
-		break;
-	    else 
-		sleep(10);
-	}
-	    
 	    
 	{ // transaction scope
 	    Transaction trans(con);
@@ -138,6 +130,30 @@ int main(int argc, char **argv)
 	    }
 	    trans.commit();
 	} // end of transaction scope
+	
+	while (wait) {
+	    // wait for job to finish
+	    query << "SELECT * FROM cg_job WHERE name = \"" << jobName << "\"";
+	    vector<cg_job> job;
+	    query.storein(job);
+	    string status = job.at(0).status;
+	    jobid = job.at(0).id;
+	
+	    if (status == "CG_FINISHED")  {
+		break;
+    	    } else 
+		sleep(10);
+	}
+	
+	// If we were waiting for the output, print it
+	if (wait) {
+	    query << "SELECT * FROM cg_outputs WHERE localname != \"stdout.txt\" AND localname != \"stderr.txt\" AND jobid = \"" << jobid << "\"";
+	    vector<cg_outputs> outputs;
+	    query.storein(outputs);
+	    for (vector<cg_outputs>::iterator it = outputs.begin(); it != outputs.end(); it++)
+		cout << it->path << endl;
+	}
+	
     } catch (const BadQuery& er) {
 	 cout << "Job with name '" << jobName << "' already exists. Choose another name!" << endl;
 	 return -1;
