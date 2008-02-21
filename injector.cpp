@@ -4,7 +4,7 @@
 #include <map>
 #include <string>
 #include <mysql++.h>
-#include <transaction.h>
+//#include <transaction.h>
 #include <null.h>
 #include <custom.h>
 #include <tclap/CmdLine.h>
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
     int jobid = 0;
     
     try {
-        con.connect("boinc_szdgr", "0", "boinc-szdgr", "VfxVqw0PHT");
+        con.connect("boinc_cancergrid", "0", "boinc-cancergrid", "czowtjhdlo");
 	Query query = con.query();
 	
 	// Jobname
@@ -99,8 +99,8 @@ int main(int argc, char **argv)
 	for (int i = 0; i < in.size(); i++)
 	    inputs->insert(make_pair(in.at(i), inp.at(i)));
 	    
-	{ // transaction scope
-	    Transaction trans(con);
+//	{ // transaction scope
+//	    Transaction trans(con);
     	    // insert into mysql...
 	    cg_job job_row(0, jobName, cmdLine, algName, "CG_INIT");
     	    query.insert(job_row);
@@ -128,8 +128,8 @@ int main(int argc, char **argv)
 		query.execute();
 		query.reset();
 	    }
-	    trans.commit();
-	} // end of transaction scope
+//	    trans.commit();
+//	} // end of transaction scope
 	
 	while (wait) {
 	    // wait for job to finish

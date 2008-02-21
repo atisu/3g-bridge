@@ -10,18 +10,16 @@ int main(int argc, char **argv)
 {
     try {
       // Create a Queue Manager
-      CGQueueManager qm(argv[1], "boinc_szdgr", "0", "boinc-szdgr", "VfxVqw0PHT");
+      CGQueueManager qm(argv[1], "boinc_cancergrid", "0", "boinc-cancergrid", "czowtjhdlo");
     
       // Create algorithms
-      CGAlg _2d3dConv("2d3dconv", CG_ALG_GRID);
-      CGAlg flexmol("flexmol", CG_ALG_GRID);
-      CGAlg mopac("mopac", CG_ALG_GRID);      
+      CGAlg cmol3d("cmol3d", CG_ALG_GRID);
+      CGAlg mopac("mopac", CG_ALG_GRID);
       CGAlg molDescCalc("moldesccalc", CG_ALG_GRID);
 
       // Add the algorithm to the Queue Manager
       // The QM creates the Algorithm Queue
-      qm.addAlg(_2d3dConv);
-      qm.addAlg(flexmol);
+      qm.addAlg(cmol3d);
       qm.addAlg(mopac);
       qm.addAlg(molDescCalc);
 
