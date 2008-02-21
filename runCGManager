@@ -1,0 +1,1 @@
+nohup ./CGManager 2>&1 > CGManager.log &
