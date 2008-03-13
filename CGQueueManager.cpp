@@ -8,6 +8,7 @@
 #include <sstream>
 #include <uuid/uuid.h>
 #include <mysql++.h>
+#include <sys/stat.h>
 
 using namespace std;
 using namespace mysqlpp;
@@ -242,26 +243,36 @@ void CGQueueManager::query(int timeout)
 	cmd += workdir;
 	system(cmd.c_str());
         outputs = job->getOutputs();
+    
+// consolidate this!!!
+	int intStat;
+	struct stat stFileInfo;
+
+
 	for (vector<string>::iterator it = outputs.begin(); it != outputs.end(); it++) {
 	    localname = *it;
 	    if (localname.compare("stdout.txt") == 0) {
-		cmd = "cp ";
-		cmd += string(DC_getResultOutput(event->result, DC_LABEL_STDOUT));
-		cmd += " ";
-		cmd += workdir;
-		cmd += "stdout.txt";
-		system(cmd.c_str());
-		outfilename = workdir;
-		outfilename += "stdout.txt";
+		if (stat(DC_getResultOutput(event->result, DC_LABEL_STDOUT), &stFileInfo) == 0) {
+	    	    cmd = "cp ";
+		    cmd += string(DC_getResultOutput(event->result, DC_LABEL_STDOUT));
+		    cmd += " ";
+		    cmd += workdir;
+		    cmd += "stdout.txt";
+		    system(cmd.c_str());
+		    outfilename = workdir;
+		    outfilename += "stdout.txt";
+		}
 	    } else if (localname.compare("stderr.txt") == 0) {
-		cmd = "cp ";
-		cmd += string(DC_getResultOutput(event->result, DC_LABEL_STDERR));
-		cmd += " ";
-		cmd += workdir;
-		cmd += "stderr.txt";
-		system(cmd.c_str());
-		outfilename = workdir;
-		outfilename += "stderr.txt";
+		if (stat(DC_getResultOutput(event->result, DC_LABEL_STDERR), &stFileInfo) == 0) {
+		    cmd = "cp ";
+		    cmd += string(DC_getResultOutput(event->result, DC_LABEL_STDERR));
+		    cmd += " ";
+		    cmd += workdir;
+		    cmd += "stderr.txt";
+		    system(cmd.c_str());
+		    outfilename = workdir;
+		    outfilename += "stderr.txt";
+		}
 	    } else {
 		string src = string(DC_getResultOutput(event->result, localname.c_str()));
 		cmd = "cp ";
