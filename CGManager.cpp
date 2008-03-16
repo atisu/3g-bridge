@@ -34,7 +34,7 @@ int main(int argc, char **argv)
     	    IDs->push_back(*it);
 
 	// Query database for newly returned results
-	qm.query(5);
+	qm.queryBoinc(5);
 	qm.putOutputsToDb();
       }
     } catch (int Error) {

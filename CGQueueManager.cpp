@@ -15,6 +15,10 @@ using namespace mysqlpp;
 
 CGQueueManager::CGQueueManager(char *dcapi_conf, char *db, char *host, char *user, char *passwd)
 {
+    // Store base directory
+    basedir = string(getcwd(NULL, 0));
+    
+    // Clear algorithm list
     algs.clear();
     
     if (DC_OK != DC_initMaster(dcapi_conf)) {
@@ -159,6 +163,7 @@ void CGQueueManager::removeJob(uuid_t *id)
 {
     CGJob *job = ID2AlgQ[id]->getJob(id);
 
+//!!!!!!!!!!!!!!! if status is running
     DC_Workunit *wu = DC_deserializeWU(job->getWUId());
     wu = DC_deserializeWU(job->getWUId());
     DC_cancelWU(wu);
@@ -188,10 +193,10 @@ CGJobStatus CGQueueManager::getStatus(uuid_t *id)
 }
 
 /*
- * Query database for any returning results 
+ * Query boinc database for any returning results 
  * and set output paths of jobs, if ready
  */
-void CGQueueManager::query(int timeout)
+void CGQueueManager::queryBoinc(int timeout)
 {
     CGJob *job = NULL;
     DC_MasterEvent *event;
@@ -199,6 +204,7 @@ void CGQueueManager::query(int timeout)
     uuid_t *id = new uuid_t[1];
     vector<string> outputs;
     string localname, outfilename, algname, workdir;
+    struct stat stFileInfo;
     
     event = DC_waitMasterEvent(NULL, timeout);
 
@@ -207,47 +213,51 @@ void CGQueueManager::query(int timeout)
 	wutag = DC_getWUTag(event->wu);
 	if(uuid_parse(wutag, *id) == -1) {
 	    cerr << "Failed to parse uuid" << endl;
+	    DC_destroyWU(event->wu);
+	    DC_destroyMasterEvent(event);
 	    return;
 	}
 
         // Stupid UUID_T, "MMffm mmfmm mmmfmmm" - Kenny, South Park
 	for (set<uuid_t *>::iterator it = jobIDs.begin(); it != jobIDs.end(); it++) {
 	    uuid_t * p = *it;
-	    if (uuid_compare(*p, *id) == 0) 
+	    if (uuid_compare(*p, *id) == 0) {
 		job = ID2AlgQ[*it]->getJob(*it);
 		algname = ID2AlgQ[*it]->getType()->getName();
+	    }
         }
 	free(id);
 	
 	// If we could not find the corresponding job
 	if (!job) {
 	    cerr << "Could not find job!" << endl;
+	    DC_destroyWU(event->wu);
+	    DC_destroyMasterEvent(event);
 	    return;
 	}
 	    
         if (!event->result) {
     	    cerr << "Job with id " << wutag << " has failed" << endl;
 	    job->setStatus(CG_ERROR);
+	    DC_destroyWU(event->wu);
+	    DC_destroyMasterEvent(event);
 	    return;
 	}
-        // Retreive paths of result, including stdout and stderr
-	char *cwd = getcwd(NULL, 0);
-	workdir = string(cwd);
-	free(cwd);
-	workdir += "/";
+        // Retreive paths of output, stdout and stderr
+	workdir = basedir;
+	workdir += "/workdir/";
 	workdir += algname;
 	workdir += "/";
 	workdir += wutag;
 	workdir += "/";
+	
+	// Retreive list of outputs
+        outputs = job->getOutputs();
+	
+	// Create output directory if there is an output
 	string cmd = "mkdir -p ";
 	cmd += workdir;
 	system(cmd.c_str());
-        outputs = job->getOutputs();
-    
-// consolidate this!!!
-	int intStat;
-	struct stat stFileInfo;
-
 
 	for (vector<string>::iterator it = outputs.begin(); it != outputs.end(); it++) {
 	    localname = *it;
@@ -274,18 +284,23 @@ void CGQueueManager::query(int timeout)
 		    outfilename += "stderr.txt";
 		}
 	    } else {
-		string src = string(DC_getResultOutput(event->result, localname.c_str()));
-		cmd = "cp ";
-		cmd += src;
-		cmd += " ";
-		cmd += workdir;
-		cmd += localname;
-		system(cmd.c_str());
-		outfilename = workdir;
-		outfilename += localname;
-		if (src.empty()) {
+		if (stat(DC_getResultOutput(event->result, localname.c_str()), &stFileInfo) == 0) {
+		    cmd = "cp ";
+		    cmd += string(DC_getResultOutput(event->result, localname.c_str()));
+		    cmd += " ";
+		    cmd += workdir;
+		    cmd += localname;
+		    system(cmd.c_str());
+		    outfilename = workdir;
+		    outfilename += localname;
+		} else {
     	    	    cerr << "No output for job with id " << wutag << endl;
-		    job->setStatus(CG_ERROR);
+		    cmd = "rm -r ";
+		    cmd += workdir;
+		    system(cmd.c_str());
+	    	    job->setStatus(CG_ERROR);
+		    DC_destroyWU(event->wu);
+		    DC_destroyMasterEvent(event);
     	    	    return;
 		}
 	    }
@@ -306,19 +321,20 @@ void CGQueueManager::query(int timeout)
 
 void CGQueueManager::putOutputsToDb() {
     Query query = con.query();
+    int id;
     
     for (map<uuid_t *, CGAlgQueue *>::iterator it = ID2AlgQ.begin(); it != ID2AlgQ.end(); it++) {
 	map<uuid_t *, CGJob *> jobs = it->second->getJobs();
 	for (map<uuid_t *, CGJob *>::iterator at = jobs.begin(); at != jobs.end(); at++) {
 	    CGJob *job = at->second;
-	    if (job->getStatus() == CG_FINISHED) {
-		query.reset();
-		query << "SELECT * FROM cg_job WHERE name = \"" << job->getName() << "\"";
-    		vector<cg_job> s_job;
-		query.storein(s_job);
-		int id = s_job.at(0).id;
-		string status = s_job.at(0).status;
+	    query.reset();
+	    query << "SELECT * FROM cg_job WHERE name = \"" << job->getName() << "\"";
+    	    vector<cg_job> s_job;
+	    query.storein(s_job);
+	    id = s_job.at(0).id;
+	    string status = s_job.at(0).status;
 
+	    if (job->getStatus() == CG_FINISHED) {
 		// Select only jobs that are in CG_RUNNING state
 		if (status.compare("CG_RUNNING") == 0) {
 		    // Put stdout and stderr rows in cg_outputs, 
@@ -347,12 +363,14 @@ void CGQueueManager::putOutputsToDb() {
 		    }
 		    // Set status of job to CG_FINISHED
 		    query << "UPDATE cg_job SET status = \"CG_FINISHED\" WHERE id = " << id; 
-		    query.execute();	
-		} else if (status.compare("CG_ERROR") == 0) {
+		    query.execute();
+		    // Remove job from queue
+		    
+		}
+	    } else if (job->getStatus() == CG_ERROR) {
 		    // Set status of failed job to CG_ERROR
 		    query << "UPDATE cg_job SET status = \"CG_ERROR\" WHERE id = " << id; 
-		    query.execute();	
-    		}
+		    query.execute();
 	    }
 	}
     }

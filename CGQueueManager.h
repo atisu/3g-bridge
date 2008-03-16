@@ -29,7 +29,7 @@ public:
     void removeJob(uuid_t *id);
     vector<CGJobStatus> *getStatuses(vector<uuid_t *> &ids);
     CGJobStatus getStatus(uuid_t *id);
-    void query(int timeout = 5);
+    void queryBoinc(int timeout = 5);
     vector<CGJob *> *getJobsFromDb();
     void putOutputsToDb();
 private:
@@ -37,6 +37,7 @@ private:
     set<uuid_t *> jobIDs;
     map<uuid_t *, CGAlgQueue *> ID2AlgQ;
     Connection con;
+    string basedir;
 };
 
 #endif  /* __CGQUEUEMANAGER_H */
