@@ -10,7 +10,7 @@ int main(int argc, char **argv)
 {
     try {
       // Create a Queue Manager
-      CGQueueManager qm(argv[1], "boinc_cancergrid", "0", "boinc-cancergrid", "czowtjhdlo");
+      CGQueueManager qm(argv[1], "boinc_szdgr", "0", "boinc-szdgr", "VfxVqw0PHT");
     
       // Create algorithms
       CGAlg cmol3d("cmol3d", CG_ALG_GRID);
@@ -25,6 +25,12 @@ int main(int argc, char **argv)
 
       vector<uuid_t *> *IDs = new vector<uuid_t *>;
       vector<CGJob *> *jobs;
+
+      // Reinitialize old jobs
+      jobs = qm.getJobsFromDb(true);
+      vector<uuid_t *> *tempIDs = qm.addJobs(*jobs, true);
+      for (vector<uuid_t *>::iterator it = tempIDs->begin(); it != tempIDs->end(); it++)
+        IDs->push_back(*it);
 
       while (true) {
         // Get new jobs from database

@@ -16,6 +16,7 @@ CGJob::CGJob(const string tname, list<string> *arglist, CGAlg &aType):name(tname
 
 CGJob::~CGJob()
 {
+    free(wuId);
 }
 
 void CGJob::addInput(const string localname, const string fsyspath)

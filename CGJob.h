@@ -15,7 +15,7 @@ private:
     CGAlg *type;
     string name;
     list<string> *argv;
-    string ID;
+//    string ID;
     char *wuId;
     map<string, string> inputs;
     map<string, string> outputs;
@@ -31,8 +31,8 @@ public:
     CGAlg *getType() { return type; }
     vector<string> getInputs() const;
     vector<string> getOutputs() const;
-    void setId(const string tID) { ID = tID; }
-    string getId() const { return ID; }
+//    void setId(const string tID) { ID = tID; }
+//    string getId() const { return ID; }
     char *getWUId() const { return wuId; }
     void setWUId(char *sId) { wuId = strdup(sId); }
     string getInputPath(const string localname) const;

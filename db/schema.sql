@@ -1,7 +1,9 @@
 /*
  * Schema description for CG
  */
-
+drop table cg_job;
+drop table cg_inputs;
+drop table cg_outputs;
 
 create table cg_job (
     id                  integer     not null auto_increment,
@@ -9,6 +11,7 @@ create table cg_job (
     args		varchar(254) not null,
     algname		varchar(254) not null,
     status		varchar(254) not null,
+    wuid		varchar(254) not null,
     primary key (id)
 ) type=InnoDB;
 

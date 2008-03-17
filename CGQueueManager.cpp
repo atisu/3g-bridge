@@ -55,40 +55,49 @@ bool CGQueueManager::addAlg(CGAlg &what)
 /*
  * Add jobs 
  */
-vector<uuid_t *> *CGQueueManager::addJobs(vector<CGJob *> &jobs)
+vector<uuid_t *> *CGQueueManager::addJobs(vector<CGJob *> &jobs, bool start)
 {
     vector<uuid_t *> *IDs = new vector<uuid_t *>();
     for (vector<CGJob *>::iterator it = jobs.begin(); it != jobs.end(); it++)
-	IDs->push_back(addJob(**it));
+	IDs->push_back(addJob(**it, start));
     return IDs;
 }
 
 /*
  * Add a job to the adequate algorithm queue
  */
-uuid_t *CGQueueManager::addJob(CGJob &job)
+uuid_t *CGQueueManager::addJob(CGJob &job, bool start)
 {
-    uuid_t *ret;
-    DC_Workunit *wu;
-    char *tag = new char[37];
-
     CGAlgQueue *aq = algs[job.getType()->getName()];
-    vector<string> inputs = job.getInputs();
-    vector<string> outputs = job.getOutputs();
-    string localname, inputpath;
-    CGAlg *type = job.getType();
-    string algName = type->getName();
+    uuid_t *ret = aq->add(&job);
 
-    ret = aq->add(&job);
-    
     // Add job ID
     jobIDs.insert(ret);
 
     // Add job ID -> AlgQ mapping
     ID2AlgQ.insert(pair<uuid_t *, CGAlgQueue *>(ret, algs[job.getType()->getName()]));
 
+    // If this is a new job, create a WU of it
+    if (!start) 
+        registerWuOfJob(ret, job);
+
+    return ret;
+}
+
+void CGQueueManager::registerWuOfJob(uuid_t *id, CGJob &job)
+{
+    DC_Workunit *wu;
+    char *tag = new char[37];
+    Query query = con.query();
+
+    vector<string> inputs = job.getInputs();
+    vector<string> outputs = job.getOutputs();
+    string localname, inputpath;
+    CGAlg *type = job.getType();
+    string algName = type->getName();
+    
     // Add job id to wu_tag
-    uuid_unparse(*ret, tag);
+    uuid_unparse(*id, tag);
 
     // Get command line parameters and create null-terminated list
     list<string> *arglist = job.getArgv();
@@ -138,13 +147,15 @@ uuid_t *CGQueueManager::addJob(CGJob &job)
 	throw DC_submitWUError;
     }
 
-    // Set status of job to RUNNING
-    job.setStatus(CG_RUNNING);
-    
     // Serialize WU and set the wuID of the job entity
     job.setWUId(DC_serializeWU(wu));
 
-    return ret;
+    // Set status of job to CG_RUNNING
+    job.setStatus(CG_RUNNING);
+    string name = job.getName();
+    query.reset();
+    query << "UPDATE cg_job SET status = \"CG_RUNNING\", wuid = \"" << string(job.getWUId()) << "\" WHERE name = \"" << name << "\"";
+    query.execute();
 }
 
 /*
@@ -163,10 +174,11 @@ void CGQueueManager::removeJob(uuid_t *id)
 {
     CGJob *job = ID2AlgQ[id]->getJob(id);
 
-//!!!!!!!!!!!!!!! if status is running
-    DC_Workunit *wu = DC_deserializeWU(job->getWUId());
-    wu = DC_deserializeWU(job->getWUId());
-    DC_cancelWU(wu);
+    // If the job is still running, tell Boinc to cancel the job
+    if (job->getStatus() == CG_RUNNING) {
+        DC_Workunit *wu = DC_deserializeWU(job->getWUId());
+        DC_cancelWU(wu);
+    }
     
     ID2AlgQ[id]->remove(id);	// Remove job from AlgQ
     ID2AlgQ.erase(id);		// Remove ID->AlgQ mapping entity
@@ -326,7 +338,10 @@ void CGQueueManager::putOutputsToDb() {
     for (map<uuid_t *, CGAlgQueue *>::iterator it = ID2AlgQ.begin(); it != ID2AlgQ.end(); it++) {
 	map<uuid_t *, CGJob *> jobs = it->second->getJobs();
 	for (map<uuid_t *, CGJob *>::iterator at = jobs.begin(); at != jobs.end(); at++) {
+	    // The job to work with
 	    CGJob *job = at->second;
+	    // The id of the job (needed for job remova)
+	    uuid_t *jobId = at->first;
 	    query.reset();
 	    query << "SELECT * FROM cg_job WHERE name = \"" << job->getName() << "\"";
     	    vector<cg_job> s_job;
@@ -365,12 +380,16 @@ void CGQueueManager::putOutputsToDb() {
 		    query << "UPDATE cg_job SET status = \"CG_FINISHED\" WHERE id = " << id; 
 		    query.execute();
 		    // Remove job from queue
-		    
+		    removeJob(jobId);
 		}
 	    } else if (job->getStatus() == CG_ERROR) {
 		    // Set status of failed job to CG_ERROR
-		    query << "UPDATE cg_job SET status = \"CG_ERROR\" WHERE id = " << id; 
+		    query << "UPDATE cg_job SET status = \"CG_ERROR\" WHERE id = " << id;
 		    query.execute();
+		    
+		    // Delete job, it's not our problem from here
+		    removeJob(jobId);
+		    
 	    }
 	}
     }
@@ -379,25 +398,34 @@ void CGQueueManager::putOutputsToDb() {
 /*
  * Call this periodically to check for new jobs to be submitted
  */
-vector<CGJob *> *CGQueueManager::getJobsFromDb() {
+vector<CGJob *> *CGQueueManager::getJobsFromDb(bool start) {
     int id, i = 0;
     string name;
     string cmdlineargs;
     string token;
     string algname;
+    string wuid;
     Query query = con.query();
     vector<CGJob *> *jobs = new vector<CGJob *>();
+    vector<cg_job> newJobs;
 
-    // select new jobs from db, let mysql filter jobs already queued
-    query << "SELECT * FROM cg_job WHERE status = \"CG_INIT\"";
-    vector<cg_job> nJobs;
-    query.storein(nJobs);
+
+    if (!start) {
+        // select new jobs from db
+	query << "SELECT * FROM cg_job WHERE status = \"CG_INIT\"";
+	query.storein(newJobs);
+    } else {
+        // select old (running) jobs from db, this gets called only once at startup
+	query << "SELECT * FROM cg_job WHERE status = \"CG_RUNNING\"";
+	query.storein(newJobs);
+    }
     
-    for (vector<cg_job>::iterator it = nJobs.begin(); it != nJobs.end(); it++) {
+    for (vector<cg_job>::iterator it = newJobs.begin(); it != newJobs.end(); it++) {
     	id = it->id;
 	name = it->name;
 	cmdlineargs = it->args;
 	algname = it->algname;
+	wuid = it->wuid;
 	
 	// Vectorize cmdlineargs string
         list<string> *arglist = new list<string>();
@@ -407,10 +435,11 @@ vector<CGJob *> *CGQueueManager::getJobsFromDb() {
 	
         // Find out which algorithm the job belongs to
 	map<string, CGAlgQueue *>::iterator at = algs.find(algname);
+//!!!! What happens if...?
 	if (at == algs.end()) return jobs;
 	CGAlg *alg = at->second->getType();
 
-	// Create new job descriptor	
+	// Create new job descriptor
         CGJob *nJob = new CGJob(name, arglist, *alg);
 
         // Get inputs for job from db
@@ -434,10 +463,6 @@ vector<CGJob *> *CGQueueManager::getJobsFromDb() {
 
 	jobs->push_back(nJob);
 	
-	// Set status of job in cg_job table to running
-	query.reset();
-	query << "UPDATE cg_job SET status = \"CG_RUNNING\" WHERE id = " << id;
-	query.execute();
     }
     return jobs;
 }
