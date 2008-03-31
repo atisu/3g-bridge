@@ -1,0 +1,339 @@
+\documentclass[a4paper, 12pt]{article} 
+
+\usepackage{t1enc} 
+\usepackage[latin2]{inputenc} 
+\usepackage[magyar]{babel} 
+\usepackage{graphics} 
+\usepackage{verbatim}
+
+\setlength\lefthyphenmin{2} % legalább két karakter a kötõjel elõtt 
+\setlength\righthyphenmin{2}% legalább két karakter a kötõjel után 
+\setlength\hyphenpenalty{0} % nem baj, ha elválasztunk a sor végén 
+\setlength\uchyph{-1} % ne válasszon el nagybetûvel kezdõdõ szavakat
+
+\begin{document} 
+
+\title{Komplex alkalmazások támogatása közösségi erõforrás-megosztás (Desktop Grid) alapú számítási modell segítségével}
+\author{Kornafeld Ádám}
+\date{}
+
+% Cimoldal
+%\begin{comment}
+\begin{titlepage} { \center
+\resizebox{11cm}{!}{\includegraphics{bme.jpg}} 
+\vfill{\resizebox{3cm}{!}{\includegraphics{sztaki.jpg}}}
+\vfill {\Large Komplex alkalmazások támogatása közösségi erõforrás-megosztás (Desktop Grid) alapú számítási modell segítségével} \\[20pt] 
+{\Large Kornafeld Ádám} \vfill {\bf Konzulens}: dr. Lovas Róbert, dr. Szeberényi Imre \vfill 
+{\Large Budapest, 2008.} \clearpage \mbox{} \vfill \noindent 
+{\large Kornafeld Ádám: Komplex alkalmazások támogatása közösségi erõforrás-megosztás (Desktop Grid) alapú számítási modell segítségével}} \\[10pt] Copyright 
+\copyright 2008. All rights reserved ... \\[12pt] This 
+document was typeset in \LaTeXe. \vfill \end{titlepage} 
+\setcounter{page}{3}
+%\end{comment}
+%
+
+%\maketitle
+%\newpage
+\tableofcontents
+\newpage
+
+\section{A téma ismertetése}
+
+A 90-es években megjelenõ új paradigma, a közösségi erõforrás-megosztás alapú számítási modell hátterében az a megfigyelés áll, hogy a költségek minimalizálása mellett a rendelkezésre álló számítási teljesítmény maximalizálható, ha az alkalmazott számítási modellbe bevonják az asztali számítógépek kihasználatlan kapacitásait. A modell alkalmazására az elsõ nagyszabású kísérlet a közismert SETI@Home projekt volt. Szélesebb körû elterjedése a University of California által kifejlesztett,  Berkeley Open Infrastructure for Network Computing (BOINC) névre keresztelt middleware 2002-es megjelenéséhez köthetõ. Napjainkra több tucat tudományos projekt alkalmazza sikerrel a BOINC middleware-t többek között matematikai, csillagászati, biológiai és kémiai kutatásokhoz, az általuk tömörített összesített számítási teljesítmény pedig mintegy kétszerese a világ leggyorsabb szuperszámítógépének.
+A BOINC middleware-re alapul a SZTAKI Desktop Grid (www.desktopgrid.hu) rendszer is, mely több irányban és területen is kiterjesztésre és alkalmazásra kerül mind hazai, mind uniós kutatási projektekben, mint például klímamodellezés vagy rákkutatás.
+A feladat során a hallgató megismerkedik a BOINC technológiához kapcsolódó legújabb eredményekkel, az EU FP6 CANCERGRID (www.cancergrid.eu) projekt célkitûzéseivel, majd bekapcsolódik a rákkutatási alkalmazáshoz szükséges munkacsomagok generálásával, ütemezésével és Desktop Grid alapú végrehajtásával kapcsolatos részfeladatok kivitelezésébe.
+
+{\bf A téma félévi követelményei}
+\begin{enumerate}
+\item Tervezési dokumentáció revizionálása a prototípus fejlesztése során szerzett tapasztalatok birtokában
+\item Várakozási sor ütemezõjének fejlesztése, összekapcsolása a rendszer többi elemével
+\item Tesztelés, jelentés készítése a féléves munkáról
+\end{enumerate}
+
+{\bf Követelmények:} 
+\begin{itemize}
+\item[] Programozási gyakorlat (C/C++/Java)
+\item[] Elosztott rendszerek programozásának alapos ismerete
+\item[] Angol nyelvtudás
+\end{itemize}
+
+{\bf Folytatás:} TDK, diplomamunka \\
+
+{\bf Témavezetõ:}
+Dr. Lovas Róbert, Dr. Szeberényi Imre
+
+\section{A rendszer  komponensei}
+A követekezõ elemek a már létezõ desktop grid és P-GRADE portal építõelemei:
+
+\begin{description}
+\item{\bf{Molekula adatbázis}}: molekulainformációkat tartalmazó MS SQL adatbázis. Az itt tárolt indformációk szolgálnak a CancerGrid számítások kiindulópontául
+
+\item{\bf{Algoritmus}}: a CancerGrid számítások építõelemei. Mindegyik algoritmus egyedi névvel azonosított. Maga a szó, algoritmus, gyûjtõfogalom: magába foglal egy futtatható állományt, valamint a felhasznált fájlok leírását. Az algoritmusok a kliens gépeken futnak és felkészítettek több bemenet feldolgozására is. Az alábbi algoritmusfajtákat különböztetjük meg: 
+\begin{enumerate}
+\item db algoritmusok: adatbázist módosító algoritmusok
+\item lokális algoritmusok: rövid futásidejû (pár másodperces) algoritmusok
+\item grid algoritmusok: komplex számításokat végzõ algoritmusok
+\end{enumerate}
+
+\item{\bf{Desktop grid szerver}}: ez a szerver felelõs az egyes munkákhoz tartozó eredmények tárolásáért, ellenõrzéséért és szolgáltatásáért. A Berkeley egyetem által fejlesztett Berkeley Open Infrastructure for Network Computing (BOINC) szoftver platformot alkalmazzuk. A szerver különbözõ démon alkalmazások futtatásával kezeli a feldolgozandó munkacsomagokat, pull modell alapján kérésre kiküldi õket a kliens számítógépeknek, majd ellenõrzi az eredmények helyességét. Feltételezzük, hogy a desktop griden futtatni kívánt CancerGrides algoritmusok futtatható állományai regisztrálva vannak a szerveren, ezért az automatikus alkalmazásregisztrálással nem foglalkozunk. 
+
+\item{\bf{Desktop grid kliens}}: az algoritmusokat futtató számítógépek. Kliens-szerver módon kapcsolódnak a szerverhez és pull módon munkát kérnek a szervertõl. 
+
+\item{\bf{Munkacsomag}}: egy feldolgozandó munkát leíró egység. Minden munkacsomag egy elõzõleg a szerveren regisztrált alkalmazáshoz tartozik. A munkacsomagokat a desktop grid kliensek dolgozzák fel. 
+
+\item{\bf{Job}}: a legkisebb futtatható entitás. Minden job különbözõ tulajdonságokkal (név, asszociált algoritmus, be/kimeneti fájlnevek) rendelkezik.
+
+\item{\bf{Munakfolyam}}: egy irányított körmentes gráf (DAG). A gráf pontjai job végrehajtásokat reprezentálnak, az irányított élek pedig az egyes jobok közötti adatfüggéseket mutatják.
+
+\item{\bf{P-GRADE portál}}: web alapú alkalmazás, grides munkafolyamok létrehozására és futtatására.
+
+\item{\bf{Szubmitter}}: a portál által jobok szubmittálásához használt webszolgáltatás
+
+\item{\bf{Storage}}: a protál által adattároláshoz használt webszolgáltatás
+
+\end{description}
+
+\section{Algoritmusok}
+A CancerGridben elõforduló nyolc algorimus közül a négy grid-algoritmus leírása:
+
+\begin{description}
+\item{\bf{2D-3D Converter}}: a job feladata 2D képek 3D képekké konvertálása. Az algoritmus N=20-30000-szer fut le.
+
+\item{\bf{Flexmol}}: az algoritmus egy 2 MB-os kimeneti fájlt general  a bemenetébõl és szintén N-szer fut le. 
+
+\item{\bf{Mopac}}: az algoritmus N*100-szor fut le és 350kB-os kimeneti fájlokat generál.
+
+\item{\bf{Molecule Descriptor Calculator}}: az algoritmus N*100-szor fut le és 50kB-os kimeneti fájlokat generál.
+\end{description}
+
+\newpage
+%%%
+\section{Queue Manager komponensek}
+%%%
+A Queue Manager az alábbi osztályokból épül fel. 
+
+\begin{description}
+%
+\item{\bf{CGJob}}: Egy job entitást leíró osztály
+
+A CGJob osztály tagváltozói:
+\begin{table}[!h]
+\center
+\begin{tabular}{|r l|}
+\hline
+Típus & Név \\
+\hline
+CGAlg & *Type \\ 
+string & name \\ 
+list<string> & *argv \\ 
+char & *wuId \\
+string & ID \\
+map<string, string> & inputs \\
+map<string, string> & outputs \\
+CGJobStatus & status \\
+\hline
+\end{tabular}
+\caption{A CGJob osztály tagváltozói}
+\label{tab:cgjob_vars}
+\end{table}
+
+A CGJob osztály tagfüggvényei:
+
+\begin{description}
+\item{\bf{CGJob(string name, list<string> *arglist, CGAlg \&aType, string jobId)}}:
+\item{void \bf{addInput(string localname, string fsyspath)}}:
+\item{void \bf{addOutput(string localname)}}:
+\item{void \bf{setOutputPath(string localname, string fsyspath)}}:
+\item{string \bf{getName()}}:
+\item{list<string> \bf{*getArgv()}}:
+\item{CGAlg \bf{*getType()}}:
+\item{vector<string> \bf{getInputs()}}:
+\item{vector<string> \bf{getOutputs()}}:
+\item{void \bf{setId(string tID)}}:
+\item{string \bf{getId()}}:
+\item{char \bf{*getWUId()}}:
+\item{void \bf{setWUId(char *sId)}}:
+\item{string \bf{getInputPath(string localname)}}:
+\item{string \bf{getOutputPath(string localname)}}:
+\item{CGJobStatus \bf{getStatus()}}:
+\item{void \bf{setStatus(CGJobStatus nStat)}}:
+\end{description}
+
+%
+\item{\bf{CGAlg}}: Egy algoritmust leíró osztály.
+
+A CGAlg osztály tagváltozói
+\begin{table}[!h]
+\center
+\begin{tabular}{|r l|}
+\hline
+Típus & Név \\
+\hline
+string & name \\ 
+enum CGAlgType & type \\ 
+\hline
+\end{tabular}
+\caption{A CGAlg osztály tagváltozói}
+\label{tab:cgalg_vars}
+\end{table}
+
+A CGAlg osztály tagfüggvényei:
+
+\begin{description}
+\item{\bf{CGAlg(string tname, enum CGAlgType ttype)}}:
+\item{string \bf{getName()}}:
+\item{enum CGAlgType \bf{getType()}}:
+\end{description}
+
+%
+\item{\bf{CGAlgQueue}}: Egyazon algoritmushoz tartozó job entitások sorát megvalósító osztály.
+
+A CGAlgQueue osztály tagváltozói:
+\begin{table}[!h]
+\center
+\begin{tabular}{|r l|}
+\hline
+Típus & Név \\
+\hline
+string & name \\ 
+CGAlgType & type \\ 
+\hline
+\end{tabular}
+\caption{A CGAlgQueue osztály tagváltozói}
+\label{tab:cgalgqueue_vars}
+\end{table}
+
+A CGAlgQueue osztály tagfüggvényei:
+\begin{description}
+\item{\bf{CGAlgQueue(CGAlg \&alg)}}:
+\item{vector <uuid\_t *> \bf{*add(vector<CGJob \&> \&jobs)}}:
+\item{uuid\_t \bf{*add(CGJob *job)}}:
+\item{void \bf{remove(vector<uuid\_t *> *ids)}}:
+\item{void \bf{remove(uuid\_t *id)}}:
+\item{CGJob \bf{*getJob(uuid\_t *id)}}:
+\item{map<uuid\_t *, CGJob *> \bf{getJobs()}}:
+\item{CGJobStatus \bf{getStatus(uuid\_t *id)}}:
+\item{CGAlg \bf{*getType()}}:
+\item
+
+\end{description}
+%
+\item{\bf{CGQueueManger}}: Az alkalmazás üzleti logikai rétegét megvalósító osztály.
+
+A CGQueueManager osztály tagváltozói:
+\begin{table}[!h]
+\center
+\begin{tabular}{|r l|}
+\hline
+Típus & Név \\
+\hline
+map<string, CGAlgQueue *> & algs \\
+set<uuid\_t *> & jobIDs \\
+map<uuid\_t , CGAlgQueue > & ID2AlgQ \\
+Connection & con \\
+string & basedir \\ 
+\hline
+\end{tabular}
+\caption{A CGQueueManager osztály tagváltozói}
+\label{tab:cgqueuemanager_vars}
+\end{table}
+
+A Queue Manager osztály tagfüggvényei:
+%
+\begin{description}
+\item{\bf{CGQueueManager(char *dcapi\_conf, char *db, char *host, char *user, char *passwd)}}:
+\item{\bf{bool addAlg(CGAlg \&what)}}:
+\item{\bf{vector<uuid\_t *> *addJobs(vector<CGJob *> \&jobs, bool start = false)}}:
+\item{\bf{uuid\_t *addJob(CGJob \&job, bool start = false)}}:
+\item{\bf{void removeJobs(const vector<uuid\_t *> \&ids)}}:
+\item{\bf{void removeJob(uuid\_t *id)}}:
+\item{\bf{vector<CGJobStatus> *getStatuses(vector<uuid\_t *> \&ids)}}:
+\item{\bf{CGJobStatus getStatus(uuid\_t *id)}}:
+\item{\bf{void queryBoinc(int timeout = 5)}}:
+\item{\bf{vector<CGJob *> *getJobsFromDb(bool start = false)}}:
+\item{\bf{void putOutputsToDb()}}:
+\item{\bf{void registerWuOfJob(uuid\_t *id, CGJob \&job)}}:
+\item{\bf{void registerWuOfJobs(vector<CGJob *> \&jobs)}}:
+\end{description}
+
+\end{description}
+
+%%%
+\section{Queue Manager -- Job Submitter kommunikáció}
+%%%
+A portálból érkezõ jobokat a Job Submitter alkalmazás továbbítja  Queue Managernek. Az eredeti elképzelés szerint a két alkalmazás egy web-szolgáltatás\-on keresztül kommunikált volna. A tervezés késõbbi fázisában azonban született egy olyan döntés, hogy a Queue Manager és a Job Submitter alkalmazások ugyanazon a gépen fognak futni, ezért az eredeti web-szolgáltatásokon keresztüli kommunikáció nem tûnt helyénvalónak. Megfelelõbb megoldásnak tûnt az adatbázison keresztüli kommunikáció. Ennek megfelelõen a rendszer kiegészült egy új adatbázis komponenssel, mely nemcsak a két elem kommunikációjához, hanem a Queue Manager perzisztenciájához is megfelelõ alapot biztosít. Az adatbázis három táblát tartalmaz. Az egyikben a jobokat leíró információk kerülnek tárolásra, míg a másik kettõbe az egyes jobok be- és kimeneti fájljainak nevei és elérési útjai kerülnek.
+
+\begin{table}[htb]
+\center
+\begin{tabular}{|l|l|l|}
+\hline
+Név & Típus & Leírás \\
+\hline
+id & int(11) & A tábla adott sorának egyedi azonosítója \\ 
+name & varchar(254) & A Job egyedi neve \\ 
+args & varchar(254) & A Job parancssori argumentumai \\ 
+algname & varchar(254) & A Jobhoz tartozó algoritmus azonosítója \\
+status & varchar(254) & A Job állapota \\
+\hline
+\end{tabular}
+\caption{A cg\_job tábla oszlopai}
+\label{tab:cgjob}
+\end{table}
+
+\begin{table}[htb]
+\center
+\begin{tabular}{|l|l|l|}
+\hline
+Név & Típus & Leírás \\
+\hline
+id & int(11) & A tábla adott sorának egyedi azonosítója \\ 
+localname & varchar(254) & Az input/output fájl lokális neve \\ 
+path & varchar(254) & Az input/output fájl abszolút elérési útvonala \\ 
+jobid & varchar(254) & Mely jobhoz tartozik az adott input/output fájl \\
+\hline
+\end{tabular}
+\caption{A cg\_inputs és cg\_outputs tábla oszlopai}
+\label{tab:cgfiles}
+\end{table}
+
+ \Aref{tab:cgjob}. és \aref{tab:cgfiles}.~táblázat ezeknek a tábláknak az oszlopait részletezi. A Job Submitter alkalmazás ezekbe a táblákba írja a feldolgozni kívánt jobok leírásait. A Queue Manager alkalmazás ezeket a táblákat idõnként lekérdezve értesül az új jobokról. Egy az adatbázisban szereplõ job elkészülte után a Queue Manager alkalmazás az adatbázisba írja az adott job outputjainak abszolút elérési útját, valamint készre állítja annak állapotát. A Job Submitter alkalmazás szintén az adatbázison keresztül értesül a feldolgozott jobokról, továbbá azok kimeneteinek elérési útvonalát is az adatbázisból nyeri.
+%%%
+\section{Queue Manager perzisztencia}
+%%%
+A BOINC szoftver platform szerver oldalon emberi beavatkozást nem igénylõ, úgynevezett démon alkalmazásokból épül fel. Tipikusan a munkacsomagok létrehozását, majd azok elkészülte utáni kiértékelését is egy ún. munkacsomagkezelõ démon alkalmazás végzi. A BOINC szoftver platform szemszögébõl tekintve a Queue Manager is egy ilyen munkacsomagkezelõ démon alkalmazás. Ezek a démon alkalmazások automatikusan kerülnek elindításra, illetve leállításra a BOINC szerver elindításakor illetve leállításakor. Ennek megfelelõen a Queue Managernek gondoskodnia kell a megfelelõ perzisztenciáról, vagyis arról, hogy az általa nyilvántartott munkacsomagokra egy esetleges újraindítás után is emlékezzen. A Queue Manager perzisztenciájának megvalósításához remek alapot biztosít a Job Submitterrel való kommunikáció alapját képezõ adatbázis. 
+
+A Queue Manager futása során minden nyilvántartott jobhoz egy uuid azonosítót rendel. A jobok egyesével vagy tömbösítve a BOINC rendszerbe kerülnek feldolgozásra. A továbbítás a DC-API programozói interfész támogatásával történik. A DC-API a feldolgozásra továbbított jobokból munkacsomagokat készít. A DC-API programozási modellje alapján a feldolgozásra beküldött munkacsomagok és a beküldõ alkalmazás között semmilyen kapcsolat nincs a feldolgozás ideje alatt. A beküldõ alkalmazás a BOINC rendszerbõl visszaérkezõ eredményekrõl események segítségével kap értesítést. Annak érdekében, hogy a munkacsomagot beküldõ alkalmazás a visszaérkezõ eredményeket azonosítani tudja, a DC-API a munkacsomag generálásakor szintén egy uuid azonosítót rendel a munkacsomaghoz. A Queue Managernek ezt az uuid-t is hozzá kell rendelnie minden olyan jobhoz, mely az adott munkacsomagba bekerült. A fentiek alapján a perzisztencia megvalósításához az adatbázis cg\_job táblája két új oszloppal kerül kiegészítésre. 
+
+\begin{table}[htb]
+\center
+\begin{tabular}{|l|l|l|}
+\hline
+Név & Típus & Leírás \\
+\hline
+id & int(11) & A tábla adott sorának egyedi azonosítója \\ 
+name & varchar(254) & A Job egyedi neve \\ 
+args & varchar(254) & A Job parancssori argumentumai \\ 
+algname & varchar(254) & A Jobhoz tartozó algoritmus azonosítója \\
+status & varchar(254) & A Job állapota \\
+jobid & varchar(254) & A jobot azonosító uuid \\ 
+wuid & varchar(254) & A jobhoz tartozó munkacsomag azonosítója \\
+\hline
+\end{tabular}
+\caption{A perzisztenciát támogató cg\_job tábla oszlopai}
+\label{tab:cgjobperz}
+\end{table}
+
+A perzisztenciát támogató táblaszerkezet \aref{tab:cgjobperz}. táblázatban látható. Az új táblázatban tárolt információk alapján a Queue Manager újraindítása után felépíti a jobokat leíró osztályokat, majd minden jobhoz hozzárendeli az adatbázisban tárolt jobid azonosítóját. Amennyiben egy munkacsomag elkészültérõl esemény érkezik, úgy a Queue Manager a wuid azonosító segítségével meg tudja határozni, hogy a feldolgozott és visszaérkezett munkacsomagban mely job vagy jobok eredményei találhatóak.
+
+
+
+
+
+
+
+
+
+%\vfill Budapest, 2008.\ március 31. \hfill \dotfill 
+
+\end{document} 
+
