@@ -19,7 +19,8 @@ public:
      * Initialize GridHandler. For DC-API this should call DC_initMaster, for
      * EGEE should create the config context, ...
      */
-    virtual GridHandler() = 0;
+    GridHandler() {}
+    virtual ~GridHandler() {}
     /**
      * Submit jobs in the argument. Set the different properties of jobs (Grid
      * ID, status, ...) through the objects' property change functions.
