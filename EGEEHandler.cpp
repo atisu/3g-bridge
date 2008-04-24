@@ -8,23 +8,24 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <iomanip>
+#include <glite/lb/Job.h>
 #include <glite/jdl/Ad.h>
 #include <glite/jdl/adconverter.h>
 #include <glite/jdl/JDLAttributes.h>
 //#include <glite/jdl/RequestAdExceptions.h>
 //#include <glite/jdl/extractfiles.h>
 #include <glite/wms/wmproxyapi/wmproxy_api.h>
-//#include <glite/wmsutils/jobid/JobId.h>
-//#include <glite/lb/Job.h>
+#include <glite/wmsutils/jobid/JobId.h>
 //#include <glite/lb/JobStatus.h>
 #include <globus_ftp_client.h>
 
 using namespace std;
-//using namespace glite::lb;
+using namespace glite::lb;
 using namespace glite::wms;
 using namespace glite::jdl;
 using namespace glite::wms::wmproxyapi;
-//using namespace glite::wmsutils::jobid;
+using namespace glite::wmsutils::jobid;
 
 
 globus_mutex_t EGEEHandler::lock;
@@ -75,40 +76,80 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs)
 	throw(-1);
     }
     chdir(tmpdir);
-    CollectionAd collAd;
+    mkdir("jdlfiles", 0700);
+    //CollectionAd collAd;
+    vector<Ad *> jobAds;
     for (unsigned i = 0; i < jobs->size(); i++) {
 	char jdirname[32];
 	sprintf(jdirname, "%d", i);
 	mkdir(jdirname, 0700);
 	CGJob *actJ = jobs->at(i);
 	string jobJDLStr = getJobTemplate(JOBTYPE_NORMAL, actJ->getName(), "", "other.GlueCEStateStatus == \"Production\"", "- other.GlueCEStateEstimatedResponseTime", cfg);
-	Ad jobJDLAd(jobJDLStr);
+	Ad *jobJDLAd = new Ad(jobJDLStr);
 	vector<string> ins = actJ->getInputs();
-        for (unsigned j = 0; j < ins.size(); j++) {
-    	    stringstream nfile;
-	    nfile << i << "/" << ins[j];
-	    link(actJ->getInputPath(ins[j]).c_str(), nfile.str().c_str());
-	    jobJDLAd.addAttribute(JDL::INPUTSB, nfile.str().c_str());
-	}
+        for (unsigned j = 0; j < ins.size(); j++)
+	    jobJDLAd->addAttribute(JDL::INPUTSB, actJ->getInputPath(ins[j]).c_str());
 	vector<string> outs = actJ->getOutputs();
-	for (unsigned j = 0; j < outs.size(); j++) {
-	    jobJDLAd.addAttribute(JDL::OUTPUTSB, outs[j].c_str());
-	}
-	jobJDLAd.addAttribute(JDL::OUTPUTSB, "stdout.log");
-	jobJDLAd.setAttribute(JDL::STDOUTPUT, "stdout.log");
-	jobJDLAd.addAttribute(JDL::OUTPUTSB, "stderr.log");
-	jobJDLAd.setAttribute(JDL::STDERROR, "stderr.log");
+	for (unsigned j = 0; j < outs.size(); j++)
+	    jobJDLAd->addAttribute(JDL::OUTPUTSB, outs[j].c_str());
+	jobJDLAd->addAttribute(JDL::OUTPUTSB, "stdout.log");
+	jobJDLAd->setAttribute(JDL::STDOUTPUT, "stdout.log");
+	jobJDLAd->addAttribute(JDL::OUTPUTSB, "stderr.log");
+	jobJDLAd->setAttribute(JDL::STDERROR, "stderr.log");
+	jobJDLAd->setAttribute(JDL::RETRYCOUNT, 10);
+	jobJDLAd->setAttribute(JDL::SHALLOWRETRYCOUNT, 10);
 	string arg;
 	list<string> *args = actJ->getArgv();
 	if (args) {
 	    for (list<string>::iterator it = args->begin(); it != args->end(); it++)
 		arg += *it + " ";
 	    arg.resize(arg.length()-1);
-	    jobJDLAd.setAttribute(JDL::ARGUMENTS, arg);
+	    jobJDLAd->setAttribute(JDL::ARGUMENTS, arg);
 	}
-	collAd.addNode(jobJDLAd);
+	//collAd.addNode(*jobJDLAd);
+	stringstream jdlFname;
+	jdlFname << "jdlfiles/" << setfill('0') << setw(4) << i << ".jdl";
+	jobAds.push_back(jobJDLAd);
+	ofstream jobJDL(jdlFname.str().c_str());
+	jobJDL << jobJDLAd->toString() << endl;
+	jobJDL.close();
     }
-    cout << "The collection JDL is: " << collAd.toSubmissionString() << endl;
+    //cout << "The collection JDL is: " << collAd.toSubmissionString() << endl;
+    //ofstream outColl("collection.jdl");
+    //outColl << collAd.toSubmissionString() << endl;
+    //outColl.close();
+    /*
+    delegate_Proxy(tmpl);
+    JobIdApi collID = jobRegister(collAd.toSubmissionString(), tmpl, cfg);
+    cout << "The collection ID is: " << collID.jobid << endl;
+    for (unsigned i = 0; i < collID.children.size(); i++)
+	cout << "    Node \"" << *(collID.children[i]->nodeName) << "\" ID: " << collID.children[i]->jobid << endl;
+    vector<pair<string, vector<string> > > sandboxURIs = getSandboxBulkDestURI(collID.jobid, cfg, "default");
+    cout << "Queried sandbox base URIs..." << endl;
+    for (unsigned i = 1; i < sandboxURIs.size(); i++) {
+	vector<string> ins = jobAds[i-1]->getStringValue(JDL::INPUTSB);
+	upload_file_globus(ins, sandboxURIs[i].second[0]);
+    }
+    jobStart(collID.jobid, cfg);
+    */
+    string cmd = "glite-wms-job-submit -a -o collection.id --collection jdlfiles";
+    system(cmd.c_str());
+    ifstream collIDf("collection.id");
+    string collID;
+    do {
+	collIDf >> collID;
+    } while ("https://" != collID.substr(0, 8));
+    cout << "Collection ID is: " << collID << endl;
+    JobId jID(collID);
+    glite::lb::Job tJob(jID);
+    JobStatus stat = tJob.status(tJob.STAT_CLASSADS|tJob.STAT_CHILDREN|tJob.STAT_CHILDSTAT);
+    vector<string> childIDs = stat.getValStringList(stat.CHILDREN);
+    cout << stat.getValInt(stat.CHILDREN_NUM);
+    for (unsigned int i = 0; i < childIDs.size(); i++) {
+	jobs->at(i)->setGridId((char *)childIDs[i].c_str());
+	jobs->at(i)->setStatus(CG_INIT);
+	cout << "  New child ID: " << childIDs[i].c_str() << endl;
+    }
     chdir("..");
     rmdir(tmpdir);
 }
@@ -119,6 +160,27 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs)
  */
 void EGEEHandler::getStatus(vector<CGJob *> *jobs)
 {
+    const struct { string EGEEs; CGJobStatus jobS; } statusRelation[] = {
+	{"Submitted", CG_INIT},
+	{"Waiting", CG_INIT},
+	{"Ready", CG_INIT},
+	{"Scheduled", CG_INIT},
+	{"Running", CG_RUNNING},
+	{"Done", CG_FINISHED},
+	{"Cleared", CG_ERROR},
+	{"Cancelled", CG_ERROR},
+	{"Aborted", CG_ERROR},
+	{"", CG_INIT}
+    };
+    for (unsigned i = 0; i < jobs->size(); i++) {
+	JobId jID(jobs->at(i)->getGridId());
+	glite::lb::Job tJob(jID);
+	JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
+	string statStr = stat.name();
+	for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
+	    if (statusRelation[j].EGEEs == statStr)
+		jobs->at(i)->setStatus(statusRelation[j].jobS);
+    }
 }
 
 
@@ -246,11 +308,11 @@ void EGEEHandler::upload_file_globus(const vector<string> &inFiles, const string
 	globus_cond_init(&cond, GLOBUS_NULL);
 	FILE *fd;
 	unsigned int rbytes;
-	cout << "Uploading " << inFiles[i] << "..." << endl;
+	cout << "Uploading " << inFiles[i] << " to " << destURI << "..." << endl;
 	string sfile(wd);
 	sfile += "/" + inFiles[i];
 	string dfile(destURI);
-	dfile += "/" + inFiles[i];
+	dfile += "/" + string(inFiles[i], inFiles[i].rfind("/")+1);
 	fd = fopen(sfile.c_str(), "r");
 	if (!fd) {
 	    cout << "Unable to open: " << sfile.c_str() << endl;
@@ -381,6 +443,8 @@ void EGEEHandler::cleanJob(const string& jdlfile, const string &jobID)
 
 void EGEEHandler::delegate_Proxy(const string& delID)
 {
+    string proxy = grstGetProxyReq(delID, cfg);
+    grstPutProxy(delID, proxy, cfg);
 }
 
 
@@ -413,138 +477,6 @@ static globus_cond_t cond;
 static globus_bool_t done;
 static bool globus_err;
 int global_offset = 0;
-
-
-/*
- * Submit the job. Return job identifier. Registers the job, upload files of the
- * InputSandbox, and finally starts the job.
- */
-string doSubmit(const string &jdlfile, const string &delID, ConfigContext *cfg)
-{
-    Ad ad;
-    string jobID;
-    bool success;
-    int trys;
-
-    for (trys = 0, success = false; trys < 3 && !success; trys++) {
-	try {
-	    delegate_Proxy(delID, cfg);
-	    success = true;
-	} catch (BaseException e) {
-    	    cout << "Exception occured during job proxy delegation:" << endl;
-    	    if (e.ErrorCode)
-        	cout << "Error code: " << *e.ErrorCode << endl;
-    	    if (e.Description)
-    		cout << "Description: " << *e.Description << endl;
-	    cout << "Method name: " << e.methodName << endl;
-	    if (e.FaultCause) {
-		for (unsigned int i = 0; i < (*e.FaultCause).size(); i++)
-		    cout << "FaultCause: " << (*e.FaultCause)[i] << endl;
-	    }
-	}
-	if (!success && trys != 2) {
-	    cout << "Try " << trys+1 << " of proxy delegation failed, trying again in 60 seconds." << endl;
-	    sleep(60);
-	}
-    }
-    if (!success) {
-	cout << "Job proxy delegation failed 3 times! Giving up..." << endl;
-	exit(-1);
-    }
-    
-    ad.fromFile(jdlfile);
-    string jdlStr(ad.toString());
-
-    // Register the job, try at most 3 times
-    JobIdApi jobIDA;
-    for (trys = 0, success = false; trys < 3 && !success; trys++) {
-        try {
-	    jobIDA = jobRegister(jdlStr, delID, cfg);
-	    success = true;
-	} catch (BaseException e) {
-    	    cout << "Exception occured during job registration:" << endl;
-    	    if (e.ErrorCode)
-        	cout << "Error code: " << *e.ErrorCode << endl;
-    	    if (e.Description)
-    		cout << "Description: " << *e.Description << endl;
-	    cout << "Method name: " << e.methodName << endl;
-	    if (e.FaultCause) {
-		for (unsigned int i = 0; i < (*e.FaultCause).size(); i++)
-		    cout << "FaultCause: " << (*e.FaultCause)[i] << endl;
-	    }
-	}
-	if (!success && trys != 2) {
-	    cout << "Try " << trys+1 << " of job registration failed, trying again in 60 seconds." << endl;
-	    sleep(60);
-	}
-    }
-    if (!success) {
-	cout << "Job registration failed 3 times! Giving up..." << endl;
-	exit(-1);
-    }
-    jobID = jobIDA.jobid;
-
-    vector<string> URIs;
-    vector<string> inFiles;
-    for (trys = 0, success = false; trys < 3 && !success; trys++) {
-	try {
-	    // Get Sandbox URI for GSIFTP
-	    URIs = getSandboxDestURI(jobID, cfg, "gsiftp");
-	    // Trying to upload files of InputSandbox
-	    inFiles = ad.getStringValue(JDL::INPUTSB);
-	    success = true;
-	} catch (BaseException e) {
-    	    cout << "Exception occured during job sandbox URI query:" << endl;
-    	    if (e.ErrorCode)
-        	cout << "Error code: " << *e.ErrorCode << endl;
-    	    if (e.Description)
-    		cout << "Description: " << *e.Description << endl;
-	    cout << "Method name: " << e.methodName << endl;
-	    if (e.FaultCause) {
-		for (unsigned int i = 0; i < (*e.FaultCause).size(); i++)
-		    cout << "FaultCause: " << (*e.FaultCause)[i] << endl;
-	    }
-	}
-	if (!success && trys != 2) {
-	    cout << "Try " << trys+1 << " of job sandbox URI query failed, trying again in 60 seconds." << endl;
-	    sleep(60);
-	}
-    }
-    if (!success) {
-	cout << "Unable to get sandbox URI, giving up!" << endl;
-	exit(-1);
-    }
-    upload_file_globus(inFiles, URIs[0]);
-
-    // Starting job, try at most 3 times
-    for (trys = 0, success = false; trys < 3 && !success; trys++) {
-        try {
-	    jobStart(jobID, cfg);
-	    success = true;
-	} catch (BaseException e) {
-    	    cout << "Exception occured during job start:" << endl;
-    	    if (e.ErrorCode)
-        	cout << "Error code: " << *e.ErrorCode << endl;
-    	    if (e.Description)
-    		cout << "Description: " << *e.Description << endl;
-	    cout << "Method name: " << e.methodName << endl;
-	    if (e.FaultCause) {
-		for (unsigned int i = 0; i < (*e.FaultCause).size(); i++)
-		    cout << "FaultCause: " << (*e.FaultCause)[i] << endl;
-	    }
-	}
-	if (!success && trys != 2) {
-	    cout << "Try " << trys+1 << " failed, trying again in 60 seconds." << endl;
-	    sleep(60);
-	}
-    }
-    if (!success) {
-	cout << "Job starting failed 3 times! Giving up..." << endl;
-	exit(-1);
-    }
-
-    return jobID;
-}
 
 
 string getStatus(const string &jobID, string *hname)
@@ -636,9 +568,4 @@ void cleanJob(const string& jdlfile, const string &jobID, ConfigContext *cfg)
 }
 
 
-void delegate_Proxy(const string& delID, ConfigContext *cfg)
-{
-    string proxy = grstGetProxyReq(delID, cfg);
-    grstPutProxy(delID, proxy, cfg);
-}
 #endif /* SOSEM_ER_IDE */

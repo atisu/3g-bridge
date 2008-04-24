@@ -15,8 +15,8 @@ private:
     CGAlg *type;
     string name;
     list<string> *argv;
-//    string ID;
-    char *wuId;
+    list<string> *envs;
+    char *gridId;
     map<string, string> inputs;
     map<string, string> outputs;
     CGJobStatus status;
@@ -28,13 +28,13 @@ public:
     void setOutputPath(const string localname, const string fsyspath);
     string getName() { return name; }
     list<string> *getArgv() { return argv; }
+    void setEnv(list<string> *envvals) { envs = envvals; }
+    list<string> *getEnvs() { return envs; }
     CGAlg *getType() { return type; }
     vector<string> getInputs() const;
     vector<string> getOutputs() const;
-//    void setId(const string tID) { ID = tID; }
-//    string getId() const { return ID; }
-    char *getWUId() const { return wuId; }
-    void setWUId(char *sId) { wuId = strdup(sId); }
+    char *getGridId() const { return gridId; }
+    void setGridId(char *sId) { gridId = strdup(sId); }
     string getInputPath(const string localname) const;
     string getOutputPath(const string localname);
     CGJobStatus getStatus() const { return status; }
