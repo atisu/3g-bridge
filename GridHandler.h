@@ -1,7 +1,7 @@
 #ifndef __GRIDHANDLER_H
 #define __GRIDHANDLER_H
 
-#include <vector>
+#include <set>
 #include "CGJob.h"
 
 using namespace std;
@@ -25,15 +25,15 @@ public:
      * Submit jobs in the argument. Set the different properties of jobs (Grid
      * ID, status, ...) through the objects' property change functions.
      */
-    virtual void submitJobs(vector<CGJob *> *jobs) = 0;
+    virtual void submitJobs(set<CGJob *> *jobs) = 0;
     /**
      * Update status of jobs through the objects.
      */
-    virtual void getStatus(vector<CGJob *> *jobs) = 0;
+    virtual void getStatus(set<CGJob *> *jobs) = 0;
     /**
      * Get results.
      */
-    virtual void getOutputs(vector<CGJob *> *jobs) = 0;
+    virtual void getOutputs(set<CGJob *> *jobs) = 0;
 };
 
 #endif

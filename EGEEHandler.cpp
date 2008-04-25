@@ -2,13 +2,14 @@
 #include "GridHandler.h"
 #include "EGEEHandler.h"
 
-//#include <unistd.h>
+#include <set>
 #include <string>
 #include <vector>
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+#include <uuid/uuid.h>
 #include <glite/lb/Job.h>
 #include <glite/jdl/Ad.h>
 #include <glite/jdl/adconverter.h>
@@ -66,7 +67,7 @@ EGEEHandler::~EGEEHandler()
 /*
  * Submit jobs
  */
-void EGEEHandler::submitJobs(vector<CGJob *> *jobs)
+void EGEEHandler::submitJobs(set<CGJob *> *jobs)
 {
     char tmpl[256];
     sprintf(tmpl, "submitdir.XXXXXX");
@@ -79,23 +80,28 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs)
     mkdir("jdlfiles", 0700);
     //CollectionAd collAd;
     vector<Ad *> jobAds;
-    for (unsigned i = 0; i < jobs->size(); i++) {
+    unsigned i = 0;
+    for (set<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++, i++) {
 	char jdirname[32];
 	sprintf(jdirname, "%d", i);
 	mkdir(jdirname, 0700);
-	CGJob *actJ = jobs->at(i);
+	CGJob *actJ = *it;
 	string jobJDLStr = getJobTemplate(JOBTYPE_NORMAL, actJ->getName(), "", "other.GlueCEStateStatus == \"Production\"", "- other.GlueCEStateEstimatedResponseTime", cfg);
 	Ad *jobJDLAd = new Ad(jobJDLStr);
 	vector<string> ins = actJ->getInputs();
-        for (unsigned j = 0; j < ins.size(); j++)
-	    jobJDLAd->addAttribute(JDL::INPUTSB, actJ->getInputPath(ins[j]).c_str());
+        for (unsigned j = 0; j < ins.size(); j++) {
+	    string fspath = actJ->getInputPath(ins[j]).c_str();
+	    string oppath = ins[j];
+	    ifstream inf(fspath.c_str(), ios::binary);
+	    ofstream outf((string(jdirname)+"/"+oppath).c_str(), ios::binary);
+	    outf << inf.rdbuf();
+	    inf.close();
+	    outf.close();
+	    jobJDLAd->addAttribute(JDL::INPUTSB, (string(jdirname)+"/"+oppath).c_str());
+	}
 	vector<string> outs = actJ->getOutputs();
 	for (unsigned j = 0; j < outs.size(); j++)
 	    jobJDLAd->addAttribute(JDL::OUTPUTSB, outs[j].c_str());
-	jobJDLAd->addAttribute(JDL::OUTPUTSB, "stdout.log");
-	jobJDLAd->setAttribute(JDL::STDOUTPUT, "stdout.log");
-	jobJDLAd->addAttribute(JDL::OUTPUTSB, "stderr.log");
-	jobJDLAd->setAttribute(JDL::STDERROR, "stderr.log");
 	jobJDLAd->setAttribute(JDL::RETRYCOUNT, 10);
 	jobJDLAd->setAttribute(JDL::SHALLOWRETRYCOUNT, 10);
 	string arg;
@@ -132,23 +138,26 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs)
     }
     jobStart(collID.jobid, cfg);
     */
-    string cmd = "glite-wms-job-submit -a -o collection.id --collection jdlfiles";
+    string cmd = "glite-wms-job-submit -a --debug --logfile collection.log -o collection.id --collection jdlfiles";
     system(cmd.c_str());
     ifstream collIDf("collection.id");
     string collID;
     do {
 	collIDf >> collID;
     } while ("https://" != collID.substr(0, 8));
-    cout << "Collection ID is: " << collID << endl;
     JobId jID(collID);
     glite::lb::Job tJob(jID);
     JobStatus stat = tJob.status(tJob.STAT_CLASSADS|tJob.STAT_CHILDREN|tJob.STAT_CHILDSTAT);
     vector<string> childIDs = stat.getValStringList(stat.CHILDREN);
-    cout << stat.getValInt(stat.CHILDREN_NUM);
-    for (unsigned int i = 0; i < childIDs.size(); i++) {
-	jobs->at(i)->setGridId((char *)childIDs[i].c_str());
-	jobs->at(i)->setStatus(CG_INIT);
-	cout << "  New child ID: " << childIDs[i].c_str() << endl;
+    set<CGJob *>::iterator it = jobs->begin();
+    for (unsigned i = 0; i < childIDs.size(); i++, it++) {
+	JobId cjID(childIDs[i]);
+	glite::lb::Job ctJob(cjID);
+	JobStatus cstat = ctJob.status(tJob.STAT_CLASSADS);
+	string childJDL = cstat.getValString(cstat.JDL);
+	cout << "A child JDL is: " << childJDL << endl;
+	(*it)->setGridId((char *)childIDs[i].c_str());
+	(*it)->setStatus(CG_INIT);
     }
     chdir("..");
     rmdir(tmpdir);
@@ -158,7 +167,7 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs)
 /*
  * Update status of jobs
  */
-void EGEEHandler::getStatus(vector<CGJob *> *jobs)
+void EGEEHandler::getStatus(set<CGJob *> *jobs)
 {
     const struct { string EGEEs; CGJobStatus jobS; } statusRelation[] = {
 	{"Submitted", CG_INIT},
@@ -172,14 +181,15 @@ void EGEEHandler::getStatus(vector<CGJob *> *jobs)
 	{"Aborted", CG_ERROR},
 	{"", CG_INIT}
     };
-    for (unsigned i = 0; i < jobs->size(); i++) {
-	JobId jID(jobs->at(i)->getGridId());
+    for (set<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
+	CGJob *actJ = *it;
+	JobId jID(actJ->getGridId());
 	glite::lb::Job tJob(jID);
 	JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
 	string statStr = stat.name();
 	for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
 	    if (statusRelation[j].EGEEs == statStr)
-		jobs->at(i)->setStatus(statusRelation[j].jobS);
+		actJ->setStatus(statusRelation[j].jobS);
     }
 }
 
@@ -187,8 +197,28 @@ void EGEEHandler::getStatus(vector<CGJob *> *jobs)
 /*
  * Get outputs of jobs
  */
-void EGEEHandler::getOutputs(vector<CGJob *> *jobs)
+void EGEEHandler::getOutputs(set<CGJob *> *jobs)
 {
+    for (set<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
+	char wd[2048];
+	char dirIDs[37];
+	uuid_t dirID;
+	uuid_generate(dirID);
+	uuid_unparse(dirID, dirIDs);
+	getcwd(wd, 2047);
+	mkdir(dirIDs, 0700);
+	chdir(dirIDs);
+	CGJob *actJ = *it;
+	vector<pair<string, long> > URIs = getOutputFileList(actJ->getGridId(), cfg);
+	vector<string> inFiles(URIs.size());
+	for (unsigned int i = 0; i < URIs.size(); i++) {
+	    inFiles[i] = URIs[i].first;
+	    string fbname = inFiles[i].substr(inFiles[i].rfind("/")+1);
+	    actJ->setOutputPath(fbname, string(wd)+string(dirIDs)+fbname);
+	}
+	download_file_globus(inFiles);
+	chdir("..");
+    }
 }
 
 
@@ -449,59 +479,6 @@ void EGEEHandler::delegate_Proxy(const string& delID)
 
 
 #ifdef SOSEM_ER_IDE
-
-#include "EGEE_API.h"
-
-#include "unistd.h"
-#include <iostream>
-#include <vector>
-#include <glite/jdl/Ad.h>
-#include <glite/jdl/JDLAttributes.h>
-#include <glite/jdl/extractfiles.h>
-#include <glite/wms/wmproxyapi/wmproxy_api.h>
-#include <glite/wmsutils/jobid/JobId.h>
-#include <glite/lb/Job.h>
-#include <glite/lb/JobStatus.h>
-#include <glite/lb/LoggingExceptions.h>
-#include <globus_ftp_client.h>
-
-using namespace std;
-using namespace glite::lb;
-using namespace glite::wms;
-using namespace glite::jdl;
-using namespace glite::wms::wmproxyapi;
-using namespace glite::wmsutils::jobid;
-
-static globus_mutex_t lock;
-static globus_cond_t cond;
-static globus_bool_t done;
-static bool globus_err;
-int global_offset = 0;
-
-
-string getStatus(const string &jobID, string *hname)
-{
-    string statStr = "UNKNOWN";
-    try {
-        JobId jID(jobID);
-        Job tJob(jID);
-        JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
-        statStr = stat.name();
-        *hname = stat.getValString(stat.LOCATION);
-    } catch (BaseException e) {
-	cout << "Exception occured during job status query:" << endl;
-        if (e.ErrorCode)
-	    cout << *e.ErrorCode << endl;
-	if (e.Description)
-	    cout << *e.Description << endl;
-    } catch (LoggingException le) {
-	cout << "LoggingException thrown for job ID: " << jobID << endl;
-	cout << le.dbgMessage() << endl;
-	cout << le.printStackTrace() << endl;
-    }
-    return statStr;
-}
-
 
 void getOutput(const string& jdlfile, const string &jobID, ConfigContext *cfg)
 {
