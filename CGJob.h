@@ -16,7 +16,7 @@ private:
     string name;
     list<string> *argv;
     list<string> *envs;
-    char *gridId;
+    string gridId;
     map<string, string> inputs;
     map<string, string> outputs;
     CGJobStatus status;
@@ -33,8 +33,8 @@ public:
     CGAlg *getType() { return type; }
     vector<string> getInputs() const;
     vector<string> getOutputs() const;
-    char *getGridId() const { return gridId; }
-    void setGridId(char *sId) { gridId = strdup(sId); }
+    string getGridId() const { return gridId; }
+    void setGridId(const string sId) { gridId = sId; }
     string getInputPath(const string localname) const;
     string getOutputPath(const string localname);
     CGJobStatus getStatus() const { return status; }

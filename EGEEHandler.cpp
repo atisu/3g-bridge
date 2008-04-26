@@ -14,11 +14,8 @@
 #include <glite/jdl/Ad.h>
 #include <glite/jdl/adconverter.h>
 #include <glite/jdl/JDLAttributes.h>
-//#include <glite/jdl/RequestAdExceptions.h>
-//#include <glite/jdl/extractfiles.h>
 #include <glite/wms/wmproxyapi/wmproxy_api.h>
 #include <glite/wmsutils/jobid/JobId.h>
-//#include <glite/lb/JobStatus.h>
 #include <globus_ftp_client.h>
 
 using namespace std;
@@ -45,16 +42,10 @@ EGEEHandler::EGEEHandler(const string &WMProxy_EndPoint)
     try {
         cfg = new ConfigContext("", WMProxy_EndPoint, "");
     } catch (BaseException e) {
-	cout << "Exception occured during initialization of ConfigContext:" << endl;
-        if (e.ErrorCode)
-	    cout << e.ErrorCode << endl;
-	if (e.Description)
-	    cout << e.Description << endl;
+	throwStrExc(__func__, e);
     }
-    if (!cfg) {
-	cout << "Failed to create ConfigContext!" << endl;
-	throw(-1);
-    }
+    if (!cfg)
+	throwStrExc(__func__, "Failed to create ConfigContext!");
 }
 
 
@@ -86,7 +77,12 @@ void EGEEHandler::submitJobs(set<CGJob *> *jobs)
 	sprintf(jdirname, "%d", i);
 	mkdir(jdirname, 0700);
 	CGJob *actJ = *it;
-	string jobJDLStr = getJobTemplate(JOBTYPE_NORMAL, actJ->getName(), "", "other.GlueCEStateStatus == \"Production\"", "- other.GlueCEStateEstimatedResponseTime", cfg);
+	string jobJDLStr;
+	try {
+	    jobJDLStr = getJobTemplate(JOBTYPE_NORMAL, actJ->getName(), "", "other.GlueCEStateStatus == \"Production\"", "- other.GlueCEStateEstimatedResponseTime", cfg);
+	} catch (BaseException e) {
+	    throwStrExc(__func__, e);
+	}
 	Ad *jobJDLAd = new Ad(jobJDLStr);
 	vector<string> ins = actJ->getInputs();
         for (unsigned j = 0; j < ins.size(); j++) {
@@ -104,6 +100,10 @@ void EGEEHandler::submitJobs(set<CGJob *> *jobs)
 	    jobJDLAd->addAttribute(JDL::OUTPUTSB, outs[j].c_str());
 	jobJDLAd->setAttribute(JDL::RETRYCOUNT, 10);
 	jobJDLAd->setAttribute(JDL::SHALLOWRETRYCOUNT, 10);
+	stringstream nodename;
+	nodename << "Node_" << setfill('0') << setw(4) << i << "_jdl";
+	jobJDLAd->setAttribute(JDL::NODE_NAME, nodename.str());
+	actJ->setGridId(nodename.str());
 	string arg;
 	list<string> *args = actJ->getArgv();
 	if (args) {
@@ -120,10 +120,6 @@ void EGEEHandler::submitJobs(set<CGJob *> *jobs)
 	jobJDL << jobJDLAd->toString() << endl;
 	jobJDL.close();
     }
-    //cout << "The collection JDL is: " << collAd.toSubmissionString() << endl;
-    //ofstream outColl("collection.jdl");
-    //outColl << collAd.toSubmissionString() << endl;
-    //outColl.close();
     /*
     delegate_Proxy(tmpl);
     JobIdApi collID = jobRegister(collAd.toSubmissionString(), tmpl, cfg);
@@ -138,8 +134,10 @@ void EGEEHandler::submitJobs(set<CGJob *> *jobs)
     }
     jobStart(collID.jobid, cfg);
     */
-    string cmd = "glite-wms-job-submit -a --debug --logfile collection.log -o collection.id --collection jdlfiles";
-    system(cmd.c_str());
+    //string cmd = "glite-wms-job-submit -a --debug --logfile collection.log -o collection.id --collection jdlfiles";
+    string cmd = "glite-wms-job-submit -a -o collection.id --collection jdlfiles";
+    if (-1 == system(cmd.c_str()))
+	throwStrExc(__func__, "Job submission using glite-wms-job-submit failed!");
     ifstream collIDf("collection.id");
     string collID;
     do {
@@ -149,15 +147,33 @@ void EGEEHandler::submitJobs(set<CGJob *> *jobs)
     glite::lb::Job tJob(jID);
     JobStatus stat = tJob.status(tJob.STAT_CLASSADS|tJob.STAT_CHILDREN|tJob.STAT_CHILDSTAT);
     vector<string> childIDs = stat.getValStringList(stat.CHILDREN);
-    set<CGJob *>::iterator it = jobs->begin();
-    for (unsigned i = 0; i < childIDs.size(); i++, it++) {
+    for (unsigned i = 0; i < childIDs.size(); i++) {
+	string childNodeName = "UNKNOWN";
 	JobId cjID(childIDs[i]);
 	glite::lb::Job ctJob(cjID);
-	JobStatus cstat = ctJob.status(tJob.STAT_CLASSADS);
-	string childJDL = cstat.getValString(cstat.JDL);
-	cout << "A child JDL is: " << childJDL << endl;
-	(*it)->setGridId((char *)childIDs[i].c_str());
-	(*it)->setStatus(CG_INIT);
+	vector<Event> events;
+	events.clear();
+	while (!events.size()) {
+	    try {
+		events = ctJob.log();
+	    } catch (...) {
+		sleep(1);
+	    }
+	}
+	for (unsigned j = 0; j < events.size(); j++) {
+	    if (events[j].type == events[j].REGJOB) {
+		Ad tAd(events[j].getValString(events[j].JDL));
+		childNodeName = tAd.getString(JDL::NODE_NAME);
+		break;
+	    }
+	}
+	for (set<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
+	    if ((*it)->getGridId() == childNodeName) {
+		(*it)->setGridId(childIDs[i]);
+		(*it)->setStatus(CG_INIT);
+		break;
+	    }
+	}
     }
     chdir("..");
     rmdir(tmpdir);
@@ -218,6 +234,17 @@ void EGEEHandler::getOutputs(set<CGJob *> *jobs)
 	}
 	download_file_globus(inFiles);
 	chdir("..");
+	cleanJob(actJ->getGridId());
+    }
+}
+
+
+/*
+ * Cancel jobs
+ */
+void EGEEHandler::cancelJobs(set<CGJob *> *jobs)
+{
+    for (set<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
     }
 }
 
@@ -384,10 +411,8 @@ void EGEEHandler::download_file_globus(const vector<string> &outFiles)
 
     globus_module_activate(GLOBUS_FTP_CLIENT_MODULE);
     buffer = new globus_byte_t[GSIFTP_BSIZE];
-    if (!buffer) {
-        cout << "Memory allocation error!" << endl;
-        exit(-1);
-    }
+    if (!buffer)
+        throwStrExc(__func__, "Memory allocation error!");
 
     init_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
 
@@ -397,7 +422,6 @@ void EGEEHandler::download_file_globus(const vector<string> &outFiles)
 	char *tdfile, *dfile = strdup(outFiles[i].c_str());
 	globus_mutex_init(&lock, GLOBUS_NULL);
 	globus_cond_init(&cond, GLOBUS_NULL);
-	cout << "Downloading " << outFiles[i] << "..." << endl;
 	tdfile = basename(dfile);
 	string sfile(outFiles[i]);
 	done = GLOBUS_FALSE;
@@ -443,7 +467,6 @@ void EGEEHandler::delete_file_globus(const vector<string> &fileNames, const stri
 
     for (unsigned int i = 0; i < fileNames.size(); i++) {
 	globus_err = false;
-	cout << "Removing file " << prefix + fileNames[i] << endl;
 	globus_mutex_init(&lock, GLOBUS_NULL);
 	globus_cond_init(&cond, GLOBUS_NULL);
 	done = GLOBUS_FALSE;
@@ -466,8 +489,13 @@ void EGEEHandler::delete_file_globus(const vector<string> &fileNames, const stri
 }
 
 
-void EGEEHandler::cleanJob(const string& jdlfile, const string &jobID)
+void EGEEHandler::cleanJob(const string &jobID)
 {
+    try {
+	jobPurge(jobID, cfg);
+    } catch (BaseException e) {
+	throwStrExc(__func__, e);
+    }
 }
 
 
@@ -478,71 +506,25 @@ void EGEEHandler::delegate_Proxy(const string& delID)
 }
 
 
-#ifdef SOSEM_ER_IDE
-
-void getOutput(const string& jdlfile, const string &jobID, ConfigContext *cfg)
+void EGEEHandler::throwStrExc(const char *func, const BaseException &e) throw(string)
 {
-    try {
-	Ad ad;
-	ad.fromFile(jdlfile);
-	if (ad.hasAttribute(JDL::OUTPUTSB)) {
-	    vector<pair<string, long> > URIs = getOutputFileList(jobID, cfg);
-	    vector<string> inFiles(URIs.size());
-	    for (unsigned int i = 0; i < URIs.size(); i++)
-		inFiles[i] = URIs[i].first;
-	    download_file_globus(inFiles);
-	}
-    } catch (BaseException e) {
-        cout << "Exception occured during job output download:" << endl;
-        if (e.ErrorCode)
-            cout << "Error code: " << *e.ErrorCode << endl;
-        if (e.Description)
-    	    cout << "Description: " << *e.Description << endl;
-	cout << "Method name: " << e.methodName << endl;
-	if (e.FaultCause) {
-	    for (unsigned int i = 0; i < (*e.FaultCause).size(); i++)
-		cout << "FaultCause: " << (*e.FaultCause)[i] << endl;
-	}
-    }
+    stringstream msg;
+    msg << "Exception occured in EGEEHandler::" << func << ":" << endl;
+    if (e.ErrorCode)
+        msg << " Error code: " << *(e.ErrorCode) << endl;
+    if (e.Description)
+        msg << " Description: " << *(e.Description) << endl;
+    msg << " Method name: " << e.methodName << endl;
+    if (e.FaultCause)
+        for (unsigned i = 0; i < (e.FaultCause)->size(); i++)
+	    msg << "  FaultCause: " << (*(e.FaultCause))[i] << endl;
+    throw(msg.str());
 }
 
 
-void cleanJob(const string& jdlfile, const string &jobID, ConfigContext *cfg)
+void EGEEHandler::throwStrExc(const char *func, const string &str) throw(string)
 {
-    try {
-	// No need to remove sandbox files. When has this changed???
-	/*
-	Ad ad;
-	ad.fromFile(jdlfile);
-
-	if (ad.hasAttribute(JDL::INPUTSB)) {
-	    vector<string> URIs = getSandboxDestURI(jobID, cfg, "gsiftp");
-	    vector<string> inFiles = ad.getStringValue(JDL::INPUTSB);
-	    URIs[0] += "/";
-	    delete_file_globus(inFiles, URIs[0]);
-	}
-	if (ad.hasAttribute(JDL::OUTPUTSB)) {
-	    vector<pair<string, long> > URIs = getOutputFileList(jobID, cfg);
-	    vector<string> inFiles(URIs.size());
-	    for (unsigned int i = 0; i < URIs.size(); i++)
-		inFiles[i] = URIs[i].first;
-	    delete_file_globus(inFiles);
-	}
-	*/
-	jobPurge(jobID, cfg);
-    } catch (BaseException e) {
-        cout << "Exception occured during job purge:" << endl;
-        if (e.ErrorCode)
-            cout << "Error code: " << *e.ErrorCode << endl;
-        if (e.Description)
-    	    cout << "Description: " << *e.Description << endl;
-	cout << "Method name: " << e.methodName << endl;
-	if (e.FaultCause) {
-	    for (unsigned int i = 0; i < (*e.FaultCause).size(); i++)
-		cout << "FaultCause: " << (*e.FaultCause)[i] << endl;
-	}
-    }
+    stringstream msg;
+    msg << "Exception occured in EGEEHandler::" << func << ": " << str;
+    throw(msg.str());
 }
-
-
-#endif /* SOSEM_ER_IDE */

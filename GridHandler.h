@@ -34,6 +34,10 @@ public:
      * Get results.
      */
     virtual void getOutputs(set<CGJob *> *jobs) = 0;
+    /**
+     * Cancel jobs.
+     */
+    virtual void cancelJobs(set <CGJob *> *jobs) = 0;
 };
 
 #endif

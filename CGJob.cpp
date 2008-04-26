@@ -16,7 +16,6 @@ CGJob::CGJob(const string tname, list<string> *arglist, CGAlg &aType):name(tname
 
 CGJob::~CGJob()
 {
-    free(gridId);
 }
 
 void CGJob::addInput(const string localname, const string fsyspath)

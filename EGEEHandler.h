@@ -32,14 +32,17 @@ private:
     void upload_file_globus(const vector<string> &inFiles, const string &destURI);
     void download_file_globus(const vector<string> &outFiles);
     void delete_file_globus(const vector<string> &fileNames, const string &prefix = "");
-    void cleanJob(const string& jdlfile, const string &jobID);
+    void cleanJob(const string &jobID);
     void delegate_Proxy(const string& delID);
+    void throwStrExc(const char *func, const BaseException &e) throw(string);
+    void throwStrExc(const char *func, const string &str) throw(string);
 public:
     EGEEHandler(const string &WMProxy_EndPoint);
     ~EGEEHandler();
     void submitJobs(set<CGJob *> *jobs);
     void getStatus(set<CGJob *> *jobs);
     void getOutputs(set<CGJob *> *jobs);
+    void cancelJobs(set<CGJob *> *jobs);
 };
 
 #endif
