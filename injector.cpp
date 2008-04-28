@@ -3,10 +3,10 @@
 #include <fstream>
 #include <map>
 #include <string>
-#include <mysql++.h>
-//#include <transaction.h>
-#include <null.h>
-#include <custom.h>
+#include <mysql++/mysql++.h>
+//#include <mysql++/transaction.h>
+#include <mysql++/null.h>
+#include <mysql++/custom.h>
 #include <tclap/CmdLine.h>
 
 #include "CGSqlStruct.h"

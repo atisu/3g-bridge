@@ -7,7 +7,7 @@
 #include <iostream>
 #include <sstream>
 #include <uuid/uuid.h>
-#include <mysql++.h>
+#include <mysql++/mysql++.h>
 #include <sys/stat.h>
 
 using namespace std;

@@ -1,5 +1,5 @@
-#include <mysql++.h>
-#include <custom.h>
+#include <mysql++/mysql++.h>
+#include <mysql++/custom.h>
 #include <string>
 
 using namespace std;

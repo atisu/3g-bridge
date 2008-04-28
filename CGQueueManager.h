@@ -12,8 +12,8 @@
 #include <string>
 #include <vector>
 #include <uuid/uuid.h>
-#include <mysql++.h>
-#include <custom.h>
+#include <mysql++/mysql++.h>
+#include <mysql++/custom.h>
 
 using namespace std;
 using namespace mysqlpp;
