@@ -24,6 +24,9 @@ AC_CHECK_HEADERS([mysql++/mysql++.h], [],
 	     [AC_MSG_ERROR([MySQL C++ bindings seem to be missing])])
 CPPFLAGS="$save_CPPFLAGS"
 
+AC_CHECK_HEADERS([tclap/CmdLine.h], [],
+	     [AC_MSG_ERROR([Templatized command-line argument parser headers are missing])])
+
 AC_LANG_POP([C++])
 
 AC_CONFIG_FILES([Makefile])
