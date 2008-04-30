@@ -1,6 +1,8 @@
 AC_PREREQ(2.59)
 
-AC_INIT([CancerGrid], [0.5], [zfarkas@sztaki.hu])
+AC_INIT([Queue Manager], [0.5], [zfarkas@sztaki.hu])
+
+AC_CONFIG_AUX_DIR([scripts])
 
 AM_INIT_AUTOMAKE([1.9 foreign])
 
