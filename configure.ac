@@ -3,6 +3,7 @@ AC_PREREQ(2.59)
 AC_INIT([Queue Manager], [0.5], [zfarkas@sztaki.hu])
 
 AC_CONFIG_AUX_DIR([scripts])
+AC_CONFIG_MACRO_DIR([cf])
 
 AM_INIT_AUTOMAKE([1.9 foreign])
 
@@ -14,7 +15,7 @@ if test $MYSQL_CONFIG = none; then
 fi
 
 MYSQL_CPPFLAGS=`$MYSQL_CONFIG --include`
-AC_SUBST(MYSQL_CPPFLAGS)
+AC_SUBST([MYSQL_CPPFLAGS])
 
 AC_LANG_PUSH([C++])
 
@@ -39,6 +40,13 @@ dnl These are needed by tclap
 AC_CHECK_HEADERS([sstream strstream])
 
 AC_LANG_POP([C++])
+
+AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@yes@:>@]),
+	[], [with_dcapi=yes])
+if test "$with_dcapi != no"; then
+	SZDG_DCAPI_MASTER
+fi
+AM_CONDITIONAL([HAVE_DCAPI], [test "$with_dcapi" != no])
 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])

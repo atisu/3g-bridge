@@ -3,9 +3,33 @@ MAINTAINERCLEANFILES = Makefile.in
 AM_CPPFLAGS = @MYSQL_CPPFLAGS@
 
 bin_PROGRAMS = test injector CGManager
-test_SOURCES = test.cpp CGAlg.h CGJob.cpp CGJob.h CGQueueManager.h CGQueueManager.cpp common.h CGAlgQueue.h CGAlgQueue.cpp
-test_LDADD = -ldc-boinc -lsched -lboinc -lcrypto -lstdc++ -lz -lcrypt -lnsl -lm -lglib-2.0 -luuid -lmysqlpp
+
 injector_SOURCES = injector.cpp
 injector_LDADD = -lmysqlpp
-CGManager_SOURCES = CGManager.cpp CGAlg.h CGJob.cpp CGJob.h CGQueueManager.h CGQueueManager.cpp common.h CGAlgQueue.h CGAlgQueue.cpp
-CGManager_LDADD = -ldc-boinc -lsched -lboinc -lcrypto -lstdc++ -lz -lcrypt -lnsl -lm -lglib-2.0 -luuid -lmysqlpp
+
+if HAVE_DCAPI
+
+CGManager_SOURCES = \
+		common.h \
+		CGAlg.h \
+		CGAlgQueue.cpp \
+		CGAlgQueue.h \
+		CGJob.cpp \
+		CGJob.h \
+		CGManager.cpp \
+		CGQueueManager.cpp \
+		CGQueueManager.h
+CGManager_LDADD = $(DCAPI_MASTER_LIBS) -lmysqlpp
+
+test_SOURCES = test.cpp \
+		common.h \
+		CGAlg.h \
+		CGAlgQueue.cpp \
+		CGAlgQueue.h \
+		CGJob.cpp \
+		CGJob.h \
+		CGQueueManager.cpp \
+		CGQueueManager.h
+test_LDADD = $(DCAPI_MASTER_LIBS) -lmysqlpp
+
+endif
