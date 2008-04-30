@@ -23,7 +23,11 @@ save_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $MYSQL_CPPFLAGS"
 AC_CHECK_HEADERS([mysql++/mysql++.h], [],
 	     [AC_MSG_ERROR([MySQL C++ bindings seem to be missing])])
-AC_CHECK_HEADERS([mysql++/custom.h mysql++/ssqls.h])
+AC_CHECK_HEADERS([mysql++/ssqls.h], [], [], AC_LANG_SOURCE([
+#ifdef HAVE_MYSQL___MYSQL___H
+#include <mysql++/mysql++.h>
+#endif
+]))
 CPPFLAGS="$save_CPPFLAGS"
 
 AC_CHECK_HEADERS([tclap/CmdLine.h], [],

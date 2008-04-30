@@ -4,11 +4,10 @@
 
 #include <mysql++/mysql++.h>
 
-#ifdef HAVE_MYSQL___CUSTOM_H
-#include <mysql++/custom.h>
-#endif
 #ifdef HAVE_MYSQL___SSQLS_H
 #include <mysql++/ssqls.h>
+#else
+#include <mysql++/custom.h>
 #endif
 
 #include <string>
