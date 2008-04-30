@@ -1,5 +1,16 @@
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <mysql++/mysql++.h>
+
+#ifdef HAVE_MYSQL___CUSTOM_H
 #include <mysql++/custom.h>
+#endif
+#ifdef HAVE_MYSQL___SSQLS_H
+#include <mysql++/ssqls.h>
+#endif
+
 #include <string>
 
 using namespace std;
