@@ -15,6 +15,7 @@ MYSQL_CPPFLAGS=`$MYSQL_CONFIG --include`
 AC_SUBST(MYSQL_CPPFLAGS)
 
 AC_LANG_PUSH([C++])
+
 AC_CHECK_LIB([mysqlpp], [main], [],
 	     [AC_MSG_ERROR([MySQL C++ bindings seem to be missing])])
 
@@ -27,6 +28,9 @@ CPPFLAGS="$save_CPPFLAGS"
 
 AC_CHECK_HEADERS([tclap/CmdLine.h], [],
 	     [AC_MSG_ERROR([Templatized command-line argument parser headers are missing])])
+
+dnl These are needed by tclap
+AC_CHECK_HEADERS([sstream strstream])
 
 AC_LANG_POP([C++])
 
