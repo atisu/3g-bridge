@@ -133,11 +133,9 @@ int main(int argc, char **argv)
 	    }
 //	    trans.commit();
 //	} // end of transaction scope
-	con.close();
-	
+
 	while (wait) {
 	    // wait for job to finish
-	    con.connect("boinc_cancergrid", "0", "boinc-cancergrid", "czowtjhdlo");
 	    query = con.query();
 
 	    query << "SELECT * FROM cg_job WHERE name = \"" << jobName << "\"";
@@ -145,8 +143,6 @@ int main(int argc, char **argv)
 	    query.storein(job);
 	    string status = job.at(0).status;
 	    jobid = job.at(0).id;
-	    
-	    con.close();
 	    
 	    if (status == "CG_FINISHED")  {
 		break;
@@ -156,14 +152,11 @@ int main(int argc, char **argv)
 	
 	// If we were waiting for the output, print it
 	if (wait) {
-	    con.connect("boinc_cancergrid", "0", "boinc-cancergrid", "czowtjhdlo");
 	    query = con.query();
 
 	    query << "SELECT * FROM cg_outputs WHERE localname != \"stdout.txt\" AND localname != \"stderr.txt\" AND jobid = \"" << jobid << "\"";
 	    vector<cg_outputs> outputs;
 	    query.storein(outputs);
-	    
-	    con.close();
 	    
 	    for (vector<cg_outputs>::iterator it = outputs.begin(); it != outputs.end(); it++)
 		cout << it->path << endl;
