@@ -148,13 +148,13 @@ void CGQueueManager::registerWuOfJob(uuid_t *id, CGJob &job)
     }
 
     // Serialize WU and set the wuID of the job entity
-    job.setWUId(DC_serializeWU(wu));
+    job.setGridId(DC_serializeWU(wu));
 
     // Set status of job to CG_RUNNING
     job.setStatus(CG_RUNNING);
     string name = job.getName();
     query.reset();
-    query << "UPDATE cg_job SET status = \"CG_RUNNING\", wuid = \"" << string(job.getWUId()) << "\" WHERE name = \"" << name << "\"";
+    query << "UPDATE cg_job SET status = \"CG_RUNNING\", wuid = \"" << string(job.getGridId()) << "\" WHERE name = \"" << name << "\"";
     query.execute();
 }
 
@@ -176,7 +176,7 @@ void CGQueueManager::removeJob(uuid_t *id)
 
     // If the job is still running, tell Boinc to cancel the job
     if (job->getStatus() == CG_RUNNING) {
-        DC_Workunit *wu = DC_deserializeWU(job->getWUId());
+        DC_Workunit *wu = DC_deserializeWU(job->getGridId().c_str());
         DC_cancelWU(wu);
     }
     
