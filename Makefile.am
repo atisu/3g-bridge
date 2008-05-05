@@ -1,5 +1,7 @@
 MAINTAINERCLEANFILES = Makefile.in
 
+ACLOCAL_AMFLAGS = -I cf
+
 AM_CPPFLAGS = @MYSQL_CPPFLAGS@
 
 bin_PROGRAMS = test injector CGManager
