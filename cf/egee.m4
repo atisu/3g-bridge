@@ -5,7 +5,7 @@ dnl Check for the EGEE-specific development files
 dnl
 
 AC_DEFUN([GLOBUS_CONF], [
-	AC_ARG_WITH([globus], AS_HELP_STRING[--with-globus],
+	AC_ARG_WITH([globus], AS_HELP_STRING([--with-globus],
 		[Use Globus in @<:@/opt/globus@:>@]),,
 		[with_globus=/opt/globus])
 	CPPFLAGS="$CPPFLAGS -I${with_globus}/include/gcc32dbgpthr"
@@ -13,7 +13,7 @@ AC_DEFUN([GLOBUS_CONF], [
 ])
 
 AC_DEFUN([CLASSADS_CONF], [
-	AC_ARG_WITH([classads], AS_HELP_STRING[--with-classads],
+	AC_ARG_WITH([classads], AS_HELP_STRING([--with-classads],
 		[Use Classads in @<:@/opt/classads@:>@]),,
 		[with_classads=/opt/classads])
 	CPPFLAGS="$CPPFLAGS -I${with_classads}/include"
@@ -21,7 +21,7 @@ AC_DEFUN([CLASSADS_CONF], [
 ])
 
 AC_DEFUN([GLITE_CONF], [
-	AC_ARG_WITH([glite], AS_HELP_STRING[--with-glite],
+	AC_ARG_WITH([glite], AS_HELP_STRING([--with-glite],
 		[Use gLite in @<:@/opt/glite@:>@]),,
 		[with_glite=/opt/glite])
 	CPPFLAGS="$CPPFLAGS -I${with_glite}/include -DWANT_NAMESPACES"
