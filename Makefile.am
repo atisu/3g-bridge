@@ -33,3 +33,36 @@ test_SOURCES = test.cpp \
 test_LDADD = $(DCAPI_MASTER_LIBS) -lmysqlpp
 
 endif
+
+if HAVE_EGEE
+
+CGManager_SOURCES = \
+		common.h \
+		CGAlg.h \
+		CGAlgQueue.cpp \
+		CGAlgQueue.h \
+		CGJob.cpp \
+		CGJob.h \
+		CGManager.cpp \
+		CGQueueManager.cpp \
+		CGQueueManager.h \
+		GridHandler.h \
+		EGEEHandler.cpp \
+		EGEEHandler.h
+CGManager_LDADD = $(DCAPI_MASTER_LIBS) -lmysqlpp
+
+test_SOURCES = test.cpp \
+		common.h \
+		CGAlg.h \
+		CGAlgQueue.cpp \
+		CGAlgQueue.h \
+		CGJob.cpp \
+		CGJob.h \
+		CGQueueManager.cpp \
+		CGQueueManager.h \
+		GridHandler.h \
+		EGEEHandler.cpp \
+		EGEEHandler.h
+test_LDADD = $(DCAPI_MASTER_LIBS) -lmysqlpp
+
+endif

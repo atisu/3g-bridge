@@ -48,6 +48,14 @@ if test "$with_dcapi != no"; then
 fi
 AM_CONDITIONAL([HAVE_DCAPI], [test "$with_dcapi" != no])
 
+dnl Check for EGEE backend
+AC_ARG_WITH([egee], AS_HELP_STRING([--with-egee], [Enable EGEE backend @<:@no@:>@]),
+	[], [with_egee=no])
+if test "$with_egee != no"; then
+	EGEE_BE
+fi
+AM_CONDITIONAL([HAVE_EGEE], [test "$with_egee" != no])
+
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
