@@ -20,7 +20,10 @@ CGManager_SOURCES = \
 		CGJob.h \
 		CGManager.cpp \
 		CGQueueManager.cpp \
-		CGQueueManager.h
+		CGQueueManager.h \
+		GridHandler.h \
+		DCAPIHandler.h \
+		DCAPIHandler.cpp
 CGManager_LDADD = $(DCAPI_MASTER_LIBS) -lmysqlpp
 
 test_SOURCES = test.cpp \
@@ -31,7 +34,10 @@ test_SOURCES = test.cpp \
 		CGJob.cpp \
 		CGJob.h \
 		CGQueueManager.cpp \
-		CGQueueManager.h
+		CGQueueManager.h \
+		GridHandler.h \
+		DCAPIHandler.h \
+		DCAPIHandler.cpp
 test_LDADD = $(DCAPI_MASTER_LIBS) -lmysqlpp
 
 endif
@@ -51,7 +57,7 @@ CGManager_SOURCES = \
 		GridHandler.h \
 		EGEEHandler.cpp \
 		EGEEHandler.h
-CGManager_LDADD = $(DCAPI_MASTER_LIBS) -lmysqlpp
+CGManager_LDADD = -lmysqlpp
 
 test_SOURCES = test.cpp \
 		common.h \
@@ -65,6 +71,6 @@ test_SOURCES = test.cpp \
 		GridHandler.h \
 		EGEEHandler.cpp \
 		EGEEHandler.h
-test_LDADD = $(DCAPI_MASTER_LIBS) -lmysqlpp
+test_LDADD = -lmysqlpp
 
 endif
