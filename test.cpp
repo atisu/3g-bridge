@@ -14,7 +14,7 @@ int main(int argc, char **argv)
 {
     try {
     
-      CGAlg a1("flexmol", CG_ALG_GRID);	// Create an algorithm
+      CGAlg a1("flexmol", CG_ALG_DCAPI);	// Create an algorithm
 
       // Create a Queue Manager
       CGQueueManager qm(argv[1], "boinc_szdgr", "0", "boinc-szdgr", "VfxVqw0PHT");

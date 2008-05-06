@@ -4,7 +4,6 @@
 #include "CGJob.h"
 #include "GridHandler.h"
 
-#include <set>
 #include <string>
 #include <vector>
 #include <glite/wms/wmproxyapi/wmproxy_api.h>
@@ -39,10 +38,10 @@ private:
 public:
     EGEEHandler(const string &WMProxy_EndPoint);
     ~EGEEHandler();
-    void submitJobs(set<CGJob *> *jobs);
-    void getStatus(set<CGJob *> *jobs);
-    void getOutputs(set<CGJob *> *jobs);
-    void cancelJobs(set<CGJob *> *jobs);
+    void submitJobs(vector<CGJob *> *jobs);
+    void getStatus(vector<CGJob *> *jobs);
+    void getOutputs(vector<CGJob *> *jobs);
+    void cancelJobs(vector<CGJob *> *jobs);
 };
 
 #endif

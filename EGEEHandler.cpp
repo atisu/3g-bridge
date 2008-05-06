@@ -6,7 +6,6 @@
 #include "GridHandler.h"
 #include "EGEEHandler.h"
 
-#include <set>
 #include <string>
 #include <vector>
 #include <fstream>
@@ -62,7 +61,7 @@ EGEEHandler::~EGEEHandler()
 /*
  * Submit jobs
  */
-void EGEEHandler::submitJobs(set<CGJob *> *jobs)
+void EGEEHandler::submitJobs(vector<CGJob *> *jobs)
 {
     char tmpl[256];
     sprintf(tmpl, "submitdir.XXXXXX");
@@ -76,7 +75,7 @@ void EGEEHandler::submitJobs(set<CGJob *> *jobs)
     //CollectionAd collAd;
     vector<Ad *> jobAds;
     unsigned i = 0;
-    for (set<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++, i++) {
+    for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++, i++) {
 	char jdirname[32];
 	sprintf(jdirname, "%d", i);
 	mkdir(jdirname, 0700);
@@ -171,7 +170,7 @@ void EGEEHandler::submitJobs(set<CGJob *> *jobs)
 		break;
 	    }
 	}
-	for (set<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
+	for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
 	    if ((*it)->getGridId() == childNodeName) {
 		(*it)->setGridId(childIDs[i]);
 		(*it)->setStatus(CG_INIT);
@@ -187,7 +186,7 @@ void EGEEHandler::submitJobs(set<CGJob *> *jobs)
 /*
  * Update status of jobs
  */
-void EGEEHandler::getStatus(set<CGJob *> *jobs)
+void EGEEHandler::getStatus(vector<CGJob *> *jobs)
 {
     const struct { string EGEEs; CGJobStatus jobS; } statusRelation[] = {
 	{"Submitted", CG_INIT},
@@ -201,7 +200,7 @@ void EGEEHandler::getStatus(set<CGJob *> *jobs)
 	{"Aborted", CG_ERROR},
 	{"", CG_INIT}
     };
-    for (set<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
+    for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
 	CGJob *actJ = *it;
 	JobId jID(actJ->getGridId());
 	glite::lb::Job tJob(jID);
@@ -217,9 +216,9 @@ void EGEEHandler::getStatus(set<CGJob *> *jobs)
 /*
  * Get outputs of jobs
  */
-void EGEEHandler::getOutputs(set<CGJob *> *jobs)
+void EGEEHandler::getOutputs(vector<CGJob *> *jobs)
 {
-    for (set<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
+    for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
 	char wd[2048];
 	char dirIDs[37];
 	uuid_t dirID;
@@ -246,9 +245,9 @@ void EGEEHandler::getOutputs(set<CGJob *> *jobs)
 /*
  * Cancel jobs
  */
-void EGEEHandler::cancelJobs(set<CGJob *> *jobs)
+void EGEEHandler::cancelJobs(vector<CGJob *> *jobs)
 {
-    for (set<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
+    for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
     }
 }
 
