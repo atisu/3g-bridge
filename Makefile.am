@@ -4,7 +4,7 @@ ACLOCAL_AMFLAGS = -I cf
 
 AM_CPPFLAGS = @MYSQL_CPPFLAGS@
 
-bin_PROGRAMS = test injector CGManager
+bin_PROGRAMS = injector CGManager
 
 injector_SOURCES = injector.cpp
 injector_LDADD = -lmysqlpp
@@ -26,20 +26,6 @@ CGManager_SOURCES = \
 		DCAPIHandler.cpp
 CGManager_LDADD = $(DCAPI_MASTER_LIBS) -lmysqlpp
 
-test_SOURCES = test.cpp \
-		common.h \
-		CGAlg.h \
-		CGAlgQueue.cpp \
-		CGAlgQueue.h \
-		CGJob.cpp \
-		CGJob.h \
-		CGQueueManager.cpp \
-		CGQueueManager.h \
-		GridHandler.h \
-		DCAPIHandler.h \
-		DCAPIHandler.cpp
-test_LDADD = $(DCAPI_MASTER_LIBS) -lmysqlpp
-
 endif
 
 if HAVE_EGEE
@@ -58,19 +44,5 @@ CGManager_SOURCES = \
 		EGEEHandler.cpp \
 		EGEEHandler.h
 CGManager_LDADD = -lmysqlpp
-
-test_SOURCES = test.cpp \
-		common.h \
-		CGAlg.h \
-		CGAlgQueue.cpp \
-		CGAlgQueue.h \
-		CGJob.cpp \
-		CGJob.h \
-		CGQueueManager.cpp \
-		CGQueueManager.h \
-		GridHandler.h \
-		EGEEHandler.cpp \
-		EGEEHandler.h
-test_LDADD = -lmysqlpp
 
 endif

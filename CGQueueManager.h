@@ -30,17 +30,6 @@ public:
     CGQueueManager(char *conf, char *db, char *host, char *user, char *passwd);
     ~CGQueueManager();
     bool addAlg(CGAlg &what);
-    vector<uuid_t *> *addJobs(vector<CGJob *> &jobs, bool start = false);
-    uuid_t *addJob(CGJob &job, bool start = false);
-    void removeJobs(const vector<uuid_t *> &ids);
-    void removeJob(uuid_t *id);
-    vector<CGJobStatus> *getStatuses(vector<uuid_t *> &ids);
-    CGJobStatus getStatus(uuid_t *id);
-    void queryBoinc(int timeout = 5);
-    vector<CGJob *> *getJobsFromDb(bool start = false);
-    void putOutputsToDb();
-    void registerWuOfJob(uuid_t *id, CGJob &job);
-    void registerWuOfJobs(vector<CGJob *> &jobs);
     void run();
 private:
     map<string, CGAlgQueue *> algs;
