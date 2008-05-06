@@ -33,12 +33,6 @@ AC_CHECK_HEADERS([mysql++/ssqls.h], [], [], AC_LANG_SOURCE([
 ]))
 CPPFLAGS="$save_CPPFLAGS"
 
-AC_CHECK_HEADERS([tclap/CmdLine.h], [],
-	     [AC_MSG_ERROR([Templatized command-line argument parser headers are missing])])
-
-dnl These are needed by tclap
-AC_CHECK_HEADERS([sstream strstream])
-
 AC_LANG_POP([C++])
 
 AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@yes@:>@]),

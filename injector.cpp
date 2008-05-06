@@ -10,11 +10,14 @@
 #include <mysql++/mysql++.h>
 //#include <mysql++/transaction.h>
 #include <mysql++/null.h>
-#include <tclap/CmdLine.h>
+#include <unistd.h>
+#include <getopt.h>
 
 #include "CGSqlStruct.h"
 
-using namespace TCLAP;
+extern char *optarg;
+extern int optind, opterr, optopt;
+
 using namespace mysqlpp;
 using namespace std;
 
@@ -30,62 +33,85 @@ static vector<string> explode(const char sep, string src)
     return output;
 }
 
+void usage(const char *cmdname)
+{
+    cout << "--== Prototype job submitter for Cancergrid ==--" << endl << endl;
+    cout << "Usage: " << cmdname << " [switches]" << endl;
+    cout << " * -j --jobname  [name]     job's name" << endl;
+    cout << "   -c --cmdline  [cmdline]  command line options" << endl;
+    cout << " * -a --algname  [algname]  algorithm name" << endl;
+    cout << "   -i --inlocal  [inlocal]  comma separated list of input files used" << endl;
+    cout << "   -p --inpath   [inpath]   comma separated list of input paths used" << endl;
+    cout << "   -o --outlocal [outlocal] comma separated list of output files used" << endl;
+    cout << "   -w --wait                use if the tool should wait for the job to finish" << endl;
+    cout << "   -h --help                this help screen" << endl;
+    cout << " *: switch is mandatory" << endl;
+    exit(0);
+}
+
 int main(int argc, char **argv)
 {
     Connection con;
-    CmdLine cmd("--== Prototype job submitter for Cancergrid ==--", ' ', "1.0");
     string jobName = "";
     string cmdLine = "";
     string algName = "";
     string inLocal = "";
     string inPath = "";
     string outLocal = "";
-    bool wait = true;
+    bool wait = false;
     int jobid = 0;
-    
+
+    int c;
+    while (1) {
+        int option_index = 0;
+	static struct option long_options[] = {
+	    {"jobname", 1, 0, 'j'},
+	    {"cmdline", 1, 0, 'c'},
+	    {"algname", 1, 0, 'a'},
+	    {"inlocal", 1, 0, 'i'},
+	    {"inpath", 1, 0, 'p'},
+	    {"outlocal", 1, 0, 'o'},
+	    {"wait", 1, 0, 'w'},
+	    {"help", 0, 0, 'h'},
+	    {0, 0, 0, 0}
+	};
+	c = getopt_long(argc, argv, "j:c:a:i:p:o:w", long_options, &option_index);
+	if (c == -1)
+	    break;
+	switch (c) {
+	    case 'j':
+		jobName = string(optarg);
+		break;
+	    case 'c':
+		cmdLine = string(optarg);
+		break;
+	    case 'a':
+		algName = string(optarg);
+		break;
+	    case 'i':
+		inLocal = string(optarg);
+		break;
+	    case 'p':
+		inPath = string(optarg);
+		break;
+	    case 'o':
+		outLocal = string(optarg);
+		break;
+	    case 'w':
+		wait = true;
+		break;
+	    case '?':
+		usage(argv[0]);
+		break;
+	}
+    }
+
+    if (jobName == "" || algName == "")
+	usage(argv[0]);
+
     try {
         con.connect("boinc_cancergrid", "0", "boinc-cancergrid", "czowtjhdlo");
 	Query query = con.query();
-	
-	// Jobname
-	ValueArg<string> jobNameArg("j", "jobname", "Name of job", true, "default", "string");
-	// Command-line params
-	ValueArg<string> cmdLineArg("c", "cmdline", "Command-line arguments to be passed to the job", true, "default", "string");
-	// Algorithm Name
-	ValueArg<string> algNameArg("a", "algname", "Name of algorithm", true, "default", "string");
-	// Comma separated local name of inputs
-	ValueArg<string> inLocalArg("i", "inlocal", "Comma separated list of local names of input files", true, "default", "string");
-	// Comma separated path of inputs
-	ValueArg<string> inPathArg("p", "inpath", "Comma separated list of path of input files", true, "default", "string");
-	// Comma separated local name of inputs
-	ValueArg<string> outLocalArg("o", "outlocal", "Comma separated list of local names of output files", true, "default", "string");
-	// Wait for job
-	ValueArg<int> waitArg("w", "wait", "Set to 0 if you don't want to wait for job to finish", false, 1, "int");
-
-	// add parameters to command-line parse object
-	cmd.add(jobNameArg);
-	cmd.add(cmdLineArg);
-	cmd.add(algNameArg);
-	cmd.add(inLocalArg);
-	cmd.add(inPathArg);
-	cmd.add(outLocalArg);
-	cmd.add(waitArg);
-
-	// Parse command-line arguments into ValueArgs
-	cmd.parse(argc, argv);
-	
-	// Store command-line arguments
-	jobName  = jobNameArg.getValue();
-	cmdLine  = cmdLineArg.getValue();
-	algName  = algNameArg.getValue(); 
-	inLocal  = inLocalArg.getValue();
-	inPath   = inPathArg.getValue();
-	outLocal = outLocalArg.getValue();
-	int tmp = waitArg.getValue();
-	if (tmp >= 1)
-	    wait = true;
-	else
-	    wait = false; 
 	
 	// explode list into vector<string>
 	vector<string> in = explode(',', inLocal);
@@ -99,7 +125,7 @@ int main(int argc, char **argv)
 	}
 	
 	// make map of input local names and input paths
-	for (int i = 0; i < in.size(); i++)
+	for (unsigned i = 0; i < in.size(); i++)
 	    inputs->insert(make_pair(in.at(i), inp.at(i)));
 	    
 //	{ // transaction scope
