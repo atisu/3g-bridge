@@ -98,6 +98,8 @@ void CGQueueManager::handleJobs(jobOperation op, vector<CGJob *> *jobs)
 
   // Use the selected grid plugin for submission
   for (CGAlgType c = CG_ALG_MIN; c != CG_ALG_MAX; c = CGAlgType(c+1)) {
+    if (!gridHandlers[c])
+      continue;
     switch (op) {
     case submit:
       gridHandlers[c]->submitJobs(&(gridMap[c]));

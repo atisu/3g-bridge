@@ -63,6 +63,9 @@ EGEEHandler::~EGEEHandler()
  */
 void EGEEHandler::submitJobs(vector<CGJob *> *jobs)
 {
+    if (!jobs || !jobs->size())
+	return;
+
     char tmpl[256];
     sprintf(tmpl, "submitdir.XXXXXX");
     char *tmpdir = mkdtemp(tmpl);
@@ -200,6 +203,10 @@ void EGEEHandler::getStatus(vector<CGJob *> *jobs)
 	{"Aborted", CG_ERROR},
 	{"", CG_INIT}
     };
+
+    if (!jobs || !jobs->size())
+	return;
+
     for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
 	CGJob *actJ = *it;
 	JobId jID(actJ->getGridId());
@@ -218,6 +225,9 @@ void EGEEHandler::getStatus(vector<CGJob *> *jobs)
  */
 void EGEEHandler::getOutputs(vector<CGJob *> *jobs)
 {
+    if (!jobs || !jobs->size())
+	return;
+
     for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
 	char wd[2048];
 	char dirIDs[37];
@@ -247,6 +257,9 @@ void EGEEHandler::getOutputs(vector<CGJob *> *jobs)
  */
 void EGEEHandler::cancelJobs(vector<CGJob *> *jobs)
 {
+    if (!jobs || !jobs->size())
+	return;
+
     for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
     }
 }
