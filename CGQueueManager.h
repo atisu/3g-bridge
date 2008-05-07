@@ -39,7 +39,6 @@ private:
     string basedir;
     map<CGAlgType, GridHandler *> gridHandlers;
     void handleJobs(jobOperation op, vector<CGJob *> *jobs);
-    vector<CGJob *> *query_jobs(CGJobStatus stat);
     void freeVector(vector<CGJob *> *what);
 };
 

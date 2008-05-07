@@ -21,6 +21,8 @@ CGManager_SOURCES = \
 		CGManager.cpp \
 		CGQueueManager.cpp \
 		CGQueueManager.h \
+		JobDB.h \
+		JobDB.cpp \
 		GridHandler.h \
 		DCAPIHandler.h \
 		DCAPIHandler.cpp
