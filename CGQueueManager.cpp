@@ -12,9 +12,20 @@
 #include <uuid/uuid.h>
 #include <sys/stat.h>
 
+#ifdef HAVE_DCAPI
+#include "DCAPIHandler.h"
+#endif
+#ifdef HAVE_EGEE
+#include "EGEEHandler.h"
+#endif
+
 using namespace std;
 using namespace mysqlpp;
 
+
+/**
+ * Constructor. Initialize selected grid plugin, and database connection.
+ */
 CGQueueManager::CGQueueManager(const string conf, const string db, const string host, const string user, const string passwd)
 {
   // Store base directory
@@ -33,13 +44,27 @@ CGQueueManager::CGQueueManager(const string conf, const string db, const string 
   jobDB = new JobDB(host, user, passwd, db);
 }
 
+
+/**
+ * Destructor. Frees up memory.
+ */
 CGQueueManager::~CGQueueManager()
 {
   for (map<string, CGAlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
     delete it->second;
+
+#ifdef HAVE_DCAPI
+  delete gridHandlers[CG_ALG_DCAPI];
+#endif
+#ifdef HAVE_EGEE
+  delete gridHandlers[CG_ALG_EGEE];
+#endif
+
+  delete jobDB;
 }
 
-/*
+
+/**
  * Add an algorithm - create an algorithm queue
  */
 bool CGQueueManager::addAlg(CGAlg &what)
@@ -56,8 +81,8 @@ bool CGQueueManager::addAlg(CGAlg &what)
 
 /**
  * Handle jobs. This function handles selected jobs. The performed operation
- * depends on the given op. For successful operations, the job objects are
- * updated.
+ * depends on the given op. For successful operations, the job enties in the
+ * DB are updated
  *
  * @param[in] op The operation to perform
  * @param[in,out] jobs Pointer to vector of jobs to perform the operation on
