@@ -54,14 +54,13 @@ vector<CGJob *> *JobDB::parseJobs(Query *squery)
   squery->storein(source);
   vector<CGJob *> *jobs = new vector<CGJob *>();
   for (vector<cg_job>::iterator it = source.begin(); it != source.end(); it++) {
-    int id;
-    string name, cmdlineargs, token, algname, wuid;
+    string id, name, cmdlineargs, token, algname, wuid;
     Query query = conn->query();
     
     id = it->id;
-    name = it->name;
+    name = it->alg;
     cmdlineargs = it->args;
-    algname = it->algname;
+    algname = it->alg;
     wuid = it->wuid;
     
     // Vectorize cmdlineargs string

@@ -16,25 +16,25 @@
 #include <string>
 
 using namespace std;
+using namespace mysqlpp;
 
-sql_create_6(cg_job, 1, 6,
-    int,	id,
-    string, 	name,
+sql_create_7(cg_job, 1, 7,
+    string,	id,
     string, 	args,
-    string,	algname,
+    string,	alg,
     string,	status,
-    string,	wuid)
+    string,	wuid,
+    string, 	property,
+    DateTime,	creation_time)
 
-sql_create_4(cg_inputs, 1, 4,
-    int, 	id,
+sql_create_3(cg_inputs, 1, 3,
+    string, 	id,
     string, 	localname,
-    string, 	path,
-    int,	jobid);
+    string, 	path);
 
-sql_create_4(cg_outputs, 1, 4,
-    int,	id,
+sql_create_3(cg_outputs, 1, 3,
+    string,	id,
     string, 	localname,
-    string, 	path,
-    int, 	jobid);
+    string, 	path);
 
 #endif

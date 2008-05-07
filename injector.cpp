@@ -131,7 +131,7 @@ int main(int argc, char **argv)
 //	{ // transaction scope
 //	    Transaction trans(con);
     	    // insert into mysql...
-	    cg_job job_row(0, jobName, cmdLine, algName, "CG_INIT", "");
+	    cg_job job_row("0", cmdLine, jobName, "CG_INIT", "", "", DateTime());
     	    query.insert(job_row);
 	    query.execute();
 	    query.reset();
@@ -140,11 +140,10 @@ int main(int argc, char **argv)
 	    query << "SELECT * FROM cg_job WHERE name = \"" << jobName << "\""; 
 	    vector<cg_job> job;
 	    query.storein(job);
-	    int id = job.at(0).id;
 	    
 	    // Put inputs in cg_inputs table
 	    for(map<string, string>::iterator it = inputs->begin(); it != inputs->end(); it++) {
-		cg_inputs input_row(0, it->first, it->second, id);
+		cg_inputs input_row("0", it->first, it->second);
 		query.insert(input_row);
 		query.execute();
 		query.reset();
@@ -152,7 +151,7 @@ int main(int argc, char **argv)
 
 	    // Put outputs in cg_outputs table
 	    for(vector<string>::iterator it = out.begin(); it != out.end(); it++) {
-		cg_outputs output_row(0, *it, "", id);
+		cg_outputs output_row("0", *it, "");
 		query.insert(output_row);
 		query.execute();
 		query.reset();
@@ -168,7 +167,6 @@ int main(int argc, char **argv)
 	    vector<cg_job> job;
 	    query.storein(job);
 	    string status = job.at(0).status;
-	    jobid = job.at(0).id;
 	    
 	    if (status == "CG_FINISHED")  {
 		break;
