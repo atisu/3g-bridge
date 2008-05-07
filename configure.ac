@@ -37,16 +37,22 @@ AC_LANG_POP([C++])
 
 AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@yes@:>@]),
 	[], [with_dcapi=yes])
-if test "$with_dcapi != no"; then
+if test "$with_dcapi" != no; then
 	SZDG_DCAPI_MASTER
+fi
+if test "$with_dcapi" != no; then
+	AC_DEFINE([HAVE_DCAPI], [1], [Define if DC-API is requested.])
 fi
 AM_CONDITIONAL([HAVE_DCAPI], [test "$with_dcapi" != no])
 
 dnl Check for EGEE backend
 AC_ARG_WITH([egee], AS_HELP_STRING([--with-egee], [Enable EGEE backend @<:@no@:>@]),
 	[], [with_egee=no])
-if test "$with_egee != no"; then
+if test "$with_egee" != no; then
 	EGEE_BE
+fi
+if test "$with_egee" != no; then
+	AC_DEFINE([HAVE_EGEE], [1], [Define if EGEE support is requested.])
 fi
 AM_CONDITIONAL([HAVE_EGEE], [test "$with_egee" != no])
 
