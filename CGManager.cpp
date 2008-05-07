@@ -14,7 +14,7 @@ int main(int argc, char **argv)
 {
     try {
 	// Create a Queue Manager
-	CGQueueManager qm(argv[1], "boinc_szdgr", "0", "boinc-szdgr", "VfxVqw0PHT");
+	CGQueueManager qm(string(argv[1]), "boinc_szdgr", "0", "boinc-szdgr", "VfxVqw0PHT");
 
 	// Create algorithms
 	CGAlg cmol3d("cmol3d", CG_ALG_DCAPI);

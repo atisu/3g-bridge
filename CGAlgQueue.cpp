@@ -51,7 +51,7 @@ void CGAlgQueue::remove(uuid_t *id)
 CGJobStatus CGAlgQueue::getStatus(uuid_t *id)
 {
     CGJob *job = jobs[id];
-    CGJobStatus nStat, aStat = job->getStatus();
+    CGJobStatus aStat = job->getStatus();
 //    nStat = aStat;
 //    switch (aStat) {
 //	case CG_INIT:

@@ -7,16 +7,19 @@
 
 using namespace std;
 
+
 JobDB::JobDB(const string host, const string user, const string passwd, const string dbname):thost(host),tuser(user),tpasswd(passwd),tdbname(dbname)
 {
-  conn = new Connection(dbname, host, user, passwd);
+  conn = new Connection(dbname.c_str(), host.c_str(), user.c_str(), passwd.c_str());
 }
+
 
 JobDB::~JobDB()
 {
   conn->disconnect();
   delete conn;
 }
+
 
 vector<CGJob *> *JobDB::getJobs(CGJobStatus stat)
 {
@@ -37,22 +40,23 @@ vector<CGJob *> *JobDB::getJobs(CGJobStatus stat)
     statStr = "CG_ERROR";
     break;
   default:
-    return jobs;
+    return new vector<CGJob *>();
     break;
   }
   query << "SELECT * FROM cg_job WHERE status = \"" << statStr << "\"";
-  vector<cg_job> newJobs;
-  query.storein(newJobs);
-  return parseJobs(&newJobs);
+  return parseJobs(&query);
 }
 
 
-vector<CGJob *> *JobDB::parseJobs(vector<cg_job> *source)
+vector<CGJob *> *JobDB::parseJobs(Query *squery)
 {
+  vector<cg_job> source;
+  squery->storein(source);
   vector<CGJob *> *jobs = new vector<CGJob *>();
-  for (vector<cg_job>::iterator it = source->begin(); it != source->end(); it++) {
+  for (vector<cg_job>::iterator it = source.begin(); it != source.end(); it++) {
     int id;
     string name, cmdlineargs, token, algname, wuid;
+    Query query = conn->query();
     
     id = it->id;
     name = it->name;
@@ -83,13 +87,6 @@ vector<CGJob *> *JobDB::parseJobs(vector<cg_job> *source)
     query.storein(in);
     for (vector<cg_inputs>::iterator it = in.begin(); it != in.end(); it++)
       nJob->addInput(it->localname, it->path);
-    // Get inputs for job from db
-    query.reset();
-    query << "SELECT * FROM cg_inputs WHERE jobid = " << id;
-    vector<cg_inputs> in;
-    query.storein(in);
-    for (vector<cg_inputs>::iterator it = in.begin(); it != in.end(); it++)
-      nJob->addInput(it->localname, it->path);
     
     // Get outputs for job from db
     query.reset();
@@ -108,18 +105,19 @@ vector<CGJob *> *JobDB::parseJobs(vector<cg_job> *source)
   return jobs;
 }
 
+
 vector<CGJob *> *JobDB::getJobs(string gridID)
 {
   Query query = conn->query();
   query << "SELECT * FROM cg_inputs WHERE wuid = " << gridID;
-  vector<cg_job> newJobs;
-  query.storein(newJobs);
-  return parseJobs(&newJobs);
+  return parseJobs(&query);
 }
+
 
 void JobDB::addJobs(vector<CGJob *> *jobs)
 {
 }
+
 
 void JobDB::updateJobStat(string gridID, CGJobStatus newstat)
 {

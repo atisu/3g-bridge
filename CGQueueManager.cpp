@@ -15,7 +15,7 @@
 using namespace std;
 using namespace mysqlpp;
 
-CGQueueManager::CGQueueManager(char *conf, char *db, char *host, char *user, char *passwd)
+CGQueueManager::CGQueueManager(const string conf, const string db, const string host, const string user, const string passwd)
 {
   // Store base directory
   basedir = string(getcwd(NULL, 0));
@@ -67,8 +67,8 @@ void CGQueueManager::handleJobs(jobOperation op, vector<CGJob *> *jobs)
   map<CGAlgType, vector<CGJob *> > gridMap;
   // Create a map of algorithm (grid) types to jobs
   for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
-    CGAlgType actType = it->getType()->getType();
-    gridMap[actType].push_back(it);
+    CGAlgType actType = (*it)->getType()->getType();
+    gridMap[actType].push_back(*it);
   }
 
   // Use the selected grid plugin for submission
@@ -83,7 +83,7 @@ void CGQueueManager::handleJobs(jobOperation op, vector<CGJob *> *jobs)
     case output:
       gridHandlers[c]->getOutputs(&(gridMap[c]));
       break;
-    case abort:
+    case cancel:
       gridHandlers[c]->cancelJobs(&(gridMap[c]));
       break;
     }
@@ -120,7 +120,7 @@ void CGQueueManager::run()
     handleJobs(submit, newJobs);
     handleJobs(status, sentJobs);
     handleJobs(output, finishedJobs);
-    handleJobs(abort, abortedJobs);
+    handleJobs(cancel, abortedJobs);
     freeVector(newJobs);
     freeVector(sentJobs);
     freeVector(finishedJobs);

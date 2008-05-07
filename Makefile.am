@@ -26,7 +26,7 @@ CGManager_SOURCES = \
 		GridHandler.h \
 		DCAPIHandler.h \
 		DCAPIHandler.cpp
-CGManager_LDADD = $(DCAPI_MASTER_LIBS) -lmysqlpp
+CGManager_LDADD = $(DCAPI_MASTER_LIBS) -lmysqlpp -luuid
 
 endif
 
@@ -42,9 +42,11 @@ CGManager_SOURCES = \
 		CGManager.cpp \
 		CGQueueManager.cpp \
 		CGQueueManager.h \
+		JobDB.h \
+		JobDB.cpp \
 		GridHandler.h \
 		EGEEHandler.cpp \
 		EGEEHandler.h
-CGManager_LDADD = -lmysqlpp
+CGManager_LDADD = -lmysqlpp -luuid
 
 endif

@@ -9,9 +9,9 @@
 using namespace std;
 
 
-DCAPIHandler::DCAPIHandler(const char *conf, const string basedir):bdir(basedir)
+DCAPIHandler::DCAPIHandler(const string conf, const string basedir):bdir(basedir)
 {
-  if (DC_OK != DC_initMaster(conf))
+  if (DC_OK != DC_initMaster(conf.c_str()))
     throw DC_initMasterError;
 }
 

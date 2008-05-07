@@ -3,11 +3,11 @@
 
 #include "CGAlg.h"
 #include "CGJob.h"
+#include "JobDB.h"
 #include "common.h"
 #include "CGAlgQueue.h"
 #include "GridHandler.h"
 
-#include <dc.h>
 #include <map>
 #include <set>
 #include <string>
@@ -22,20 +22,20 @@ enum jobOperation {
   submit,
   status,
   output,
-  abort
+  cancel
 };
 
 class CGQueueManager {
 public:
-    CGQueueManager(char *conf, char *db, char *host, char *user, char *passwd);
+    CGQueueManager(const string conf, const string db, const string host, const string user, const string passwd);
     ~CGQueueManager();
     bool addAlg(CGAlg &what);
     void run();
 private:
+    JobDB *jobDB;
     map<string, CGAlgQueue *> algs;
     set<uuid_t *> jobIDs;
     map<uuid_t *, CGAlgQueue *> ID2AlgQ;
-    Connection con;
     string basedir;
     map<CGAlgType, GridHandler *> gridHandlers;
     void handleJobs(jobOperation op, vector<CGJob *> *jobs);

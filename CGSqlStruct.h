@@ -1,3 +1,6 @@
+#ifndef __CGSQLSTRUCT_H
+#define __CGSQLSTRUCT_H
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -34,4 +37,4 @@ sql_create_4(cg_outputs, 1, 4,
     string, 	path,
     int, 	jobid);
 
-
+#endif

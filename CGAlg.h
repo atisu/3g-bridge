@@ -6,7 +6,7 @@
 using namespace std;
 
 enum CGAlgType {
-    CG_ALG_MIN
+    CG_ALG_MIN,
     CG_ALG_DB = CG_ALG_MIN,
     CG_ALG_LOCAL,
     CG_ALG_DCAPI,

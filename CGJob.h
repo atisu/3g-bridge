@@ -1,6 +1,10 @@
 #ifndef __CG_JOB_H_
 #define __CG_JOB_H_
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <map>
 #include <string>
 #include <vector>
