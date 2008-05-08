@@ -28,7 +28,7 @@ create table cg_inputs (
     id                  char(36)     not null /* Unique id of job, foreign key of job.id */,
     localname           varchar(254) not null /* Basename of the file */,
     path		varchar(254) not null /* Absolute path of the file */,
-    primary key entry (id, localname, path)
+    primary key entry (id, localname)
 ) type=InnoDB;
 
 
@@ -39,6 +39,6 @@ create table cg_outputs (
     id                  char(36)     not null /* Job's identifier */,
     localname           varchar(254) not null /* Basename of the file */,
     path		varchar(254) not null /* Expected absolute path of the file */,
-    primary key entry (id, localname, path)
+    primary key entry (id, localname)
 ) type=InnoDB;
 
