@@ -39,12 +39,15 @@ private:
     void throwStrExc(const char *func, const string &str) throw(string);
     void renew_proxy(const string &voname);
 public:
-    EGEEHandler(JobDB *jDB, const string &WMProxy_EndPoint);
+    EGEEHandler(JobDB *jDB, const string &WMProxy_EndPoint) throw (BackendException &);
     ~EGEEHandler();
-    void submitJobs(vector<CGJob *> *jobs);
-    void getStatus(vector<CGJob *> *jobs);
-    void getOutputs(vector<CGJob *> *jobs);
-    void cancelJobs(vector<CGJob *> *jobs);
+    void submitJobs(vector<CGJob *> *jobs) throw (BackendException &);
+    void updateStatus(void) throw (BackendException &);
+    void cancelJobs(vector<CGJob *> *jobs) throw (BackendException &);
+
+    /* Obsolete */
+    void getStatus(vector<CGJob *> *jobs) throw (BackendException &);
+    void getOutputs(vector<CGJob *> *jobs) throw (BackendException &);
 };
 
 #endif

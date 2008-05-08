@@ -1,8 +1,10 @@
 #ifndef __GRIDHANDLER_H
 #define __GRIDHANDLER_H
 
-#include <vector>
+#include "BackendException.h"
 #include "CGJob.h"
+
+#include <vector>
 
 using namespace std;
 
@@ -25,19 +27,27 @@ public:
      * Submit jobs in the argument. Set the different properties of jobs (Grid
      * ID, status, ...) through the objects' property change functions.
      */
-    virtual void submitJobs(vector<CGJob *> *jobs) = 0;
+    virtual void submitJobs(vector<CGJob *> *jobs) throw (BackendException &) = 0;
+
     /**
-     * Update status of jobs through the objects.
+     * Update the status of previously submitted jobs in the database.
      */
-    virtual void getStatus(vector<CGJob *> *jobs) = 0;
-    /**
-     * Get results.
-     */
-    virtual void getOutputs(vector<CGJob *> *jobs) = 0;
+    virtual void updateStatus(void) throw (BackendException &) = 0;
+
     /**
      * Cancel jobs.
      */
-    virtual void cancelJobs(vector <CGJob *> *jobs) = 0;
+    virtual void cancelJobs(vector <CGJob *> *jobs) throw (BackendException &) = 0;
+
+    /* XXX Obsolote methods that should be removed */
+    /**
+     * Update status of jobs through the objects.
+     */
+    virtual void getStatus(vector<CGJob *> *jobs) throw (BackendException &) = 0;
+    /**
+     * Get results.
+     */
+    virtual void getOutputs(vector<CGJob *> *jobs) throw (BackendException &) = 0;
 };
 
 #endif

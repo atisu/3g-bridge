@@ -64,7 +64,7 @@ EGEEHandler::~EGEEHandler()
 /*
  * Submit jobs
  */
-void EGEEHandler::submitJobs(vector<CGJob *> *jobs)
+void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 {
     if (!jobs || !jobs->size())
 	return;
@@ -72,10 +72,8 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs)
     char tmpl[256];
     sprintf(tmpl, "submitdir.XXXXXX");
     char *tmpdir = mkdtemp(tmpl);
-    if (!tmpdir) {
-	cerr << "Failed to create temporary directory!" << endl;
-	throw(-1);
-    }
+    if (!tmpdir)
+	throw(new BackendException("Failed to create temporary directory!"));
     chdir(tmpdir);
     mkdir("jdlfiles", 0700);
     //CollectionAd collAd;
@@ -195,7 +193,7 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs)
 /*
  * Update status of jobs
  */
-void EGEEHandler::getStatus(vector<CGJob *> *jobs)
+void EGEEHandler::getStatus(vector<CGJob *> *jobs) throw (BackendException &)
 {
     const struct { string EGEEs; CGJobStatus jobS; } statusRelation[] = {
 	{"Submitted", CG_INIT},
@@ -229,7 +227,7 @@ void EGEEHandler::getStatus(vector<CGJob *> *jobs)
 /*
  * Get outputs of jobs
  */
-void EGEEHandler::getOutputs(vector<CGJob *> *jobs)
+void EGEEHandler::getOutputs(vector<CGJob *> *jobs) throw (BackendException &)
 {
     if (!jobs || !jobs->size())
 	return;
@@ -261,7 +259,7 @@ void EGEEHandler::getOutputs(vector<CGJob *> *jobs)
 /*
  * Cancel jobs
  */
-void EGEEHandler::cancelJobs(vector<CGJob *> *jobs)
+void EGEEHandler::cancelJobs(vector<CGJob *> *jobs) throw (BackendException &)
 {
     if (!jobs || !jobs->size())
 	return;
@@ -528,7 +526,7 @@ void EGEEHandler::delegate_Proxy(const string& delID)
 }
 
 
-void EGEEHandler::throwStrExc(const char *func, const BaseException &e) throw(string)
+void EGEEHandler::throwStrExc(const char *func, const BaseException &e) throw(BackendException &)
 {
     stringstream msg;
     msg << "Exception occured in EGEEHandler::" << func << ":" << endl;
@@ -540,15 +538,15 @@ void EGEEHandler::throwStrExc(const char *func, const BaseException &e) throw(st
     if (e.FaultCause)
         for (unsigned i = 0; i < (e.FaultCause)->size(); i++)
 	    msg << "  FaultCause: " << (*(e.FaultCause))[i] << endl;
-    throw(msg.str());
+    throw(new BackendException(msg.str()));
 }
 
 
-void EGEEHandler::throwStrExc(const char *func, const string &str) throw(string)
+void EGEEHandler::throwStrExc(const char *func, const string &str) throw(BackendException &)
 {
     stringstream msg;
     msg << "Exception occured in EGEEHandler::" << func << ": " << str;
-    throw(msg.str());
+    throw(new BackendException(msg.str()));
 }
 
 
