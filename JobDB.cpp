@@ -77,7 +77,7 @@ vector<CGJob *> *JobDB::parseJobs(Query *squery)
     //!!!! What happens if...?
     if (at == talgs->end())
       return jobs;
-    CGAlg *alg = at->second->getType();
+    CGAlg *alg = at->second->getAlgorithm();
     
     // Create new job descriptor
     CGJob *nJob = new CGJob(name, cmdlineargs, *alg);

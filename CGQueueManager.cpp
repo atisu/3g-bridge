@@ -28,14 +28,11 @@ using namespace mysqlpp;
  */
 CGQueueManager::CGQueueManager(const string conf, const string db, const string host, const string user, const string passwd)
 {
-  // Store base directory
-  basedir = string(getcwd(NULL, 0));
-  
   // Clear algorithm list
   algs.clear();
   
 #ifdef HAVE_DCAPI
-  gridHandlers[CG_ALG_DCAPI] = new DCAPIHandler(conf, basedir);
+  gridHandlers[CG_ALG_DCAPI] = new DCAPIHandler(conf);
 #endif
 #ifdef HAVE_EGEE
   gridHandlers[CG_ALG_EGEE] = new EGEEHandler(jobDB, conf);
@@ -92,7 +89,7 @@ void CGQueueManager::handleJobs(jobOperation op, vector<CGJob *> *jobs)
   map<CGAlgType, vector<CGJob *> > gridMap;
   // Create a map of algorithm (grid) types to jobs
   for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
-    CGAlgType actType = (*it)->getType()->getType();
+    CGAlgType actType = (*it)->getAlgorithm()->getType();
     gridMap[actType].push_back(*it);
   }
 

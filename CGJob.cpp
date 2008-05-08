@@ -14,7 +14,7 @@ CGJob::CGJob(const string tname, string args, CGAlg &alg):name(tname)
 {
     inputs.clear();
     outputs.clear();
-    type = &alg;
+    this->alg = &alg;
     this->args = args;
 }
 

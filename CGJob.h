@@ -16,7 +16,7 @@ using namespace std;
 
 class CGJob {
 private:
-    CGAlg *type;
+    CGAlg *alg;
     string id;
     string name;
     string args;
@@ -38,7 +38,7 @@ public:
     string getArgs() { return args; }
     void setEnv(list<string> *envvals) { envs = envvals; }
     list<string> *getEnvs() { return envs; }
-    CGAlg *getType() { return type; }
+    CGAlg *getAlgorithm() { return alg; }
     vector<string> getInputs() const;
     vector<string> getOutputs() const;
     string getGridId() const { return gridId; }

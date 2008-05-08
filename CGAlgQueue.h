@@ -21,9 +21,9 @@ public:
     CGJob *getJob(uuid_t *id) { return jobs[id]; }
     map<uuid_t *, CGJob *>getJobs() { return jobs; }
     CGJobStatus getStatus(uuid_t *id);
-    CGAlg *getType() { return &type; }
+    CGAlg *getAlgorithm() { return &alg; }
 private:
-    CGAlg type;
+    CGAlg alg;
     map<uuid_t *, CGJob *> jobs;
 };
 

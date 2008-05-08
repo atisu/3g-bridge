@@ -11,7 +11,7 @@
 
 using namespace std;
 
-CGAlgQueue::CGAlgQueue(CGAlg &alg):type(alg)
+CGAlgQueue::CGAlgQueue(CGAlg &alg):alg(alg)
 {
     jobs.clear();
 }
