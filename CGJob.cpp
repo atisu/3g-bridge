@@ -10,12 +10,12 @@
 
 using namespace std;
 
-CGJob::CGJob(const string tname, list<string> *arglist, CGAlg &aType):name(tname)
+CGJob::CGJob(const string tname, string args, CGAlg &alg):name(tname)
 {
     inputs.clear();
     outputs.clear();
-    type = &aType;
-    argv = arglist;
+    type = &alg;
+    this->args = args;
 }
 
 CGJob::~CGJob()

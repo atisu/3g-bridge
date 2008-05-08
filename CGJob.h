@@ -29,7 +29,7 @@ private:
     CGAlgType dstType;
     string dstLoc;
 public:
-    CGJob(const string name, list<string> *arglist, CGAlg &aType);
+    CGJob(const string name, string args, CGAlg &alg);
     ~CGJob();
     void addInput(const string localname, const string fsyspath);
     void addOutput(const string localname);
