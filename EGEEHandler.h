@@ -2,6 +2,7 @@
 #define __EGEEHANDLER_H
 
 #include "CGJob.h"
+#include "JobDB.h"
 #include "GridHandler.h"
 
 #include <string>
@@ -23,6 +24,7 @@ private:
     static bool globus_err;
     static int global_offset;
     ConfigContext *cfg;
+    JobDB *jobDB;
     void init_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs);
     void destroy_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs);
     static void handle_finish(void *user_args, globus_ftp_client_handle_t *ftp_handle, globus_object_t *error);
@@ -35,8 +37,9 @@ private:
     void delegate_Proxy(const string& delID);
     void throwStrExc(const char *func, const BaseException &e) throw(string);
     void throwStrExc(const char *func, const string &str) throw(string);
+    void renew_proxy(const string &voname);
 public:
-    EGEEHandler(const string &WMProxy_EndPoint);
+    EGEEHandler(JobDB *jDB, const string &WMProxy_EndPoint);
     ~EGEEHandler();
     void submitJobs(vector<CGJob *> *jobs);
     void getStatus(vector<CGJob *> *jobs);

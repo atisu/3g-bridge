@@ -39,9 +39,11 @@ int EGEEHandler::global_offset;
 /*
  * Constructor. Initialize ConfigContext based on passed WMProxy endpoint URL
  */
-EGEEHandler::EGEEHandler(const string &WMProxy_EndPoint)
+EGEEHandler::EGEEHandler(JobDB *jDB, const string &WMProxy_EndPoint):jobDB(jDB)
 {
     global_offset = 0;
+    cfg = NULL;
+    /*
     try {
         cfg = new ConfigContext("", WMProxy_EndPoint, "");
     } catch (BaseException e) {
@@ -49,6 +51,7 @@ EGEEHandler::EGEEHandler(const string &WMProxy_EndPoint)
     }
     if (!cfg)
 	throwStrExc(__func__, "Failed to create ConfigContext!");
+    */
 }
 
 
@@ -140,6 +143,7 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs)
     }
     jobStart(collID.jobid, cfg);
     */
+    renew_proxy("seegrid");
     //string cmd = "glite-wms-job-submit -a --debug --logfile collection.log -o collection.id --collection jdlfiles";
     string cmd = "glite-wms-job-submit -a -o collection.id --collection jdlfiles";
     if (-1 == system(cmd.c_str()))
@@ -175,8 +179,10 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs)
 	}
 	for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
 	    if ((*it)->getGridId() == childNodeName) {
-		(*it)->setGridId(childIDs[i]);
-		(*it)->setStatus(CG_INIT);
+		//(*it)->setGridId(childIDs[i]);
+		//(*it)->setStatus(CG_RUNNING);
+		jobDB->updateJobGridID((*it)->getId(), childIDs[i]);
+		jobDB->updateJobStat(childIDs[i], CG_RUNNING);
 		break;
 	    }
 	}
@@ -543,4 +549,19 @@ void EGEEHandler::throwStrExc(const char *func, const string &str) throw(string)
     stringstream msg;
     msg << "Exception occured in EGEEHandler::" << func << ": " << str;
     throw(msg.str());
+}
+
+
+void EGEEHandler::renew_proxy(const string &voname)
+{
+    string proxyfile = "proxy." + voname;
+    string vomsproxy = proxyfile + ".voms";
+    string cmd = "echo \"IeKohg1A\" | myproxy-logon -s n40.hpcc.sztaki.hu -p 7512 -l bebridge -S -o " + proxyfile;
+    if (-1 == system(cmd.c_str()))
+	throwStrExc(__func__, "Proxy initialization failed!");
+    setenv("X509_USER_PROXY", proxyfile.c_str(), 1);
+    cmd = "voms-proxy-init -voms " + voname + " -noregen -out " + vomsproxy;
+    if (-1 == system(cmd.c_str()))
+	throwStrExc(__func__, "Adding VOMS extensions failed!");
+    setenv("X509_USER_PROXY", vomsproxy.c_str(), 1);
 }

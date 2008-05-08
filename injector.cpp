@@ -2,16 +2,17 @@
 #include <config.h>
 #endif
 
-#include <iostream>
-#include <sstream>
-#include <fstream>
 #include <map>
 #include <string>
-#include <mysql++/mysql++.h>
-//#include <mysql++/transaction.h>
-#include <mysql++/null.h>
-#include <unistd.h>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+
 #include <getopt.h>
+#include <unistd.h>
+#include <uuid/uuid.h>
+#include <mysql++/null.h>
+#include <mysql++/mysql++.h>
 
 #include "CGSqlStruct.h"
 
@@ -37,12 +38,12 @@ void usage(const char *cmdname)
 {
     cout << "--== Prototype job submitter for Cancergrid ==--" << endl << endl;
     cout << "Usage: " << cmdname << " [switches]" << endl;
-    cout << " * -j --jobname  [name]     job's name" << endl;
+    cout << " * -a --algname  [algname]  algorithm (executable) name" << endl;
     cout << "   -c --cmdline  [cmdline]  command line options" << endl;
-    cout << " * -a --algname  [algname]  algorithm name" << endl;
-    cout << "   -i --inlocal  [inlocal]  comma separated list of input files used" << endl;
-    cout << "   -p --inpath   [inpath]   comma separated list of input paths used" << endl;
+    cout << " * -i --inlocal  [inlocal]  comma separated list of input files used" << endl;
+    cout << " * -p --inpath   [inpath]   comma separated list of input paths used" << endl;
     cout << "   -o --outlocal [outlocal] comma separated list of output files used" << endl;
+    cout << "   -t --type     [type]     destination type (DCAPI, EGEE)" << endl;
     cout << "   -w --wait                use if the tool should wait for the job to finish" << endl;
     cout << "   -h --help                this help screen" << endl;
     cout << " *: switch is mandatory" << endl;
@@ -52,36 +53,32 @@ void usage(const char *cmdname)
 int main(int argc, char **argv)
 {
     Connection con;
-    string jobName = "";
     string cmdLine = "";
     string algName = "";
     string inLocal = "";
     string inPath = "";
     string outLocal = "";
+    string type = "";
     bool wait = false;
-    int jobid = 0;
 
     int c;
     while (1) {
         int option_index = 0;
 	static struct option long_options[] = {
-	    {"jobname", 1, 0, 'j'},
-	    {"cmdline", 1, 0, 'c'},
 	    {"algname", 1, 0, 'a'},
+	    {"cmdline", 1, 0, 'c'},
 	    {"inlocal", 1, 0, 'i'},
 	    {"inpath", 1, 0, 'p'},
 	    {"outlocal", 1, 0, 'o'},
+	    {"type", 1, 0, 't'},
 	    {"wait", 1, 0, 'w'},
 	    {"help", 0, 0, 'h'},
 	    {0, 0, 0, 0}
 	};
-	c = getopt_long(argc, argv, "j:c:a:i:p:o:w", long_options, &option_index);
+	c = getopt_long(argc, argv, "c:a:i:p:o:t:w", long_options, &option_index);
 	if (c == -1)
 	    break;
 	switch (c) {
-	    case 'j':
-		jobName = string(optarg);
-		break;
 	    case 'c':
 		cmdLine = string(optarg);
 		break;
@@ -97,6 +94,9 @@ int main(int argc, char **argv)
 	    case 'o':
 		outLocal = string(optarg);
 		break;
+	    case 't':
+		type = string(optarg);
+		break;
 	    case 'w':
 		wait = true;
 		break;
@@ -106,8 +106,19 @@ int main(int argc, char **argv)
 	}
     }
 
-    if (jobName == "" || algName == "")
+    // Check for mandatory options
+    if (algName == "" || inLocal == "" || inPath == "")
 	usage(argv[0]);
+
+    // If no type is specified, use DCAPI
+    if (type == "")
+	type = "DCAPI";
+
+    // Generate an identifier for our job
+    uuid_t jid;
+    char sid[37];
+    uuid_generate(jid);
+    uuid_unparse(jid, sid);
 
     try {
         con.connect("boinc_cancergrid", "0", "boinc-cancergrid", "czowtjhdlo");
@@ -131,19 +142,14 @@ int main(int argc, char **argv)
 //	{ // transaction scope
 //	    Transaction trans(con);
     	    // insert into mysql...
-	    cg_job job_row("0", cmdLine, jobName, "CG_INIT", "", "", DateTime());
+	    cg_job job_row(sid, cmdLine, algName, "CG_INIT", "", "", type, "", DateTime());
     	    query.insert(job_row);
 	    query.execute();
 	    query.reset();
-	
-    	    // Get row id of new job
-	    query << "SELECT * FROM cg_job WHERE name = \"" << jobName << "\""; 
-	    vector<cg_job> job;
-	    query.storein(job);
-	    
+
 	    // Put inputs in cg_inputs table
 	    for(map<string, string>::iterator it = inputs->begin(); it != inputs->end(); it++) {
-		cg_inputs input_row("0", it->first, it->second);
+		cg_inputs input_row(sid, it->first, it->second);
 		query.insert(input_row);
 		query.execute();
 		query.reset();
@@ -151,7 +157,7 @@ int main(int argc, char **argv)
 
 	    // Put outputs in cg_outputs table
 	    for(vector<string>::iterator it = out.begin(); it != out.end(); it++) {
-		cg_outputs output_row("0", *it, "");
+		cg_outputs output_row(sid, *it, "");
 		query.insert(output_row);
 		query.execute();
 		query.reset();
@@ -163,7 +169,7 @@ int main(int argc, char **argv)
 	    // wait for job to finish
 	    query = con.query();
 
-	    query << "SELECT * FROM cg_job WHERE name = \"" << jobName << "\"";
+	    query << "SELECT * FROM cg_job WHERE id = \"" << sid << "\"";
 	    vector<cg_job> job;
 	    query.storein(job);
 	    string status = job.at(0).status;
@@ -178,7 +184,7 @@ int main(int argc, char **argv)
 	if (wait) {
 	    query = con.query();
 
-	    query << "SELECT * FROM cg_outputs WHERE localname != \"stdout.txt\" AND localname != \"stderr.txt\" AND jobid = \"" << jobid << "\"";
+	    query << "SELECT * FROM cg_outputs WHERE localname != \"stdout.txt\" AND localname != \"stderr.txt\" AND id = \"" << sid << "\"";
 	    vector<cg_outputs> outputs;
 	    query.storein(outputs);
 	    
@@ -187,7 +193,7 @@ int main(int argc, char **argv)
 	}
 	
     } catch (const BadQuery& er) {
-	 cout << "Job with name '" << jobName << "' already exists. Choose another name!" << endl;
+	 cout << "Job with id '" << sid << "' already exists. Choose another name!" << endl;
 	 return -1;
     } catch (exception& ex) {
 	cerr << ex.what() << endl;

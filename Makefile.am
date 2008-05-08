@@ -7,7 +7,7 @@ AM_CPPFLAGS = @MYSQL_CPPFLAGS@
 bin_PROGRAMS = injector CGManager
 
 injector_SOURCES = injector.cpp
-injector_LDADD = -lmysqlpp
+injector_LDADD = -lmysqlpp -luuid
 
 if HAVE_DCAPI
 

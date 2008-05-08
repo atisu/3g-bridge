@@ -21,11 +21,9 @@ JobDB::~JobDB()
 }
 
 
-vector<CGJob *> *JobDB::getJobs(CGJobStatus stat)
+string JobDB::getStatStr(CGJobStatus stat)
 {
   string statStr;
-  Query query = conn->query();
-  
   switch (stat) {
   case CG_INIT:
     statStr = "CG_INIT";
@@ -40,9 +38,20 @@ vector<CGJob *> *JobDB::getJobs(CGJobStatus stat)
     statStr = "CG_ERROR";
     break;
   default:
-    return new vector<CGJob *>();
+    statStr = "";
     break;
   }
+  return statStr;
+}
+
+
+vector<CGJob *> *JobDB::getJobs(CGJobStatus stat)
+{
+  Query query = conn->query();
+  string statStr = getStatStr(stat);
+  if (statStr == "")
+    return new vector<CGJob *>();
+  
   query << "SELECT * FROM cg_job WHERE status = \"" << statStr << "\"";
   return parseJobs(&query);
 }
@@ -123,6 +132,17 @@ void JobDB::addJobs(vector<CGJob *> *jobs)
 }
 
 
+void JobDB::updateJobGridID(string ID, string gridID)
+{
+  Query query = conn->query();
+  query << "UPDATE cg_job SET gridid=\"" << gridID << "\" WHERE id=\"" << ID << "\"";
+  query.execute();
+}
+
+
 void JobDB::updateJobStat(string gridID, CGJobStatus newstat)
 {
+  Query query = conn->query();
+  query << "UPDATE cg_job SET status=\"" << getStatStr(newstat) << "\" WHERE gridid=\"" << gridID << "\"";
+  query.execute();
 }
