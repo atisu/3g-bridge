@@ -14,7 +14,6 @@ create table cg_job (
     status		char(10)     not null	/* Status of job [INIT, RUNNING, FINISHED, ERROR, CANCEL] */,
     gridid		varchar(254)	 	/* Job's grid identifier */,
     args		varchar(254)		/* Command-line arguments to be passed to the algorithm at job execution */,
-    property		varchar(254) 		/* Cancergrid specific job settings */,
     dsttype		varchar(254)		/* Destination type */,
     dstloc		varchar(254)		/* Destination location */,
     creation_time	timestamp    null default current_timestamp /* Creation time of job descriptor */,
