@@ -38,6 +38,6 @@ create table cg_inputs (
 create table cg_outputs (
     id                  char(36)     not null /* Job's identifier */,
     localname           varchar(254) not null /* Basename of the file */,
-    path		varchar(254)          /* Expected absolute path of the file */,
+    path		varchar(254) not null /* Expected absolute path of the file */,
     primary key (id)
 ) type=InnoDB;
