@@ -1,22 +1,24 @@
 #ifndef __DCAPIHANDLER_H
 #define __DCAPIHANDLER_H
 
-#include <vector>
 #include "CGJob.h"
 #include "GridHandler.h"
 
+#include <vector>
+
 using namespace std;
 
-class DCAPIHandler : public GridGHandler {
+class DCAPIHandler: public GridHandler {
 public:
-    DCAPIHandler(const string conf, const string basedir);
-    ~DCAPIHandler();
-    void submitJobs(vector<CGJob *> *jobs);
-    void getStatus(vector<CGJob *> *jobs);
-    void getOutputs(vector<CGJob *> *jobs);
-    void cancelJobs(vector <CGJob *> *jobs);
-private:
-    int timeout;
+	DCAPIHandler(const string conf);
+	~DCAPIHandler();
+	void submitJobs(vector<CGJob *> *jobs) throw (BackendException &);
+	void updateStatus(void) throw (BackendException &);
+
+	/* Obsolote/unimplemented methods */
+	void getStatus(vector<CGJob *> *jobs) throw (BackendException &) {};
+	void getOutputs(vector<CGJob *> *jobs) throw (BackendException &) {};
+	void cancelJobs(vector <CGJob *> *jobs) throw (BackendException &) {};
 };
 
 #endif
