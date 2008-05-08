@@ -17,13 +17,17 @@ using namespace std;
 class CGJob {
 private:
     CGAlg *type;
+    string id;
     string name;
     list<string> *argv;
     list<string> *envs;
     string gridId;
+    string property;
     map<string, string> inputs;
     map<string, string> outputs;
     CGJobStatus status;
+    CGAlgType dstType;
+    string dstLoc;
 public:
     CGJob(const string name, list<string> *arglist, CGAlg &aType);
     ~CGJob();
@@ -39,6 +43,14 @@ public:
     vector<string> getOutputs() const;
     string getGridId() const { return gridId; }
     void setGridId(const string sId) { gridId = sId; }
+    string getId() const { return id; }
+    void setId(const string sId) { id = sId; }
+    string getProperty() const { return property; }
+    void setProperty(const string sProp) { property = sProp; }
+    CGAlgType getDstType() const { return dstType; }
+    void setDstType(const CGAlgType dType) { dstType = dType; }
+    string getDstLoc() const { return dstLoc; }
+    void setDstLoc(const string dLoc) { dstLoc = dLoc; }
     string getInputPath(const string localname) const;
     string getOutputPath(const string localname);
     CGJobStatus getStatus() const { return status; }

@@ -54,14 +54,14 @@ vector<CGJob *> *JobDB::parseJobs(Query *squery)
   squery->storein(source);
   vector<CGJob *> *jobs = new vector<CGJob *>();
   for (vector<cg_job>::iterator it = source.begin(); it != source.end(); it++) {
-    string id, name, cmdlineargs, token, algname, wuid;
+    string id, name, cmdlineargs, token, algname, gridid;
     Query query = conn->query();
     
     id = it->id;
     name = it->alg;
     cmdlineargs = it->args;
     algname = it->alg;
-    wuid = it->wuid;
+    gridid = it->gridid;
     
     // Vectorize cmdlineargs string
     list<string> *arglist = new list<string>();
@@ -78,6 +78,11 @@ vector<CGJob *> *JobDB::parseJobs(Query *squery)
     
     // Create new job descriptor
     CGJob *nJob = new CGJob(name, arglist, *alg);
+    nJob->setId(id);
+    nJob->setGridId(gridid);
+    nJob->setDstType(alg->getType());
+    nJob->setDstLoc(it->dstloc);
+    nJob->setProperty(it->property);
     
     // Get inputs for job from db
     query.reset();
@@ -108,7 +113,7 @@ vector<CGJob *> *JobDB::parseJobs(Query *squery)
 vector<CGJob *> *JobDB::getJobs(string gridID)
 {
   Query query = conn->query();
-  query << "SELECT * FROM cg_inputs WHERE wuid = " << gridID;
+  query << "SELECT * FROM cg_inputs WHERE gridid = " << gridID;
   return parseJobs(&query);
 }
 
