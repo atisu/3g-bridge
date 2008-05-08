@@ -19,7 +19,7 @@ private:
     CGAlg *type;
     string id;
     string name;
-    list<string> *argv;
+    string args;
     list<string> *envs;
     string gridId;
     string property;
@@ -35,7 +35,7 @@ public:
     void addOutput(const string localname);
     void setOutputPath(const string localname, const string fsyspath);
     string getName() { return name; }
-    list<string> *getArgv() { return argv; }
+    string getArgs() { return args; }
     void setEnv(list<string> *envvals) { envs = envvals; }
     list<string> *getEnvs() { return envs; }
     CGAlg *getType() { return type; }

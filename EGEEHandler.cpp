@@ -111,14 +111,9 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 	nodename << "Node_" << setfill('0') << setw(4) << i << "_jdl";
 	jobJDLAd->setAttribute(JDL::NODE_NAME, nodename.str());
 	actJ->setGridId(nodename.str());
-	string arg;
-	list<string> *args = actJ->getArgv();
-	if (args) {
-	    for (list<string>::iterator it = args->begin(); it != args->end(); it++)
-		arg += *it + " ";
-	    arg.resize(arg.length()-1);
+	string arg = actJ->getArgs();
+	if (arg.size())
 	    jobJDLAd->setAttribute(JDL::ARGUMENTS, arg);
-	}
 	//collAd.addNode(*jobJDLAd);
 	stringstream jdlFname;
 	jdlFname << "jdlfiles/" << setfill('0') << setw(4) << i << ".jdl";

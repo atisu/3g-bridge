@@ -72,12 +72,6 @@ vector<CGJob *> *JobDB::parseJobs(Query *squery)
     algname = it->alg;
     gridid = it->gridid;
     
-    // Vectorize cmdlineargs string
-    list<string> *arglist = new list<string>();
-    istringstream iss(cmdlineargs);
-    while (getline(iss, token, ' '))
-      arglist->push_back(token);
-    
     // Find out which algorithm the job belongs to
     map<string, CGAlgQueue *>::iterator at = talgs->find(algname);
     //!!!! What happens if...?
@@ -86,7 +80,7 @@ vector<CGJob *> *JobDB::parseJobs(Query *squery)
     CGAlg *alg = at->second->getType();
     
     // Create new job descriptor
-    CGJob *nJob = new CGJob(name, arglist, *alg);
+    CGJob *nJob = new CGJob(name, cmdlineargs, *alg);
     nJob->setId(id);
     nJob->setGridId(gridid);
     nJob->setDstType(alg->getType());
