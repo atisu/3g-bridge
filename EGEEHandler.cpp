@@ -39,8 +39,9 @@ int EGEEHandler::global_offset;
 /*
  * Constructor. Initialize ConfigContext based on passed WMProxy endpoint URL
  */
-EGEEHandler::EGEEHandler(JobDB *jDB, const string &WMProxy_EndPoint):jobDB(jDB)
+EGEEHandler::EGEEHandler(JobDB *jDB, const string &WMProxy_EndPoint) throw (BackendException &)
 {
+    jobDB = jDB;
     global_offset = 0;
     try {
         cfg = new ConfigContext("", WMProxy_EndPoint, "");
@@ -183,6 +184,11 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 }
 
 
+void EGEEHandler::updateStatus() throw (BackendException &)
+{
+}
+
+
 /*
  * Update status of jobs
  */
@@ -223,7 +229,7 @@ void EGEEHandler::getStatus(vector<CGJob *> *jobs) throw (BackendException &)
 }
 
 
-void EGEEHandler::getOutputs(vector<CGJob *> *jobs)
+void EGEEHandler::getOutputs(vector<CGJob *> *jobs) throw (BackendException &)
 {
 }
 
@@ -397,7 +403,7 @@ void EGEEHandler::upload_file_globus(const vector<string> &inFiles, const string
 	dfile += "/" + string(inFiles[i], inFiles[i].rfind("/")+1);
 	fd = fopen(sfile.c_str(), "r");
 	if (!fd)
-	    throwStrExc("Unable to open: " + sfile + "!");
+	    throwStrExc(__func__, "Unable to open: " + sfile + "!");
 	done = GLOBUS_FALSE;
 	result = globus_ftp_client_put(&ftp_handle, dfile.c_str(), &ftp_op_attrs, GLOBUS_NULL, handle_finish, NULL);
 	if (GLOBUS_SUCCESS != result) {
@@ -455,7 +461,7 @@ void EGEEHandler::download_file_globus(const vector<string> &remFiles, const vec
 	}
         outfile = fopen(locFiles[i].c_str(), "w");
 	if (!outfile)
-	    throwStrExc("Failed to open: " + locFiles[i] + "!");
+	    throwStrExc(__func__, "Failed to open: " + locFiles[i] + "!");
 	result = globus_ftp_client_register_read(&ftp_handle, buffer, GSIFTP_BSIZE, handle_data_read, (void *)outfile);
 	if (GLOBUS_SUCCESS != result)
     	    cout << "globus_ftp_client_register_read" << endl;

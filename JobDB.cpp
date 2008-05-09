@@ -77,7 +77,7 @@ vector<CGJob *> *JobDB::parseJobs(Query *squery)
     CGAlg *alg;
     map<string, CGAlgQueue *>::iterator at = talgs->find(algname);
     if (at != talgs->end())
-      alg = at->second->getType();
+      alg = at->second->getAlgorithm();
     else
       alg = new CGAlg(name, CG_ALG_EGEE);
     

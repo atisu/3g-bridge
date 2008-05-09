@@ -35,8 +35,8 @@ private:
     void delete_file_globus(const vector<string> &fileNames, const string &prefix = "");
     void cleanJob(const string &jobID);
     void delegate_Proxy(const string& delID);
-    void throwStrExc(const char *func, const BaseException &e) throw(string);
-    void throwStrExc(const char *func, const string &str) throw(string);
+    void throwStrExc(const char *func, const BaseException &e) throw(BackendException &);
+    void throwStrExc(const char *func, const string &str) throw(BackendException &);
     void renew_proxy(const string &voname);
     void getOutputs_real(CGJob *jobs);
 public:
@@ -45,7 +45,7 @@ public:
     void submitJobs(vector<CGJob *> *jobs) throw (BackendException &);
     void updateStatus(void) throw (BackendException &);
     void cancelJobs(vector<CGJob *> *jobs) throw (BackendException &);
-   void getStatus(vector<CGJob *> *jobs) throw (BackendException &);
+    void getStatus(vector<CGJob *> *jobs) throw (BackendException &);
 
     /* Obsolete */
     void getOutputs(vector<CGJob *> *jobs) throw (BackendException &);
