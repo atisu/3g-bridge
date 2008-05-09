@@ -2,11 +2,11 @@
 #define __CG_COMMON_H
 
 enum CGJobStatus {
-    CG_INIT,
-//    CG_SUBMITTED, Same as running
-    CG_RUNNING,
-    CG_FINISHED,
-    CG_ERROR
+    INIT,
+    RUNNING,
+    FINISHED,
+    ERROR,
+    CANCEL,
 };
 
 const int DC_initMasterError = -1;

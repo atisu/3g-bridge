@@ -25,17 +25,17 @@ string JobDB::getStatStr(CGJobStatus stat)
 {
   string statStr;
   switch (stat) {
-  case CG_INIT:
-    statStr = "CG_INIT";
+  case INIT:
+    statStr = "INIT";
     break;
-  case CG_RUNNING:
-    statStr = "CG_RUNNING";
+  case RUNNING:
+    statStr = "RUNNING";
     break;
-  case CG_FINISHED:
-    statStr = "CG_FINISHED";
+  case FINISHED:
+    statStr = "FINISHED";
     break;
-  case CG_ERROR:
-    statStr = "CG_ERROR";
+  case ERROR:
+    statStr = "ERROR";
     break;
   default:
     statStr = "";
@@ -72,12 +72,14 @@ vector<CGJob *> *JobDB::parseJobs(Query *squery)
     algname = it->alg;
     gridid = it->gridid;
     
-    // Find out which algorithm the job belongs to
+     // Find out which algorithm the job belongs to. If no such algorithm
+    // queue exists, create an EGEE one.
+    CGAlg *alg;
     map<string, CGAlgQueue *>::iterator at = talgs->find(algname);
-    //!!!! What happens if...?
-    if (at == talgs->end())
-      return jobs;
-    CGAlg *alg = at->second->getAlgorithm();
+    if (at != talgs->end())
+      alg = at->second->getType();
+    else
+      alg = new CGAlg(name, CG_ALG_EGEE);
     
     // Create new job descriptor
     CGJob *nJob = new CGJob(name, cmdlineargs, *alg);
@@ -85,11 +87,10 @@ vector<CGJob *> *JobDB::parseJobs(Query *squery)
     nJob->setGridId(gridid);
     nJob->setDstType(alg->getType());
     nJob->setDstLoc(it->dstloc);
-    nJob->setProperty(it->property);
     
     // Get inputs for job from db
     query.reset();
-    query << "SELECT * FROM cg_inputs WHERE jobid = " << id;
+    query << "SELECT * FROM cg_inputs WHERE id = \"" << id << "\"";
     vector<cg_inputs> in;
     query.storein(in);
     for (vector<cg_inputs>::iterator it = in.begin(); it != in.end(); it++)
@@ -97,15 +98,18 @@ vector<CGJob *> *JobDB::parseJobs(Query *squery)
     
     // Get outputs for job from db
     query.reset();
-    query << "SELECT * FROM cg_outputs WHERE jobid = " << id;
+    query << "SELECT * FROM cg_outputs WHERE id = \"" << id << "\"";
     vector<cg_outputs> out;
     query.storein(out);
-    for (vector<cg_outputs>::iterator it = out.begin(); it != out.end(); it++)
+    for (vector<cg_outputs>::iterator it = out.begin(); it != out.end(); it++) {
       nJob->addOutput(string(it->localname));
+      if (string(it->path) != "")
+        nJob->setOutputPath(string(it->localname), string(it->path));
+    }
     
     // Also register stdout and stderr
-    nJob->addOutput("stdout.txt");
-    nJob->addOutput("stderr.txt");
+    //nJob->addOutput("stdout.txt");
+    //nJob->addOutput("stderr.txt");
     
     jobs->push_back(nJob);
   }
@@ -116,7 +120,7 @@ vector<CGJob *> *JobDB::parseJobs(Query *squery)
 vector<CGJob *> *JobDB::getJobs(string gridID)
 {
   Query query = conn->query();
-  query << "SELECT * FROM cg_inputs WHERE gridid = " << gridID;
+  query << "SELECT * FROM cg_inputs WHERE gridid = \"" << gridID << "\"";
   return parseJobs(&query);
 }
 
@@ -134,9 +138,17 @@ void JobDB::updateJobGridID(string ID, string gridID)
 }
 
 
-void JobDB::updateJobStat(string gridID, CGJobStatus newstat)
+void JobDB::updateJobStat(string ID, CGJobStatus newstat)
 {
   Query query = conn->query();
-  query << "UPDATE cg_job SET status=\"" << getStatStr(newstat) << "\" WHERE gridid=\"" << gridID << "\"";
+  query << "UPDATE cg_job SET status=\"" << getStatStr(newstat) << "\" WHERE id=\"" << ID << "\"";
+  query.execute();
+}
+
+
+void JobDB::updateOutputPath(string ID, string localname, string pathname)
+{
+  Query query = conn->query();
+  query << "UPDATE cg_outputs SET path=\"" << pathname << "\" WHERE id=\"" << ID << "\" AND localname=\"" << localname << "\"";
   query.execute();
 }

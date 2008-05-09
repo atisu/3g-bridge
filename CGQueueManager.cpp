@@ -30,6 +30,8 @@ CGQueueManager::CGQueueManager(const string conf, const string db, const string 
 {
   // Clear algorithm list
   algs.clear();
+
+  jobDB = new JobDB(host, user, passwd, db);
   
 #ifdef HAVE_DCAPI
   gridHandlers[CG_ALG_DCAPI] = new DCAPIHandler(conf);
@@ -37,8 +39,6 @@ CGQueueManager::CGQueueManager(const string conf, const string db, const string 
 #ifdef HAVE_EGEE
   gridHandlers[CG_ALG_EGEE] = new EGEEHandler(jobDB, conf);
 #endif
-  
-  jobDB = new JobDB(host, user, passwd, db);
 }
 
 
@@ -137,18 +137,19 @@ void CGQueueManager::run()
 {
   bool finish = false;
   while (!finish) {
-    vector<CGJob *> *newJobs = jobDB->getJobs(CG_INIT);
-    vector<CGJob *> *sentJobs = jobDB->getJobs(CG_RUNNING);
-    vector<CGJob *> *finishedJobs = jobDB->getJobs(CG_FINISHED);
-    vector<CGJob *> *abortedJobs = jobDB->getJobs(CG_ERROR);
+    vector<CGJob *> *newJobs = jobDB->getJobs(INIT);
+    vector<CGJob *> *sentJobs = jobDB->getJobs(RUNNING);
+    vector<CGJob *> *finishedJobs = jobDB->getJobs(FINISHED);
+    vector<CGJob *> *abortedJobs = jobDB->getJobs(ERROR);
     handleJobs(submit, newJobs);
     handleJobs(status, sentJobs);
     handleJobs(output, finishedJobs);
     handleJobs(cancel, abortedJobs);
+    finish = (newJobs->size() == 0 && sentJobs->size() == 0);
     freeVector(newJobs);
     freeVector(sentJobs);
     freeVector(finishedJobs);
     freeVector(abortedJobs);
-    sleep(300);
+    sleep(30);
   }
 }

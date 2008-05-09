@@ -24,7 +24,8 @@ class JobDB {
   vector<CGJob *> *getJobs(string gridID);
   void addJobs(vector<CGJob *> *jobs);
   void updateJobGridID(string ID, string gridID);
-  void updateJobStat(string gridID, CGJobStatus newstat);
+  void updateJobStat(string ID, CGJobStatus newstat);
+  void updateOutputPath(string ID, string localname, string pathname);
   void setAlgQs(map<string, CGAlgQueue *> *newone) { talgs = newone; }
  private:
   string getStatStr(CGJobStatus stat);

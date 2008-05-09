@@ -18,13 +18,12 @@
 using namespace std;
 using namespace mysqlpp;
 
-sql_create_9(cg_job, 1, 9,
+sql_create_8(cg_job, 1, 8,
     string,	id,
     string, 	args,
     string,	alg,
     string,	status,
     string,	gridid,
-    string, 	property,
     string,	dsttype,
     string,	dstloc,
     DateTime,	creation_time)

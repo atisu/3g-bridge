@@ -30,7 +30,7 @@ uuid_t *CGAlgQueue::add(CGJob *job)
     uuid_t *id = new uuid_t[1];
     uuid_generate(*id);
     CGJob *tJob = job;
-    tJob->setStatus(CG_INIT);
+    tJob->setStatus(INIT);
     jobs.insert(pair<uuid_t *, CGJob *>(id, tJob));
     return id;
 }
@@ -52,18 +52,5 @@ CGJobStatus CGAlgQueue::getStatus(uuid_t *id)
 {
     CGJob *job = jobs[id];
     CGJobStatus aStat = job->getStatus();
-//    nStat = aStat;
-//    switch (aStat) {
-//	case CG_INIT:
-//	    nStat = CG_SUBMITTED;
-//	    break;
-//	case CG_SUBMITTED:
-//	    nStat = CG_RUNNING;
-//	    break;
-//	case CG_RUNNING:
-//	    nStat = CG_FINISHED;
-//	    break;
-//    }
-//    job->setStatus(nStat);
     return aStat;
 }

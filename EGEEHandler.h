@@ -31,22 +31,23 @@ private:
     static void handle_data_write(void *user_args, globus_ftp_client_handle_t *handle, globus_object_t *error, globus_byte_t *buffer, globus_size_t buflen, globus_off_t offset, globus_bool_t eof);
     static void handle_data_read(void *user_args, globus_ftp_client_handle_t *ftp_handle, globus_object_t *error, globus_byte_t *buffer, globus_size_t buflen, globus_off_t offset, globus_bool_t eof);
     void upload_file_globus(const vector<string> &inFiles, const string &destURI);
-    void download_file_globus(const vector<string> &outFiles);
+    void download_file_globus(const vector<string> &remFiles, const vector<string> &locFiles);
     void delete_file_globus(const vector<string> &fileNames, const string &prefix = "");
     void cleanJob(const string &jobID);
     void delegate_Proxy(const string& delID);
     void throwStrExc(const char *func, const BaseException &e) throw(string);
     void throwStrExc(const char *func, const string &str) throw(string);
     void renew_proxy(const string &voname);
+    void getOutputs_real(CGJob *jobs);
 public:
     EGEEHandler(JobDB *jDB, const string &WMProxy_EndPoint) throw (BackendException &);
     ~EGEEHandler();
     void submitJobs(vector<CGJob *> *jobs) throw (BackendException &);
     void updateStatus(void) throw (BackendException &);
     void cancelJobs(vector<CGJob *> *jobs) throw (BackendException &);
+   void getStatus(vector<CGJob *> *jobs) throw (BackendException &);
 
     /* Obsolete */
-    void getStatus(vector<CGJob *> *jobs) throw (BackendException &);
     void getOutputs(vector<CGJob *> *jobs) throw (BackendException &);
 };
 

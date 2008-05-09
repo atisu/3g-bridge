@@ -142,7 +142,7 @@ int main(int argc, char **argv)
 //	{ // transaction scope
 //	    Transaction trans(con);
     	    // insert into mysql...
-	    cg_job job_row(sid, cmdLine, algName, "CG_INIT", "", "", type, "", DateTime());
+	    cg_job job_row(sid, cmdLine, algName, "INIT", "", type, "", DateTime());
     	    query.insert(job_row);
 	    query.execute();
 	    query.reset();
@@ -174,7 +174,7 @@ int main(int argc, char **argv)
 	    query.storein(job);
 	    string status = job.at(0).status;
 	    
-	    if (status == "CG_FINISHED")  {
+	    if (status == "FINISHED")  {
 		break;
     	    } else 
 		sleep(10);

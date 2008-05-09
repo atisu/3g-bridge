@@ -29,7 +29,7 @@ void CGJob::addInput(const string localname, const string fsyspath)
 
 void CGJob::addOutput(const string localname)
 {
-    outputs[localname] = string("undefined");
+    outputs[localname] = "";
 }
 
 void CGJob::setOutputPath(const string localname, const string fsyspath)

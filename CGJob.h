@@ -22,7 +22,6 @@ private:
     string args;
     list<string> *envs;
     string gridId;
-    string property;
     map<string, string> inputs;
     map<string, string> outputs;
     CGJobStatus status;
@@ -45,8 +44,6 @@ public:
     void setGridId(const string sId) { gridId = sId; }
     string getId() const { return id; }
     void setId(const string sId) { id = sId; }
-    string getProperty() const { return property; }
-    void setProperty(const string sProp) { property = sProp; }
     CGAlgType getDstType() const { return dstType; }
     void setDstType(const CGAlgType dType) { dstType = dType; }
     string getDstLoc() const { return dstLoc; }

@@ -42,8 +42,6 @@ int EGEEHandler::global_offset;
 EGEEHandler::EGEEHandler(JobDB *jDB, const string &WMProxy_EndPoint):jobDB(jDB)
 {
     global_offset = 0;
-    cfg = NULL;
-    /*
     try {
         cfg = new ConfigContext("", WMProxy_EndPoint, "");
     } catch (BaseException e) {
@@ -51,7 +49,6 @@ EGEEHandler::EGEEHandler(JobDB *jDB, const string &WMProxy_EndPoint):jobDB(jDB)
     }
     if (!cfg)
 	throwStrExc(__func__, "Failed to create ConfigContext!");
-    */
 }
 
 
@@ -117,10 +114,11 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 	//collAd.addNode(*jobJDLAd);
 	stringstream jdlFname;
 	jdlFname << "jdlfiles/" << setfill('0') << setw(4) << i << ".jdl";
-	jobAds.push_back(jobJDLAd);
+	//jobAds.push_back(jobJDLAd);
 	ofstream jobJDL(jdlFname.str().c_str());
 	jobJDL << jobJDLAd->toString() << endl;
 	jobJDL.close();
+	delete jobJDLAd;
     }
     /*
     delegate_Proxy(tmpl);
@@ -175,7 +173,7 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 		//(*it)->setGridId(childIDs[i]);
 		//(*it)->setStatus(CG_RUNNING);
 		jobDB->updateJobGridID((*it)->getId(), childIDs[i]);
-		jobDB->updateJobStat(childIDs[i], CG_RUNNING);
+		jobDB->updateJobStat((*it)->getId(), RUNNING);
 		break;
 	    }
 	}
@@ -191,20 +189,22 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 void EGEEHandler::getStatus(vector<CGJob *> *jobs) throw (BackendException &)
 {
     const struct { string EGEEs; CGJobStatus jobS; } statusRelation[] = {
-	{"Submitted", CG_INIT},
-	{"Waiting", CG_INIT},
-	{"Ready", CG_INIT},
-	{"Scheduled", CG_INIT},
-	{"Running", CG_RUNNING},
-	{"Done", CG_FINISHED},
-	{"Cleared", CG_ERROR},
-	{"Cancelled", CG_ERROR},
-	{"Aborted", CG_ERROR},
-	{"", CG_INIT}
+	{"Submitted", RUNNING},
+	{"Waiting", RUNNING},
+	{"Ready", RUNNING},
+	{"Scheduled", RUNNING},
+	{"Running", RUNNING},
+	{"Done", FINISHED},
+	{"Cleared", ERROR},
+	{"Cancelled", ERROR},
+	{"Aborted", ERROR},
+	{"", INIT}
     };
 
     if (!jobs || !jobs->size())
 	return;
+
+    renew_proxy("seegrid");
 
     for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
 	CGJob *actJ = *it;
@@ -213,41 +213,53 @@ void EGEEHandler::getStatus(vector<CGJob *> *jobs) throw (BackendException &)
 	JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
 	string statStr = stat.name();
 	for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
-	    if (statusRelation[j].EGEEs == statStr)
+	    if (statusRelation[j].EGEEs == statStr) {
+		if (FINISHED == statusRelation[j].jobS)
+		    getOutputs_real(actJ);
 		actJ->setStatus(statusRelation[j].jobS);
+		jobDB->updateJobStat(actJ->getId(), statusRelation[j].jobS);
+	    }
     }
 }
 
 
-/*
- * Get outputs of jobs
- */
-void EGEEHandler::getOutputs(vector<CGJob *> *jobs) throw (BackendException &)
+void EGEEHandler::getOutputs(vector<CGJob *> *jobs)
 {
-    if (!jobs || !jobs->size())
+}
+
+
+/*
+ * Get outputs of one job
+ */
+void EGEEHandler::getOutputs_real(CGJob *job)
+{
+    if (!job)
 	return;
 
-    for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
-	char wd[2048];
-	char dirIDs[37];
-	uuid_t dirID;
-	uuid_generate(dirID);
-	uuid_unparse(dirID, dirIDs);
-	getcwd(wd, 2047);
-	mkdir(dirIDs, 0700);
-	chdir(dirIDs);
-	CGJob *actJ = *it;
-	vector<pair<string, long> > URIs = getOutputFileList(actJ->getGridId(), cfg);
-	vector<string> inFiles(URIs.size());
-	for (unsigned int i = 0; i < URIs.size(); i++) {
-	    inFiles[i] = URIs[i].first;
-	    string fbname = inFiles[i].substr(inFiles[i].rfind("/")+1);
-	    actJ->setOutputPath(fbname, string(wd)+string(dirIDs)+fbname);
-	}
-	download_file_globus(inFiles);
-	chdir("..");
-	cleanJob(actJ->getGridId());
+    renew_proxy("seegrid");
+
+    char wd[2048];
+    getcwd(wd, 2048);
+    vector<pair<string, long> > URIs;
+    try {
+	URIs = getOutputFileList(job->getGridId(), cfg);
+    } catch (BaseException e) {
+	throwStrExc(__func__, e);
     }
+    vector<string> remFiles(URIs.size());
+    vector<string> locFiles(URIs.size());
+    for (unsigned int i = 0; i < URIs.size(); i++) {
+        remFiles[i] = URIs[i].first;
+        string fbname = remFiles[i].substr(remFiles[i].rfind("/")+1);
+        if (job->getOutputPath(fbname) != "")
+	    locFiles[i] = job->getOutputPath(fbname);
+	else {
+	    locFiles[i] = string(wd) + "/" + job->getId() + "." + fbname;
+	    job->setOutputPath(fbname, locFiles[i]);
+	}
+    }
+    download_file_globus(remFiles, locFiles);
+    cleanJob(job->getGridId());
 }
 
 
@@ -365,10 +377,8 @@ void EGEEHandler::upload_file_globus(const vector<string> &inFiles, const string
 
     globus_module_activate(GLOBUS_FTP_CLIENT_MODULE);
     buffer = new globus_byte_t[GSIFTP_BSIZE];
-    if (!buffer) {
-        cout << "Memory allocation error!" << endl;
-        exit(-1);
-    }
+    if (!buffer)
+	throwStrExc(__func__, "Memory allocation error!");
 
     init_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
 
@@ -386,10 +396,8 @@ void EGEEHandler::upload_file_globus(const vector<string> &inFiles, const string
 	string dfile(destURI);
 	dfile += "/" + string(inFiles[i], inFiles[i].rfind("/")+1);
 	fd = fopen(sfile.c_str(), "r");
-	if (!fd) {
-	    cout << "Unable to open: " << sfile.c_str() << endl;
-	    exit(-1);
-	}
+	if (!fd)
+	    throwStrExc("Unable to open: " + sfile + "!");
 	done = GLOBUS_FALSE;
 	result = globus_ftp_client_put(&ftp_handle, dfile.c_str(), &ftp_op_attrs, GLOBUS_NULL, handle_finish, NULL);
 	if (GLOBUS_SUCCESS != result) {
@@ -416,7 +424,7 @@ void EGEEHandler::upload_file_globus(const vector<string> &inFiles, const string
 }
 
 
-void EGEEHandler::download_file_globus(const vector<string> &outFiles)
+void EGEEHandler::download_file_globus(const vector<string> &remFiles, const vector<string> &locFiles)
 {
     globus_byte_t *buffer;
     globus_result_t result;
@@ -431,16 +439,13 @@ void EGEEHandler::download_file_globus(const vector<string> &outFiles)
 
     init_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
 
-    for (unsigned int i = 0; i < outFiles.size(); i++) {
-	globus_err = false;
+    for (unsigned int i = 0; i < remFiles.size(); i++) {
 	FILE *outfile;
-	char *tdfile, *dfile = strdup(outFiles[i].c_str());
+	globus_err = false;
 	globus_mutex_init(&lock, GLOBUS_NULL);
 	globus_cond_init(&cond, GLOBUS_NULL);
-	tdfile = basename(dfile);
-	string sfile(outFiles[i]);
 	done = GLOBUS_FALSE;
-	result = globus_ftp_client_get(&ftp_handle, sfile.c_str(), &ftp_op_attrs, GLOBUS_NULL, handle_finish, NULL);
+	result = globus_ftp_client_get(&ftp_handle, remFiles[i].c_str(), &ftp_op_attrs, GLOBUS_NULL, handle_finish, NULL);
 	if (GLOBUS_SUCCESS != result) {
     	    char *err = globus_error_print_chain(globus_error_get(result));
 	    if (err)
@@ -448,11 +453,9 @@ void EGEEHandler::download_file_globus(const vector<string> &outFiles)
 	    else
     		cout << "Globus globus_ftp_client_get error: UNKNOWN!!!!" << endl;
 	}
-        outfile = fopen(tdfile, "w");
-	if (!outfile) {
-	    cout << "Failed to open: " << dfile << endl;
-	    exit(-1);
-	}
+        outfile = fopen(locFiles[i].c_str(), "w");
+	if (!outfile)
+	    throwStrExc("Failed to open: " + locFiles[i] + "!");
 	result = globus_ftp_client_register_read(&ftp_handle, buffer, GSIFTP_BSIZE, handle_data_read, (void *)outfile);
 	if (GLOBUS_SUCCESS != result)
     	    cout << "globus_ftp_client_register_read" << endl;
@@ -461,9 +464,8 @@ void EGEEHandler::download_file_globus(const vector<string> &outFiles)
 	    globus_cond_wait(&cond, &lock);
         globus_mutex_unlock(&lock);
 	fclose(outfile);
-	free(dfile);
 	if (globus_err)
-	    cout << "XXXXX Failed to download file: " << sfile << endl;
+	    cout << "XXXXX Failed to download file: " << remFiles[i] << endl;
     }
     delete[] buffer;
     destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
@@ -506,10 +508,15 @@ void EGEEHandler::delete_file_globus(const vector<string> &fileNames, const stri
 
 void EGEEHandler::cleanJob(const string &jobID)
 {
-    try {
-	jobPurge(jobID, cfg);
-    } catch (BaseException e) {
-	throwStrExc(__func__, e);
+    for (int i = 0; i < 3; i++) {
+	try {
+	    jobPurge(jobID, cfg);
+	} catch (BaseException e) {
+	    if (i < 2)
+		continue;
+	    throwStrExc(__func__, e);
+	}
+	return;
     }
 }
 
@@ -547,14 +554,17 @@ void EGEEHandler::throwStrExc(const char *func, const string &str) throw(Backend
 
 void EGEEHandler::renew_proxy(const string &voname)
 {
-    string proxyfile = "proxy." + voname;
-    string vomsproxy = proxyfile + ".voms";
-    string cmd = "echo \"IeKohg1A\" | myproxy-logon -s n40.hpcc.sztaki.hu -p 7512 -l bebridge -S -o " + proxyfile;
+    char proxyf[] = "/tmp/proxy.XXXXXX";
+    char vproxyf[] = "/tmp/proxy.voms.XXXXXX";
+    mkstemp(proxyf);
+    mkstemp(vproxyf);
+    string cmd = "echo \"IeKohg1A\" | myproxy-logon -s n40.hpcc.sztaki.hu -p 7512 -l bebridge -S -o " + string(proxyf) + " &> /dev/null";
     if (-1 == system(cmd.c_str()))
 	throwStrExc(__func__, "Proxy initialization failed!");
-    setenv("X509_USER_PROXY", proxyfile.c_str(), 1);
-    cmd = "voms-proxy-init -voms " + voname + " -noregen -out " + vomsproxy;
+    setenv("X509_USER_PROXY", proxyf, 1);
+    cmd = "voms-proxy-init -voms " + voname + " -noregen -out " + string(vproxyf) + " &> /dev/null";
     if (-1 == system(cmd.c_str()))
 	throwStrExc(__func__, "Adding VOMS extensions failed!");
-    setenv("X509_USER_PROXY", vomsproxy.c_str(), 1);
+    unlink(proxyf);
+    setenv("X509_USER_PROXY", vproxyf, 1);
 }
