@@ -34,7 +34,7 @@ CGQueueManager::CGQueueManager(const string conf, const string db, const string 
   jobDB = new JobDB(host, user, passwd, db);
   
 #ifdef HAVE_DCAPI
-  gridHandlers[CG_ALG_DCAPI] = new DCAPIHandler(conf);
+  gridHandlers[CG_ALG_DCAPI] = new DCAPIHandler(jobDB, conf);
 #endif
 #ifdef HAVE_EGEE
   gridHandlers[CG_ALG_EGEE] = new EGEEHandler(jobDB, conf);

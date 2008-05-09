@@ -4,6 +4,7 @@
 
 #include "CGJob.h"
 #include "DCAPIHandler.h"
+#include "JobDB.h"
 
 #include <dc.h>
 
@@ -25,7 +26,18 @@
 #define OUTPUT_NAME		"outputs.tar.gz"
 #define OUTPUT_PATTERN		"outputs/*"
 
+/* Forward declarations */
+static void result_callback(DC_Workunit *wu, DC_Result *res);
+
+/* This should be a class member but it has to be referenced from a C callback
+ * so it must be global */
+static JobDB *dbh;
+
 using namespace std;
+
+/**********************************************************************
+ * Utility functions
+ */
 
 static string load_file(const string name)
 {
@@ -84,25 +96,13 @@ static string get_dc_client_config(const string &app, const char *key, bool stri
 	char *value = DC_getClientCfgStr(app.c_str(), key, 0);
 
 	if (strict && !value)
-		throw string("Configuration error: missing ") + key + " for app " + app;
+		throw BackendException(string("Configuration error: missing ") + key + " for app " + app);
 	string str(value);
 	free(value);
 	return str;
 }
 
-
-DCAPIHandler::DCAPIHandler(const string conf)
-{
-	if (DC_OK != DC_initMaster(conf.c_str()))
-		throw DC_initMasterError;
-}
-
-
-DCAPIHandler::~DCAPIHandler()
-{
-}
-
-static string setup_workdir(void) throw (BackendException &)
+static string create_tmpdir(void) throw (BackendException &)
 {
 	char buf[PATH_MAX];
 
@@ -111,6 +111,84 @@ static string setup_workdir(void) throw (BackendException &)
 		throw BackendException(string("Failed to create directory: ") + strerror(errno));
 
 	return string(buf);
+}
+
+static void remove_tmpdir(const string &dir) throw (BackendException &)
+{
+	if (!dir.size())
+		return;
+
+	const char *args[] = { "rm", "-rf", dir.c_str(), 0 };
+	invoke_cmd("rm", args);
+}
+
+static void error_jobs(vector<CGJob *> *jobs)
+{
+	for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++)
+	{
+		(*it)->setStatus(ERROR);
+		delete *it;
+	}
+	delete jobs;
+}
+
+static void result_callback(DC_Workunit *wu, DC_Result *result)
+{
+	char *tmp = DC_getWUId(wu);
+	string id(tmp);
+	free(tmp);
+
+	vector<CGJob *> *jobs = dbh->getJobs(id);
+
+	if (!result)
+	{
+		/* XXX Logging */
+		error_jobs(jobs);
+		return;
+	}
+
+	tmp = DC_getResultOutput(result, OUTPUT_NAME);
+	if (!tmp)
+	{
+		/* XXX Logging */
+		error_jobs(jobs);
+		return;
+	}
+	string outputs(tmp);
+	free(tmp);
+
+	string basedir = create_tmpdir();
+
+	try
+	{
+		const char *tar_args[] = { "tar", "-C", basedir.c_str(), "-x", "-z", "-f", outputs.c_str(), 0 };
+		invoke_cmd("tar", tar_args);
+	}
+	catch (BackendException &e)
+	{
+		remove_tmpdir(basedir.c_str());
+		throw e;
+	}
+}
+
+/**********************************************************************
+ * Class: DCAPIHandler
+ */
+
+DCAPIHandler::DCAPIHandler(JobDB *jobdb, const string conf)
+{
+	if (DC_OK != DC_initMaster(conf.c_str()))
+		throw DC_initMasterError;
+
+	DC_setResultCb(result_callback);
+
+	dbh = jobdb;
+}
+
+
+DCAPIHandler::~DCAPIHandler()
+{
+	dbh = 0;
 }
 
 static void emit_job(CGJob *job, const string &basedir, ofstream &script, const string &job_template) throw (BackendException &)
@@ -138,8 +216,7 @@ static void emit_job(CGJob *job, const string &basedir, ofstream &script, const 
 		/* First, try to create a hard link; if that fails, do a copy */
 		if (link(src.c_str(), dst.c_str()))
 		{
-			const char *cp_args[] =
-				{ "cp", "-p", src.c_str(), dst.c_str(), 0 };
+			const char *cp_args[] = { "cp", "-p", src.c_str(), dst.c_str(), 0 };
 			invoke_cmd("cp", cp_args);
 		}
 	}
@@ -154,7 +231,6 @@ static void emit_job(CGJob *job, const string &basedir, ofstream &script, const 
 void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 {
 	char input_name[PATH_MAX] = { 0 };
-	BackendException *err = NULL;
 	DC_Workunit *wu;
 	string basedir;
 	int ret;
@@ -172,10 +248,11 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 	string job_template = load_file(get_dc_client_config(algname, "BatchJobTemplate", true));
 	string tail_template = load_file(get_dc_client_config(algname, "BatchTailTemplate", true));
 
+	basedir = create_tmpdir();
+	string script_name = basedir + "/" SCRIPT_NAME;
+
 	try
 	{
-		basedir = setup_workdir();
-		string script_name = basedir + "/" SCRIPT_NAME;
 		ofstream script(script_name.c_str(), ios::out);
 		script << substitute(head_template, "inputs", INPUT_NAME);
 
@@ -193,7 +270,7 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 		snprintf(input_name, sizeof(input_name), "inputs_XXXXXX");
 		int fd = mkstemp(input_name);
 		if (fd == -1)
-			throw new BackendException(string("Failed to create file: ") + strerror(errno));
+			throw BackendException(string("Failed to create file: ") + strerror(errno));
 		close(fd);
 
 		const char *tarargs[] =
@@ -205,20 +282,29 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 		const char *wu_args[] = { SCRIPT_NAME, 0 };
 		wu = DC_createWU(algname.c_str(), wu_args, 0, NULL);
 		if (!wu)
-			throw new BackendException("Out of memory");
+		{
+			unlink(input_name);
+			throw BackendException("Out of memory");
+		}
 
-		DC_addWUInput(wu, INPUT_NAME, input_name, DC_FILE_VOLATILE);
-		DC_addWUInput(wu, SCRIPT_NAME, script_name.c_str(), DC_FILE_VOLATILE);
-		DC_addWUOutput(wu, OUTPUT_NAME);
+		if (DC_addWUInput(wu, INPUT_NAME, input_name, DC_FILE_VOLATILE))
+		{
+			unlink(input_name);
+			throw BackendException("Failed to add input file to WU");
+		}
+		if (DC_addWUInput(wu, SCRIPT_NAME, script_name.c_str(), DC_FILE_VOLATILE))
+			throw BackendException("Failed to add input file to WU");
+		if (DC_addWUOutput(wu, OUTPUT_NAME))
+			throw BackendException("Failed to add input file to WU");
 
 		if (DC_submitWU(wu))
-			throw new BackendException("WU submission failed");
+			throw BackendException("WU submission failed");
 
 		char *wu_id = DC_getWUId(wu);
 		for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++)
 		{
 			(*it)->setGridId(wu_id);
-			(*it)->setStatus(CG_RUNNING);
+			(*it)->setStatus(RUNNING);
 		}
 		free(wu_id);
 
@@ -226,67 +312,23 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 		tail_template = substitute(tail_template, "output_pattern", OUTPUT_PATTERN);
 		script << tail_template;
 	}
-	catch (BackendException *e)
+	catch (BackendException &e)
 	{
-		err = e;
-
 		if (input_name[0])
 			unlink(input_name);
 		if (wu)
 			DC_destroyWU(wu);
+		remove_tmpdir(basedir.c_str());
+		throw e;
 	}
 
-	/* Remove the temp. directory */
-	char cmd[PATH_MAX];
-
-	snprintf(cmd, sizeof(cmd), "rm -rf %s", basedir.c_str());
-	system(cmd);
-
-	if (err)
-		throw *err;
+	remove_tmpdir(basedir.c_str());
 }
 
 
 void DCAPIHandler::updateStatus(void) throw (BackendException &)
 {
-#if 0
-	DC_MasterEvent *event;
-	char *wutag;
-	uuid_t *id = new uuid_t[1];
-	vector<string> outputs;
-	string localname, outfilename, algname, workdir;
-	struct stat stFileInfo;
-
-	// Process pending events
-	while (NULL != (event = DC_waitMasterEvent(NULL, 0))) {
-		// Throw non-result events
-		if (event->type != DC_MASTER_RESULT)
-		{
-			DC_destroyMasterEvent(event);
-			continue;
-		}
-		// Now get the WU tag of the event
-		wutag = DC_getWUTag(event->wu);
-		if (uuid_parse(wutag, *id) == -1)
-		{
-			cerr << "Failed to parse uuid" << endl;
-			DC_destroyWU(event->wu);
-			DC_destroyMasterEvent(event);
-			continue;
-		}
-		// Search for the id in the received jobs
-		for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++)
-		{
-			CGJob *job = *it;
-			if (job->getGridID() == (string)wutag)
-			{
-				if (!event->result)
-					job->setStatus(CG_ERROR);
-				else
-					job->setStatus(CG_FINISHED);
-				DC_destroyMasterEvent(event);
-			}
-		}
-	}
-#endif
+	int ret = DC_processMasterEvents(0);
+	if (ret && ret != DC_ERR_TIMEOUT)
+		throw BackendException("DC_processMasterEvents() returned failure");
 }
