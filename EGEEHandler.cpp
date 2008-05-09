@@ -71,7 +71,7 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
     sprintf(tmpl, "submitdir.XXXXXX");
     char *tmpdir = mkdtemp(tmpl);
     if (!tmpdir)
-	throw(new BackendException("Failed to create temporary directory!"));
+	throw(BackendException("Failed to create temporary directory!"));
     chdir(tmpdir);
     mkdir("jdlfiles", 0700);
     //CollectionAd collAd;
@@ -534,7 +534,7 @@ void EGEEHandler::delegate_Proxy(const string& delID)
 }
 
 
-void EGEEHandler::throwStrExc(const char *func, const BaseException &e) throw(BackendException &)
+void EGEEHandler::throwStrExc(const char *func, const BaseException &e) throw (BackendException &)
 {
     stringstream msg;
     msg << "Exception occured in EGEEHandler::" << func << ":" << endl;
@@ -546,15 +546,15 @@ void EGEEHandler::throwStrExc(const char *func, const BaseException &e) throw(Ba
     if (e.FaultCause)
         for (unsigned i = 0; i < (e.FaultCause)->size(); i++)
 	    msg << "  FaultCause: " << (*(e.FaultCause))[i] << endl;
-    throw(new BackendException(msg.str()));
+    throw(BackendException(msg.str()));
 }
 
 
-void EGEEHandler::throwStrExc(const char *func, const string &str) throw(BackendException &)
+void EGEEHandler::throwStrExc(const char *func, const string &str) throw (BackendException &)
 {
     stringstream msg;
     msg << "Exception occured in EGEEHandler::" << func << ": " << str;
-    throw(new BackendException(msg.str()));
+    throw(BackendException(msg.str()));
 }
 
 

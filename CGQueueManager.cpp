@@ -137,6 +137,7 @@ void CGQueueManager::run()
 {
   bool finish = false;
   while (!finish) {
+    try {
     vector<CGJob *> *newJobs = jobDB->getJobs(INIT);
     vector<CGJob *> *sentJobs = jobDB->getJobs(RUNNING);
     vector<CGJob *> *finishedJobs = jobDB->getJobs(FINISHED);
@@ -151,5 +152,8 @@ void CGQueueManager::run()
     freeVector(finishedJobs);
     freeVector(abortedJobs);
     sleep(30);
+    } catch (BackendException& a) {
+	cout << a.reason() << endl;
+    }
   }
 }

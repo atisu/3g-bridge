@@ -60,11 +60,11 @@ static void invoke_cmd(const char *exe, const char *const argv[]) throw (Backend
 		int status;
 
 		if (waitpid(pid, &status, 0) == -1)
-			throw new BackendException(string("waitpid() failed: ") + strerror(errno));
+			throw BackendException(string("waitpid() failed: ") + strerror(errno));
 		if (!WIFEXITED(status))
-			throw new BackendException(string("Command ") + exe + " died");
+			throw BackendException(string("Command ") + exe + " died");
 		if (WEXITSTATUS(status))
-			throw new BackendException(string("Command ") + exe + " exited with non-zero status");
+			throw BackendException(string("Command ") + exe + " exited with non-zero status");
 		return;
 	}
 
@@ -108,7 +108,7 @@ static string setup_workdir(void) throw (BackendException &)
 
 	snprintf(buf, sizeof(buf), "batch_XXXXXX");
 	if (!mkdtemp(buf))
-		throw new BackendException(string("Failed to create directory: ") + strerror(errno));
+		throw BackendException(string("Failed to create directory: ") + strerror(errno));
 
 	return string(buf);
 }
@@ -120,12 +120,12 @@ static void emit_job(CGJob *job, const string &basedir, ofstream &script, const 
 
 	string input_path = basedir + "/" + input_dir;
 	if (mkdir(input_path.c_str(), 0750))
-		throw new BackendException("Failed to create directory " + input_path +
+		throw BackendException("Failed to create directory " + input_path +
 			": " + strerror(errno));
 
 	string output_path = basedir + "/" + output_dir;
 	if (mkdir(output_path.c_str(), 0750))
-		throw new BackendException("Failed to create directory " + output_path +
+		throw BackendException("Failed to create directory " + output_path +
 			": " + strerror(errno));
 
 	/* Link/copy the input files to the proper location */
@@ -154,7 +154,7 @@ static void emit_job(CGJob *job, const string &basedir, ofstream &script, const 
 void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 {
 	char input_name[PATH_MAX] = { 0 };
-	BackendException *err;
+	BackendException *err = NULL;
 	DC_Workunit *wu;
 	string basedir;
 	int ret;
@@ -226,9 +226,9 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 		tail_template = substitute(tail_template, "output_pattern", OUTPUT_PATTERN);
 		script << tail_template;
 	}
-	catch (BackendException &e)
+	catch (BackendException *e)
 	{
-		err = &e;
+		err = e;
 
 		if (input_name[0])
 			unlink(input_name);
@@ -243,7 +243,7 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 	system(cmd);
 
 	if (err)
-		throw err;
+		throw *err;
 }
 
 
