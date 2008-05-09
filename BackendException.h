@@ -7,10 +7,8 @@ class BackendException: public exception
 {
 public:
 	/* Create a new exception */
-	BackendException(const string reason)
-	{
-		this->msg_text = reason;
-	}
+	BackendException() { msg_text = ""; };
+	BackendException(const string reason):msg_text(reason) {};
 
 	/* Dispose the exception */
 	~BackendException() throw () {};
@@ -18,7 +16,13 @@ public:
 	/* Return the reason of the exception */
 	inline const string reason()
 	{
-		return this->msg_text;
+		return msg_text;
+	}
+
+	/* Set the reason of the exception */
+	inline void set_reason(const string reason)
+	{
+		msg_text = reason;
 	}
 
 private:
