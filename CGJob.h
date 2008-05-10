@@ -10,16 +10,16 @@
 #include <vector>
 #include <list>
 #include "common.h"
-#include "CGAlg.h"
+#include "CGAlgQueue.h"
 
 using namespace std;
 
 class CGJob {
 private:
-    CGAlg *alg;
     string id;
     string name;
-    string args;
+    CGAlgQueue *talgQ;
+    string targs;
     list<string> *envs;
     string gridId;
     map<string, string> inputs;
@@ -28,16 +28,16 @@ private:
     CGAlgType dstType;
     string dstLoc;
 public:
-    CGJob(const string name, string args, CGAlg &alg);
+    CGJob(const string name, string args, CGAlgQueue *algQ);
     ~CGJob();
     void addInput(const string localname, const string fsyspath);
     void addOutput(const string localname);
     void setOutputPath(const string localname, const string fsyspath);
     string getName() { return name; }
-    string getArgs() { return args; }
+    string getArgs() { return targs; }
     void setEnv(list<string> *envvals) { envs = envvals; }
     list<string> *getEnvs() { return envs; }
-    CGAlg *getAlgorithm() { return alg; }
+    CGAlgQueue *getAlgQueue() { return talgQ; }
     vector<string> getInputs() const;
     vector<string> getOutputs() const;
     string getGridId() const { return gridId; }

@@ -1,5 +1,5 @@
-#ifndef __JOBDB_H
-#define __JOBDB_H
+#ifndef __DBHANDLER_H
+#define __DBHANDLER_H
 
 #include <string>
 #include "CGJob.h"
@@ -16,10 +16,10 @@
 using namespace std;
 using namespace mysqlpp;
 
-class JobDB {
+class DBHandler {
  public:
-  JobDB(const string host, const string user, const string passwd, const string dbname);
-  ~JobDB();
+  DBHandler(const string host, const string user, const string passwd, const string dbname);
+  ~DBHandler();
   vector<CGJob *> *getJobs(CGJobStatus stat);
   vector<CGJob *> *getJobs(string gridID);
   void addJobs(vector<CGJob *> *jobs);
@@ -38,4 +38,4 @@ class JobDB {
   Connection *conn;
 };
 
-#endif
+#endif /* __DBHANDLER_H */

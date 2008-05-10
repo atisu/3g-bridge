@@ -3,7 +3,7 @@
 
 #include "CGJob.h"
 #include "GridHandler.h"
-#include "JobDB.h"
+#include "DBHandler.h"
 
 #include <vector>
 
@@ -11,7 +11,7 @@ using namespace std;
 
 class DCAPIHandler: public GridHandler {
 public:
-	DCAPIHandler(JobDB *jobdb, const string conf);
+	DCAPIHandler(DBHandler *jobdb, const string conf);
 	~DCAPIHandler();
 	void submitJobs(vector<CGJob *> *jobs) throw (BackendException &);
 	void updateStatus(void) throw (BackendException &);

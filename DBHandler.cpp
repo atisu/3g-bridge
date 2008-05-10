@@ -1,5 +1,5 @@
 #include "CGJob.h"
-#include "JobDB.h"
+#include "DBHandler.h"
 #include "CGSqlStruct.h"
 
 #include <string>
@@ -8,20 +8,20 @@
 using namespace std;
 
 
-JobDB::JobDB(const string host, const string user, const string passwd, const string dbname):thost(host),tuser(user),tpasswd(passwd),tdbname(dbname)
+DBHandler::DBHandler(const string host, const string user, const string passwd, const string dbname):thost(host),tuser(user),tpasswd(passwd),tdbname(dbname)
 {
   conn = new Connection(dbname.c_str(), host.c_str(), user.c_str(), passwd.c_str());
 }
 
 
-JobDB::~JobDB()
+DBHandler::~DBHandler()
 {
   conn->disconnect();
   delete conn;
 }
 
 
-string JobDB::getStatStr(CGJobStatus stat)
+string DBHandler::getStatStr(CGJobStatus stat)
 {
   string statStr;
   switch (stat) {
@@ -45,7 +45,7 @@ string JobDB::getStatStr(CGJobStatus stat)
 }
 
 
-vector<CGJob *> *JobDB::getJobs(CGJobStatus stat)
+vector<CGJob *> *DBHandler::getJobs(CGJobStatus stat)
 {
   Query query = conn->query();
   string statStr = getStatStr(stat);
@@ -57,11 +57,12 @@ vector<CGJob *> *JobDB::getJobs(CGJobStatus stat)
 }
 
 
-vector<CGJob *> *JobDB::parseJobs(Query *squery)
+vector<CGJob *> *DBHandler::parseJobs(Query *squery)
 {
   vector<cg_job> source;
   squery->storein(source);
   vector<CGJob *> *jobs = new vector<CGJob *>();
+  cout << source.size() << endl;
   for (vector<cg_job>::iterator it = source.begin(); it != source.end(); it++) {
     string id, name, cmdlineargs, token, algname, gridid;
     Query query = conn->query();
@@ -72,20 +73,19 @@ vector<CGJob *> *JobDB::parseJobs(Query *squery)
     algname = it->alg;
     gridid = it->gridid;
     
-     // Find out which algorithm the job belongs to. If no such algorithm
-    // queue exists, create an EGEE one.
-    CGAlg *alg;
-    map<string, CGAlgQueue *>::iterator at = talgs->find(algname);
-    if (at != talgs->end())
-      alg = at->second->getAlgorithm();
-    else
-      alg = new CGAlg(name, CG_ALG_EGEE);
+    // Get instance of the job's algorithm queue
+#ifdef HAVE_DCAPI
+    CGAlgQueue *algQ = CGAlgQueue::getInstance(CG_ALG_DCAPI, algname);
+#endif
+#ifdef HAVE_EGEE
+    CGAlgQueue *algQ = CGAlgQueue::getInstance(CG_ALG_EGEE, algname);
+#endif
     
     // Create new job descriptor
-    CGJob *nJob = new CGJob(name, cmdlineargs, *alg);
+    CGJob *nJob = new CGJob(name, cmdlineargs, algQ);
     nJob->setId(id);
     nJob->setGridId(gridid);
-    nJob->setDstType(alg->getType());
+    nJob->setDstType(algQ->getType());
     nJob->setDstLoc(it->dstloc);
     
     // Get inputs for job from db
@@ -117,7 +117,7 @@ vector<CGJob *> *JobDB::parseJobs(Query *squery)
 }
 
 
-vector<CGJob *> *JobDB::getJobs(string gridID)
+vector<CGJob *> *DBHandler::getJobs(string gridID)
 {
   Query query = conn->query();
   query << "SELECT * FROM cg_inputs WHERE gridid = \"" << gridID << "\"";
@@ -125,12 +125,12 @@ vector<CGJob *> *JobDB::getJobs(string gridID)
 }
 
 
-void JobDB::addJobs(vector<CGJob *> *jobs)
+void DBHandler::addJobs(vector<CGJob *> *jobs)
 {
 }
 
 
-void JobDB::updateJobGridID(string ID, string gridID)
+void DBHandler::updateJobGridID(string ID, string gridID)
 {
   Query query = conn->query();
   query << "UPDATE cg_job SET gridid=\"" << gridID << "\" WHERE id=\"" << ID << "\"";
@@ -138,7 +138,7 @@ void JobDB::updateJobGridID(string ID, string gridID)
 }
 
 
-void JobDB::updateJobStat(string ID, CGJobStatus newstat)
+void DBHandler::updateJobStat(string ID, CGJobStatus newstat)
 {
   Query query = conn->query();
   query << "UPDATE cg_job SET status=\"" << getStatStr(newstat) << "\" WHERE id=\"" << ID << "\"";
@@ -146,7 +146,7 @@ void JobDB::updateJobStat(string ID, CGJobStatus newstat)
 }
 
 
-void JobDB::updateOutputPath(string ID, string localname, string pathname)
+void DBHandler::updateOutputPath(string ID, string localname, string pathname)
 {
   Query query = conn->query();
   query << "UPDATE cg_outputs SET path=\"" << pathname << "\" WHERE id=\"" << ID << "\" AND localname=\"" << localname << "\"";

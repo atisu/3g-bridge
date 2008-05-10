@@ -31,7 +31,7 @@ CGQueueManager::CGQueueManager(const string conf, const string db, const string 
   // Clear algorithm list
   algs.clear();
 
-  jobDB = new JobDB(host, user, passwd, db);
+  jobDB = new DBHandler(host, user, passwd, db);
   
 #ifdef HAVE_DCAPI
   gridHandlers[CG_ALG_DCAPI] = new DCAPIHandler(jobDB, conf);
@@ -58,6 +58,7 @@ CGQueueManager::~CGQueueManager()
 #endif
 
   delete jobDB;
+  CGAlgQueue::cleanUp();
 }
 
 
@@ -69,7 +70,7 @@ bool CGQueueManager::addAlg(CGAlg &what)
   for (map<string, CGAlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
     if (it->first == what.getName())
       return false;
-  CGAlgQueue *algQ = new CGAlgQueue(what);
+  CGAlgQueue *algQ = CGAlgQueue::getInstance(what.getType(), what.getName());
   algs.insert(pair<string, CGAlgQueue *>(what.getName(), algQ));
   jobDB->setAlgQs(&algs);
   return true;
@@ -89,7 +90,7 @@ void CGQueueManager::handleJobs(jobOperation op, vector<CGJob *> *jobs)
   map<CGAlgType, vector<CGJob *> > gridMap;
   // Create a map of algorithm (grid) types to jobs
   for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
-    CGAlgType actType = (*it)->getAlgorithm()->getType();
+    CGAlgType actType = (*it)->getAlgQueue()->getType();
     gridMap[actType].push_back(*it);
   }
 

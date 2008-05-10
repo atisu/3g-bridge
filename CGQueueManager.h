@@ -3,7 +3,7 @@
 
 #include "CGAlg.h"
 #include "CGJob.h"
-#include "JobDB.h"
+#include "DBHandler.h"
 #include "common.h"
 #include "CGAlgQueue.h"
 #include "GridHandler.h"
@@ -32,12 +32,13 @@ public:
     bool addAlg(CGAlg &what);
     void run();
 private:
-    JobDB *jobDB;
+    DBHandler *jobDB;
     map<string, CGAlgQueue *> algs;
     set<uuid_t *> jobIDs;
     map<uuid_t *, CGAlgQueue *> ID2AlgQ;
     string basedir;
     map<CGAlgType, GridHandler *> gridHandlers;
+    vector<CGJob *> *schedReq(GridHandler *gh, vector<CGJob *> *jobs);
     void handleJobs(jobOperation op, vector<CGJob *> *jobs);
     void freeVector(vector<CGJob *> *what);
 };

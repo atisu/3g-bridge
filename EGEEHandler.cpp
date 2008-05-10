@@ -39,7 +39,7 @@ int EGEEHandler::global_offset;
 /*
  * Constructor. Initialize ConfigContext based on passed WMProxy endpoint URL
  */
-EGEEHandler::EGEEHandler(JobDB *jDB, const string &WMProxy_EndPoint) throw (BackendException &)
+EGEEHandler::EGEEHandler(DBHandler *jDB, const string &WMProxy_EndPoint) throw (BackendException &)
 {
     jobDB = jDB;
     global_offset = 0;
@@ -218,6 +218,7 @@ void EGEEHandler::getStatus(vector<CGJob *> *jobs) throw (BackendException &)
 	glite::lb::Job tJob(jID);
 	JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
 	string statStr = stat.name();
+	cout << "EGEEHandler::getStatus: updating status of job \"" << actJ->getGridId() << "\"." << endl;
 	for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
 	    if (statusRelation[j].EGEEs == statStr) {
 		if (FINISHED == statusRelation[j].jobS)
@@ -244,13 +245,20 @@ void EGEEHandler::getOutputs_real(CGJob *job)
 
     renew_proxy("seegrid");
 
+    cout << "EGEEHandler::getOutputs_real: getting output of job \"" << job->getGridId() << "\"." << endl;
     char wd[2048];
     getcwd(wd, 2048);
     vector<pair<string, long> > URIs;
     try {
 	URIs = getOutputFileList(job->getGridId(), cfg);
     } catch (BaseException e) {
-	throwStrExc(__func__, e);
+	cout << "EGEEHandler::getOutputs_real: Warning - failed to get output file list, I assume the job has already been fetched." << endl;
+	try {
+	    cleanJob(job->getGridId());
+	} catch (BackendException &e) {
+	    cout << "EGEEHandler::getOutputs_real: Warning - cleaning job \"" << job->getGridId() << "\" failed." << endl;
+	}
+	//throwStrExc(__func__, e);
     }
     vector<string> remFiles(URIs.size());
     vector<string> locFiles(URIs.size());
@@ -265,7 +273,11 @@ void EGEEHandler::getOutputs_real(CGJob *job)
 	}
     }
     download_file_globus(remFiles, locFiles);
-    cleanJob(job->getGridId());
+    try {
+	cleanJob(job->getGridId());
+    } catch (BackendException &e) {
+	cout << "EGEEHandler::getOutputs_real: Warning - cleaning job \"" << job->getGridId() << "\" failed." << endl;
+    }
 }
 
 
@@ -514,15 +526,16 @@ void EGEEHandler::delete_file_globus(const vector<string> &fileNames, const stri
 
 void EGEEHandler::cleanJob(const string &jobID)
 {
-    for (int i = 0; i < 3; i++) {
+    int i = 0;
+    cout << "EGEEHandler::cleanJob: cleaning job \"" << jobID << "\"." << endl;
+    while (i < 3) {
 	try {
 	    jobPurge(jobID, cfg);
+	    i = 10;
 	} catch (BaseException e) {
-	    if (i < 2)
-		continue;
-	    throwStrExc(__func__, e);
+	    if (++i == 3)
+		throwStrExc(__func__, e);
 	}
-	return;
     }
 }
 

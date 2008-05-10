@@ -4,7 +4,7 @@
 
 #include "CGJob.h"
 #include "DCAPIHandler.h"
-#include "JobDB.h"
+#include "DBHandler.h"
 
 #include <dc.h>
 
@@ -31,7 +31,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *res);
 
 /* This should be a class member but it has to be referenced from a C callback
  * so it must be global */
-static JobDB *dbh;
+static DBHandler *dbh;
 
 using namespace std;
 
@@ -175,7 +175,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
  * Class: DCAPIHandler
  */
 
-DCAPIHandler::DCAPIHandler(JobDB *jobdb, const string conf)
+DCAPIHandler::DCAPIHandler(DBHandler *jobdb, const string conf)
 {
 	if (DC_OK != DC_initMaster(conf.c_str()))
 		throw DC_initMasterError;
