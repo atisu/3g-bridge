@@ -208,6 +208,46 @@ unsigned CGQueueManager::selectSize(CGAlgQueue *algQ)
 	return 1;
 }
 
+
+/**
+ * Determine package size - advanced version. For CancerGrid, "optimal"
+ * package sizes are counted here for the different algorithm queues. In
+ * this version, the "goodness" of a package size reflects the "smallness"
+ * of the package size's average turnaround time better.
+ *
+ * @param[in] algQ The algorithm queue to use. No other information is
+ *                 needed, as the decision depends only on this
+ * @return Determined package size
+ */
+unsigned CGQueueManager::selectSizeAdv(CGAlgQueue *algQ)
+{
+	unsigned maxPSize = algQ->getPackSize();
+	double tATT = 0;
+	double pBorder[maxPSize];
+	double vpBorder[maxPSize + 1];
+	vector<processStatistics> *pStats = algQ->getPStats();
+
+	for (unsigned i = 0; i < maxPSize; i++)
+		tATT += (pStats->at(i).avgTT ? 1/pStats->at(i).avgTT : 1);
+
+        pBorder[0] = (pStats->at(0).avgTT ? 1/pStats->at(0).avgTT : 1);
+        vpBorder[0] = 0;
+        for (unsigned i = 1; i < maxPSize; i++)
+	{
+                pBorder[i] = (pStats->at(i).avgTT ? 1/pStats->at(i).avgTT : 1);
+                vpBorder[i] = vpBorder[i-1] + pBorder[i-1];
+        }
+        vpBorder[maxPSize] = tATT;
+
+        double rand = (double)random() / RAND_MAX * tATT;
+        for (unsigned i = 0; i < maxPSize; i++)
+                if (vpBorder[i] <= rand && rand < vpBorder[i+1])
+                    return i+1;
+
+	return 1;
+}
+
+
 /**
  * Package submission. For CancerGrid, this implements creating "optimal"
  * size packets and also submits them.
@@ -226,7 +266,7 @@ void CGQueueManager::handlePackedSubmission(GridHandler *gh, vector<CGJob *> *jo
 	while (it != jobs->end())
 	{
 		vector<CGJob *> sendJobs;
-		unsigned prefSize = selectSize(algQ);
+		unsigned prefSize = selectSizeAdv(algQ);
 		unsigned useSize = (prefSize < maxSize ? prefSize : maxSize);
 
 		for (; useSize && it != jobs->end(); useSize--, it++)
