@@ -4,6 +4,7 @@
 drop table if exists cg_job;
 drop table if exists cg_inputs;
 drop table if exists cg_outputs;
+drop table if exists cg_algqueue;
 
 /*
  * Job table
@@ -42,3 +43,13 @@ create table cg_outputs (
     primary key entry (id, localname)
 ) type=InnoDB;
 
+
+/*
+ * Algorithm queue table. Used for scheduling purposes
+ */
+create table cg_algqueue (
+    dsttype		varchar(254) not null /* Destination type */,
+    alg			char(32)     not null /* Algorithm (executable) name */,
+    statistics		text		      /* Statistics data */,
+    primary key entry (dsttype, alg)
+) type=InnoDB;

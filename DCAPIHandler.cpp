@@ -183,6 +183,9 @@ DCAPIHandler::DCAPIHandler(DBHandler *jobdb, const string conf)
 	DC_setResultCb(result_callback);
 
 	dbh = jobdb;
+
+	groupByNames = true;
+	maxGroupSize = 10;
 }
 
 
@@ -237,10 +240,10 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 
 	/* First, sanity check: all jobs must belong to the same alg */
 	vector<CGJob *>::const_iterator i = jobs->begin();
-	string algname = (*i)->getAlgorithm()->getName();
+	string algname = (*i)->getAlgQueue()->getName();
 	while (i != jobs->end())
 	{
-		if (algname != (*i)->getAlgorithm()->getName())
+		if (algname != (*i)->getAlgQueue()->getName())
 			throw "Multiple algorithms cannot be in the same batch";
 	}
 

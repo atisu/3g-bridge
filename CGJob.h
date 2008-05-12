@@ -6,9 +6,9 @@
 #endif
 
 #include <map>
+#include <list>
 #include <string>
 #include <vector>
-#include <list>
 #include "common.h"
 #include "CGAlgQueue.h"
 

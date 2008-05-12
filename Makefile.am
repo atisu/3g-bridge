@@ -13,7 +13,6 @@ if HAVE_DCAPI
 
 CGManager_SOURCES = \
 		common.h \
-		CGAlg.h \
 		CGAlgQueue.cpp \
 		CGAlgQueue.h \
 		CGJob.cpp \
@@ -21,8 +20,8 @@ CGManager_SOURCES = \
 		CGManager.cpp \
 		CGQueueManager.cpp \
 		CGQueueManager.h \
-		JobDB.h \
-		JobDB.cpp \
+		DBHandler.h \
+		DBHandler.cpp \
 		GridHandler.h \
 		DCAPIHandler.h \
 		DCAPIHandler.cpp
@@ -34,7 +33,6 @@ if HAVE_EGEE
 
 CGManager_SOURCES = \
 		common.h \
-		CGAlg.h \
 		CGAlgQueue.cpp \
 		CGAlgQueue.h \
 		CGJob.cpp \
@@ -42,8 +40,8 @@ CGManager_SOURCES = \
 		CGManager.cpp \
 		CGQueueManager.cpp \
 		CGQueueManager.h \
-		JobDB.h \
-		JobDB.cpp \
+		DBHandler.h \
+		DBHandler.cpp \
 		GridHandler.h \
 		EGEEHandler.cpp \
 		EGEEHandler.h

@@ -21,8 +21,17 @@ public:
      * Initialize GridHandler. For DC-API this should call DC_initMaster, for
      * EGEE should create the config context, ...
      */
-    GridHandler() {}
+    GridHandler()
+    {
+	groupByNames = false;
+	maxGroupSize = 0;
+    }
+
     virtual ~GridHandler() {}
+
+    bool schGroupByNames() const { return groupByNames; }
+    unsigned schMaxGroupSize() const { return maxGroupSize; }
+
     /**
      * Submit jobs in the argument. Set the different properties of jobs (Grid
      * ID, status, ...) through the objects' property change functions.
@@ -49,6 +58,10 @@ public:
      * Get results.
      */
     virtual void getOutputs(vector<CGJob *> *jobs) throw (BackendException &) = 0;
+
+protected:
+    bool groupByNames;
+    unsigned maxGroupSize;
 };
 
 #endif

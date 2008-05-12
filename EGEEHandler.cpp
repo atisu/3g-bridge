@@ -36,151 +36,186 @@ bool EGEEHandler::globus_err;
 int EGEEHandler::global_offset;
 
 
-/*
+/**
  * Constructor. Initialize ConfigContext based on passed WMProxy endpoint URL
+ *
+ * @param[in] jDB DB handler pointer
+ * @param[in] WMProxy_EndPoint URL of the WMProxy server
  */
 EGEEHandler::EGEEHandler(DBHandler *jDB, const string &WMProxy_EndPoint) throw (BackendException &)
 {
-    jobDB = jDB;
-    global_offset = 0;
-    try {
-        cfg = new ConfigContext("", WMProxy_EndPoint, "");
-    } catch (BaseException e) {
-	throwStrExc(__func__, e);
-    }
-    if (!cfg)
-	throwStrExc(__func__, "Failed to create ConfigContext!");
+	jobDB = jDB;
+	global_offset = 0;
+
+	try {
+    		cfg = new ConfigContext("", WMProxy_EndPoint, "");
+	} catch (BaseException e) {
+		throwStrExc(__func__, e);
+	}
+
+	if (!cfg)
+		throwStrExc(__func__, "Failed to create ConfigContext!");
+
+	groupByNames = false;
+	maxGroupSize = 10;
 }
 
 
+/**
+ * Destructor. Simply delete cfg.
+ */
 EGEEHandler::~EGEEHandler()
 {
-    delete cfg;
+	delete cfg;
 }
 
 
-/*
- * Submit jobs
+/**
+ * Submit vector of jobs. A temporary directory is created, where every job has
+ * its own directory. Input files are copied into this direcotries, and JDL
+ * files are created in the "jdlfiles" directory. Next, glite-wms-job-submit is
+ * executed (no documentation exists about how to use collections from the C++
+ * API) to submit the JDL files as a collection. Finally, a loop tries to match
+ * EGEE IDs with the received jobs.
+ *
+ * @param[in] jobs Pointer to the set of jobs to submit
  */
 void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 {
-    if (!jobs || !jobs->size())
-	return;
+	if (!jobs || !jobs->size())
+		return;
 
-    char tmpl[256];
-    sprintf(tmpl, "submitdir.XXXXXX");
-    char *tmpdir = mkdtemp(tmpl);
-    if (!tmpdir)
-	throw(BackendException("Failed to create temporary directory!"));
-    chdir(tmpdir);
-    mkdir("jdlfiles", 0700);
-    //CollectionAd collAd;
-    vector<Ad *> jobAds;
-    unsigned i = 0;
-    for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++, i++) {
-	char jdirname[32];
-	sprintf(jdirname, "%d", i);
-	mkdir(jdirname, 0700);
-	CGJob *actJ = *it;
-	string jobJDLStr;
-	try {
-	    jobJDLStr = getJobTemplate(JOBTYPE_NORMAL, actJ->getName(), "", "other.GlueCEStateStatus == \"Production\"", "- other.GlueCEStateEstimatedResponseTime", cfg);
-	} catch (BaseException e) {
-	    throwStrExc(__func__, e);
+	vector<string> prodFiles;
+	vector<string> prodDirs;
+	char tmpl[256];
+	sprintf(tmpl, "submitdir.XXXXXX");
+	char *tmpdir = mkdtemp(tmpl);
+	if (!tmpdir)
+		throw(BackendException("Failed to create temporary directory!"));
+	chdir(tmpdir);
+	prodDirs.push_back(string(tmpdir));
+
+	mkdir("jdlfiles", 0700);
+	unsigned i = 0;
+	for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++, i++) {
+		char jdirname[32];
+		sprintf(jdirname, "%d", i);
+		mkdir(jdirname, 0700);
+		prodDirs.push_back(string(tmpdir) + "/" + string(jdirname));
+		CGJob *actJ = *it;
+
+		// Get JDL template
+		string jobJDLStr;
+		try {
+			jobJDLStr = getJobTemplate(JOBTYPE_NORMAL, actJ->getName(), "", "other.GlueCEStateStatus == \"Production\"", "- other.GlueCEStateEstimatedResponseTime", cfg);
+		} catch (BaseException e) {
+		    throwStrExc(__func__, e);
+		}
+		Ad *jobJDLAd = new Ad(jobJDLStr);
+
+		// Copy input files, and add them to the JDL.
+		// Note: files are copied, and not linket, because EGEE
+		// doesn't support submitting inputsandboxes where two
+		// files have the same inode.
+		vector<string> ins = actJ->getInputs();
+    		for (unsigned j = 0; j < ins.size(); j++) {
+			string fspath = actJ->getInputPath(ins[j]).c_str();
+			string oppath = ins[j];
+			ifstream inf(fspath.c_str(), ios::binary);
+			ofstream outf((string(jdirname) + "/" + oppath).c_str(), ios::binary);
+			outf << inf.rdbuf();
+			inf.close();
+			outf.close();
+			jobJDLAd->addAttribute(JDL::INPUTSB, (string(jdirname) + "/" + oppath).c_str());
+			prodFiles.push_back(string(tmpdir) + "/" + string(jdirname) + "/" + oppath);
+		}
+
+		// Now add outputs
+		vector<string> outs = actJ->getOutputs();
+		for (unsigned j = 0; j < outs.size(); j++)
+			jobJDLAd->addAttribute(JDL::OUTPUTSB, outs[j].c_str());
+
+		// The arguments
+		string arg = actJ->getArgs();
+		if (arg.size())
+			jobJDLAd->setAttribute(JDL::ARGUMENTS, arg);
+
+		// Set some other attributes
+		jobJDLAd->setAttribute(JDL::RETRYCOUNT, 10);
+		jobJDLAd->setAttribute(JDL::SHALLOWRETRYCOUNT, 10);
+
+		// Set the node name. We use this information to match the
+		// EGEE IDs to jobs
+		stringstream nodename;
+		nodename << "Node_" << setfill('0') << setw(4) << i << "_jdl";
+		jobJDLAd->setAttribute(JDL::NODE_NAME, nodename.str());
+
+		// Now create the JDL file
+		actJ->setGridId(nodename.str());
+		stringstream jdlFname;
+		jdlFname << "jdlfiles/" << setfill('0') << setw(4) << i << ".jdl";
+		ofstream jobJDL(jdlFname.str().c_str());
+		jobJDL << jobJDLAd->toString() << endl;
+		jobJDL.close();
+		prodFiles.push_back(string(tmpdir) + "/" + jdlFname.str());
+
+		delete jobJDLAd;
 	}
-	Ad *jobJDLAd = new Ad(jobJDLStr);
-	vector<string> ins = actJ->getInputs();
-        for (unsigned j = 0; j < ins.size(); j++) {
-	    string fspath = actJ->getInputPath(ins[j]).c_str();
-	    string oppath = ins[j];
-	    ifstream inf(fspath.c_str(), ios::binary);
-	    ofstream outf((string(jdirname)+"/"+oppath).c_str(), ios::binary);
-	    outf << inf.rdbuf();
-	    inf.close();
-	    outf.close();
-	    jobJDLAd->addAttribute(JDL::INPUTSB, (string(jdirname)+"/"+oppath).c_str());
+
+	// Submit the JDLs
+	renew_proxy("seegrid");
+	string cmd = "glite-wms-job-submit -a -o collection.id --collection jdlfiles";
+	if (-1 == system(cmd.c_str()))
+		throwStrExc(__func__, "Job submission using glite-wms-job-submit failed!");
+	prodFiles.push_back(string(tmpdir) + "/collection.id");
+
+	// Find out collection's ID
+        ifstream collIDf("collection.id");
+	string collID;
+	do {
+		collIDf >> collID;
+	} while ("https://" != collID.substr(0, 8));
+
+	// Find out job's ID
+	JobId jID(collID);
+	glite::lb::Job tJob(jID);
+	JobStatus stat = tJob.status(tJob.STAT_CLASSADS|tJob.STAT_CHILDREN|tJob.STAT_CHILDSTAT);
+	vector<string> childIDs = stat.getValStringList(stat.CHILDREN);
+	for (unsigned i = 0; i < childIDs.size(); i++) {
+		string childNodeName = "UNKNOWN";
+		JobId cjID(childIDs[i]);
+		glite::lb::Job ctJob(cjID);
+		vector<Event> events;
+		events.clear();
+		while (!events.size()) {
+			try {
+				events = ctJob.log();
+			} catch (...) {
+				sleep(5);
+			}
+		}
+
+		for (unsigned j = 0; j < events.size(); j++)
+			if (events[j].type == events[j].REGJOB) {
+				Ad tAd(events[j].getValString(events[j].JDL));
+				childNodeName = tAd.getString(JDL::NODE_NAME);
+				break;
+			}
+
+		for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++)
+			if ((*it)->getGridId() == childNodeName) {
+				jobDB->updateJobGridID((*it)->getId(), childIDs[i]);
+				jobDB->updateJobStat((*it)->getId(), RUNNING);
+				break;
+			}
 	}
-	vector<string> outs = actJ->getOutputs();
-	for (unsigned j = 0; j < outs.size(); j++)
-	    jobJDLAd->addAttribute(JDL::OUTPUTSB, outs[j].c_str());
-	jobJDLAd->setAttribute(JDL::RETRYCOUNT, 10);
-	jobJDLAd->setAttribute(JDL::SHALLOWRETRYCOUNT, 10);
-	stringstream nodename;
-	nodename << "Node_" << setfill('0') << setw(4) << i << "_jdl";
-	jobJDLAd->setAttribute(JDL::NODE_NAME, nodename.str());
-	actJ->setGridId(nodename.str());
-	string arg = actJ->getArgs();
-	if (arg.size())
-	    jobJDLAd->setAttribute(JDL::ARGUMENTS, arg);
-	//collAd.addNode(*jobJDLAd);
-	stringstream jdlFname;
-	jdlFname << "jdlfiles/" << setfill('0') << setw(4) << i << ".jdl";
-	//jobAds.push_back(jobJDLAd);
-	ofstream jobJDL(jdlFname.str().c_str());
-	jobJDL << jobJDLAd->toString() << endl;
-	jobJDL.close();
-	delete jobJDLAd;
-    }
-    /*
-    delegate_Proxy(tmpl);
-    JobIdApi collID = jobRegister(collAd.toSubmissionString(), tmpl, cfg);
-    cout << "The collection ID is: " << collID.jobid << endl;
-    for (unsigned i = 0; i < collID.children.size(); i++)
-	cout << "    Node \"" << *(collID.children[i]->nodeName) << "\" ID: " << collID.children[i]->jobid << endl;
-    vector<pair<string, vector<string> > > sandboxURIs = getSandboxBulkDestURI(collID.jobid, cfg, "default");
-    cout << "Queried sandbox base URIs..." << endl;
-    for (unsigned i = 1; i < sandboxURIs.size(); i++) {
-	vector<string> ins = jobAds[i-1]->getStringValue(JDL::INPUTSB);
-	upload_file_globus(ins, sandboxURIs[i].second[0]);
-    }
-    jobStart(collID.jobid, cfg);
-    */
-    renew_proxy("seegrid");
-    //string cmd = "glite-wms-job-submit -a --debug --logfile collection.log -o collection.id --collection jdlfiles";
-    string cmd = "glite-wms-job-submit -a -o collection.id --collection jdlfiles";
-    if (-1 == system(cmd.c_str()))
-	throwStrExc(__func__, "Job submission using glite-wms-job-submit failed!");
-    ifstream collIDf("collection.id");
-    string collID;
-    do {
-	collIDf >> collID;
-    } while ("https://" != collID.substr(0, 8));
-    JobId jID(collID);
-    glite::lb::Job tJob(jID);
-    JobStatus stat = tJob.status(tJob.STAT_CLASSADS|tJob.STAT_CHILDREN|tJob.STAT_CHILDSTAT);
-    vector<string> childIDs = stat.getValStringList(stat.CHILDREN);
-    for (unsigned i = 0; i < childIDs.size(); i++) {
-	string childNodeName = "UNKNOWN";
-	JobId cjID(childIDs[i]);
-	glite::lb::Job ctJob(cjID);
-	vector<Event> events;
-	events.clear();
-	while (!events.size()) {
-	    try {
-		events = ctJob.log();
-	    } catch (...) {
-		sleep(1);
-	    }
-	}
-	for (unsigned j = 0; j < events.size(); j++) {
-	    if (events[j].type == events[j].REGJOB) {
-		Ad tAd(events[j].getValString(events[j].JDL));
-		childNodeName = tAd.getString(JDL::NODE_NAME);
-		break;
-	    }
-	}
-	for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
-	    if ((*it)->getGridId() == childNodeName) {
-		//(*it)->setGridId(childIDs[i]);
-		//(*it)->setStatus(CG_RUNNING);
-		jobDB->updateJobGridID((*it)->getId(), childIDs[i]);
-		jobDB->updateJobStat((*it)->getId(), RUNNING);
-		break;
-	    }
-	}
-    }
-    chdir("..");
-    rmdir(tmpdir);
+
+	chdir("..");
+	for (unsigned i = 0; i < prodFiles.size(); i++)
+		unlink(prodFiles[i].c_str());
+	for (unsigned i = 1; i < prodDirs.size(); i++)
+		rmdir(prodDirs[i].c_str());
+	rmdir(prodDirs[0].c_str());
 }
 
 

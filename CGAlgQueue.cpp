@@ -2,87 +2,91 @@
 #include <config.h>
 #endif
 
+#include "DBHandler.h"
 #include "CGAlgQueue.h"
-//#include "CGAlg.h"
-//#include "CGJob.h"
 
-//#include <map>
+#include <string>
 #include <iostream>
-//#include <uuid/uuid.h>
 
 
 using namespace std;
 
 
-CGAlgQueue::CGAlgQueue(const CGAlgType &type, const string &name):ttype(type),tname(name)
+CGAlgQueue::CGAlgQueue(const CGAlgType &type, const string &name, const unsigned maxPackSize):ttype(type),tname(name)
 {
+	mPSize = (maxPackSize ? maxPackSize : 1);
+	pStats.resize(mPSize);
+	for (unsigned i = 0; i < mPSize; i++)
+	{
+		pStats[i].numPackages = 0;
+		pStats[i].totalProcessTime = 0;
+		pStats[i].avgTT = 0;
+	}
+}
+
+
+CGAlgQueue::CGAlgQueue(const CGAlgType &type, const string &name, const string &statStr):ttype(type),tname(name)
+{
+	stringstream strstr(statStr);
+
+	strstr >> mPSize;
+	pStats.resize(mPSize);
+	for (unsigned i = 0; i < mPSize; i++)
+	{
+		strstr >> pStats[i].numPackages;
+		strstr >> pStats[i].totalProcessTime;
+		pStats[i].avgTT = pStats[i].numPackages ? (double)pStats[i].totalProcessTime / ((i + 1) * pStats[i].numPackages) : 0;
+	}	
+}
+
+
+string CGAlgQueue::getStatStr()
+{
+	stringstream strstr;
+
+	strstr << mPSize << endl;
+	for (unsigned i = 0; i < mPSize; i++)
+	{
+		strstr << pStats[i].numPackages << endl;
+		strstr << pStats[i].totalProcessTime << endl;
+	}
+
+	return strstr.str();
 }
 
 
 void CGAlgQueue::cleanUp()
 {
-    for (unsigned i = 0; i < queues.size(); i++)
-	delete queues[i];
+	for (unsigned i = 0; i < queues.size(); i++)
+		delete queues[i];
 }
 
-/*
-vector<uuid_t *> *CGAlgQueue::add(vector<CGJob &> &jobs)
+
+CGAlgQueue *CGAlgQueue::getInstance(const CGAlgType &type, const string &algName, DBHandler *dbH, const unsigned maxPackSize)
 {
-    return NULL;
+	for (unsigned i = 0; i < queues.size(); i++)
+	        if (queues[i]->getName() == algName && queues[i]->getType() == type)
+			return queues[i];
+
+	CGAlgQueue *rv;
+	string statStr = dbH->getAlgQStat(type, algName);
+
+	if (statStr == "")
+		rv = new CGAlgQueue(type, algName, maxPackSize);
+	else
+		rv = new CGAlgQueue(type, algName, statStr);
+
+        queues.push_back(rv);
+        return rv;
 }
 
-uuid_t *CGAlgQueue::add(CGJob *job)
-{
-    uuid_t *id = new uuid_t[1];
-    uuid_generate(*id);
-    CGJob *tJob = job;
-    tJob->setStatus(INIT);
-    jobs.insert(pair<uuid_t *, CGJob *>(id, tJob));
-    return id;
-}
 
-void CGAlgQueue::remove(vector<uuid_t *> *ids)
+void CGAlgQueue::updateStat(unsigned pSize, unsigned pTime)
 {
-  for (vector<uuid_t *>::iterator it = ids->begin(); it != ids->end(); it++)
-    remove(*it);
-}
+	if (pSize >= mPSize)
+		return;
 
-void CGAlgQueue::remove(uuid_t *id)
-{
-    delete jobs[id];
-    jobs.erase(id);
-    
-}
-
-CGJobStatus CGAlgQueue::getStatus(uuid_t *id)
-{
-    CGJob *job = jobs[id];
-    CGJobStatus aStat = job->getStatus();
-    return aStat;
-}
-*/
-
-
-/*CGAlgQueue *CGAlgQueue::getInstance(const CGAlg &alg)
-{
-    for (unsigned i = 0; i < queues.size(); i++)
-    {
-	CGAlg *actA = queues[i]->getAlgorithm();
-	if (actA->getName() == alg.getName() && actA->getType() == alg.getType())
-	    return queues[i];
-	return new CGAlgQueue(alg);
-    }
-}
-*/
-
-CGAlgQueue *CGAlgQueue::getInstance(const CGAlgType &type, const string &algName)
-{
-    for (unsigned i = 0; i < queues.size(); i++)
-    {
-	if (queues[i]->getName() == algName && queues[i]->getType() == type)
-	    return queues[i];
-    }
-    CGAlgQueue *rv = new CGAlgQueue(type, algName);
-    queues.push_back(rv);
-    return rv;
+	pStats[pSize-1].numPackages++;
+	pStats[pSize-1].totalProcessTime += pTime;
+	pStats[pSize-1].avgTT = (double)pStats[pSize-1].totalProcessTime / (pSize * pStats[pSize-1].numPackages);
 }

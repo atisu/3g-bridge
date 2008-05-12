@@ -28,16 +28,16 @@ using namespace mysqlpp;
  */
 CGQueueManager::CGQueueManager(const string conf, const string db, const string host, const string user, const string passwd)
 {
-  // Clear algorithm list
-  algs.clear();
+	// Clear algorithm list
+	algs.clear();
 
-  jobDB = new DBHandler(host, user, passwd, db);
+	jobDB = new DBHandler(host, user, passwd, db);
   
 #ifdef HAVE_DCAPI
-  gridHandlers[CG_ALG_DCAPI] = new DCAPIHandler(jobDB, conf);
+	gridHandlers[CG_ALG_DCAPI] = new DCAPIHandler(jobDB, conf);
 #endif
 #ifdef HAVE_EGEE
-  gridHandlers[CG_ALG_EGEE] = new EGEEHandler(jobDB, conf);
+	gridHandlers[CG_ALG_EGEE] = new EGEEHandler(jobDB, conf);
 #endif
 }
 
@@ -47,33 +47,18 @@ CGQueueManager::CGQueueManager(const string conf, const string db, const string 
  */
 CGQueueManager::~CGQueueManager()
 {
-  for (map<string, CGAlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
-    delete it->second;
+	for (map<string, CGAlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
+		delete it->second;
 
 #ifdef HAVE_DCAPI
-  delete gridHandlers[CG_ALG_DCAPI];
+	delete gridHandlers[CG_ALG_DCAPI];
 #endif
 #ifdef HAVE_EGEE
-  delete gridHandlers[CG_ALG_EGEE];
+	delete gridHandlers[CG_ALG_EGEE];
 #endif
 
-  delete jobDB;
-  CGAlgQueue::cleanUp();
-}
-
-
-/**
- * Add an algorithm - create an algorithm queue
- */
-bool CGQueueManager::addAlg(CGAlg &what)
-{
-  for (map<string, CGAlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
-    if (it->first == what.getName())
-      return false;
-  CGAlgQueue *algQ = CGAlgQueue::getInstance(what.getType(), what.getName());
-  algs.insert(pair<string, CGAlgQueue *>(what.getName(), algQ));
-  jobDB->setAlgQs(&algs);
-  return true;
+	delete jobDB;
+	CGAlgQueue::cleanUp();
 }
 
 
@@ -87,32 +72,34 @@ bool CGQueueManager::addAlg(CGAlg &what)
  */
 void CGQueueManager::handleJobs(jobOperation op, vector<CGJob *> *jobs)
 {
-  map<CGAlgType, vector<CGJob *> > gridMap;
-  // Create a map of algorithm (grid) types to jobs
-  for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
-    CGAlgType actType = (*it)->getAlgQueue()->getType();
-    gridMap[actType].push_back(*it);
-  }
+	map<CGAlgType, vector<CGJob *> > gridMap;
 
-  // Use the selected grid plugin for submission
-  for (CGAlgType c = CG_ALG_MIN; c != CG_ALG_MAX; c = CGAlgType(c+1)) {
-    if (!gridHandlers[c])
-      continue;
-    switch (op) {
-    case submit:
-      gridHandlers[c]->submitJobs(&(gridMap[c]));
-      break;
-    case status:
-      gridHandlers[c]->getStatus(&(gridMap[c]));
-      break;
-    case output:
-      gridHandlers[c]->getOutputs(&(gridMap[c]));
-      break;
-    case cancel:
-      gridHandlers[c]->cancelJobs(&(gridMap[c]));
-      break;
-    }
-  }
+	// Create a map of algorithm (grid) types to jobs
+	for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
+		CGAlgType actType = (*it)->getAlgQueue()->getType();
+		gridMap[actType].push_back(*it);
+	}
+
+	// Use the selected grid plugin for handling the jobs
+	for (CGAlgType c = CG_ALG_MIN; c != CG_ALG_MAX; c = CGAlgType(c+1)) {
+		if (!gridHandlers[c])
+    			continue;
+
+		switch (op) {
+		case submit:
+    			schedReq(gridHandlers[c], &(gridMap[c])); 
+    			break;
+		case status:
+    			gridHandlers[c]->getStatus(&(gridMap[c]));
+    			break;
+		case output:
+    			gridHandlers[c]->getOutputs(&(gridMap[c]));
+    			break;
+		case cancel:
+    			gridHandlers[c]->cancelJobs(&(gridMap[c]));
+    			break;
+		}
+	}
 }
 
 
@@ -124,9 +111,9 @@ void CGQueueManager::handleJobs(jobOperation op, vector<CGJob *> *jobs)
  */
 void CGQueueManager::freeVector(vector<CGJob *> *what)
 {
-  for (vector<CGJob *>::iterator it = what->begin(); it != what->end(); it++)
-    delete *it;
-  delete what;
+	for (vector<CGJob *>::iterator it = what->begin(); it != what->end(); it++)
+		delete *it;
+	delete what;
 }
 
 
@@ -136,25 +123,174 @@ void CGQueueManager::freeVector(vector<CGJob *> *what)
  */
 void CGQueueManager::run()
 {
-  bool finish = false;
-  while (!finish) {
-    try {
-    vector<CGJob *> *newJobs = jobDB->getJobs(INIT);
-    vector<CGJob *> *sentJobs = jobDB->getJobs(RUNNING);
-    vector<CGJob *> *finishedJobs = jobDB->getJobs(FINISHED);
-    vector<CGJob *> *abortedJobs = jobDB->getJobs(ERROR);
-    handleJobs(submit, newJobs);
-    handleJobs(status, sentJobs);
-    handleJobs(output, finishedJobs);
-    handleJobs(cancel, abortedJobs);
-    finish = (newJobs->size() == 0 && sentJobs->size() == 0);
-    freeVector(newJobs);
-    freeVector(sentJobs);
-    freeVector(finishedJobs);
-    freeVector(abortedJobs);
-    sleep(30);
-    } catch (BackendException& a) {
-	cout << a.reason() << endl;
-    }
-  }
+	bool finish = false;
+
+	while (!finish) {
+		try {
+			vector<CGJob *> *newJobs = jobDB->getJobs(INIT);
+			vector<CGJob *> *sentJobs = jobDB->getJobs(RUNNING);
+			vector<CGJob *> *finishedJobs = jobDB->getJobs(FINISHED);
+			vector<CGJob *> *abortedJobs = jobDB->getJobs(ERROR);
+
+			cout << "CGQueueManager::run: handling " << newJobs->size() << " new jobs." << endl;
+			handleJobs(submit, newJobs);
+			cout << "CGQueueManager::run: handling " << sentJobs->size() << " sent jobs." << endl;
+			handleJobs(status, sentJobs);
+			cout << "CGQueueManager::run: handling " << finishedJobs->size() << " finished jobs." << endl;
+			handleJobs(output, finishedJobs);
+			cout << "CGQueueManager::run: handling " << abortedJobs->size() << " aborted jobs." << endl;
+			handleJobs(cancel, abortedJobs);
+
+			finish = (newJobs->size() == 0 && sentJobs->size() == 0);
+
+			freeVector(newJobs);
+			freeVector(sentJobs);
+			freeVector(finishedJobs);
+			freeVector(abortedJobs);
+
+			if (!finish)
+				sleep(30);
+		} catch (BackendException& a) {
+			cout << a.reason() << endl;
+		}
+	}
+}
+
+
+/**
+ * Determine package size. For CancerGrid, "optimal" package sizes are
+ * counted here for the different algorithm queues.
+ *
+ * @param[in] algQ The algorithm queue to use. No other information is
+ *                 needed, as the decision depends only on this
+ * @return Determined package size
+ */
+unsigned CGQueueManager::selectSize(CGAlgQueue *algQ)
+{
+	unsigned maxPSize = algQ->getPackSize();
+	double tATT = 0, tVB = 0;
+	double vBorder[maxPSize];
+	double pBorder[maxPSize];
+	double vpBorder[maxPSize + 1];
+	vector<processStatistics> *pStats = algQ->getPStats();
+
+	for (unsigned i = 0; i < maxPSize; i++)
+		tATT += pStats->at(i).avgTT;
+
+	if (tATT)
+    		for (unsigned i = 0; i < maxPSize; i++)
+    		{
+            		vBorder[i] = (double)1 - pStats->at(i).avgTT/tATT;
+            		tVB += vBorder[i];
+    		}
+	else
+	{
+    		for (unsigned i = 0; i < maxPSize; i++)
+			vBorder[i] = 1;
+		tVB = maxPSize;
+	}
+	
+
+        pBorder[0] = vBorder[0] / tVB;
+        vpBorder[0] = 0;
+        for (unsigned i = 1; i < maxPSize; i++)
+	{
+                pBorder[i] = vBorder[i] / tVB;
+                vpBorder[i] = vpBorder[i-1] + pBorder[i-1];
+        }
+        vpBorder[maxPSize] = 1;
+
+        double rand = (double)random() / RAND_MAX;
+        for (unsigned i = 0; i < maxPSize; i++)
+                if (vpBorder[i] <= rand && rand < vpBorder[i+1])
+                    return i+1;
+
+	return 1;
+}
+
+/**
+ * Package submission. For CancerGrid, this implements creating "optimal"
+ * size packets and also submits them.
+ *
+ * @param[in] gh The grid plugin's pointer
+ * @param[in] jobs Jobs belonging to an algorithm queue
+ */
+void CGQueueManager::handlePackedSubmission(GridHandler *gh, vector<CGJob *> *jobs)
+{
+	CGAlgQueue *algQ = jobs->at(0)->getAlgQueue();
+	vector<CGJob *>::iterator it = jobs->begin();
+	unsigned maxGSize = gh->schMaxGroupSize();
+	unsigned maxASize = algQ->getPackSize();
+	unsigned maxSize = (maxGSize < maxASize ? maxGSize : maxASize);
+
+	while (it != jobs->end())
+	{
+		vector<CGJob *> sendJobs;
+		unsigned prefSize = selectSize(algQ);
+		unsigned useSize = (prefSize < maxSize ? prefSize : maxSize);
+
+		for (; useSize && it != jobs->end(); useSize--, it++)
+			sendJobs.push_back(*it);
+
+		gh->submitJobs(&sendJobs);
+	}
+}
+
+
+/**
+ * Handle scheduling request. This function is called for every Grid plugin,
+ * with a vector of jobs to be submitted to the given grid. Based on the
+ * plugin properties, jobs are grouped based on algorithm names.
+ * 
+ * @param[in] gh The grid plugin's pointer
+ * @param[in] jobs Pointer to a vector of jobs to submitted using the grid
+ *                 plugin
+ */
+void CGQueueManager::schedReq(GridHandler *gh, vector<CGJob *> *jobs)
+{
+	if (!jobs || !jobs->size())
+		return;
+
+	// Query maximum group size of the grid plugin
+	unsigned maxGSize = gh->schMaxGroupSize();
+
+	// Check is jobs should be grouped by algorithm names
+	if (!gh->schGroupByNames())
+	{
+		// If not, simply create maxGSize "packages", and submit
+		// the packages
+		vector<CGJob *>::iterator it = jobs->begin();
+
+		while (it != jobs->end())
+		{
+			vector<CGJob *> sendJobs;
+
+			for (unsigned i = 0; i < maxGSize && it != jobs->end(); i++, it++)
+				sendJobs.push_back(*it);
+
+			gh->submitJobs(&sendJobs);
+		}
+	}
+	else
+	{
+		// If yes, do the grouping
+		map<CGAlgQueue *, vector<CGJob *> > algs2Jobs;
+		vector<CGAlgQueue *> algs;
+
+		for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++)
+		{
+			CGJob *actJ = *it;
+			if (!algs2Jobs[actJ->getAlgQueue()].size())
+				algs.push_back(actJ->getAlgQueue());
+			algs2Jobs[actJ->getAlgQueue()].push_back(actJ);
+		}
+
+		// Call "optimal" packet size calculator, that also submits
+		// the subgroups
+		srandom(time(NULL));
+		for (vector<CGAlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
+			handlePackedSubmission(gh, &(algs2Jobs[*it]));
+
+	}
+
 }

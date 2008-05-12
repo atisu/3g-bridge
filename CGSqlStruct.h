@@ -38,4 +38,9 @@ sql_create_3(cg_outputs, 1, 3,
     string, 	localname,
     string, 	path);
 
+sql_create_3(cg_algqueue, 1, 3,
+    string,	dsttype,
+    string,	alg,
+    string,	statistics);
+
 #endif

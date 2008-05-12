@@ -1,7 +1,6 @@
 #ifndef __CGQUEUEMANAGER_H
 #define __CGQUEUEMANAGER_H
 
-#include "CGAlg.h"
 #include "CGJob.h"
 #include "DBHandler.h"
 #include "common.h"
@@ -29,7 +28,6 @@ class CGQueueManager {
 public:
     CGQueueManager(const string conf, const string db, const string host, const string user, const string passwd);
     ~CGQueueManager();
-    bool addAlg(CGAlg &what);
     void run();
 private:
     DBHandler *jobDB;
@@ -38,7 +36,9 @@ private:
     map<uuid_t *, CGAlgQueue *> ID2AlgQ;
     string basedir;
     map<CGAlgType, GridHandler *> gridHandlers;
-    vector<CGJob *> *schedReq(GridHandler *gh, vector<CGJob *> *jobs);
+    unsigned selectSize(CGAlgQueue *algQ);
+    void handlePackedSubmission(GridHandler *gh, vector<CGJob *> *jobs);
+    void schedReq(GridHandler *gh, vector<CGJob *> *jobs);
     void handleJobs(jobOperation op, vector<CGJob *> *jobs);
     void freeVector(vector<CGJob *> *what);
 };
