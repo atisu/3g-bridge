@@ -27,7 +27,7 @@ DBHandler::DBHandler(const string host, const string user, const string passwd, 
  */
 DBHandler::~DBHandler()
 {
-	conn->disconnect();
+//	conn->disconnect();
 	delete conn;
 }
 

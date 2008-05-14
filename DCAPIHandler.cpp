@@ -180,7 +180,7 @@ DCAPIHandler::DCAPIHandler(DBHandler *jobdb, const string conf)
 	if (DC_OK != DC_initMaster(conf.c_str()))
 		throw DC_initMasterError;
 
-	DC_setResultCb(result_callback);
+	DC_setMasterCb(result_callback, NULL, NULL);
 
 	dbh = jobdb;
 
