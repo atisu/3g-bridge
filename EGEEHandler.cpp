@@ -204,8 +204,8 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 
 		for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++)
 			if ((*it)->getGridId() == childNodeName) {
-				jobDB->updateJobGridID((*it)->getId(), childIDs[i]);
-				jobDB->updateJobStat((*it)->getId(), RUNNING);
+				(*it)->setGridId(childIDs[i]);
+				(*it)->setStatus(RUNNING);
 				break;
 			}
 	}
@@ -214,7 +214,7 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 	for (unsigned i = 0; i < prodFiles.size(); i++)
 		unlink(prodFiles[i].c_str());
 	for (unsigned i = 1; i < prodDirs.size(); i++)
-		rmdir(prodDirs[i].c_str());
+		rmdir(prodDirs[prodDirs.size() - i].c_str());
 	rmdir(prodDirs[0].c_str());
 }
 
@@ -257,9 +257,11 @@ void EGEEHandler::getStatus(vector<CGJob *> *jobs) throw (BackendException &)
 	for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
 	    if (statusRelation[j].EGEEs == statStr) {
 		if (FINISHED == statusRelation[j].jobS)
-		    getOutputs_real(actJ);
+		    if (JobStatus::DONE_CODE_OK == stat.getValInt(JobStatus::DONE_CODE))
+			getOutputs_real(actJ);
+		    else
+			j = 0;
 		actJ->setStatus(statusRelation[j].jobS);
-		jobDB->updateJobStat(actJ->getId(), statusRelation[j].jobS);
 	    }
     }
 }

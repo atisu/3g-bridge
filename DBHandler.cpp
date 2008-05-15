@@ -1,6 +1,5 @@
 #include "CGJob.h"
 #include "DBHandler.h"
-#include "CGSqlStruct.h"
 
 #include <string>
 #include <mysql++/mysql++.h>
@@ -141,50 +140,49 @@ vector<CGJob *> *DBHandler::getJobs(CGJobStatus stat)
  * Parse job results of a query.
  *
  * @param[in] squery Pointer to the query to perform on the cg_job table
- * @return Pointer to a newly allocated vector of pointer to CGJobs having the
- *         requested status. Should be freed by the caller
+ * @return Pointer to a newly allocated vector of pointer to CGJobs. Should be
+ *         freed by the caller
  */
 vector<CGJob *> *DBHandler::parseJobs(Query *squery)
 {
-	vector<cg_job> source;
+	vector<Row> source;
 	squery->storein(source);
 	vector<CGJob *> *jobs = new vector<CGJob *>();
 
-	for (vector<cg_job>::iterator it = source.begin(); it != source.end(); it++) {
-		string name, token, algname;
-		Query query = conn->query();
-
-		name = it->alg;
-
+	for (vector<Row>::iterator it = source.begin(); it != source.end(); it++) {
 		// Get instance of the relevant algorithm queue
 		CGAlgQueue *algQ;
-		CGAlgType algT = Str2Alg(it->dsttype);
-		algQ = CGAlgQueue::getInstance(algT, name, this, 10);
+#ifdef HAVE_DCAPI
+		CGAlgType algT = Str2Alg("DCAPI");
+#endif
+#ifdef HAVE_EGEE
+		CGAlgType algT = Str2Alg("EGEE");
+#endif
+		algQ = CGAlgQueue::getInstance(algT, string((*it)["alg"]), this, 10);
 
 		// Create new job descriptor
-		CGJob *nJob = new CGJob(it->alg, it->args, algQ);
-		nJob->setId(it->id);
-		nJob->setGridId(it->gridid);
-		nJob->setDstType(Str2Alg(it->dsttype));
-		nJob->setDstLoc(it->dstloc);
+		CGJob *nJob = new CGJob(string((*it)["alg"]), string((*it)["args"]), algQ, this);
+		nJob->setId(string((*it)["id"]));
+		nJob->setGridId(string((*it)["gridid"]));
 
 		// Get inputs for job from db
+		Query query = conn->query();
 		query.reset();
-		query << "SELECT * FROM cg_inputs WHERE id = \"" << it->id << "\"";
-		vector<cg_inputs> in;
+		query << "SELECT * FROM cg_inputs WHERE id = \"" << (*it)["id"] << "\"";
+		vector<Row> in;
 		query.storein(in);
-		for (vector<cg_inputs>::iterator in_it = in.begin(); in_it != in.end(); in_it++)
-			nJob->addInput(in_it->localname, in_it->path);
+		for (vector<Row>::iterator in_it = in.begin(); in_it != in.end(); in_it++)
+			nJob->addInput(string((*in_it)["localname"]), string((*in_it)["path"]));
 
 		// Get outputs for job from db
 		query.reset();
-		query << "SELECT * FROM cg_outputs WHERE id = \"" << it->id << "\"";
-		vector<cg_outputs> out;
+		query << "SELECT * FROM cg_outputs WHERE id = \"" << (*it)["id"] << "\"";
+		vector<Row> out;
 		query.storein(out);
-		for (vector<cg_outputs>::iterator out_it = out.begin(); out_it != out.end(); out_it++) {
-    			nJob->addOutput(out_it->localname);
-			if (string(out_it->path) != "")
-				nJob->setOutputPath(out_it->localname, out_it->path);
+		for (vector<Row>::iterator out_it = out.begin(); out_it != out.end(); out_it++) {
+    			nJob->addOutput(string((*out_it)["localname"]));
+			if (string((*out_it)["path"]) != "")
+				nJob->setOutputPath(string((*out_it)["localname"]), string((*out_it)["path"]));
 		}
 
 		jobs->push_back(nJob);
@@ -225,11 +223,11 @@ string DBHandler::getAlgQStat(CGAlgType type, const string &name)
 	Query query = conn->query();
 
 	query << "SELECT * FROM cg_algqueue WHERE dsttype=\"" << Alg2Str(type) << "\" AND alg=\"" << name << "\"";
-	vector<cg_algqueue> algQs;
+	vector<Row> algQs;
 	query.storein(algQs);
 
 	if (algQs.size())
-		rv = algQs[0].statistics;
+		rv = string(algQs[0]["statistics"]);
 
 	return rv;
 }

@@ -2,6 +2,7 @@
 #include <config.h>
 #endif
 
+#include "Logging.h"
 #include "CGQueueManager.h"
 
 #include <map>

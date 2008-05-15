@@ -7,10 +7,13 @@
 #include <cstring>
 
 #include "CGJob.h"
+#include "DBHandler.h"
+
 
 using namespace std;
 
-CGJob::CGJob(const string tname, string args, CGAlgQueue *algQ):name(tname),talgQ(algQ),targs(args)
+
+CGJob::CGJob(const string tname, string args, CGAlgQueue *algQ, DBHandler *dbH):name(tname),talgQ(algQ),targs(args),tdbH(dbH)
 {
     inputs.clear();
     outputs.clear();
@@ -64,4 +67,18 @@ string CGJob::getInputPath(const string localname) const
 string CGJob::getOutputPath(const string localname)
 {
     return outputs[localname];
+}
+
+
+void CGJob::setGridId(const string &sID)
+{
+	gridId = sID;
+	tdbH->updateJobGridID(id, gridId);
+}
+
+
+void CGJob::setStatus(CGJobStatus nStat)
+{
+	status = nStat;
+	tdbH->updateJobStat(id, status);
 }

@@ -2,25 +2,26 @@
 #include <config.h>
 #endif
 
-#include <iostream>
-#include <uuid/uuid.h>
-
-#include "CGAlgQueue.h"
+#include "Logging.h"
 #include "CGQueueManager.h"
 
 using namespace std;
 
+Logging *Logging::logco;
+ostream *Logging::tos;
 vector<CGAlgQueue *> CGAlgQueue::queues;
 
 int main(int argc, char **argv)
 {
+    Logging log = Logging::getInstance(cout, DEB);
     try {
-	// Create a Queue Manager
+	LOG(DEB, "Creating Queue Manager");
 	CGQueueManager qm(string(argv[1]), "boinc_szdgr", "0", "boinc-szdgr", "VfxVqw0PHT");
 
+	LOG(DEB, "Starting Queue Manager");
 	qm.run();
     } catch (string error) {
-	cerr << "Thrown exception: " << error << endl;
+	LOG(CRIT, "Caught the exception: " + error);
 	return -1;
     }
     return 0;

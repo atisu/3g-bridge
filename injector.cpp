@@ -14,8 +14,6 @@
 #include <mysql++/null.h>
 #include <mysql++/mysql++.h>
 
-#include "CGSqlStruct.h"
-
 extern char *optarg;
 extern int optind, opterr, optopt;
 
@@ -142,25 +140,21 @@ int main(int argc, char **argv)
 //	{ // transaction scope
 //	    Transaction trans(con);
     	    // insert into mysql...
-	    cg_job job_row(sid, cmdLine, algName, "INIT", "", type, "", DateTime());
-    	    query.insert(job_row);
+	    query << "INSERT INTO cg_job(id, alg, status, args) VALUES(\"" << sid << "\",\"" << algName << "\",\"INIT\",\"" << cmdLine << "\")";
 	    query.execute();
-	    query.reset();
 
 	    // Put inputs in cg_inputs table
 	    for(map<string, string>::iterator it = inputs->begin(); it != inputs->end(); it++) {
-		cg_inputs input_row(sid, it->first, it->second);
-		query.insert(input_row);
-		query.execute();
 		query.reset();
+		query << "INSERT INTO cg_inputs VALUES(\"" << sid << "\",\"" << it->first << "\",\"" << it->second << "\");";
+		query.execute();
 	    }
 
 	    // Put outputs in cg_outputs table
 	    for(vector<string>::iterator it = out.begin(); it != out.end(); it++) {
-		cg_outputs output_row(sid, *it, "");
-		query.insert(output_row);
-		query.execute();
 		query.reset();
+		query << "INSERT INTO cg_outputs(id,localname) VALUES(\"" << sid << "\",\"" << *it << "\");";
+		query.execute();
 	    }
 //	    trans.commit();
 //	} // end of transaction scope
@@ -170,9 +164,9 @@ int main(int argc, char **argv)
 	    query = con.query();
 
 	    query << "SELECT * FROM cg_job WHERE id = \"" << sid << "\"";
-	    vector<cg_job> job;
+	    vector<Row> job;
 	    query.storein(job);
-	    string status = job.at(0).status;
+	    string status = string(job[0]["status"]);
 	    
 	    if (status == "FINISHED")  {
 		break;
@@ -185,11 +179,11 @@ int main(int argc, char **argv)
 	    query = con.query();
 
 	    query << "SELECT * FROM cg_outputs WHERE localname != \"stdout.txt\" AND localname != \"stderr.txt\" AND id = \"" << sid << "\"";
-	    vector<cg_outputs> outputs;
+	    vector<Row> outputs;
 	    query.storein(outputs);
 	    
-	    for (vector<cg_outputs>::iterator it = outputs.begin(); it != outputs.end(); it++)
-		cout << it->path << endl;
+	    for (vector<Row>::iterator it = outputs.begin(); it != outputs.end(); it++)
+		cout << (*it)["path"] << endl;
 	}
 	
     } catch (const BadQuery& er) {

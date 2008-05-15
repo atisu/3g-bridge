@@ -12,7 +12,12 @@
 #include "common.h"
 #include "CGAlgQueue.h"
 
+
 using namespace std;
+
+
+class DBHandler;
+
 
 class CGJob {
 private:
@@ -27,8 +32,9 @@ private:
     CGJobStatus status;
     CGAlgType dstType;
     string dstLoc;
+    DBHandler *tdbH;
 public:
-    CGJob(const string name, string args, CGAlgQueue *algQ);
+    CGJob(const string name, string args, CGAlgQueue *algQ, DBHandler *dbH);
     ~CGJob();
     void addInput(const string localname, const string fsyspath);
     void addOutput(const string localname);
@@ -41,17 +47,13 @@ public:
     vector<string> getInputs() const;
     vector<string> getOutputs() const;
     string getGridId() const { return gridId; }
-    void setGridId(const string sId) { gridId = sId; }
+    void setGridId(const string &sId);
     string getId() const { return id; }
     void setId(const string sId) { id = sId; }
-    CGAlgType getDstType() const { return dstType; }
-    void setDstType(const CGAlgType dType) { dstType = dType; }
-    string getDstLoc() const { return dstLoc; }
-    void setDstLoc(const string dLoc) { dstLoc = dLoc; }
     string getInputPath(const string localname) const;
     string getOutputPath(const string localname);
     CGJobStatus getStatus() const { return status; }
-    void setStatus(CGJobStatus nStat) { status = nStat; }
+    void setStatus(CGJobStatus nStat);
 };
 
 #endif
