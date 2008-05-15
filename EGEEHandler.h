@@ -49,7 +49,7 @@ class EGEEHandler : public GridHandler {
 	void delegate_Proxy(const string& delID);
 	void throwStrExc(const char *func, const BaseException &e) throw(BackendException &);
 	void throwStrExc(const char *func, const string &str) throw(BackendException &);
-	void renew_proxy(const string &voname);
+	void renew_proxy();
 	void getOutputs_real(CGJob *jobs);
 };
 

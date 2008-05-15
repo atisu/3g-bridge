@@ -163,7 +163,7 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 	}
 
 	// Submit the JDLs
-	renew_proxy("seegrid");
+	renew_proxy();
 	string cmd = "glite-wms-job-submit -a -o collection.id --collection jdlfiles";
 	if (-1 == system(cmd.c_str()))
 		throwStrExc(__func__, "Job submission using glite-wms-job-submit failed!");
@@ -211,11 +211,8 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 	}
 
 	chdir("..");
-	for (unsigned i = 0; i < prodFiles.size(); i++)
-		unlink(prodFiles[i].c_str());
-	for (unsigned i = 1; i < prodDirs.size(); i++)
-		rmdir(prodDirs[prodDirs.size() - i].c_str());
-	rmdir(prodDirs[0].c_str());
+	cmd = "rm -rf " + string(tmpl);
+	system(cmd.c_str());
 }
 
 
@@ -245,7 +242,7 @@ void EGEEHandler::getStatus(vector<CGJob *> *jobs) throw (BackendException &)
     if (!jobs || !jobs->size())
 	return;
 
-    renew_proxy("seegrid");
+    renew_proxy();
 
     for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
 	CGJob *actJ = *it;
@@ -280,7 +277,7 @@ void EGEEHandler::getOutputs_real(CGJob *job)
     if (!job)
 	return;
 
-    renew_proxy("seegrid");
+    renew_proxy();
 
     cout << "EGEEHandler::getOutputs_real: getting output of job \"" << job->getGridId() << "\"." << endl;
     char wd[2048];
@@ -608,19 +605,18 @@ void EGEEHandler::throwStrExc(const char *func, const string &str) throw (Backen
 }
 
 
-void EGEEHandler::renew_proxy(const string &voname)
+void EGEEHandler::renew_proxy()
 {
-    char proxyf[] = "/tmp/proxy.XXXXXX";
-    char vproxyf[] = "/tmp/proxy.voms.XXXXXX";
-    mkstemp(proxyf);
-    mkstemp(vproxyf);
-    string cmd = "echo \"IeKohg1A\" | myproxy-logon -s n40.hpcc.sztaki.hu -p 7512 -l bebridge -S -o " + string(proxyf) + " &> /dev/null";
+    string voname = "gilda";
+    string proxyf = "/tmp/proxy." + voname;
+    string vproxyf = "/tmp/proxy.voms." + voname;
+    string cmd = "echo \"IeKohg1A\" | myproxy-logon -s n40.hpcc.sztaki.hu -p 7512 -l bebridge -S -o " + proxyf + " &> /dev/null";
     if (-1 == system(cmd.c_str()))
 	throwStrExc(__func__, "Proxy initialization failed!");
-    setenv("X509_USER_PROXY", proxyf, 1);
-    cmd = "voms-proxy-init -voms " + voname + " -noregen -out " + string(vproxyf) + " &> /dev/null";
+    setenv("X509_USER_PROXY", proxyf.c_str(), 1);
+    cmd = "voms-proxy-init -voms " + voname + " -noregen -out " + vproxyf + " &> /dev/null";
     if (-1 == system(cmd.c_str()))
 	throwStrExc(__func__, "Adding VOMS extensions failed!");
-    unlink(proxyf);
-    setenv("X509_USER_PROXY", vproxyf, 1);
+    unlink(proxyf.c_str());
+    setenv("X509_USER_PROXY", vproxyf.c_str(), 1);
 }

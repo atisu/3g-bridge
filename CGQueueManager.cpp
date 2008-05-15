@@ -133,7 +133,7 @@ void CGQueueManager::run()
 			vector<CGJob *> *finishedJobs = jobDB->getJobs(FINISHED);
 			vector<CGJob *> *abortedJobs = jobDB->getJobs(ERROR);
 
-			cout << "CGQueueManager::run: handling " << newJobs->size() << " new jobs." << endl;
+			LOG(INF, "Queue Manager is about to handle %d new jobs.", newJobs->size());
 			handleJobs(submit, newJobs);
 			cout << "CGQueueManager::run: handling " << sentJobs->size() << " sent jobs." << endl;
 			handleJobs(status, sentJobs);
