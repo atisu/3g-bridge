@@ -33,7 +33,7 @@ private:
 		*tos << setw(2) << setfill('0') << ttm->tm_hour << ":";
 		*tos << setw(2) << setfill('0') << ttm->tm_min << ":";
 		*tos << setw(2) << setfill('0') << ttm->tm_sec << " - ";
-		*tos << func << " ";
+		*tos << setw(8) << setfill(' ');
 		switch (lvl) {
 		case DEB:
 			*tos << "DEBUG";
@@ -51,7 +51,7 @@ private:
 			*tos << "CRITICAL";
 			break;
 		}
-		*tos << " - ";
+		*tos << " - " << func << " - ";
 	}
 public:
 	static Logging &getInstance(ostream &os = cout, loglevel lvl = INF) {
@@ -79,4 +79,4 @@ public:
 };
 
 
-#define LOG(y, ...) { Logging a = Logging::getInstance(); a.log(y, __func__, __VA_ARGS__); }
+#define LOG(y, ...) { Logging a = Logging::getInstance(); a.log(y, __PRETTY_FUNCTION__, __VA_ARGS__); }

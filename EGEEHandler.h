@@ -23,11 +23,9 @@ class EGEEHandler : public GridHandler {
 	void submitJobs(vector<CGJob *> *jobs) throw (BackendException &);
 	void updateStatus(void) throw (BackendException &);
 	void cancelJobs(vector<CGJob *> *jobs) throw (BackendException &);
-	void getStatus(vector<CGJob *> *jobs) throw (BackendException &);
 
-	/* Obsolete */
-	void getOutputs(vector<CGJob *> *jobs) throw (BackendException &);
     private:
+	void getStatus(vector<CGJob *> *jobs) throw (BackendException &);
 	static const int GSIFTP_BSIZE = 1024000;
 	static const int SUCCESS = 0;
 	static globus_mutex_t lock;

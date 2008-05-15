@@ -26,6 +26,7 @@ class DBHandler {
 	void updateJobGridID(string ID, string gridID);
 	void updateJobStat(string ID, CGJobStatus newstat);
 	void updateOutputPath(string ID, string localname, string pathname);
+	void deleteJob(const string &ID);
 	string getAlgQStat(CGAlgType type, const string &name);
 	void updateAlgQStat(CGAlgQueue *algQ, unsigned pSize, unsigned pTime);
  private:

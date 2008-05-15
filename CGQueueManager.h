@@ -20,7 +20,6 @@ using namespace mysqlpp;
 enum jobOperation {
   submit,
   status,
-  output,
   cancel
 };
 

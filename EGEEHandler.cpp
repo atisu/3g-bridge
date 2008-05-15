@@ -3,6 +3,7 @@
 #endif
 
 #include "CGJob.h"
+#include "Logging.h"
 #include "GridHandler.h"
 #include "EGEEHandler.h"
 
@@ -218,6 +219,13 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 
 void EGEEHandler::updateStatus() throw (BackendException &)
 {
+	vector<CGJob *> *myJobs = jobDB->getJobs(RUNNING);
+
+	getStatus(myJobs);
+
+	for (unsigned i = 0; i < myJobs->size(); i++)
+		delete myJobs->at(i);
+	delete myJobs;
 }
 
 
@@ -261,11 +269,6 @@ void EGEEHandler::getStatus(vector<CGJob *> *jobs) throw (BackendException &)
 		actJ->setStatus(statusRelation[j].jobS);
 	    }
     }
-}
-
-
-void EGEEHandler::getOutputs(vector<CGJob *> *jobs) throw (BackendException &)
-{
 }
 
 
@@ -320,11 +323,17 @@ void EGEEHandler::getOutputs_real(CGJob *job)
  */
 void EGEEHandler::cancelJobs(vector<CGJob *> *jobs) throw (BackendException &)
 {
-    if (!jobs || !jobs->size())
-	return;
+	if (!jobs || !jobs->size())
+		return;
 
-    for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
-    }
+        for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
+		LOG(DEB, "About to cancel and remove job \"" + (*it)->getId() + "\".");
+		try {
+			jobCancel((*it)->getGridId(), cfg);
+		} catch (BaseException e) {
+		}
+		jobDB->deleteJob((*it)->getId());
+	}
 }
 
 

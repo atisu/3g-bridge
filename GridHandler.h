@@ -48,17 +48,6 @@ public:
      */
     virtual void cancelJobs(vector <CGJob *> *jobs) throw (BackendException &) = 0;
 
-    /**
-     * Update status of jobs through the objects.
-     */
-    virtual void getStatus(vector<CGJob *> *jobs) throw (BackendException &) = 0;
-
-    /* XXX Obsolote methods that should be removed */
-    /**
-     * Get results.
-     */
-    virtual void getOutputs(vector<CGJob *> *jobs) throw (BackendException &) = 0;
-
 protected:
     bool groupByNames;
     unsigned maxGroupSize;

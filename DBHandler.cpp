@@ -54,6 +54,9 @@ string DBHandler::getStatStr(CGJobStatus stat)
 	case ERROR:
 		statStr = "ERROR";
 		break;
+	case CANCEL:
+		statStr = "CANCEL";
+		break;
 	default:
 		statStr = "";
 		break;
@@ -130,7 +133,7 @@ vector<CGJob *> *DBHandler::getJobs(CGJobStatus stat)
 {
 	Query query = conn->query();
 
-	query << "SELECT * FROM cg_job WHERE status = \"" << getStatStr(stat) << "\"";
+	query << "SELECT * FROM cg_job WHERE status = \"" << getStatStr(stat) << "\" ORDER BY creation_time";
 
 	return parseJobs(&query);
 }
@@ -292,5 +295,21 @@ void DBHandler::updateOutputPath(string ID, string localname, string pathname)
 {
 	Query query = conn->query();
 	query << "UPDATE cg_outputs SET path=\"" << pathname << "\" WHERE id=\"" << ID << "\" AND localname=\"" << localname << "\"";
+	query.execute();
+}
+
+
+void DBHandler::deleteJob(const string &ID)
+{
+	Query query = conn->query();
+	query << "DELETE FROM cg_job WHERE id=\"" << ID << "\"";
+	query.execute();
+
+	query.reset();
+	query << "DELETE FROM cg_inputs WHERE id=\"" << ID << "\"";
+	query.execute();
+
+	query.reset();
+	query << "DELETE FROM cg_outputs WHERE id=\"" << ID << "\"";
 	query.execute();
 }
