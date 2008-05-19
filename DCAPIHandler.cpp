@@ -5,6 +5,7 @@
 #include "CGJob.h"
 #include "DCAPIHandler.h"
 #include "DBHandler.h"
+#include "Logging.h"
 
 #include <dc.h>
 
@@ -119,7 +120,7 @@ static void remove_tmpdir(const string &dir) throw (BackendException &)
 		return;
 
 	const char *args[] = { "rm", "-rf", dir.c_str(), 0 };
-	invoke_cmd("rm", args);
+	invoke_cmd("/bin/rm", args);
 }
 
 static void error_jobs(vector<CGJob *> *jobs)
@@ -132,6 +133,53 @@ static void error_jobs(vector<CGJob *> *jobs)
 	delete jobs;
 }
 
+static void delete_vector(vector<CGJob *> *jobs)
+{
+	for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++)
+		delete *it;
+	delete jobs;
+}
+
+static bool check_job(const string &basedir, CGJob *job)
+{
+	vector<string> outputs = job->getOutputs();
+
+	/* Check if the output files exist */
+	string jobdir = basedir + "/" OUTPUT_DIR "/" + job->getId();
+	for (vector<string>::const_iterator it = outputs.begin(); it != outputs.end(); it++)
+	{
+		string path = jobdir + '/' + *it;
+		if (access(path.c_str(), R_OK))
+		{
+			LOG(LOG_ERR, "Job %s: Output file '%s' is missing",
+				job->getId().c_str(), path.c_str());
+			return false;
+		}
+	}
+
+	/* Move/copy the output files to the proper location */
+	for (vector<string>::const_iterator it = outputs.begin(); it != outputs.end(); it++)
+	{
+		string src = jobdir + '/' + *it;
+		string dst = job->getOutputPath(*it);
+		if (!link(src.c_str(), dst.c_str()))
+			continue;
+		/* Rename failed call external mv command */
+		const char *mv_args[] = { "mv", "-f", src.c_str(), dst.c_str(), 0 };
+		try
+		{
+			invoke_cmd("/bin/mv", mv_args);
+		}
+		catch (exception e)
+		{
+			LOG(LOG_ERR, "Job %s: Failed to move output file '%s' to '%s')",
+				job->getId().c_str(), src.c_str(), dst.c_str());
+			return false;
+		}
+	}
+	return true;
+}
+
 static void result_callback(DC_Workunit *wu, DC_Result *result)
 {
 	char *tmp = DC_getWUId(wu);
@@ -142,7 +190,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 
 	if (!result)
 	{
-		/* XXX Logging */
+		LOG(LOG_ERR, "WU %s: Failed", id.c_str());
 		error_jobs(jobs);
 		return;
 	}
@@ -150,7 +198,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	tmp = DC_getResultOutput(result, OUTPUT_NAME);
 	if (!tmp)
 	{
-		/* XXX Logging */
+		LOG(LOG_ERR, "WU %s: Missing output", id.c_str());
 		error_jobs(jobs);
 		return;
 	}
@@ -161,14 +209,36 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 
 	try
 	{
-		const char *tar_args[] = { "tar", "-C", basedir.c_str(), "-x", "-z", "-f", outputs.c_str(), 0 };
+		const char *tar_args[] =
+		{
+			"tar", "-C", basedir.c_str(), "-x", "-z", "-f", outputs.c_str(), 0
+		};
 		invoke_cmd("tar", tar_args);
+
+		for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++)
+		{
+			/* If the job is already marked as cancelled, just
+			 * delete it */
+			if ((*it)->getStatus() == CANCEL)
+			{
+				(*it)->deleteJob();
+				continue;
+			}
+
+			if (check_job(basedir, *it))
+				(*it)->setStatus(FINISHED);
+			else
+				(*it)->setStatus(ERROR);
+		}
 	}
 	catch (BackendException &e)
 	{
 		remove_tmpdir(basedir.c_str());
+		delete_vector(jobs);
 		throw e;
 	}
+
+	delete_vector(jobs);
 }
 
 /**********************************************************************
