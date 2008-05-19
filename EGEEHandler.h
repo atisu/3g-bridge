@@ -33,6 +33,7 @@ class EGEEHandler : public GridHandler {
 	static globus_bool_t done;
 	static bool globus_err;
 	static int global_offset;
+	string wmpendp;
 	ConfigContext *cfg;
 	DBHandler *jobDB;
 	void init_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs);
@@ -49,6 +50,7 @@ class EGEEHandler : public GridHandler {
 	void throwStrExc(const char *func, const string &str) throw(BackendException &);
 	void renew_proxy();
 	void getOutputs_real(CGJob *jobs);
+	void createCFG();
 };
 
 #endif

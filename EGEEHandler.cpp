@@ -47,18 +47,32 @@ EGEEHandler::EGEEHandler(DBHandler *jDB, const string &WMProxy_EndPoint) throw (
 {
 	jobDB = jDB;
 	global_offset = 0;
+	wmpendp = WMProxy_EndPoint;
+	cfg = 0;
+
+	groupByNames = false;
+	maxGroupSize = 10;
+}
+
+
+void EGEEHandler::createCFG()
+{
+	renew_proxy();
+
+	if (cfg)
+		delete cfg;
 
 	try {
-    		cfg = new ConfigContext("", WMProxy_EndPoint, "");
+    		cfg = new ConfigContext("", wmpendp, "");
 	} catch (BaseException e) {
 		throwStrExc(__func__, e);
+		cfg = 0;
 	}
 
 	if (!cfg)
 		throwStrExc(__func__, "Failed to create ConfigContext!");
 
-	groupByNames = false;
-	maxGroupSize = 10;
+	//delegate_Proxy("whatever");
 }
 
 
@@ -86,6 +100,7 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 	if (!jobs || !jobs->size())
 		return;
 
+	createCFG();
 	vector<string> prodFiles;
 	vector<string> prodDirs;
 	char tmpl[256];
@@ -164,7 +179,6 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 	}
 
 	// Submit the JDLs
-	renew_proxy();
 	string cmd = "glite-wms-job-submit -a -o collection.id --collection jdlfiles";
 	if (-1 == system(cmd.c_str()))
 		throwStrExc(__func__, "Job submission using glite-wms-job-submit failed!");
@@ -280,7 +294,7 @@ void EGEEHandler::getOutputs_real(CGJob *job)
     if (!job)
 	return;
 
-    renew_proxy();
+    createCFG();
 
     cout << "EGEEHandler::getOutputs_real: getting output of job \"" << job->getGridId() << "\"." << endl;
     char wd[2048];
@@ -325,6 +339,8 @@ void EGEEHandler::cancelJobs(vector<CGJob *> *jobs) throw (BackendException &)
 {
 	if (!jobs || !jobs->size())
 		return;
+
+	createCFG();
 
         for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
 		LOG(LOG_DEBUG, "About to cancel and remove job \"" + (*it)->getId() + "\".");
