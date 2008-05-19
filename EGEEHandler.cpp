@@ -327,7 +327,7 @@ void EGEEHandler::cancelJobs(vector<CGJob *> *jobs) throw (BackendException &)
 		return;
 
         for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
-		LOG(DEB, "About to cancel and remove job \"" + (*it)->getId() + "\".");
+		LOG(LOG_DEBUG, "About to cancel and remove job \"" + (*it)->getId() + "\".");
 		try {
 			jobCancel((*it)->getGridId(), cfg);
 		} catch (BaseException e) {

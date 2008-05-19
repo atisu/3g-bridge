@@ -4,79 +4,73 @@
 #include <iostream>
 #include <sstream>
 #include <stdarg.h>
+#include <syslog.h>
 
 
 using namespace std;
 
 
-enum loglevel {
-	DEB,
-	INF,
-	WARN,
-	ERR,
-	CRIT
-};
-
-
 class Logging {
 private:
-	Logging(ostream *os, loglevel lvl) { tos = os; tlvl = lvl; }
+	Logging(ostream *os, int lvl) { tos = os; loglevel = lvl; }
 	static Logging *logco;
 	static ostream *tos;
-	loglevel tlvl;
-	void print_hdr(loglevel lvl, const string &func) {
-	        time_t tt = time(NULL);
-		struct tm *ttm = localtime(&tt);
-		*tos << 1900+ttm->tm_year << ".";
-		*tos << setw(2) << setfill('0') << ttm->tm_mon << ".";
-		*tos << setw(2) << setfill('0') << ttm->tm_mday << ". ";
-		*tos << setw(2) << setfill('0') << ttm->tm_hour << ":";
-		*tos << setw(2) << setfill('0') << ttm->tm_min << ":";
-		*tos << setw(2) << setfill('0') << ttm->tm_sec << " - ";
-		*tos << setw(8) << setfill(' ');
+	int loglevel;
+	void print_hdr(int lvl) {
+		time_t now = time(NULL);
+		struct tm *tm = localtime(&now);
+		char buf[37];
+		strftime(buf, sizeof(buf), "%F %T", tm);
+		*tos << buf << ' ';
 		switch (lvl) {
-		case DEB:
+		case LOG_DEBUG:
 			*tos << "DEBUG";
 			break;
-		case INF:
+		case LOG_INFO:
 			*tos << "INFO";
 			break;
-		case WARN:
+		case LOG_NOTICE:
+			*tos << "NOTICE";
+			break;
+		case LOG_WARNING:
 			*tos << "WARNING";
 			break;
-		case ERR:
+		case LOG_ERR:
 			*tos << "ERROR";
 			break;
-		case CRIT:
+		case LOG_CRIT:
 			*tos << "CRITICAL";
 			break;
 		}
-		*tos << " - " << func << " - ";
+		*tos << ": ";
 	}
 public:
-	static Logging &getInstance(ostream &os = cout, loglevel lvl = INF) {
+	static Logging &getInstance(ostream &os = cout, int lvl = LOG_INFO) {
 		if (0 == logco)
 			logco = new Logging(&os, lvl);
 		return *logco;
 	}
-	void log(loglevel lvl, const string &func, const string &data) {
-		if (lvl < tlvl)
+
+	void log(int lvl, const char *fmt, va_list ap) {
+		if (lvl > loglevel)
 			return;
-		print_hdr(lvl, func);
-		*tos << data << endl;
-	}
-	void log(loglevel lvl, const string &func, char *fmt, ...) {
-		if (lvl < tlvl)
-			return;
-		print_hdr(lvl, func);
+		print_hdr(lvl);
 		char *str;
-		va_list ap;
-		va_start(ap, fmt);
 		vasprintf(&str, fmt, ap);
 		*tos << str << endl;
 		free(str);
 	}
+
+	void log(int lvl, const char *fmt, ...) {
+		va_list ap;
+		va_start(ap, fmt);
+		log(lvl, fmt, ap);
+		va_end(ap);
+	}
+
+	void log(int lvl, const string &str) {
+		log(lvl, str.c_str());
+	}
 };
 
-
-#define LOG(y, ...) { Logging a = Logging::getInstance(); a.log(y, __PRETTY_FUNCTION__, __VA_ARGS__); }
+#define LOG(y, ...)	Logging::getInstance().log(y, __VA_ARGS__)

@@ -92,7 +92,7 @@ void CGQueueManager::handleJobs(jobOperation op, vector<CGJob *> *jobs)
     			schedReq(gridHandlers[c], &(gridMap[c])); 
     			break;
 		case status:
-			LOG(INF, "Updating status of jobs using grid plugin.");
+			LOG(LOG_INFO, "Updating status of jobs using grid plugin.");
     			gridHandlers[c]->updateStatus();
     			break;
 		case cancel:
@@ -130,12 +130,12 @@ void CGQueueManager::run()
 			vector<CGJob *> *newJobs = jobDB->getJobs(INIT);
 			vector<CGJob *> *cancelJobs = jobDB->getJobs(CANCEL);
 
-			LOG(INF, "Queue Manager found %d new jobs.", newJobs->size());
+			LOG(LOG_INFO, "Queue Manager found %d new jobs.", newJobs->size());
 			handleJobs(submit, newJobs);
 
 			handleJobs(status, 0);
 
-			LOG(INF, "Queue Manager found %d jobs to be aborted.", cancelJobs->size());
+			LOG(LOG_INFO, "Queue Manager found %d jobs to be aborted.", cancelJobs->size());
 			handleJobs(cancel, cancelJobs);
 
 			freeVector(newJobs);
@@ -258,18 +258,18 @@ void CGQueueManager::handlePackedSubmission(GridHandler *gh, vector<CGJob *> *jo
 	unsigned maxASize = algQ->getPackSize();
 	unsigned maxSize = (maxGSize < maxASize ? maxGSize : maxASize);
 
-	LOG(DEB, "Packed submission requested, maximum packet size is %d.", maxSize);
+	LOG(LOG_DEBUG, "Packed submission requested, maximum packet size is %d.", maxSize);
 	while (it != jobs->end())
 	{
 		vector<CGJob *> sendJobs;
 		unsigned prefSize = selectSizeAdv(algQ);
 		unsigned useSize = (prefSize < maxSize ? prefSize : maxSize);
-		LOG(DEB, "Scheduler: selected package size is %d.", useSize);
+		LOG(LOG_DEBUG, "Scheduler: selected package size is %d.", useSize);
 
 		for (; useSize && it != jobs->end(); useSize--, it++)
 			sendJobs.push_back(*it);
 
-		LOG(DEB, "Submitting package of size %d.", sendJobs.size());
+		LOG(LOG_DEBUG, "Submitting package of size %d.", sendJobs.size());
 		gh->submitJobs(&sendJobs);
 	}
 }
@@ -289,15 +289,15 @@ void CGQueueManager::schedReq(GridHandler *gh, vector<CGJob *> *jobs)
 	if (!jobs || !jobs->size())
 		return;
 
-	LOG(DEB, "Scheduling request received");
+	LOG(LOG_DEBUG, "Scheduling request received");
 	// Query maximum group size of the grid plugin
 	unsigned maxGSize = gh->schMaxGroupSize();
-	LOG(DEB, "Maximum group size of grid plugin is: %d", maxGSize);
+	LOG(LOG_DEBUG, "Maximum group size of grid plugin is: %d", maxGSize);
 
 	// Check is jobs should be grouped by algorithm names
 	if (!gh->schGroupByNames())
 	{
-		LOG(DEB, "Grid plugin doesn't request grouping by algorithm names.");
+		LOG(LOG_DEBUG, "Grid plugin doesn't request grouping by algorithm names.");
 		// If not, simply create maxGSize "packages", and submit
 		// the packages
 		vector<CGJob *>::iterator it = jobs->begin();
@@ -309,13 +309,13 @@ void CGQueueManager::schedReq(GridHandler *gh, vector<CGJob *> *jobs)
 			for (unsigned i = 0; i < maxGSize && it != jobs->end(); i++, it++)
 				sendJobs.push_back(*it);
 
-			LOG(DEB, "Sending %d jobs to grid plugin for submission.", sendJobs.size());
+			LOG(LOG_DEBUG, "Sending %d jobs to grid plugin for submission.", sendJobs.size());
 			gh->submitJobs(&sendJobs);
 		}
 	}
 	else
 	{
-		LOG(DEB, "Grid plugin requests grouping by algorithm names.");
+		LOG(LOG_DEBUG, "Grid plugin requests grouping by algorithm names.");
 		// If yes, do the grouping
 		map<CGAlgQueue *, vector<CGJob *> > algs2Jobs;
 		vector<CGAlgQueue *> algs;
