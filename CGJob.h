@@ -54,6 +54,7 @@ public:
     string getOutputPath(const string localname);
     CGJobStatus getStatus() const { return status; }
     void setStatus(CGJobStatus nStat);
+    void deleteJob();
 };
 
 #endif

@@ -82,3 +82,9 @@ void CGJob::setStatus(CGJobStatus nStat)
 	status = nStat;
 	tdbH->updateJobStat(id, status);
 }
+
+
+void CGJob::deleteJob()
+{
+	tdbH->deleteJob(id);
+}
