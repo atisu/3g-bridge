@@ -45,10 +45,10 @@ package: queuemanager.tar.gz
 
 CLEANFILES = master.xml queuemanager.tar.gz
 
-queuemanager.tar.gz: CGManager master.xml
+package_contents = CGManager master.xml dc-api.conf qm.config.sample
+
+queuemanager.tar.gz: $(package_contents)
 	mkdir package-tmp
-	cp -pR CGManager package-tmp/
-	test -f master.xml && cp -p master.xml package-tmp/master.xml && \
-		cp -p $(srcdir)/qm.config.sample package-tmp/
+	cp -p $(package_contents) package-tmp/
 	(cd package-tmp && $(AMTAR) cf - *) | GZIP=$(GZIP_ENV) gzip -c > $@
 	rm -rf package-tmp
