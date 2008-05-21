@@ -251,7 +251,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 
 DCAPIHandler::DCAPIHandler(DBHandler *jobdb, QMConfig &config)
 {
-	string conffile = config.getStr("DCAPIConfig");
+	string conffile = config.getStr("DCAPI_Config");
 
 	if (DC_OK != DC_initMaster(conffile.length() ? conffile.c_str(): NULL))
 		throw DC_initMasterError;
