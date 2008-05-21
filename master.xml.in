@@ -12,7 +12,7 @@
 
 	<!-- Data files used by the master -->
 	<files>
-		<file>qm.config.sample</file>
+		<file>qm.conf.sample</file>
 	</files>
 
 	<!-- Master daemon definition -->
