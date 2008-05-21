@@ -43,6 +43,8 @@ master.xml: master.xml.in
 
 package: queuemanager.tar.gz
 
+CLEANFILES = master.xml queuemanager.tar.gz
+
 queuemanager.tar.gz: CGManager master.xml
 	mkdir package-tmp
 	cp -pR CGManager package-tmp/
