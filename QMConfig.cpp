@@ -36,11 +36,8 @@ QMConfig::QMConfig(const char *filename)
 
 		/* Extract the key */
 		string key;
-		while (p != line.end() && isalnum(*p))
-		{
-			key.push_back(*p);
-			p++;
-		}
+		while (p != line.end() && (isalnum(*p) || *p == '_'))
+			key.push_back(*p++);
 
 		if (!key.length())
 		{
@@ -67,7 +64,7 @@ QMConfig::QMConfig(const char *filename)
 		/* Extract the value */
 		string value;
 		while (p != line.end())
-			value.push_back(*p);
+			value.push_back(*p++);
 		
 		data[key] = value;
 	}
