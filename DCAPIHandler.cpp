@@ -192,6 +192,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	{
 		LOG(LOG_ERR, "WU %s: Failed", id.c_str());
 		error_jobs(jobs);
+		DC_destroyWU(wu);
 		return;
 	}
 
@@ -200,6 +201,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	{
 		LOG(LOG_ERR, "WU %s: Missing output", id.c_str());
 		error_jobs(jobs);
+		DC_destroyWU(wu);
 		return;
 	}
 	string outputs(tmp);
@@ -235,19 +237,23 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	{
 		remove_tmpdir(basedir.c_str());
 		delete_vector(jobs);
+		DC_destroyWU(wu);
 		throw e;
 	}
 
 	delete_vector(jobs);
+	DC_destroyWU(wu);
 }
 
 /**********************************************************************
  * Class: DCAPIHandler
  */
 
-DCAPIHandler::DCAPIHandler(DBHandler *jobdb, const string conf)
+DCAPIHandler::DCAPIHandler(DBHandler *jobdb, QMConfig &config)
 {
-	if (DC_OK != DC_initMaster(conf.c_str()))
+	string conffile = config.getStr("DCAPIConfig");
+
+	if (DC_OK != DC_initMaster(conffile.length() ? conffile.c_str(): NULL))
 		throw DC_initMasterError;
 
 	DC_setMasterCb(result_callback, NULL, NULL);

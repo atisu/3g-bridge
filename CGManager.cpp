@@ -4,6 +4,7 @@
 
 #include "Logging.h"
 #include "CGQueueManager.h"
+#include "QMConfig.h"
 
 using namespace std;
 
@@ -14,9 +15,23 @@ vector<CGAlgQueue *> CGAlgQueue::queues;
 int main(int argc, char **argv)
 {
     Logging log = Logging::getInstance(cout, LOG_DEBUG);
+
+    if (argc < 2)
+    {
+	    cerr << "Missing config. file name\n";
+	    exit(1);
+    }
+    if (argc > 2)
+    {
+	    cerr << "Extra arguments on the command-line\n";
+	    exit(1);
+    }
+
+    QMConfig cfg(argv[1]);
+
     try {
 	LOG(LOG_DEBUG, "Creating Queue Manager");
-	CGQueueManager qm(string(argv[1]), "boinc_szdgr", "0", "boinc-szdgr", "VfxVqw0PHT");
+	CGQueueManager qm(cfg);
 
 	LOG(LOG_DEBUG, "Starting Queue Manager");
 	qm.run();

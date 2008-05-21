@@ -22,10 +22,12 @@ CGManager_SOURCES = \
 		CGQueueManager.h \
 		DBHandler.h \
 		DBHandler.cpp \
-		GridHandler.h \
 		DCAPIHandler.h \
 		DCAPIHandler.cpp \
-		Logging.h
+		GridHandler.h \
+		Logging.h \
+		QMConfig.cpp \
+		QMConfig.h
 CGManager_LDADD = $(DCAPI_MASTER_LIBS) -lmysqlpp -luuid
 
 endif

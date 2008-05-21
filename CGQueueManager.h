@@ -6,6 +6,7 @@
 #include "common.h"
 #include "CGAlgQueue.h"
 #include "GridHandler.h"
+#include "QMConfig.h"
 
 #include <map>
 #include <set>
@@ -25,7 +26,7 @@ enum jobOperation {
 
 class CGQueueManager {
 public:
-    CGQueueManager(const string conf, const string db, const string host, const string user, const string passwd);
+    CGQueueManager(QMConfig &config);
     ~CGQueueManager();
     void run();
 private:

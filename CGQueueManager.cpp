@@ -27,18 +27,18 @@ using namespace mysqlpp;
 /**
  * Constructor. Initialize selected grid plugin, and database connection.
  */
-CGQueueManager::CGQueueManager(const string conf, const string db, const string host, const string user, const string passwd)
+CGQueueManager::CGQueueManager(QMConfig &config)
 {
 	// Clear algorithm list
 	algs.clear();
 
-	jobDB = new DBHandler(host, user, passwd, db);
+	jobDB = new DBHandler(config);
   
 #ifdef HAVE_DCAPI
-	gridHandlers[CG_ALG_DCAPI] = new DCAPIHandler(jobDB, conf);
+	gridHandlers[CG_ALG_DCAPI] = new DCAPIHandler(jobDB, config);
 #endif
 #ifdef HAVE_EGEE
-	gridHandlers[CG_ALG_EGEE] = new EGEEHandler(jobDB, conf);
+	gridHandlers[CG_ALG_EGEE] = new EGEEHandler(jobDB, config);
 #endif
 }
 

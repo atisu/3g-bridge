@@ -1,3 +1,7 @@
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include "CGJob.h"
 #include "DBHandler.h"
 
@@ -16,8 +20,13 @@ using namespace std;
  * @param[in] passwd Password to use
  * @param[in] dbname Name of the DB to use
  */
-DBHandler::DBHandler(const string host, const string user, const string passwd, const string dbname):thost(host),tuser(user),tpasswd(passwd),tdbname(dbname)
+DBHandler::DBHandler(QMConfig &config)
 {
+	dbname = config.getStr("DB_NAME");
+	host = config.getStr("DB_HOST");
+	user = config.getStr("DB_USER");
+	passwd = config.getStr("DB_PASSWORD");
+
 	conn = new Connection(dbname.c_str(), host.c_str(), user.c_str(), passwd.c_str());
 }
 

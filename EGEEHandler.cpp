@@ -43,11 +43,11 @@ int EGEEHandler::global_offset;
  * @param[in] jDB DB handler pointer
  * @param[in] WMProxy_EndPoint URL of the WMProxy server
  */
-EGEEHandler::EGEEHandler(DBHandler *jDB, const string &WMProxy_EndPoint) throw (BackendException &)
+EGEEHandler::EGEEHandler(DBHandler *jDB, QMConfig &config) throw (BackendException &)
 {
 	jobDB = jDB;
 	global_offset = 0;
-	wmpendp = WMProxy_EndPoint;
+	wmpendp = config.getStr("WMProxy_EndPoint");
 	cfg = 0;
 
 	groupByNames = false;

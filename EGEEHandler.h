@@ -18,7 +18,7 @@ using namespace glite::wms::wmproxyapi;
 
 class EGEEHandler : public GridHandler {
     public:
-	EGEEHandler(DBHandler *jDB, const string &WMProxy_EndPoint) throw (BackendException &);
+	EGEEHandler(DBHandler *jDB, QMConfig &config) throw (BackendException &);
 	~EGEEHandler();
 	void submitJobs(vector<CGJob *> *jobs) throw (BackendException &);
 	void updateStatus(void) throw (BackendException &);

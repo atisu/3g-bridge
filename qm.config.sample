@@ -1,0 +1,26 @@
+#######################################################################
+# Sample queue manager configuration file
+#
+# Syntax: <key> = <value>
+#
+# White space around the key and the '=' sign are ignored
+# Empty lines and lines starting with '#' are ignored
+# Keys are case-sensitive
+
+############################
+# Database access parameters
+
+# DB_HOST =
+# DB_NAME =
+# DB_USER =
+# DB_PASSWORD =
+
+################
+# DC-API backend
+
+# DCAPI_Config =
+
+##############
+# EGEE Backend
+
+# WMProxy_Endpoint =

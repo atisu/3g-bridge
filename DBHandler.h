@@ -4,13 +4,9 @@
 #include <string>
 #include "CGJob.h"
 #include "CGAlgQueue.h"
+#include "QMConfig.h"
 
 #include <mysql++/mysql++.h>
-#ifdef HAVE_MYSQL___SSQLS_H
-#include <mysql++/ssqls.h>
-#else
-#include <mysql++/custom.h>
-#endif
 
 
 using namespace std;
@@ -19,7 +15,7 @@ using namespace mysqlpp;
 
 class DBHandler {
     public:
-	DBHandler(const string host, const string user, const string passwd, const string dbname);
+	DBHandler(QMConfig &config);
 	~DBHandler();
 	vector<CGJob *> *getJobs(CGJobStatus stat);
 	vector<CGJob *> *getJobs(string gridID);
@@ -30,10 +26,10 @@ class DBHandler {
 	string getAlgQStat(CGAlgType type, const string &name);
 	void updateAlgQStat(CGAlgQueue *algQ, unsigned pSize, unsigned pTime);
  private:
-	string thost;
-	string tuser;
-	string tpasswd;
-	string tdbname;
+	string host;
+	string user;
+	string passwd;
+	string dbname;
 	Connection *conn;
 	string getStatStr(CGJobStatus stat);
 	string Alg2Str(CGAlgType type);
