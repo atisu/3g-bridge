@@ -35,4 +35,4 @@ CGManager_SOURCES = \
 		QMConfig.cpp \
 		QMConfig.h \
 		$(BACKEND_SOURCES)
-CGManager_LDADD = $(BACKEND_LIBS) -lmysqlpp -luuid
+CGManager_LDADD = $(BACKEND_LIBS) -lmysqlpp

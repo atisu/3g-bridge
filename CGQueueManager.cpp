@@ -10,7 +10,6 @@
 #include <string>
 #include <iostream>
 #include <sstream>
-#include <uuid/uuid.h>
 #include <sys/stat.h>
 
 #ifdef HAVE_DCAPI

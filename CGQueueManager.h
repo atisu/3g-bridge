@@ -12,7 +12,6 @@
 #include <set>
 #include <string>
 #include <vector>
-#include <uuid/uuid.h>
 #include <mysql++/mysql++.h>
 
 using namespace std;
@@ -32,8 +31,6 @@ public:
 private:
     DBHandler *jobDB;
     map<string, CGAlgQueue *> algs;
-    set<uuid_t *> jobIDs;
-    map<uuid_t *, CGAlgQueue *> ID2AlgQ;
     string basedir;
     map<CGAlgType, GridHandler *> gridHandlers;
     unsigned selectSize(CGAlgQueue *algQ);
