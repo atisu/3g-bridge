@@ -6,7 +6,12 @@ AM_CPPFLAGS = @MYSQL_CPPFLAGS@
 
 bin_PROGRAMS = injector CGManager
 
-injector_SOURCES = injector.cpp
+injector_SOURCES = \
+		injector.cpp \
+		Logging.cpp \
+		Logging.h \
+		QMConfig.cpp \
+		QMConfig.h
 injector_LDADD = -lmysqlpp -luuid
 
 BACKEND_SOURCES =
@@ -31,6 +36,7 @@ CGManager_SOURCES = \
 		DBHandler.h \
 		DBHandler.cpp \
 		GridHandler.h \
+		Logging.cpp \
 		Logging.h \
 		QMConfig.cpp \
 		QMConfig.h \

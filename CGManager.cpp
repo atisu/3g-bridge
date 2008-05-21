@@ -8,13 +8,11 @@
 
 using namespace std;
 
-Logging *Logging::logco;
-ostream *Logging::tos;
 vector<CGAlgQueue *> CGAlgQueue::queues;
 
 int main(int argc, char **argv)
 {
-    Logging log = Logging::getInstance(cout, LOG_DEBUG);
+    Logging::init(cout, LOG_DEBUG);
 
     if (argc < 2)
     {

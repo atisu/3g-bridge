@@ -8,6 +8,9 @@
 #include <sstream>
 #include <iostream>
 
+#include "Logging.h"
+#include "QMConfig.h"
+
 #include <getopt.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
@@ -35,7 +38,7 @@ static vector<string> explode(const char sep, string src)
 void usage(const char *cmdname)
 {
     cout << "--== Prototype job submitter for Cancergrid ==--" << endl << endl;
-    cout << "Usage: " << cmdname << " [switches]" << endl;
+    cout << "Usage: " << cmdname << " config [switches]" << endl;
     cout << " * -a --algname  [algname]  algorithm (executable) name" << endl;
     cout << "   -c --cmdline  [cmdline]  command line options" << endl;
     cout << " * -i --inlocal  [inlocal]  comma separated list of input files used" << endl;
@@ -104,6 +107,13 @@ int main(int argc, char **argv)
 	}
     }
 
+    Logging::init(cout, LOG_DEBUG);
+    QMConfig config(argv[optind]);
+    string dbname = config.getStr("DB_NAME");
+    string host = config.getStr("DB_HOST");
+    string user = config.getStr("DB_USER");
+    string passwd = config.getStr("DB_PASSWORD");
+
     // Check for mandatory options
     if (algName == "" || inLocal == "" || inPath == "")
 	usage(argv[0]);
@@ -119,7 +129,7 @@ int main(int argc, char **argv)
     uuid_unparse(jid, sid);
 
     try {
-        con.connect("boinc_cancergrid", "0", "boinc-cancergrid", "czowtjhdlo");
+        con.connect(dbname.c_str(), host.c_str(), user.c_str(), passwd.c_str());
 	Query query = con.query();
 	
 	// explode list into vector<string>
