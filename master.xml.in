@@ -1,0 +1,29 @@
+<?xml version="1.0" standalone="no"?>
+<!--
+	Configuration template for the Queue Manager
+-->
+<master>
+	<!-- Application name -->
+	<name>queuemanager</name>
+
+	<!-- Application version. There are no restrictions for the format of
+	     master version numbers -->
+	<version>@PACKAGE_VERSION@</version>
+
+	<!-- Data files used by the master -->
+	<files>
+		<file>qm.config.sample</file>
+	</files>
+
+	<!-- Master daemon definition -->
+	<daemon>
+		<binary>CGManager</binary>
+		<arguments>
+			<arg>${workdir}/qm.conf</arg>
+		</arguments>
+	</daemon>
+
+	<!-- The application manager script will substitute the correct
+	     values for us -->
+	<dcapi-conf>dc-api.conf</dcapi-conf>
+</master>

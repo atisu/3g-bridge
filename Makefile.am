@@ -36,3 +36,17 @@ CGManager_SOURCES = \
 		QMConfig.h \
 		$(BACKEND_SOURCES)
 CGManager_LDADD = $(BACKEND_LIBS) -lmysqlpp
+
+master.xml: master.xml.in
+	$(SED) -e "s,@PACKAGE_VERSION\@,$(PACKAGE_VERSION)," \
+		$< > $@
+
+package: queuemanager.tar.gz
+
+queuemanager.tar.gz: CGManager master.xml
+	mkdir package-tmp
+	cp -pR CGManager package-tmp/
+	test -f master.xml && cp -p master.xml package-tmp/master.xml && \
+		cp -p $(srcdir)/qm.config.sample package-tmp/
+	(cd package-tmp && $(AMTAR) cf - *) | GZIP=$(GZIP_ENV) gzip -c > $@
+	rm -rf package-tmp

@@ -14,6 +14,9 @@ if test $MYSQL_CONFIG = none; then
 	AC_MSG_ERROR([MySQL development environment is not installed])
 fi
 
+dnl We need sed for substituting the XML templates
+AC_PATH_PROG([SED], [sed])
+
 MYSQL_CPPFLAGS=`$MYSQL_CONFIG --include`
 AC_SUBST([MYSQL_CPPFLAGS])
 
