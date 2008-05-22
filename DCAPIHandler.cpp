@@ -14,6 +14,7 @@
 #include <fstream>
 
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -59,25 +60,47 @@ static string substitute(const string src, const string key, string value)
 		if (begin == string::npos)
 			return result;
 		end = result.find('}', begin + 2);
-		if (!result.compare(begin + 2, end - begin - 3, key))
+		if (!result.compare(begin + 2, end - begin - 2, key))
 			result = result.substr(0, begin) + value + result.substr(end + 1);
+		else
+			begin = end;
 	}
 }
 
 static void invoke_cmd(const char *exe, const char *const argv[]) throw (BackendException &)
 {
+	int sock[2];
+
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, sock) == -1)
+		throw BackendException(string("socketpair() failed: ") + strerror(errno));
+
 	pid_t pid = fork();
 	if (pid)
 	{
 		/* Parent */
 		int status;
+		string error;
+		char buf[1024];
+
+		close(sock[0]);
+		while ((status = read(sock[1], buf, sizeof(buf))) > 0)
+			error.append(buf, status);
+		close(sock[1]);
 
 		if (waitpid(pid, &status, 0) == -1)
 			throw BackendException(string("waitpid() failed: ") + strerror(errno));
-		if (!WIFEXITED(status))
-			throw BackendException(string("Command ") + exe + " died");
+		if (WIFSIGNALED(status))
+		{
+			snprintf(buf, sizeof(buf), "Command %s died with signal %d [%s]",
+				exe, WTERMSIG(status), error.c_str());
+			throw BackendException(buf);
+		}
 		if (WEXITSTATUS(status))
-			throw BackendException(string("Command ") + exe + " exited with non-zero status");
+		{
+			snprintf(buf, sizeof(buf), "Command %s exited with status %d [%s]",
+				exe, WEXITSTATUS(status), error.c_str());
+			throw BackendException(buf);
+		}
 		return;
 	}
 
@@ -85,8 +108,11 @@ static void invoke_cmd(const char *exe, const char *const argv[]) throw (Backend
 	int fd = open("/dev/null", O_RDWR);
 	dup2(fd, 0);
 	dup2(fd, 1);
-	dup2(fd, 2);
 	close(fd);
+
+	dup2(sock[0], 2);
+	close(sock[0]);
+	close(sock[1]);
 
 	execvp(exe, (char *const *)argv);
 	_Exit(255);
@@ -122,7 +148,12 @@ static string create_tmpdir(void) throw (BackendException &)
 {
 	char buf[PATH_MAX];
 
-	snprintf(buf, sizeof(buf), "batch_XXXXXX");
+	char *workdir = DC_getCfgStr("WorkingDirectory");
+	if (!workdir)
+		throw BackendException("DC-API working directory is not configured?!?");
+
+	snprintf(buf, sizeof(buf), "%s/batch_XXXXXX", workdir);
+	free(workdir);
 	if (!mkdtemp(buf))
 		throw BackendException(string("Failed to create directory: ") + strerror(errno));
 
@@ -209,7 +240,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 
 	if (!result)
 	{
-		LOG(LOG_ERR, "WU %s: Failed", id.c_str());
+		LOG(LOG_ERR, "DC-API: WU %s: Failed", id.c_str());
 		error_jobs(jobs);
 		DC_destroyWU(wu);
 		return;
@@ -218,13 +249,16 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	tmp = DC_getResultOutput(result, OUTPUT_NAME);
 	if (!tmp)
 	{
-		LOG(LOG_ERR, "WU %s: Missing output", id.c_str());
+		LOG(LOG_ERR, "DC-API: WU %s: Missing output", id.c_str());
 		error_jobs(jobs);
 		DC_destroyWU(wu);
 		return;
 	}
 	string outputs(tmp);
 	free(tmp);
+
+	LOG(LOG_DEBUG, "DC-API: Received result for WU %s (app '%s')",
+		id.c_str(), tag.c_str());
 
 	string basedir = create_tmpdir();
 	string unpack_script = abspath(get_dc_client_config(tag.c_str(), "BatchUnpackScript", true));
@@ -290,20 +324,24 @@ DCAPIHandler::~DCAPIHandler()
 	dbh = 0;
 }
 
-static void emit_job(CGJob *job, const string &basedir, ofstream &script, const string &job_template) throw (BackendException &)
+static void do_mkdir(const string &path) throw (BackendException &)
+{
+	if (!mkdir(path.c_str(), 0750) || errno == EEXIST)
+		return;
+
+	throw BackendException("Failed to create directory " + path + ": " + strerror(errno));
+}
+
+static void emit_job(CGJob *job, const string &basedir, ofstream *script, const string &job_template) throw (BackendException &)
 {
 	string input_dir = INPUT_DIR "/" + job->getId();
 	string output_dir = OUTPUT_DIR "/" + job->getId();
 
 	string input_path = basedir + "/" + input_dir;
-	if (mkdir(input_path.c_str(), 0750))
-		throw BackendException("Failed to create directory " + input_path +
-			": " + strerror(errno));
+	do_mkdir(input_path);
 
 	string output_path = basedir + "/" + output_dir;
-	if (mkdir(output_path.c_str(), 0750))
-		throw BackendException("Failed to create directory " + output_path +
-			": " + strerror(errno));
+	do_mkdir(output_path);
 
 	/* Link/copy the input files to the proper location */
 	vector<string> inputs = job->getInputs();
@@ -324,13 +362,13 @@ static void emit_job(CGJob *job, const string &basedir, ofstream &script, const 
 	tmpl = substitute(tmpl, "output_dir", output_dir);
 	tmpl = substitute(tmpl, "args", job->getArgs());
 
-	script << tmpl;
+	*script << tmpl;
 }
 
 void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 {
 	char input_name[PATH_MAX] = { 0 };
-	DC_Workunit *wu;
+	DC_Workunit *wu = 0;
 	string basedir;
 	int ret;
 
@@ -354,22 +392,40 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 
 	basedir = create_tmpdir();
 	string script_name = basedir + "/" SCRIPT_NAME;
+	ofstream *script = 0;
 
 	try
 	{
-		ofstream script(script_name.c_str(), ios::out);
-		script << substitute(head_template, "inputs", INPUT_NAME);
+		script = new ofstream(script_name.c_str(), ios::out);
+		if (script->fail())
+			throw BackendException(string("Failed to create ") + script_name +
+				strerror(errno));
+
+		*script << substitute(head_template, "inputs", INPUT_NAME);
+
+		string dir = basedir + "/" INPUT_DIR;
+		do_mkdir(dir);
+		dir = basedir + "/" OUTPUT_DIR;
+		do_mkdir(dir);
 
 		double total = jobs->size();
 		int cnt = 0;
-		for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++, cnt++)
+		for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++)
 		{
 			char cmd[128];
 
 			emit_job(*it, basedir, script, job_template);
-			snprintf(cmd, sizeof(cmd), "boinc fraction_done %.6g\n", total / cnt);
-			script << cmd;
+			snprintf(cmd, sizeof(cmd), "boinc fraction_done %.6g\n", (double)++cnt / total);
+			*script << cmd;
 		}
+
+		tail_template = substitute(tail_template, "outputs", OUTPUT_NAME);
+		tail_template = substitute(tail_template, "output_pattern", OUTPUT_PATTERN);
+		*script << tail_template;
+
+		script->close();
+		delete script;
+		script = 0;
 
 		snprintf(input_name, sizeof(input_name), "inputs_XXXXXX");
 		int fd = mkstemp(input_name);
@@ -382,6 +438,9 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 			pack_script.c_str(), basedir.c_str(), input_name, INPUT_DIR, OUTPUT_DIR, 0
 		};
 		invoke_cmd(pack_script.c_str(), (char *const *)pack_args);
+
+		/* mkstemp() creates the file with 0600 */
+		chmod(input_name, 0644);
 
 		const char *wu_args[] = { SCRIPT_NAME, 0 };
 		wu = DC_createWU(algname.c_str(), wu_args, 0, algname.c_str());
@@ -405,6 +464,9 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 			throw BackendException("WU submission failed");
 
 		char *wu_id = DC_getWUId(wu);
+		LOG(LOG_DEBUG, "DC-API: Submitted work unit %s for app '%s' (%d tasks)",
+			wu_id, algname.c_str(), jobs->size());
+
 		for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++)
 		{
 			(*it)->setGridId(wu_id);
@@ -412,9 +474,6 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 		}
 		free(wu_id);
 
-		tail_template = substitute(tail_template, "outputs", OUTPUT_NAME);
-		tail_template = substitute(tail_template, "output_pattern", OUTPUT_PATTERN);
-		script << tail_template;
 	}
 	catch (BackendException &e)
 	{
@@ -422,10 +481,20 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 			unlink(input_name);
 		if (wu)
 			DC_destroyWU(wu);
+		if (script)
+		{
+			script->close();
+			delete script;
+		}
 		remove_tmpdir(basedir.c_str());
 		throw e;
 	}
 
+	if (script)
+	{
+		script->close();
+		delete script;
+	}
 	remove_tmpdir(basedir.c_str());
 }
 

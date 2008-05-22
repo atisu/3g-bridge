@@ -9,4 +9,7 @@
 #	<srcfile>	the packed output file
 #	<dstdir>	base directory where to unpack the files
 
-exec tar -C "$2" -z -f "$1"
+SRCFILE="$1"
+DSTDIR="$2"
+
+exec tar -C "$DSTDIR" -x -z -f "$SRCFILE"

@@ -10,4 +10,9 @@
 #	<dstfile>	where to put the pack
 #	<pattern>	shell pattern of filest to be included under <srcdir>
 
-exec tar -C "$1" -z -f "$3" $2
+SRCDIR="$1"
+shift
+DSTFILE="$1"
+shift
+
+exec tar -C "$SRCDIR" -c -z -f "$DSTFILE" "$@"
