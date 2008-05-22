@@ -13,6 +13,8 @@
 	<!-- Data files used by the master -->
 	<files>
 		<file>qm.conf.sample</file>
+		<file>batch_pack</file>
+		<file>batch_unpack</file>
 	</files>
 
 	<!-- Master daemon definition -->

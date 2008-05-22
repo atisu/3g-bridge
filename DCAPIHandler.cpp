@@ -22,9 +22,9 @@
 
 #define SCRIPT_NAME		"script"
 #define INPUT_DIR		"inputs"
-#define INPUT_NAME		"inputs.tar.gz"
+#define INPUT_NAME		"inputs.pack"
 #define OUTPUT_DIR		"outputs"
-#define OUTPUT_NAME		"outputs.tar.gz"
+#define OUTPUT_NAME		"outputs.pack"
 #define OUTPUT_PATTERN		"outputs/*"
 
 /* Forward declarations */
@@ -94,7 +94,7 @@ static void invoke_cmd(const char *exe, const char *const argv[]) throw (Backend
 
 static string get_dc_client_config(const string &app, const char *key, bool strict = false)
 {
-	char *value = DC_getClientCfgStr(app.c_str(), key, 0);
+	char *value = DC_getClientCfgStr(app.c_str(), key, 1);
 
 	if (strict && !value)
 		throw BackendException(string("Configuration error: missing ") + key + " for app " + app);
@@ -186,6 +186,10 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	string id(tmp);
 	free(tmp);
 
+	tmp = DC_getWUTag(wu);
+	string tag(tmp);
+	free(tmp);
+
 	vector<CGJob *> *jobs = dbh->getJobs(id);
 
 	if (!result)
@@ -209,13 +213,21 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 
 	string basedir = create_tmpdir();
 
+	string unpack_script = get_dc_client_config(tag.c_str(), "BatchUnpackScript", true);
+	if (unpack_script.find_first_of('/') == string::npos)
+	{
+		char *dir = DC_getCfgStr("WorkingDirectory");
+		unpack_script = string(dir) + "/" + unpack_script;
+		free(dir);
+	}
+
 	try
 	{
-		const char *tar_args[] =
+		const char *unpack_args[] =
 		{
-			"tar", "-C", basedir.c_str(), "-x", "-z", "-f", outputs.c_str(), 0
+			unpack_script.c_str(), outputs.c_str(), basedir.c_str(), 0
 		};
-		invoke_cmd("tar", tar_args);
+		invoke_cmd(unpack_script.c_str(), unpack_args);
 
 		for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++)
 		{
@@ -325,8 +337,16 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 	}
 
 	string head_template = load_file(get_dc_client_config(algname, "BatchHeadTemplate", true));
-	string job_template = load_file(get_dc_client_config(algname, "BatchJobTemplate", true));
+	string job_template = load_file(get_dc_client_config(algname, "BatchBodyTemplate", true));
 	string tail_template = load_file(get_dc_client_config(algname, "BatchTailTemplate", true));
+
+	string pack_script = get_dc_client_config(algname, "BatchPackScript", true);
+	if (pack_script.find_first_of('/') == string::npos)
+	{
+		char *dir = DC_getCfgStr("WorkingDirectory");
+		pack_script = string(dir) + "/" + pack_script;
+		free(dir);
+	}
 
 	basedir = create_tmpdir();
 	string script_name = basedir + "/" SCRIPT_NAME;
@@ -353,14 +373,14 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 			throw BackendException(string("Failed to create file: ") + strerror(errno));
 		close(fd);
 
-		const char *tarargs[] =
+		const char *pack_args[] =
 		{
-			"tar", "-C", basedir.c_str(), "-c", "-z", "-f", input_name, INPUT_DIR, OUTPUT_DIR, 0
+			pack_script.c_str(), basedir.c_str(), input_name, INPUT_DIR, OUTPUT_DIR, 0
 		};
-		invoke_cmd("tar", (char *const *)tarargs);
+		invoke_cmd(pack_script.c_str(), (char *const *)pack_args);
 
 		const char *wu_args[] = { SCRIPT_NAME, 0 };
-		wu = DC_createWU(algname.c_str(), wu_args, 0, NULL);
+		wu = DC_createWU(algname.c_str(), wu_args, 0, algname.c_str());
 		if (!wu)
 		{
 			unlink(input_name);

@@ -1,0 +1,13 @@
+#! /bin/sh
+#
+# Script called by the DC-API batch plugin to pack the input fiels
+#
+# Usage:
+#	batch_pack <srcdir> <dstfile> <pattern> [<pattern>...]
+#
+# Where:
+#	<srcdir>	base directory where all the source files live
+#	<dstfile>	where to put the pack
+#	<pattern>	shell pattern of filest to be included under <srcdir>
+
+exec tar -C "$1" -z -f "$3" $2

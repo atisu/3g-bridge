@@ -1,0 +1,12 @@
+#! /bin/sh
+#
+# Script called by the DC-API batch plugin to unpack the output fules
+#
+# Usage:
+#	batch_unpack <srcfile> <dstdir>
+#
+# Where:
+#	<srcfile>	the packed output file
+#	<dstdir>	base directory where to unpack the files
+
+exec tar -C "$2" -z -f "$1"
