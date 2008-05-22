@@ -103,6 +103,21 @@ static string get_dc_client_config(const string &app, const char *key, bool stri
 	return str;
 }
 
+static string abspath(string path) throw (BackendException &)
+{
+	if (!path.length())
+		return;
+	if (path[0] == '/')
+		return;
+
+	char *tmp = DC_getCfgStr("WorkingDirectory");
+	if (!tmp)
+		throw BackendException("DC-API working directory is not configured?!?");
+	path = string(tmp) + "/" + path;
+	free(tmp);
+	return path;
+}
+
 static string create_tmpdir(void) throw (BackendException &)
 {
 	char buf[PATH_MAX];
@@ -212,14 +227,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	free(tmp);
 
 	string basedir = create_tmpdir();
-
-	string unpack_script = get_dc_client_config(tag.c_str(), "BatchUnpackScript", true);
-	if (unpack_script.find_first_of('/') == string::npos)
-	{
-		char *dir = DC_getCfgStr("WorkingDirectory");
-		unpack_script = string(dir) + "/" + unpack_script;
-		free(dir);
-	}
+	string unpack_script = abspath(get_dc_client_config(tag.c_str(), "BatchUnpackScript", true));
 
 	try
 	{
@@ -328,6 +336,9 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 
 	/* First, sanity check: all jobs must belong to the same alg */
 	vector<CGJob *>::const_iterator i = jobs->begin();
+	if (i == jobs->end())
+		return;
+
 	string algname = (*i)->getAlgQueue()->getName();
 	while (i != jobs->end())
 	{
@@ -336,17 +347,10 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 		i++;
 	}
 
-	string head_template = load_file(get_dc_client_config(algname, "BatchHeadTemplate", true));
-	string job_template = load_file(get_dc_client_config(algname, "BatchBodyTemplate", true));
-	string tail_template = load_file(get_dc_client_config(algname, "BatchTailTemplate", true));
-
-	string pack_script = get_dc_client_config(algname, "BatchPackScript", true);
-	if (pack_script.find_first_of('/') == string::npos)
-	{
-		char *dir = DC_getCfgStr("WorkingDirectory");
-		pack_script = string(dir) + "/" + pack_script;
-		free(dir);
-	}
+	string head_template = load_file(abspath(get_dc_client_config(algname, "BatchHeadTemplate", true)));
+	string job_template = load_file(abspath(get_dc_client_config(algname, "BatchBodyTemplate", true)));
+	string tail_template = load_file(abspath(get_dc_client_config(algname, "BatchTailTemplate", true)));
+	string pack_script = abspath(get_dc_client_config(algname, "BatchPackScript", true));
 
 	basedir = create_tmpdir();
 	string script_name = basedir + "/" SCRIPT_NAME;
