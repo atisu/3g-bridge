@@ -106,9 +106,9 @@ static string get_dc_client_config(const string &app, const char *key, bool stri
 static string abspath(string path) throw (BackendException &)
 {
 	if (!path.length())
-		return;
+		return path;
 	if (path[0] == '/')
-		return;
+		return path;
 
 	char *tmp = DC_getCfgStr("WorkingDirectory");
 	if (!tmp)
