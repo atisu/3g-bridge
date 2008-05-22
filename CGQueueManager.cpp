@@ -47,8 +47,6 @@ CGQueueManager::CGQueueManager(QMConfig &config)
  */
 CGQueueManager::~CGQueueManager()
 {
-	for (map<string, CGAlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
-		delete it->second;
 
 #ifdef HAVE_DCAPI
 	delete gridHandlers[CG_ALG_DCAPI];
@@ -125,28 +123,38 @@ void CGQueueManager::run()
 	bool finish = false;
 
 	while (!finish) {
+		vector<CGJob *> *newJobs = jobDB->getJobs(INIT);
+		vector<CGJob *> *cancelJobs = jobDB->getJobs(CANCEL);
+
+		LOG(LOG_INFO, "Queue Manager found %d new jobs.", newJobs->size());
 		try {
-			vector<CGJob *> *newJobs = jobDB->getJobs(INIT);
-			vector<CGJob *> *cancelJobs = jobDB->getJobs(CANCEL);
-
-			LOG(LOG_INFO, "Queue Manager found %d new jobs.", newJobs->size());
 			handleJobs(submit, newJobs);
-
-			handleJobs(status, 0);
-
-			LOG(LOG_INFO, "Queue Manager found %d jobs to be aborted.", cancelJobs->size());
-			handleJobs(cancel, cancelJobs);
-
-			freeVector(newJobs);
-			freeVector(cancelJobs);
-
-			//finish = true;
-
-			if (!finish)
-				sleep(30);
 		} catch (BackendException& a) {
-			cout << a.reason() << endl;
+			LOG(LOG_ERR, "A backend exception occured: " + a.reason());
 		}
+
+		try {
+			handleJobs(status, 0);
+		} catch (BackendException& a) {
+			LOG(LOG_ERR, "A backend exception occured: " + a.reason());
+		}
+
+		LOG(LOG_INFO, "Queue Manager found %d jobs to be aborted.", cancelJobs->size());
+		try {
+			handleJobs(cancel, cancelJobs);
+		} catch (BackendException& a) {
+			LOG(LOG_ERR, "A backend exception occured: " + a.reason());
+		}
+
+		freeVector(newJobs);
+		freeVector(cancelJobs);
+
+		ifstream stopfile("stopfile");
+		if (stopfile)
+			finish = true;
+
+		if (!finish)
+			sleep(30);
 	}
 }
 

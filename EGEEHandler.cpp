@@ -235,7 +235,14 @@ void EGEEHandler::updateStatus() throw (BackendException &)
 {
 	vector<CGJob *> *myJobs = jobDB->getJobs(RUNNING);
 
-	getStatus(myJobs);
+	try {
+		getStatus(myJobs);
+	} catch(BackendException& a) {
+		for (unsigned i = 0; i < myJobs->size(); i++)
+			delete myJobs->at(i);
+		delete myJobs;
+		throw;
+	}
 
 	for (unsigned i = 0; i < myJobs->size(); i++)
 		delete myJobs->at(i);
@@ -636,11 +643,13 @@ void EGEEHandler::renew_proxy()
     string proxyf = "/tmp/proxy." + voname;
     string vproxyf = "/tmp/proxy.voms." + voname;
     string cmd = "echo \"IeKohg1A\" | myproxy-logon -s n40.hpcc.sztaki.hu -p 7512 -l bebridge -S -o " + proxyf + " &> /dev/null";
-    if (-1 == system(cmd.c_str()))
+    int rv = system(cmd.c_str());
+    if (rv)
 	throwStrExc(__func__, "Proxy initialization failed!");
     setenv("X509_USER_PROXY", proxyf.c_str(), 1);
     cmd = "voms-proxy-init -voms " + voname + " -noregen -out " + vproxyf + " &> /dev/null";
-    if (-1 == system(cmd.c_str()))
+    rv = system(cmd.c_str());
+    if (-1 == rv)
 	throwStrExc(__func__, "Adding VOMS extensions failed!");
     unlink(proxyf.c_str());
     setenv("X509_USER_PROXY", vproxyf.c_str(), 1);

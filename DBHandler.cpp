@@ -45,7 +45,7 @@ DBHandler::DBHandler(QMConfig &config)
  */
 DBHandler::~DBHandler()
 {
-//	conn->disconnect();
+	conn->close();
 	delete conn;
 }
 
@@ -167,11 +167,10 @@ vector<CGJob *> *DBHandler::getJobs(CGJobStatus stat)
  */
 vector<CGJob *> *DBHandler::parseJobs(Query *squery)
 {
-	vector<Row> source;
-	squery->storein(source);
+	Result rRes = squery->store();
 	vector<CGJob *> *jobs = new vector<CGJob *>();
 
-	for (vector<Row>::iterator it = source.begin(); it != source.end(); it++) {
+	for (size_t i = 0; i < rRes.num_rows(); i++) {
 		// Get instance of the relevant algorithm queue
 		CGAlgQueue *algQ;
 #ifdef HAVE_DCAPI
@@ -180,31 +179,31 @@ vector<CGJob *> *DBHandler::parseJobs(Query *squery)
 #ifdef HAVE_EGEE
 		CGAlgType algT = Str2Alg("EGEE");
 #endif
-		algQ = CGAlgQueue::getInstance(algT, string((*it)["alg"]), this, 10);
+		Row tRow = rRes.at(i);
+		algQ = CGAlgQueue::getInstance(algT, string(tRow["alg"]), this, 10);
 
 		// Create new job descriptor
-		CGJob *nJob = new CGJob(string((*it)["alg"]), string((*it)["args"]), algQ, this);
-		nJob->setId(string((*it)["id"]));
-		nJob->setGridId(string((*it)["gridid"]));
+		string args = (tRow["args"].is_null() ? "" : string(tRow["args"]));
+		CGJob *nJob = new CGJob(string(tRow["alg"]), args, algQ, this);
+		nJob->setId(string(tRow["id"]));
+		nJob->setGridId(tRow["gridid"].is_null() ? "" : string(tRow["gridid"]));
 
 		// Get inputs for job from db
 		Query query = conn->query();
 		query.reset();
-		query << "SELECT * FROM cg_inputs WHERE id = \"" << (*it)["id"] << "\"";
-		vector<Row> in;
-		query.storein(in);
-		for (vector<Row>::iterator in_it = in.begin(); in_it != in.end(); in_it++)
-			nJob->addInput(string((*in_it)["localname"]), string((*in_it)["path"]));
+		query << "SELECT * FROM cg_inputs WHERE id = \"" << tRow["id"] << "\"";
+		Result iRes = query.store();
+		for (size_t ii = 0; ii != iRes.num_rows(); ii++)
+			nJob->addInput(string(iRes.at(ii)["localname"]), string(iRes.at(ii)["path"]));
 
 		// Get outputs for job from db
 		query.reset();
-		query << "SELECT * FROM cg_outputs WHERE id = \"" << (*it)["id"] << "\"";
-		vector<Row> out;
-		query.storein(out);
-		for (vector<Row>::iterator out_it = out.begin(); out_it != out.end(); out_it++) {
-    			nJob->addOutput(string((*out_it)["localname"]));
-			if (string((*out_it)["path"]) != "")
-				nJob->setOutputPath(string((*out_it)["localname"]), string((*out_it)["path"]));
+		query << "SELECT * FROM cg_outputs WHERE id = \"" << tRow["id"] << "\"";
+		Result oRes = query.store();
+		for (size_t oi = 0; oi != oRes.num_rows(); oi++) {
+    			nJob->addOutput(string(oRes.at(oi)["localname"]));
+			if (!oRes.at(oi)["path"].is_null())
+				nJob->setOutputPath(string(oRes.at(oi)["localname"]), string(oRes.at(oi)["path"]));
 		}
 
 		jobs->push_back(nJob);

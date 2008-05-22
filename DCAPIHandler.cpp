@@ -321,6 +321,7 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 	{
 		if (algname != (*i)->getAlgQueue()->getName())
 			throw "Multiple algorithms cannot be in the same batch";
+		i++;
 	}
 
 	string head_template = load_file(get_dc_client_config(algname, "BatchHeadTemplate", true));
