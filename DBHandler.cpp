@@ -8,6 +8,8 @@
 #include <string>
 #include <mysql++/mysql++.h>
 
+#include "Logging.h"
+
 using namespace std;
 
 
@@ -26,8 +28,16 @@ DBHandler::DBHandler(QMConfig &config)
 	host = config.getStr("DB_HOST");
 	user = config.getStr("DB_USER");
 	passwd = config.getStr("DB_PASSWORD");
-
-	conn = new Connection(dbname.c_str(), host.c_str(), user.c_str(), passwd.c_str());
+	try {
+	    conn = new Connection(use_exceptions);
+	    conn->connect(dbname.c_str(), host.c_str(), user.c_str(), passwd.c_str());
+	} catch (ConnectionFailed& ex) {
+	    LOG(LOG_ERR, "%s", conn->error());
+	    exit(-1);
+	}
+	if (conn->connected()) {
+	    LOG(LOG_INFO, "Database connection established successfully.");
+	}
 }
 
 /**
@@ -49,7 +59,6 @@ DBHandler::~DBHandler()
 string DBHandler::getStatStr(CGJobStatus stat)
 {
 	string statStr;
-
 	switch (stat) {
 	case INIT:
 		statStr = "INIT";
@@ -140,10 +149,11 @@ CGAlgType DBHandler::Str2Alg(const string name)
  */
 vector<CGJob *> *DBHandler::getJobs(CGJobStatus stat)
 {
+	LOG(LOG_DEBUG, "Entering DBHandler::getJobs()");
 	Query query = conn->query();
 
-	query << "SELECT * FROM cg_job WHERE status = \"" << getStatStr(stat) << "\" ORDER BY creation_time";
-
+	query << "SELECT * FROM cg_job WHERE status = \"" << "INIT" << "\" ORDER BY creation_time";
+	
 	return parseJobs(&query);
 }
 
