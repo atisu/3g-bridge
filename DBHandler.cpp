@@ -152,7 +152,7 @@ vector<CGJob *> *DBHandler::getJobs(CGJobStatus stat)
 	LOG(LOG_DEBUG, "Entering DBHandler::getJobs()");
 	Query query = conn->query();
 
-	query << "SELECT * FROM cg_job WHERE status = \"" << "INIT" << "\" ORDER BY creation_time";
+	query << "SELECT * FROM cg_job WHERE status = \"" << getStatStr(stat) << "\" ORDER BY creation_time";
 	
 	return parseJobs(&query);
 }
