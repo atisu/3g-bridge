@@ -11,6 +11,7 @@
 #include <iostream>
 #include <sstream>
 #include <sys/stat.h>
+#include <signal.h>
 
 #ifdef HAVE_DCAPI
 #include "DCAPIHandler.h"
@@ -22,6 +23,12 @@
 using namespace std;
 using namespace mysqlpp;
 
+static volatile bool finish = false;
+
+static void sigint_handler(int signal)
+{
+	finish = true;
+}
 
 /**
  * Constructor. Initialize selected grid plugin, and database connection.
@@ -120,7 +127,13 @@ void CGQueueManager::freeVector(vector<CGJob *> *what)
  */
 void CGQueueManager::run()
 {
-	bool finish = false;
+	struct sigaction sa;
+
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = sigint_handler;
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGQUIT, &sa, NULL);
 
 	while (!finish) {
 		vector<CGJob *> *newJobs = jobDB->getJobs(INIT);
