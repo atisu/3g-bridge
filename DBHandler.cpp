@@ -191,14 +191,14 @@ vector<CGJob *> *DBHandler::parseJobs(Query *squery)
 		// Get inputs for job from db
 		Query query = conn->query();
 		query.reset();
-		query << "SELECT * FROM cg_inputs WHERE id = \"" << tRow["id"] << "\"";
+		query << "SELECT * FROM cg_inputs WHERE id = " << tRow["id"];
 		Result iRes = query.store();
 		for (size_t ii = 0; ii != iRes.num_rows(); ii++)
 			nJob->addInput(string(iRes.at(ii)["localname"]), string(iRes.at(ii)["path"]));
 
 		// Get outputs for job from db
 		query.reset();
-		query << "SELECT * FROM cg_outputs WHERE id = \"" << tRow["id"] << "\"";
+		query << "SELECT * FROM cg_outputs WHERE id = " << tRow["id"] << "";
 		Result oRes = query.store();
 		for (size_t oi = 0; oi != oRes.num_rows(); oi++) {
     			nJob->addOutput(string(oRes.at(oi)["localname"]));
