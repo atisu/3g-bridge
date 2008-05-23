@@ -295,6 +295,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 		throw e;
 	}
 
+	remove_tmpdir(basedir.c_str());
 	delete_vector(jobs);
 	DC_destroyWU(wu);
 }
