@@ -316,7 +316,7 @@ DCAPIHandler::DCAPIHandler(DBHandler *jobdb, QMConfig &config)
 	dbh = jobdb;
 
 	groupByNames = true;
-	maxGroupSize = 10;
+	maxGroupSize = 100;
 }
 
 
