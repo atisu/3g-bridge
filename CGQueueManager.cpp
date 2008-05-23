@@ -186,7 +186,8 @@ void CGQueueManager::run()
 			elapsed.tv_sec = 300;
 		else if (elapsed.tv_sec < 1)
 			elapsed.tv_sec = 1;
-		LOG(LOG_DEBUG, "Sleeping for %d seconds", elapsed.tv_sec);
+		if (elapsed.tv_sec > 5)
+			LOG(LOG_DEBUG, "Sleeping for %d seconds", elapsed.tv_sec);
 		sleep(elapsed.tv_sec);
 	}
 }
