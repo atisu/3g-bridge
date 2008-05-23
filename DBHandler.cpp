@@ -149,7 +149,6 @@ CGAlgType DBHandler::Str2Alg(const string name)
  */
 vector<CGJob *> *DBHandler::getJobs(CGJobStatus stat)
 {
-	LOG(LOG_DEBUG, "Entering DBHandler::getJobs()");
 	Query query = conn->query();
 
 	query << "SELECT * FROM cg_job WHERE status = \"" << getStatStr(stat) << "\" ORDER BY creation_time";
