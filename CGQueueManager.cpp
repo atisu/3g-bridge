@@ -12,6 +12,7 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <signal.h>
+#include <sys/time.h>
 
 #ifdef HAVE_DCAPI
 #include "DCAPIHandler.h"
@@ -136,6 +137,11 @@ void CGQueueManager::run()
 	sigaction(SIGQUIT, &sa, NULL);
 
 	while (!finish) {
+		struct timeval begin, end, elapsed;
+
+		/* Measure the time needed to maintain the database */
+		gettimeofday(&begin, NULL);
+
 		vector<CGJob *> *newJobs = jobDB->getJobs(INIT);
 		vector<CGJob *> *cancelJobs = jobDB->getJobs(CANCEL);
 
@@ -164,10 +170,24 @@ void CGQueueManager::run()
 
 		ifstream stopfile("stopfile");
 		if (stopfile)
-			finish = true;
+			break;
 
-		if (!finish)
-			sleep(30);
+		gettimeofday(&end, NULL);
+		timersub(&end, &begin, &elapsed);
+
+		/* Sleep for 5x the time needed to run the body of this loop,
+		 * but no more than 5 minutes and no less than 1 sec */
+		elapsed.tv_sec *= 5;
+		elapsed.tv_usec *= 5;
+		elapsed.tv_sec += elapsed.tv_usec / 1000000;
+		elapsed.tv_usec = elapsed.tv_usec % 1000000;
+
+		if (elapsed.tv_sec > 300)
+			elapsed.tv_sec = 300;
+		else if (elapsed.tv_sec < 1)
+			elapsed.tv_sec = 1;
+		LOG(LOG_DEBUG, "Sleeping for %d seconds", elapsed.tv_sec);
+		sleep(elapsed.tv_sec);
 	}
 }
 
