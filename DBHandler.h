@@ -25,7 +25,8 @@ class DBHandler {
 	void deleteJob(const string &ID);
 	string getAlgQStat(CGAlgType type, const string &name);
 	void updateAlgQStat(CGAlgQueue *algQ, unsigned pSize, unsigned pTime);
- private:
+	void updateAlgQStat(const char *gridid, unsigned pSize, unsigned pTime);
+    private:
 	string host;
 	string user;
 	string passwd;

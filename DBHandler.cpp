@@ -274,6 +274,32 @@ void DBHandler::updateAlgQStat(CGAlgQueue *algQ, unsigned pSize, unsigned pTime)
 
 
 /**
+ * Update algorithm queue statistics and store the new statistics in the
+ * database.
+ *
+ * @param[in] gridId The finished grid identifier
+ * @param[in] pSize Size of the package processed (i.e. number of jobs in a
+ *                  package)
+ * @param[in] pTime Time used to process the package
+ */
+void DBHandler::updateAlgQStat(const char *gridId, unsigned pSize, unsigned pTime)
+{
+	vector<CGJob *> *jobs = getJobs(string(gridId));
+	CGAlgQueue *algQ = jobs->at(0)->getAlgQueue();
+	algQ->updateStat(pSize, pTime);
+
+	Query query = conn->query();
+	query << "UPDATE cg_algqueue SET statistics=\"" << algQ->getStatStr() << "\" WHERE ";
+	query << "dsttype=\"" << Alg2Str(algQ->getType()) << "\" AND alg=\"" << algQ->getName() << "\"";
+	query.execute();
+
+	for (unsigned i = 0; i < jobs->size(); i++)
+		delete jobs->at(i);
+	delete jobs;
+}
+
+
+/**
  * Update grid identifier of a job.
  *
  * @param[in] ID The job's identifier

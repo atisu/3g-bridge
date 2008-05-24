@@ -31,12 +31,20 @@ CGAlgQueue::CGAlgQueue(const CGAlgType &type, const string &name, const string &
 
 	strstr >> mPSize;
 	pStats.resize(mPSize);
-	for (unsigned i = 0; i < mPSize; i++)
+
+	unsigned i = 0;
+	for (; i < mPSize && !strstr.eof(); i++)
 	{
 		strstr >> pStats[i].numPackages;
 		strstr >> pStats[i].totalProcessTime;
 		pStats[i].avgTT = pStats[i].numPackages ? (double)pStats[i].totalProcessTime / ((i + 1) * pStats[i].numPackages) : 0;
 	}	
+	for (; i < mPSize; i++)
+	{
+		pStats[i].numPackages = 0;
+		pStats[i].totalProcessTime = 0;
+		pStats[i].avgTT = 0;
+	}
 }
 
 
