@@ -309,7 +309,7 @@ void CGQueueManager::handlePackedSubmission(GridHandler *gh, vector<CGJob *> *jo
 		for (; useSize && it != jobs->end(); useSize--, it++)
 			sendJobs.push_back(*it);
 
-		LOG(LOG_DEBUG, "Submitting package of size %d.", sendJobs.size());
+		LOG(LOG_INFO, "Submitting package of size %d.", sendJobs.size());
 		gh->submitJobs(&sendJobs);
 	}
 }

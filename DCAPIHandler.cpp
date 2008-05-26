@@ -257,7 +257,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	string outputs(tmp);
 	free(tmp);
 
-	LOG(LOG_DEBUG, "DC-API: Received result for WU %s (app '%s')",
+	LOG(LOG_INFO, "DC-API: Received result for WU %s (app '%s')",
 		id.c_str(), tag.c_str());
 
 	string basedir = create_tmpdir();
@@ -465,7 +465,7 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 			throw BackendException("WU submission failed");
 
 		char *wu_id = DC_getWUId(wu);
-		LOG(LOG_DEBUG, "DC-API: Submitted work unit %s for app '%s' (%d tasks)",
+		LOG(LOG_INFO, "DC-API: Submitted work unit %s for app '%s' (%d tasks)",
 			wu_id, algname.c_str(), jobs->size());
 
 		for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++)
