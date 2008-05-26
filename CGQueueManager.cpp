@@ -97,7 +97,6 @@ void CGQueueManager::handleJobs(jobOperation op, vector<CGJob *> *jobs)
     			schedReq(gridHandlers[c], &(gridMap[c])); 
     			break;
 		case status:
-			LOG(LOG_INFO, "Updating status of jobs using grid plugin.");
     			gridHandlers[c]->updateStatus();
     			break;
 		case cancel:
@@ -145,7 +144,7 @@ void CGQueueManager::run()
 		vector<CGJob *> *newJobs = jobDB->getJobs(INIT);
 		vector<CGJob *> *cancelJobs = jobDB->getJobs(CANCEL);
 
-		LOG(LOG_INFO, "Queue Manager found %d new jobs.", newJobs->size());
+		LOG(LOG_DEBUG, "Queue Manager found %d new jobs.", newJobs->size());
 		try {
 			handleJobs(submit, newJobs);
 		} catch (BackendException& a) {
@@ -158,7 +157,7 @@ void CGQueueManager::run()
 			LOG(LOG_ERR, "A backend exception occured: " + a.reason());
 		}
 
-		LOG(LOG_INFO, "Queue Manager found %d jobs to be aborted.", cancelJobs->size());
+		LOG(LOG_DEBUG, "Queue Manager found %d jobs to be aborted.", cancelJobs->size());
 		try {
 			handleJobs(cancel, cancelJobs);
 		} catch (BackendException& a) {

@@ -12,7 +12,7 @@ vector<CGAlgQueue *> CGAlgQueue::queues;
 
 int main(int argc, char **argv)
 {
-    Logging::init(cout, LOG_DEBUG);
+    Logging::init(cout, LOG_INFO);
 
     if (argc < 2)
     {
@@ -26,6 +26,10 @@ int main(int argc, char **argv)
     }
 
     QMConfig cfg(argv[1]);
+
+    string level = cfg.getStr("LOG_LEVEL");
+    if (level.length())
+	    Logging::init(cout, atoi(level.c_str()));
 
     try {
 	LOG(LOG_DEBUG, "Creating Queue Manager");
