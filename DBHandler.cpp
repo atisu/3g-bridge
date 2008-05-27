@@ -309,21 +309,6 @@ void DBHandler::updateJobStat(string ID, CGJobStatus newstat)
 }
 
 
-/**
- * Update output file path information of a job's output file.
- *
- * @param[in] ID The job's identifier
- * @param[in] localname The local name of the file
- * @param[in] pathname The path to set for the given job's file
- */
-void DBHandler::updateOutputPath(string ID, string localname, string pathname)
-{
-	Query query = conn->query();
-	query << "UPDATE cg_outputs SET path=\"" << pathname << "\" WHERE id=\"" << ID << "\" AND localname=\"" << localname << "\"";
-	query.execute();
-}
-
-
 void DBHandler::deleteJob(const string &ID)
 {
 	Query query = conn->query();
