@@ -81,29 +81,20 @@ const char *DBHandler::getStatStr(CGJobStatus stat)
  * @param[in] type Algorithm type to convert
  * @return String representation of the algorithm type
  */
-string DBHandler::Alg2Str(CGAlgType type)
+const char *DBHandler::Alg2Str(CGAlgType type)
 {
-	string tStr = "UNKNOWN";
-
 	switch (type) {
 	case CG_ALG_DB:
-		tStr = "DB";
-		break;
+		return "DB";
 	case CG_ALG_LOCAL:
-		tStr = "LOCAL";
-		break;
+		return "LOCAL";
 	case CG_ALG_DCAPI:
-		tStr = "DCAPI";
-		break;
+		return "DCAPI";
 	case CG_ALG_EGEE:
-		tStr = "EGEE";
-		break;
+		return "EGEE";
 	default:
-		tStr = "UNKNOWN";
-		break;
+		return "UNKNOWN";
 	}
-	
-	return tStr;
 }
 
 
@@ -113,18 +104,18 @@ string DBHandler::Alg2Str(CGAlgType type)
  * @param[in] type Algorithm string to convert
  * @return Algorithm type representation of the string
  */
-CGAlgType DBHandler::Str2Alg(const string name)
+CGAlgType DBHandler::Str2Alg(const char *name)
 {
-	if (name == "DB")
+	if (!strcmp(name, "DB"))
 		return CG_ALG_DB;
 
-	if (name == "LOCAL")
+	if (!strcmp(name, "LOCAL"))
 		return CG_ALG_LOCAL;
 
-	if (name == "DCAPI")
+	if (!strcmp(name, "DCAPI"))
 		return CG_ALG_DCAPI;
 
-	if (name == "EGEE")
+	if (!strcmp(name, "EGEE"))
 		return CG_ALG_EGEE;
 
 	return CG_ALG_EGEE;

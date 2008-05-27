@@ -33,8 +33,8 @@ class DBHandler {
 	string dbname;
 	Connection *conn;
 	const char *getStatStr(CGJobStatus stat);
-	string Alg2Str(CGAlgType type);
-	CGAlgType Str2Alg(const string name);
+	const char *Alg2Str(CGAlgType type);
+	CGAlgType Str2Alg(const char *name);
 	vector<CGJob *> *parseJobs(Query *squery);
 };
 
