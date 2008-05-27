@@ -22,7 +22,6 @@
 #endif
 
 using namespace std;
-using namespace mysqlpp;
 
 static volatile bool finish = false;
 

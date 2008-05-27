@@ -41,7 +41,7 @@ CGManager_SOURCES = \
 		QMConfig.cpp \
 		QMConfig.h \
 		$(BACKEND_SOURCES)
-CGManager_LDADD = $(BACKEND_LIBS) -lmysqlpp
+CGManager_LDADD = $(BACKEND_LIBS)
 
 master.xml: master.xml.in
 	$(SED) -e "s,@PACKAGE_VERSION\@,$(PACKAGE_VERSION)," \

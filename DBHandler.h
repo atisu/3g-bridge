@@ -10,15 +10,16 @@
 
 
 using namespace std;
-using namespace mysqlpp;
 
 
 class DBHandler {
     public:
 	DBHandler(QMConfig &config);
 	~DBHandler();
+	bool query(const char *fmt, ...) __attribute__((__format__(printf, 2, 3)));
+	bool query(string &str) { return query("%s", str.c_str()); }
 	vector<CGJob *> *getJobs(CGJobStatus stat);
-	vector<CGJob *> *getJobs(string gridID);
+	vector<CGJob *> *getJobs(const char *gridID);
 	void updateJobGridID(string ID, string gridID);
 	void updateJobStat(string ID, CGJobStatus newstat);
 	void deleteJob(const string &ID);
@@ -26,15 +27,11 @@ class DBHandler {
 	void updateAlgQStat(CGAlgQueue *algQ, unsigned pSize, unsigned pTime);
 	void updateAlgQStat(const char *gridid, unsigned pSize, unsigned pTime);
     private:
-	string host;
-	string user;
-	string passwd;
-	string dbname;
-	Connection *conn;
+	MYSQL *conn;
 	const char *getStatStr(CGJobStatus stat);
 	const char *Alg2Str(CGAlgType type);
 	CGAlgType Str2Alg(const char *name);
-	vector<CGJob *> *parseJobs(Query *squery);
+	vector<CGJob *> *parseJobs(void);
 };
 
 #endif /* __DBHANDLER_H */

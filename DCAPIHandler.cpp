@@ -241,7 +241,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	string tag(tmp);
 	free(tmp);
 
-	vector<CGJob *> *jobs = dbh->getJobs(id);
+	vector<CGJob *> *jobs = dbh->getJobs(id.c_str());
 
 	if (!result)
 	{

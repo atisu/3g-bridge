@@ -15,7 +15,6 @@
 #include <mysql++/mysql++.h>
 
 using namespace std;
-using namespace mysqlpp;
 
 enum jobOperation {
   submit,

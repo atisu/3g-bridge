@@ -6,12 +6,92 @@
 #include "DBHandler.h"
 
 #include <string>
-#include <mysql++/mysql++.h>
+
+#include <mysql.h>
 
 #include "Logging.h"
 
 using namespace std;
 
+class DBResult {
+	public:
+		DBResult():res(0) {};
+		~DBResult();
+		void store(MYSQL *dbh);
+		bool fetch();
+		const char *get_field(const char *name);
+		const char *get_field(int index);
+	private:
+		MYSQL_RES *res;
+		MYSQL_ROW row;
+		MYSQL_FIELD *fields;
+		int field_num;
+};
+
+DBResult::~DBResult()
+{
+	if (res)
+		mysql_free_result(res);
+}
+
+void DBResult::store(MYSQL *dbh)
+{
+	/* Allow re-use */
+	if (res)
+		mysql_free_result(res);
+
+	field_num = mysql_field_count(dbh);
+	res = mysql_store_result(dbh);
+	if (field_num && !res)
+		throw string("Failed to fetch results: ") + mysql_error(dbh);
+	fields = mysql_fetch_fields(res);
+}
+
+bool DBResult::fetch()
+{
+	row = mysql_fetch_row(res);
+	return !!row;
+}
+
+const char *DBResult::get_field(int index)
+{
+	return row[index];
+}
+
+const char *DBResult::get_field(const char *name)
+{
+	int i;
+
+	for (i = 0; i < field_num && strcmp(fields[i].name, name); i++)
+		/* Nothing */;
+	if (i >= field_num)
+		throw string("Unknown field ") + name;
+	return row[i];
+}
+
+bool DBHandler::query(const char *fmt, ...)
+{
+	va_list ap;
+	char *qstr;
+
+	va_start(ap, fmt);
+	vasprintf(&qstr, fmt, ap);
+	va_end(ap);
+
+	if (mysql_ping(conn))
+	{
+		free(qstr);
+		throw string("Database connection error: ") + mysql_error(conn);
+	}
+	if (mysql_query(conn, qstr))
+	{
+		LOG(LOG_ERR, "Query [%s] has failed: %s", qstr, mysql_error(conn));
+		free(qstr);
+		return false;
+	}
+	free(qstr);
+	return true;
+}
 
 /**
  * Constructor. Opens the connection to the database specified in the
@@ -24,20 +104,18 @@ using namespace std;
  */
 DBHandler::DBHandler(QMConfig &config)
 {
-	dbname = config.getStr("DB_NAME");
-	host = config.getStr("DB_HOST");
-	user = config.getStr("DB_USER");
-	passwd = config.getStr("DB_PASSWORD");
-	try {
-	    conn = new Connection(use_exceptions);
-	    conn->connect(dbname.c_str(), host.c_str(), user.c_str(), passwd.c_str());
-	} catch (ConnectionFailed& ex) {
-	    LOG(LOG_ERR, "%s", conn->error());
-	    exit(-1);
-	}
-	if (conn->connected()) {
-	    LOG(LOG_INFO, "Database connection established successfully.");
-	}
+	string dbname = config.getStr("DB_NAME");
+	string host = config.getStr("DB_HOST");
+	string user = config.getStr("DB_USER");
+	string passwd = config.getStr("DB_PASSWORD");
+
+	conn = mysql_init(0);
+	if (!conn)
+		throw string("Out of memory");
+	if (!mysql_real_connect(conn, host.c_str(), user.c_str(), passwd.c_str(), dbname.c_str(), 0, 0, 0))
+		throw string("Could not connect to the database");
+	if (mysql_ping(conn))
+		throw string("The connection to the database is broken");
 }
 
 /**
@@ -45,8 +123,8 @@ DBHandler::DBHandler(QMConfig &config)
  */
 DBHandler::~DBHandler()
 {
-	conn->close();
-	delete conn;
+	mysql_close(conn);
+	conn = 0;
 }
 
 
@@ -121,6 +199,70 @@ CGAlgType DBHandler::Str2Alg(const char *name)
 	return CG_ALG_EGEE;
 }
 
+/**
+ * Parse job results of a query.
+ *
+ * @param[in] squery Pointer to the query to perform on the cg_job table
+ * @return Pointer to a newly allocated vector of pointer to CGJobs. Should be
+ *         freed by the caller
+ */
+vector<CGJob *> *DBHandler::parseJobs(void)
+{
+	DBResult res;
+	vector<CGJob *> *jobs = new vector<CGJob *>();
+
+	try
+	{
+		res.store(conn);
+	}
+	catch (string &s)
+	{
+		LOG(LOG_ERR, "%s", s.c_str());
+		return jobs;
+	}
+
+	while (res.fetch())
+	{
+		// Get instance of the relevant algorithm queue
+		CGAlgQueue *algQ;
+#ifdef HAVE_DCAPI
+		CGAlgType algT = Str2Alg("DCAPI");
+#endif
+#ifdef HAVE_EGEE
+		CGAlgType algT = Str2Alg("EGEE");
+#endif
+		const char *alg = res.get_field("alg");
+		const char *args = res.get_field("args");
+		const char *gridid = res.get_field("gridid");
+		const char *id = res.get_field("id");
+
+		algQ = CGAlgQueue::getInstance(algT, alg, this, 10);
+
+		// Create new job descriptor
+		CGJob *nJob = new CGJob(alg, args, algQ, this);
+		nJob->setId(id);
+		if (gridid)
+			nJob->setGridId(gridid);
+
+		// Get inputs for job from db
+		query("SELECT localname, path FROM cg_inputs WHERE id = '%s'", id);
+		DBResult res2;
+		res2.store(conn);
+		while (res2.fetch())
+			nJob->addInput(res2.get_field(0), res2.get_field(1));
+
+		// Get outputs for job from db
+		query("SELECT localname, path FROM cg_outputs WHERE id = '%s'", id);
+		res2.store(conn);
+		while (res2.fetch())
+			nJob->addOutput(res2.get_field(0), res2.get_field(1));
+
+		jobs->push_back(nJob);
+	}
+
+	return jobs;
+}
+
 
 /**
  * Get jobs with a given status.
@@ -131,67 +273,12 @@ CGAlgType DBHandler::Str2Alg(const char *name)
  */
 vector<CGJob *> *DBHandler::getJobs(CGJobStatus stat)
 {
-	Query query = conn->query();
-
-	query << "SELECT * FROM cg_job WHERE status = \"" << getStatStr(stat) << "\" ORDER BY creation_time";
-	
-	return parseJobs(&query);
+	if (query("SELECT * FROM cg_job WHERE status = '%s' ORDER BY creation_time"),
+			getStatStr(stat))
+		return parseJobs();
+	return 0;
 }
 
-
-/**
- * Parse job results of a query.
- *
- * @param[in] squery Pointer to the query to perform on the cg_job table
- * @return Pointer to a newly allocated vector of pointer to CGJobs. Should be
- *         freed by the caller
- */
-vector<CGJob *> *DBHandler::parseJobs(Query *squery)
-{
-	Result rRes = squery->store();
-	vector<CGJob *> *jobs = new vector<CGJob *>();
-
-	for (size_t i = 0; i < rRes.num_rows(); i++) {
-		// Get instance of the relevant algorithm queue
-		CGAlgQueue *algQ;
-#ifdef HAVE_DCAPI
-		CGAlgType algT = Str2Alg("DCAPI");
-#endif
-#ifdef HAVE_EGEE
-		CGAlgType algT = Str2Alg("EGEE");
-#endif
-		Row tRow = rRes.at(i);
-		algQ = CGAlgQueue::getInstance(algT, string(tRow["alg"]), this, 10);
-
-		// Create new job descriptor
-		string args = (tRow["args"].is_null() ? "" : string(tRow["args"]));
-		CGJob *nJob = new CGJob(string(tRow["alg"]), args, algQ, this);
-		nJob->setId(string(tRow["id"]));
-		nJob->setGridId(tRow["gridid"].is_null() ? "" : string(tRow["gridid"]));
-
-		// Get inputs for job from db
-		Query query = conn->query();
-		query.reset();
-		query << "SELECT * FROM cg_inputs WHERE id = " << tRow["id"];
-		Result iRes = query.store();
-		for (size_t ii = 0; ii != iRes.num_rows(); ii++)
-			nJob->addInput(string(iRes.at(ii)["localname"]), string(iRes.at(ii)["path"]));
-
-		// Get outputs for job from db
-		query.reset();
-		query << "SELECT * FROM cg_outputs WHERE id = " << tRow["id"] << "";
-		Result oRes = query.store();
-		for (size_t oi = 0; oi != oRes.num_rows(); oi++) {
-    			nJob->addOutput(string(oRes.at(oi)["localname"]));
-			if (!oRes.at(oi)["path"].is_null())
-				nJob->setOutputPath(string(oRes.at(oi)["localname"]), string(oRes.at(oi)["path"]));
-		}
-
-		jobs->push_back(nJob);
-	}
-
-	return jobs;
-}
 
 
 /**
@@ -201,13 +288,11 @@ vector<CGJob *> *DBHandler::parseJobs(Query *squery)
  * @return Pointer to a newly allocated vector of pointer to CGJobs having the
  *         requested grid identier. Should be freed by the caller
  */
-vector<CGJob *> *DBHandler::getJobs(string gridID)
+vector<CGJob *> *DBHandler::getJobs(const char *gridID)
 {
-	Query query = conn->query();
-
-	query << "SELECT * FROM cg_job WHERE gridid = \"" << gridID << "\"";
-
-	return parseJobs(&query);
+	if (query("SELECT * FROM cg_job WHERE gridid = '%s'", gridID))
+		return parseJobs();
+	return 0;
 }
 
 
@@ -221,16 +306,13 @@ vector<CGJob *> *DBHandler::getJobs(string gridID)
  */
 string DBHandler::getAlgQStat(CGAlgType type, const string &name)
 {
-	string rv = "";
-	Query query = conn->query();
+	string rv;
+	DBResult res;
 
-	query << "SELECT * FROM cg_algqueue WHERE dsttype=\"" << Alg2Str(type) << "\" AND alg=\"" << name << "\"";
-	vector<Row> algQs;
-	query.storein(algQs);
-
-	if (algQs.size())
-		rv = string(algQs[0]["statistics"]);
-
+	if (!query("SELECT statistics FROM cg_algqueue WHERE dsttype='%s' AND alg='%s'", Alg2Str(type), name.c_str()))
+		return rv;
+	res.store(conn);
+	rv = res.get_field(0);
 	return rv;
 }
 
@@ -248,10 +330,8 @@ void DBHandler::updateAlgQStat(CGAlgQueue *algQ, unsigned pSize, unsigned pTime)
 {
 	algQ->updateStat(pSize, pTime);
 
-	Query query = conn->query();
-	query << "UPDATE cg_algqueue SET statistics=\"" << algQ->getStatStr() << "\" WHERE ";
-	query << "dsttype=\"" << Alg2Str(algQ->getType()) << "\" AND alg=\"" << algQ->getName() << "\"";
-	query.execute();
+	query("UPDATE cg_algqueue SET statistics='%s' WHERE dsttype='%s' AND alg='%s'",
+		algQ->getStatStr().c_str(), Alg2Str(algQ->getType()), algQ->getName().c_str());
 }
 
 
@@ -266,15 +346,9 @@ void DBHandler::updateAlgQStat(CGAlgQueue *algQ, unsigned pSize, unsigned pTime)
  */
 void DBHandler::updateAlgQStat(const char *gridId, unsigned pSize, unsigned pTime)
 {
-	vector<CGJob *> *jobs = getJobs(string(gridId));
+	vector<CGJob *> *jobs = getJobs(gridId);
 	CGAlgQueue *algQ = jobs->at(0)->getAlgQueue();
-	algQ->updateStat(pSize, pTime);
-
-	Query query = conn->query();
-	query << "UPDATE cg_algqueue SET statistics=\"" << algQ->getStatStr() << "\" WHERE ";
-	query << "dsttype=\"" << Alg2Str(algQ->getType()) << "\" AND alg=\"" << algQ->getName() << "\"";
-	query.execute();
-
+	updateAlgQStat(algQ, pSize, pTime);
 	for (unsigned i = 0; i < jobs->size(); i++)
 		delete jobs->at(i);
 	delete jobs;
@@ -289,9 +363,7 @@ void DBHandler::updateAlgQStat(const char *gridId, unsigned pSize, unsigned pTim
  */
 void DBHandler::updateJobGridID(string ID, string gridID)
 {
-	Query query = conn->query();
-	query << "UPDATE cg_job SET gridid=\"" << gridID << "\" WHERE id=\"" << ID << "\"";
-	query.execute();
+	query("UPDATE cg_job SET gridid='%s' WHERE id='%s'", gridID.c_str(), ID.c_str());
 }
 
 
@@ -303,23 +375,13 @@ void DBHandler::updateJobGridID(string ID, string gridID)
  */
 void DBHandler::updateJobStat(string ID, CGJobStatus newstat)
 {
-	Query query = conn->query();
-	query << "UPDATE cg_job SET status=\"" << getStatStr(newstat) << "\" WHERE id=\"" << ID << "\"";
-	query.execute();
+	query("UPDATE cg_job SET status='%s' WHERE id='%s'", getStatStr(newstat), ID.c_str());
 }
 
 
 void DBHandler::deleteJob(const string &ID)
 {
-	Query query = conn->query();
-	query << "DELETE FROM cg_job WHERE id=\"" << ID << "\"";
-	query.execute();
-
-	query.reset();
-	query << "DELETE FROM cg_inputs WHERE id=\"" << ID << "\"";
-	query.execute();
-
-	query.reset();
-	query << "DELETE FROM cg_outputs WHERE id=\"" << ID << "\"";
-	query.execute();
+	query("DELETE FROM cg_job WHERE id='%s'", ID.c_str());
+	query("DELETE FROM cg_inputs WHERE id='%s'", ID.c_str());
+	query("DELETE FROM cg_outputs WHERE id='%s'", ID.c_str());
 }

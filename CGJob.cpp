@@ -28,12 +28,7 @@ void CGJob::addInput(const string localname, const string fsyspath)
     inputs[localname] = fsyspath;
 }
 
-void CGJob::addOutput(const string localname)
-{
-    outputs[localname] = "";
-}
-
-void CGJob::setOutputPath(const string localname, const string fsyspath)
+void CGJob::addOutput(const string localname, const string fsyspath)
 {
     outputs[localname] = fsyspath;
 }
@@ -58,10 +53,9 @@ vector<string> CGJob::getOutputs() const
     return rval;
 }
 
-string CGJob::getInputPath(const string localname) const
+string CGJob::getInputPath(const string localname)
 {
-    map<string, string>::const_iterator it = inputs.find(localname);
-    return it->second;
+    return inputs[localname];
 }
 
 string CGJob::getOutputPath(const string localname)

@@ -37,8 +37,7 @@ public:
     CGJob(const string name, string args, CGAlgQueue *algQ, DBHandler *dbH);
     ~CGJob();
     void addInput(const string localname, const string fsyspath);
-    void addOutput(const string localname);
-    void setOutputPath(const string localname, const string fsyspath);
+    void addOutput(const string localname, const string fsyspath);
     string getName() { return name; }
     string getArgs() { return targs; }
     void setEnv(list<string> *envvals) { envs = envvals; }
@@ -50,7 +49,7 @@ public:
     void setGridId(const string &sId);
     string getId() const { return id; }
     void setId(const string sId) { id = sId; }
-    string getInputPath(const string localname) const;
+    string getInputPath(const string localname);
     string getOutputPath(const string localname);
     CGJobStatus getStatus() const { return status; }
     void setStatus(CGJobStatus nStat);

@@ -20,24 +20,6 @@ AC_PATH_PROG([SED], [sed])
 MYSQL_CPPFLAGS=`$MYSQL_CONFIG --include`
 AC_SUBST([MYSQL_CPPFLAGS])
 
-AC_LANG_PUSH([C++])
-
-AC_CHECK_LIB([mysqlpp], [main], [],
-	     [AC_MSG_ERROR([MySQL C++ bindings seem to be missing])])
-
-save_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $MYSQL_CPPFLAGS"
-AC_CHECK_HEADERS([mysql++/mysql++.h], [],
-	     [AC_MSG_ERROR([MySQL C++ bindings seem to be missing])])
-AC_CHECK_HEADERS([mysql++/ssqls.h], [], [], AC_LANG_SOURCE([
-#ifdef HAVE_MYSQL___MYSQL___H
-#include <mysql++/mysql++.h>
-#endif
-]))
-CPPFLAGS="$save_CPPFLAGS"
-
-AC_LANG_POP([C++])
-
 AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@yes@:>@]),
 	[], [with_dcapi=yes])
 if test "$with_dcapi" != no; then
