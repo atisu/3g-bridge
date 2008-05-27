@@ -189,28 +189,33 @@ static void delete_vector(vector<CGJob *> *jobs)
 static bool check_job(const string &basedir, CGJob *job)
 {
 	vector<string> outputs = job->getOutputs();
-
-	/* Check if the output files exist */
-	string jobdir = basedir + "/" OUTPUT_DIR "/" + job->getId();
-	for (vector<string>::const_iterator it = outputs.begin(); it != outputs.end(); it++)
-	{
-		string path = jobdir + '/' + *it;
-		if (access(path.c_str(), R_OK))
-		{
-			LOG(LOG_ERR, "Job %s: Output file '%s' is missing",
-				job->getId().c_str(), path.c_str());
-			return false;
-		}
-	}
+	bool result = true;
 
 	/* Move/copy the output files to the proper location */
+	string jobdir = basedir + "/" OUTPUT_DIR "/" + job->getId();
 	for (vector<string>::const_iterator it = outputs.begin(); it != outputs.end(); it++)
 	{
 		string src = jobdir + '/' + *it;
 		string dst = job->getOutputPath(*it);
-		if (!link(src.c_str(), dst.c_str()))
+
+		if (!rename(src.c_str(), dst.c_str()))
 			continue;
-		/* Rename failed call external mv command */
+		if (errno == ENOENT)
+		{
+			LOG(LOG_ERR, "Job %s: Output file '%s' is missing", job->getId().c_str(), it->c_str());
+			result = false;
+			continue;
+		}
+		else if (errno != EXDEV)
+		{
+			LOG(LOG_ERR, "Job %s: Failed to rename output file '%s' to '%s': %s",
+				job->getId().c_str(), src.c_str(), dst.c_str(), strerror(errno));
+			result = false;
+			continue;
+		}
+
+		/* Source and destination are on different file systems, call
+		 * external mv command */
 		const char *mv_args[] = { "mv", "-f", src.c_str(), dst.c_str(), 0 };
 		try
 		{
@@ -218,12 +223,12 @@ static bool check_job(const string &basedir, CGJob *job)
 		}
 		catch (exception e)
 		{
-			LOG(LOG_ERR, "Job %s: Failed to move output file '%s' to '%s')",
+			LOG(LOG_ERR, "Job %s: Failed to move output file '%s' to '%s'",
 				job->getId().c_str(), src.c_str(), dst.c_str());
-			return false;
+			result = false;
 		}
 	}
-	return true;
+	return result;
 }
 
 static void result_callback(DC_Workunit *wu, DC_Result *result)
