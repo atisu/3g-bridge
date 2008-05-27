@@ -56,31 +56,22 @@ DBHandler::~DBHandler()
  * @param[in] stat Status info
  * @return String representation of the requested status
  */
-string DBHandler::getStatStr(CGJobStatus stat)
+const char *DBHandler::getStatStr(CGJobStatus stat)
 {
-	string statStr;
 	switch (stat) {
 	case INIT:
-		statStr = "INIT";
-		break;
+		return "INIT";
 	case RUNNING:
-		statStr = "RUNNING";
-		break;
+		return "RUNNING";
 	case FINISHED:
-		statStr = "FINISHED";
-		break;
+		return "FINISHED";
 	case ERROR:
-		statStr = "ERROR";
-		break;
+		return "ERROR";
 	case CANCEL:
-		statStr = "CANCEL";
-		break;
+		return "CANCEL";
 	default:
-		statStr = "";
-		break;
+		throw string("Unknown job status value");
 	}
-
-	return statStr;
 }
 
 

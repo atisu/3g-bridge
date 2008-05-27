@@ -32,7 +32,7 @@ class DBHandler {
 	string passwd;
 	string dbname;
 	Connection *conn;
-	string getStatStr(CGJobStatus stat);
+	const char *getStatStr(CGJobStatus stat);
 	string Alg2Str(CGAlgType type);
 	CGAlgType Str2Alg(const string name);
 	vector<CGJob *> *parseJobs(Query *squery);
