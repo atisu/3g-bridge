@@ -13,21 +13,6 @@
 
 using namespace std;
 
-class DBResult {
-	public:
-		DBResult():res(0) {};
-		~DBResult();
-		void store(MYSQL *dbh);
-		bool fetch();
-		const char *get_field(const char *name);
-		const char *get_field(int index);
-	private:
-		MYSQL_RES *res;
-		MYSQL_ROW row;
-		MYSQL_FIELD *fields;
-		int field_num;
-};
-
 DBResult::~DBResult()
 {
 	if (res)
@@ -126,7 +111,6 @@ DBHandler::DBHandler(QMConfig &config)
 DBHandler::~DBHandler()
 {
 	mysql_close(conn);
-	conn = 0;
 }
 
 

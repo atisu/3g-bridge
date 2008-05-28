@@ -12,7 +12,6 @@
 #include <set>
 #include <string>
 #include <vector>
-#include <mysql++/mysql++.h>
 
 using namespace std;
 

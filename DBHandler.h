@@ -6,7 +6,7 @@
 #include "CGAlgQueue.h"
 #include "QMConfig.h"
 
-#include <mysql++/mysql++.h>
+#include <mysql.h>
 
 
 using namespace std;
@@ -33,6 +33,21 @@ class DBHandler {
 	const char *Alg2Str(CGAlgType type);
 	CGAlgType Str2Alg(const char *name);
 	vector<CGJob *> *parseJobs(void);
+};
+
+class DBResult {
+    public:
+	DBResult():res(0) {};
+	~DBResult();
+	void store(MYSQL *dbh);
+	bool fetch();
+	const char *get_field(const char *name);
+	const char *get_field(int index);
+    private:
+	MYSQL_RES *res;
+	MYSQL_ROW row;
+	MYSQL_FIELD *fields;
+	int field_num;
 };
 
 #endif /* __DBHANDLER_H */

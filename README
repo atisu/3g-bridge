@@ -10,5 +10,4 @@ make
 
 Dependencies:
 -------------
-Mysql++ - A C++ API for MySQL 
-        - http://tangentsoft.net/mysql++/
+Mysql 5.0
