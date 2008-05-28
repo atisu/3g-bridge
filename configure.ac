@@ -19,6 +19,8 @@ AC_PATH_PROG([SED], [sed])
 
 MYSQL_CPPFLAGS=`$MYSQL_CONFIG --include`
 AC_SUBST([MYSQL_CPPFLAGS])
+MYSQL_LIBS=`$MYSQL_CONFIG --libs`
+AC_SUBST([MYSQL_LIBS])
 
 AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@yes@:>@]),
 	[], [with_dcapi=yes])

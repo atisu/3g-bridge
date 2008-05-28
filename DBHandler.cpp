@@ -55,6 +55,8 @@ bool DBResult::fetch()
 
 const char *DBResult::get_field(int index)
 {
+	if (index >= field_num)
+		throw string("Invalid field index");
 	return row[index];
 }
 
@@ -384,4 +386,34 @@ void DBHandler::deleteJob(const string &ID)
 	query("DELETE FROM cg_job WHERE id='%s'", ID.c_str());
 	query("DELETE FROM cg_inputs WHERE id='%s'", ID.c_str());
 	query("DELETE FROM cg_outputs WHERE id='%s'", ID.c_str());
+}
+
+void DBHandler::addJob(CGJob &job)
+{
+	query("START TRANSACTION");
+	try
+	{
+		query("INSERT INTO cg_job (id, alg, status, args) VALUES ('%s', '%s', 'INIT', '%s')",
+			job.getId().c_str(), job.getName().c_str(), job.getArgs().c_str());
+		vector<string> inputs = job.getInputs();
+		for (vector<string>::const_iterator it = inputs.begin(); it != inputs.end(); it++)
+		{
+			string path = job.getInputPath(*it);
+			query("INSERT INTO cg_inputs (id, localname, path) VALUES ('%s', '%s', '%s')",
+				job.getId().c_str(), it->c_str(), path.c_str());
+		}
+		vector<string> outputs = job.getOutputs();
+		for (vector<string>::const_iterator it = outputs.begin(); it != outputs.end(); it++)
+		{
+			string path = job.getOutputPath(*it);
+			query("INSERT INTO cg_outputs (id, localname, path) VALUES ('%s', '%s', '%s')",
+				job.getId().c_str(), it->c_str(), path.c_str());
+		}
+		query("COMMIT");
+	}
+	catch (exception &e)
+	{
+		query("ROLLBACK");
+		throw e;
+	}
 }

@@ -8,8 +8,6 @@
 
 using namespace std;
 
-vector<CGAlgQueue *> CGAlgQueue::queues;
-
 int main(int argc, char **argv)
 {
     Logging::init(cout, LOG_INFO);

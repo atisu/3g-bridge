@@ -8,11 +8,17 @@ bin_PROGRAMS = injector CGManager
 
 injector_SOURCES = \
 		injector.cpp \
+		CGAlgQueue.cpp \
+		CGAlgQueue.h \
+		CGJob.cpp \
+		CGJob.h \
+		DBHandler.cpp \
+		DBHandler.h \
 		Logging.cpp \
 		Logging.h \
 		QMConfig.cpp \
 		QMConfig.h
-injector_LDADD = -lmysqlpp -luuid
+injector_LDADD = -luuid $(MYSQL_LIBS)
 
 BACKEND_SOURCES =
 BACKEND_LIBS =
@@ -41,7 +47,7 @@ CGManager_SOURCES = \
 		QMConfig.cpp \
 		QMConfig.h \
 		$(BACKEND_SOURCES)
-CGManager_LDADD = $(BACKEND_LIBS)
+CGManager_LDADD = $(BACKEND_LIBS) $(MYSQL_LIBS)
 
 master.xml: master.xml.in
 	$(SED) -e "s,@PACKAGE_VERSION\@,$(PACKAGE_VERSION)," \

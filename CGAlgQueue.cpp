@@ -11,6 +11,7 @@
 
 using namespace std;
 
+vector<CGAlgQueue *> CGAlgQueue::queues;
 
 CGAlgQueue::CGAlgQueue(const CGAlgType &type, const string &name, const unsigned maxPackSize):ttype(type),tname(name)
 {

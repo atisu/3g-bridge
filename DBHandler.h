@@ -22,6 +22,7 @@ class DBHandler {
 	vector<CGJob *> *getJobs(const char *gridID);
 	void updateJobGridID(string ID, string gridID);
 	void updateJobStat(string ID, CGJobStatus newstat);
+	void addJob(CGJob &job);
 	void deleteJob(const string &ID);
 	string getAlgQStat(CGAlgType type, const string &name);
 	void updateAlgQStat(CGAlgQueue *algQ, unsigned pSize, unsigned pTime);
