@@ -215,7 +215,7 @@ static bool check_job(const string &basedir, CGJob *job)
 		{
 			invoke_cmd("/bin/mv", mv_args);
 		}
-		catch (exception e)
+		catch (QMException &e)
 		{
 			LOG(LOG_ERR, "Job %s: Failed to move output file '%s' to '%s'",
 				job->getId().c_str(), src.c_str(), dst.c_str());
@@ -291,7 +291,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 		remove_tmpdir(basedir.c_str());
 		delete_vector(jobs);
 		DC_destroyWU(wu);
-		throw e;
+		throw;
 	}
 
 	remove_tmpdir(basedir.c_str());
@@ -487,7 +487,7 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 			delete script;
 		}
 		remove_tmpdir(basedir.c_str());
-		throw e;
+		throw;
 	}
 
 	if (script)

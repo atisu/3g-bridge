@@ -4,6 +4,7 @@
 
 #include "QMConfig.h"
 #include "Logging.h"
+#include "QMException.h"
 
 #include <iostream>
 #include <fstream>
@@ -17,7 +18,7 @@ QMConfig::QMConfig(const char *filename)
 {
 	ifstream file(filename, ios::in);
 	if (file.fail())
-		throw string("Failed to open config file ") + filename;
+		throw QMException("Failed to open config file %s", filename);
 
 	string line;
 	int cnt = 0;

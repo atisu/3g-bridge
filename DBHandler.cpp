@@ -10,6 +10,7 @@
 #include <mysql.h>
 
 #include "Logging.h"
+#include "QMException.h"
 
 using namespace std;
 
@@ -28,7 +29,7 @@ void DBResult::store(MYSQL *dbh)
 	field_num = mysql_field_count(dbh);
 	res = mysql_store_result(dbh);
 	if (field_num && !res)
-		throw string("Failed to fetch results: ") + mysql_error(dbh);
+		throw QMException("Failed to fetch results: %s", mysql_error(dbh));
 	fields = mysql_fetch_fields(res);
 }
 
@@ -41,7 +42,7 @@ bool DBResult::fetch()
 const char *DBResult::get_field(int index)
 {
 	if (index >= field_num)
-		throw string("Invalid field index");
+		throw QMException("Invalid field index");
 	return row[index];
 }
 
@@ -52,7 +53,7 @@ const char *DBResult::get_field(const char *name)
 	for (i = 0; i < field_num && strcmp(fields[i].name, name); i++)
 		/* Nothing */;
 	if (i >= field_num)
-		throw string("Unknown field ") + name;
+		throw QMException("Unknown field requested: %s ", name);
 	return row[i];
 }
 
@@ -67,8 +68,9 @@ bool DBHandler::query(const char *fmt, ...)
 
 	if (mysql_ping(conn))
 	{
+		LOG(LOG_ERR, "Database connection error: %s", mysql_error(conn));
 		free(qstr);
-		throw string("Database connection error: ") + mysql_error(conn);
+		return false;
 	}
 	if (mysql_query(conn, qstr))
 	{
@@ -98,11 +100,11 @@ DBHandler::DBHandler(QMConfig &config)
 
 	conn = mysql_init(0);
 	if (!conn)
-		throw string("Out of memory");
+		throw QMException("Out of memory");
 	if (!mysql_real_connect(conn, host.c_str(), user.c_str(), passwd.c_str(), dbname.c_str(), 0, 0, 0))
-		throw string("Could not connect to the database");
+		throw QMException("Could not connect to the database: %s", mysql_error(conn));
 	if (mysql_ping(conn))
-		throw string("The connection to the database is broken");
+		throw QMException("The connection to the database is broken: %s", mysql_error(conn));
 }
 
 /**
@@ -134,7 +136,7 @@ const char *DBHandler::getStatStr(CGJobStatus stat)
 	case CANCEL:
 		return "CANCEL";
 	default:
-		throw string("Unknown job status value");
+		throw QMException("Unknown job status value %d", (int)stat);
 	}
 }
 
@@ -201,9 +203,9 @@ vector<CGJob *> *DBHandler::parseJobs(void)
 	{
 		res.store(conn);
 	}
-	catch (string &s)
+	catch (QMException &e)
 	{
-		LOG(LOG_ERR, "%s", s.c_str());
+		LOG(LOG_ERR, "%s", e.what());
 		return jobs;
 	}
 
@@ -395,9 +397,9 @@ void DBHandler::addJob(CGJob &job)
 		}
 		query("COMMIT");
 	}
-	catch (exception &e)
+	catch (QMException &e)
 	{
 		query("ROLLBACK");
-		throw e;
+		throw;
 	}
 }

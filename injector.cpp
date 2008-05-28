@@ -87,8 +87,8 @@ int main(int argc, char **argv)
 	QMConfig config(argv[optind]);
 	dbh = new DBHandler(config);
     }
-    catch (string &s) {
-        cerr << "Error: " << s << endl;
+    catch (QMException &e) {
+        cerr << "Error: " << e.what() << endl;
 	exit(1);
     }
 
@@ -133,8 +133,8 @@ int main(int argc, char **argv)
 
     try {
 	dbh->addJob(job);
-    } catch (string& s) {
-	cerr << s << endl;
+    } catch (QMException &e) {
+	cerr << "Error: " << e.what() << endl;
 	return -1;
     }
 

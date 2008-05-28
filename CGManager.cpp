@@ -35,8 +35,8 @@ int main(int argc, char **argv)
 
 	LOG(LOG_DEBUG, "Starting Queue Manager");
 	qm.run();
-    } catch (string error) {
-	LOG(LOG_CRIT, "Caught the exception: " + error);
+    } catch (QMException &error) {
+	LOG(LOG_CRIT, "Caught an unhandled exception: %s", error.what());
 	return -1;
     }
     return 0;

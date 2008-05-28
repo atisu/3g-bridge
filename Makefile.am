@@ -17,7 +17,9 @@ injector_SOURCES = \
 		Logging.cpp \
 		Logging.h \
 		QMConfig.cpp \
-		QMConfig.h
+		QMConfig.h \
+		QMException.cpp \
+		QMException.h
 injector_LDADD = -luuid $(MYSQL_LIBS)
 
 BACKEND_SOURCES =
