@@ -1,0 +1,22 @@
+# Sample body template script
+
+# Log the executed commands in a file that can be retrieved by the submitter
+exec 3<&2                                                                                                                          
+exec 2>"%{output_dir}/body_template.log"
+
+cd "%{input_dir}"
+
+# Insert commands to execute the application here. You need to redirect
+# stdout/stderr to a file if you want to transfer them back.
+app >stdout.log 2>stderr.log
+
+cd -
+
+# Replace "output" with the list of real output files
+for file in body_template.log stdout.log stderr.log output; do
+	mv "%{input_dir}/$file" "%{output_dir}"/
+done
+
+# Close the script log
+exec 2<&3
+exec 3>&-

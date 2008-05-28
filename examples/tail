@@ -1,0 +1,7 @@
+# Sample tail template script
+
+# Make the WU fail if the output generation fails
+set -e
+
+# Pack the outputs
+tar cf - %{output_pattern} | gzip > `boinc resolve_filename "%{outputs}"`

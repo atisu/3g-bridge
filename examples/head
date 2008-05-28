@@ -1,0 +1,13 @@
+# Sample head template script
+
+# Abort if there is an error in the head template
+set -e
+
+# Print the executed commands for easier debugging
+set -x
+
+# Extract the inputs
+gzip -cd `boinc resolve_filename "%{inputs}:` | tar xvf -
+
+# After this point do not abort the whole WU if a single job fails
+set +e

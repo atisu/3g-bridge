@@ -63,7 +63,13 @@ package: queuemanager.tar.gz
 
 CLEANFILES = master.xml queuemanager.tar.gz
 
-package_contents = CGManager master.xml dc-api.conf qm.conf.sample
+package_contents = \
+		   CGManager \
+		   master.xml \
+		   dc-api.conf \
+		   qm.conf.sample \
+		   examples/batch_pack \
+		   examples/batch_unpack
 
 queuemanager.tar.gz: $(package_contents)
 	mkdir package-tmp
