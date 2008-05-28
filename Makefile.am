@@ -32,6 +32,8 @@ endif
 
 CGManager_SOURCES = \
 		common.h \
+		BackendException.cpp \
+		BackendException.h \
 		CGAlgQueue.cpp \
 		CGAlgQueue.h \
 		CGJob.cpp \
@@ -46,6 +48,8 @@ CGManager_SOURCES = \
 		Logging.h \
 		QMConfig.cpp \
 		QMConfig.h \
+		QMException.cpp \
+		QMException.h \
 		$(BACKEND_SOURCES)
 CGManager_LDADD = $(BACKEND_LIBS) $(MYSQL_LIBS)
 

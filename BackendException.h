@@ -1,33 +1,19 @@
 #ifndef BACKENDEXCEPTION_H
 #define BACKENDEXCEPTION_H
 
-#include <exception>
+#include "QMException.h"
 
-class BackendException: public exception
+class BackendException: public QMException
 {
 public:
 	/* Create a new exception */
-	BackendException() { msg_text = ""; };
-	BackendException(const string reason):msg_text(reason) {};
+	BackendException() {}
+	BackendException(const std::string &reason):QMException(reason) {};
+	BackendException(const char *fmt, ...) __attribute__((__format__(printf, 2, 3)));
 
 	/* Dispose the exception */
 	~BackendException() throw () {};
 
-	/* Return the reason of the exception */
-	inline const string reason()
-	{
-		return msg_text;
-	}
-
-	/* Set the reason of the exception */
-	inline void set_reason(const string reason)
-	{
-		msg_text = reason;
-	}
-
-private:
-	/* The text of the reason */
-	string msg_text;
 };
 
-#endif /* BACKENDEXCEPTION */
+#endif /* BACKENDEXCEPTION_H */
