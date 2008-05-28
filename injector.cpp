@@ -11,6 +11,7 @@
 #include "Logging.h"
 #include "QMConfig.h"
 #include "DBHandler.h"
+#include "QMException.h"
 
 #include <getopt.h>
 #include <unistd.h>
