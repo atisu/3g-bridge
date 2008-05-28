@@ -72,7 +72,7 @@ static void invoke_cmd(const char *exe, const char *const argv[]) throw (Backend
 	int sock[2];
 
 	if (socketpair(AF_UNIX, SOCK_STREAM, 0, sock) == -1)
-		throw BackendException(string("socketpair() failed: ") + strerror(errno));
+		throw BackendException("socketpair() failed: %s", strerror(errno));
 
 	pid_t pid = fork();
 	if (pid)
@@ -88,19 +88,13 @@ static void invoke_cmd(const char *exe, const char *const argv[]) throw (Backend
 		close(sock[1]);
 
 		if (waitpid(pid, &status, 0) == -1)
-			throw BackendException(string("waitpid() failed: ") + strerror(errno));
+			throw BackendException("waitpid() failed: %s", strerror(errno));
 		if (WIFSIGNALED(status))
-		{
-			snprintf(buf, sizeof(buf), "Command %s died with signal %d [%s]",
+			throw BackendException("Command %s died with signal %d [%s]",
 				exe, WTERMSIG(status), error.c_str());
-			throw BackendException(buf);
-		}
 		if (WEXITSTATUS(status))
-		{
-			snprintf(buf, sizeof(buf), "Command %s exited with status %d [%s]",
+			throw BackendException("Command %s exited with status %d [%s]",
 				exe, WEXITSTATUS(status), error.c_str());
-			throw BackendException(buf);
-		}
 		return;
 	}
 
@@ -123,7 +117,7 @@ static string get_dc_client_config(const string &app, const char *key, bool stri
 	char *value = DC_getClientCfgStr(app.c_str(), key, 1);
 
 	if (strict && !value)
-		throw BackendException(string("Configuration error: missing ") + key + " for app " + app);
+		throw BackendException("Configuration error: key %s is missing for app %s", key, app.c_str());
 	string str(value);
 	free(value);
 	return str;
@@ -155,7 +149,7 @@ static string create_tmpdir(void) throw (BackendException &)
 	snprintf(buf, sizeof(buf), "%s/batch_XXXXXX", workdir);
 	free(workdir);
 	if (!mkdtemp(buf))
-		throw BackendException(string("Failed to create directory: ") + strerror(errno));
+		throw BackendException("Failed to create directory '%s': %s", buf, strerror(errno));
 
 	return string(buf);
 }
@@ -314,7 +308,7 @@ DCAPIHandler::DCAPIHandler(DBHandler *jobdb, QMConfig &config)
 	string conffile = config.getStr("DCAPI_Config");
 
 	if (DC_OK != DC_initMaster(conffile.length() ? conffile.c_str(): NULL))
-		throw DC_initMasterError;
+		throw BackendException("Failed to initialize the DC-API");
 
 	DC_setMasterCb(result_callback, NULL, NULL);
 
@@ -335,7 +329,7 @@ static void do_mkdir(const string &path) throw (BackendException &)
 	if (!mkdir(path.c_str(), 0750) || errno == EEXIST)
 		return;
 
-	throw BackendException("Failed to create directory " + path + ": " + strerror(errno));
+	throw BackendException("Failed to create directory '%s': %s", path.c_str(), strerror(errno));
 }
 
 static void emit_job(CGJob *job, const string &basedir, ofstream *script, const string &job_template) throw (BackendException &)
@@ -387,7 +381,7 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 	while (i != jobs->end())
 	{
 		if (algname != (*i)->getAlgQueue()->getName())
-			throw "Multiple algorithms cannot be in the same batch";
+			throw BackendException("Multiple algorithms cannot be in the same batch");
 		i++;
 	}
 
@@ -404,7 +398,7 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 	{
 		script = new ofstream(script_name.c_str(), ios::out);
 		if (script->fail())
-			throw BackendException(string("Failed to create ") + script_name +
+			throw BackendException("Failed to create '%s': %s", script_name.c_str(),
 				strerror(errno));
 
 		*script << substitute(head_template, "inputs", INPUT_NAME);
@@ -436,7 +430,7 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 		snprintf(input_name, sizeof(input_name), "inputs_XXXXXX");
 		int fd = mkstemp(input_name);
 		if (fd == -1)
-			throw BackendException(string("Failed to create file: ") + strerror(errno));
+			throw BackendException("Failed to create file '%s': %s", input_name, strerror(errno));
 		close(fd);
 
 		const char *pack_args[] =
@@ -464,7 +458,7 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 		if (DC_addWUInput(wu, SCRIPT_NAME, script_name.c_str(), DC_FILE_VOLATILE))
 			throw BackendException("Failed to add input file to WU");
 		if (DC_addWUOutput(wu, OUTPUT_NAME))
-			throw BackendException("Failed to add input file to WU");
+			throw BackendException("Failed to add output file to WU");
 
 		if (DC_submitWU(wu))
 			throw BackendException("WU submission failed");

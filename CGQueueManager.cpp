@@ -147,20 +147,20 @@ void CGQueueManager::run()
 		try {
 			handleJobs(submit, newJobs);
 		} catch (BackendException& a) {
-			LOG(LOG_ERR, "A backend exception occured: " + a.reason());
+			LOG(LOG_ERR, "A backend exception occured: %s", a.what());
 		}
 
 		try {
 			handleJobs(status, 0);
 		} catch (BackendException& a) {
-			LOG(LOG_ERR, "A backend exception occured: " + a.reason());
+			LOG(LOG_ERR, "A backend exception occured: %s", a.what());
 		}
 
 		LOG(LOG_DEBUG, "Queue Manager found %d jobs to be aborted.", cancelJobs->size());
 		try {
 			handleJobs(cancel, cancelJobs);
 		} catch (BackendException& a) {
-			LOG(LOG_ERR, "A backend exception occured: " + a.reason());
+			LOG(LOG_ERR, "A backend exception occured: %s", a.what());
 		}
 
 		freeVector(newJobs);
