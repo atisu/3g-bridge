@@ -323,12 +323,7 @@ void EGEEHandler::getOutputs_real(CGJob *job)
     for (unsigned int i = 0; i < URIs.size(); i++) {
         remFiles[i] = URIs[i].first;
         string fbname = remFiles[i].substr(remFiles[i].rfind("/")+1);
-        if (job->getOutputPath(fbname) != "")
-	    locFiles[i] = job->getOutputPath(fbname);
-	else {
-	    locFiles[i] = string(wd) + "/" + job->getId() + "." + fbname;
-	    job->setOutputPath(fbname, locFiles[i]);
-	}
+        locFiles[i] = job->getOutputPath(fbname);
     }
     download_file_globus(remFiles, locFiles);
     try {
