@@ -294,13 +294,14 @@ vector<CGJob *> *DBHandler::getJobs(const char *gridID)
  */
 string DBHandler::getAlgQStat(CGAlgType type, const string &name)
 {
-	string rv;
+	string rv = "";
 	DBResult res;
 
 	if (!query("SELECT statistics FROM cg_algqueue WHERE dsttype='%s' AND alg='%s'", Alg2Str(type), name.c_str()))
 		return rv;
 	res.store(conn);
-	rv = res.get_field(0);
+	if (res.fetch())
+		rv = res.get_field(0);
 	return rv;
 }
 
