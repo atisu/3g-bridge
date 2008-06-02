@@ -24,12 +24,16 @@ injector_LDADD = -luuid $(MYSQL_LIBS)
 
 BACKEND_SOURCES =
 BACKEND_LIBS =
+
 if HAVE_DCAPI
 BACKEND_SOURCES += DCAPIHandler.cpp DCAPIHandler.h
 BACKEND_LIBS += $(DCAPI_MASTER_LIBS)
 endif
+
 if HAVE_EGEE
 BACKEND_SOURCES += EGEEHandler.cpp EGEEHandler.h
+BACKEND_LIBS += $(EGEE_LIBS)
+AM_CPPFLAGS += $(EGEE_CPPFLAGS)
 endif
 
 CGManager_SOURCES = \
@@ -53,7 +57,7 @@ CGManager_SOURCES = \
 		QMException.cpp \
 		QMException.h \
 		$(BACKEND_SOURCES)
-CGManager_LDADD = $(BACKEND_LIBS) $(MYSQL_LIBS)
+CGManager_LDADD = $(MYSQL_LIBS) $(BACKEND_LIBS)
 
 master.xml: master.xml.in
 	$(SED) -e "s,@PACKAGE_VERSION\@,$(PACKAGE_VERSION)," \
