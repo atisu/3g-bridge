@@ -7,6 +7,7 @@ AC_CONFIG_MACRO_DIR([cf])
 
 AM_INIT_AUTOMAKE([1.9 foreign])
 
+AC_PROG_CC
 AC_PROG_CXX
 
 dnl Enable useful warnings
