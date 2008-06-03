@@ -165,6 +165,8 @@ static void remove_tmpdir(const string &dir) throw (BackendException &)
 
 static void error_jobs(vector<CGJob *> *jobs)
 {
+	if (!jobs)
+		return;
 	for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++)
 	{
 		(*it)->setStatus(ERROR);
@@ -255,6 +257,14 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	}
 	string outputs(tmp);
 	free(tmp);
+
+	if (!jobs || !jobs->size())
+	{
+		LOG(LOG_ERR, "DC-API: WU %s: No matching entries in the job database", id.c_str());
+		error_jobs(jobs);
+		DC_destroyWU(wu);
+		return;
+	}
 
 	LOG(LOG_INFO, "DC-API: Received result for WU %s (app '%s')",
 		id.c_str(), tag.c_str());

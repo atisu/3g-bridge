@@ -234,6 +234,8 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 void EGEEHandler::updateStatus() throw (BackendException &)
 {
 	vector<CGJob *> *myJobs = jobDB->getJobs(RUNNING);
+	if (!myJobs)
+		return;
 
 	try {
 		getStatus(myJobs);

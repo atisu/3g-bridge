@@ -114,6 +114,8 @@ void CGQueueManager::handleJobs(jobOperation op, vector<CGJob *> *jobs)
  */
 void CGQueueManager::freeVector(vector<CGJob *> *what)
 {
+	if (!what)
+		return;
 	for (vector<CGJob *>::iterator it = what->begin(); it != what->end(); it++)
 		delete *it;
 	delete what;
@@ -143,11 +145,14 @@ void CGQueueManager::run()
 		vector<CGJob *> *newJobs = jobDB->getJobs(INIT);
 		vector<CGJob *> *cancelJobs = jobDB->getJobs(CANCEL);
 
-		LOG(LOG_DEBUG, "Queue Manager found %zd new jobs.", newJobs->size());
-		try {
-			handleJobs(submit, newJobs);
-		} catch (BackendException& a) {
-			LOG(LOG_ERR, "A backend exception occured: %s", a.what());
+		if (newJobs)
+		{
+			LOG(LOG_DEBUG, "Queue Manager found %zd new jobs.", newJobs->size());
+			try {
+				handleJobs(submit, newJobs);
+			} catch (BackendException& a) {
+				LOG(LOG_ERR, "A backend exception occured: %s", a.what());
+			}
 		}
 
 		try {
@@ -156,11 +161,14 @@ void CGQueueManager::run()
 			LOG(LOG_ERR, "A backend exception occured: %s", a.what());
 		}
 
-		LOG(LOG_DEBUG, "Queue Manager found %zd jobs to be aborted.", cancelJobs->size());
-		try {
-			handleJobs(cancel, cancelJobs);
-		} catch (BackendException& a) {
-			LOG(LOG_ERR, "A backend exception occured: %s", a.what());
+		if (cancelJobs)
+		{
+			LOG(LOG_DEBUG, "Queue Manager found %zd jobs to be aborted.", cancelJobs->size());
+			try {
+				handleJobs(cancel, cancelJobs);
+			} catch (BackendException& a) {
+				LOG(LOG_ERR, "A backend exception occured: %s", a.what());
+			}
 		}
 
 		freeVector(newJobs);

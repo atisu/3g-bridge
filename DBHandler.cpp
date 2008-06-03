@@ -336,6 +336,8 @@ void DBHandler::updateAlgQStat(CGAlgQueue *algQ, unsigned pSize, unsigned pTime)
 void DBHandler::updateAlgQStat(const char *gridId, unsigned pSize, unsigned pTime)
 {
 	vector<CGJob *> *jobs = getJobs(gridId);
+	if (!jobs)
+		return;
 	CGAlgQueue *algQ = jobs->at(0)->getAlgQueue();
 	updateAlgQStat(algQ, pSize, pTime);
 	for (unsigned i = 0; i < jobs->size(); i++)
