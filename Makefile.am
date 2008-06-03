@@ -57,7 +57,7 @@ CGManager_SOURCES = \
 		QMException.cpp \
 		QMException.h \
 		$(BACKEND_SOURCES)
-CGManager_LDADD = $(MYSQL_LIBS) $(BACKEND_LIBS)
+CGManager_LDADD = $(BACKEND_LIBS) $(MYSQL_LIBS)
 
 master.xml: master.xml.in
 	$(SED) -e "s,@PACKAGE_VERSION\@,$(PACKAGE_VERSION)," \

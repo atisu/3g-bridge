@@ -33,7 +33,7 @@ AC_DEFUN([EGEE_BE], [
 	AC_REQUIRE([GLITE_CONF])
 	AC_REQUIRE([CLASSADS_CONF])
 
-	EGEE_LIBS="$LIBS -lxml2 -lboost_filesystem -lboost_regex"
+	EGEE_LIBS="$EGEE_LIBS -lxml2 -lboost_filesystem -lboost_regex"
 	AC_SUBST([EGEE_LIBS])
 	AC_SUBST([EGEE_CPPFLAGS])
 ])
