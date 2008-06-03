@@ -9,6 +9,15 @@ AM_INIT_AUTOMAKE([1.9 foreign])
 
 AC_PROG_CXX
 
+dnl Enable useful warnings
+if test "$ac_cv_c_compiler_gnu" = yes; then
+	CFLAGS="-Wall -Wmissing-prototypes -Wstrict-prototypes -Wsign-compare ${CFLAGS}"
+fi
+if test "$ac_cv_cxx_compiler_gnu" = yes; then
+	CXXFLAGS="-Wall -Wsign-compare ${CXXFLAGS}"
+fi
+
+
 AC_PATH_PROG([MYSQL_CONFIG], [mysql_config], [none])
 if test $MYSQL_CONFIG = none; then
 	AC_MSG_ERROR([MySQL development environment is not installed])

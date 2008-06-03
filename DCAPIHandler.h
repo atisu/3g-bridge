@@ -18,8 +18,6 @@ public:
 	void updateStatus(void) throw (BackendException &);
 
 	/* Obsolote/unimplemented methods */
-	void getStatus(vector<CGJob *> *jobs) throw (BackendException &) {};
-	void getOutputs(vector<CGJob *> *jobs) throw (BackendException &) {};
 	void cancelJobs(vector <CGJob *> *jobs) throw (BackendException &) {};
 };
 

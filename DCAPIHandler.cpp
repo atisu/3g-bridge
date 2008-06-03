@@ -370,7 +370,6 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 	char input_name[PATH_MAX] = { 0 };
 	DC_Workunit *wu = 0;
 	string basedir;
-	int ret;
 
 	/* First, sanity check: all jobs must belong to the same alg */
 	vector<CGJob *>::const_iterator i = jobs->begin();
@@ -464,7 +463,7 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 			throw BackendException("WU submission failed");
 
 		char *wu_id = DC_getWUId(wu);
-		LOG(LOG_INFO, "DC-API: Submitted work unit %s for app '%s' (%d tasks)",
+		LOG(LOG_INFO, "DC-API: Submitted work unit %s for app '%s' (%zd tasks)",
 			wu_id, algname.c_str(), jobs->size());
 
 		for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++)

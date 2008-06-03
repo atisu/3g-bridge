@@ -262,7 +262,7 @@ vector<CGJob *> *DBHandler::parseJobs(void)
 vector<CGJob *> *DBHandler::getJobs(CGJobStatus stat)
 {
 	if (query("SELECT * FROM cg_job WHERE status = '%s' ORDER BY creation_time",
-		    getStatStr(stat)))
+			getStatStr(stat)))
 		return parseJobs();
 	return 0;
 }

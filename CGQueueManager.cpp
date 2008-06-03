@@ -25,7 +25,7 @@ using namespace std;
 
 static volatile bool finish = false;
 
-static void sigint_handler(int signal)
+static void sigint_handler(int signal __attribute__((__unused__)))
 {
 	finish = true;
 }
@@ -143,7 +143,7 @@ void CGQueueManager::run()
 		vector<CGJob *> *newJobs = jobDB->getJobs(INIT);
 		vector<CGJob *> *cancelJobs = jobDB->getJobs(CANCEL);
 
-		LOG(LOG_DEBUG, "Queue Manager found %d new jobs.", newJobs->size());
+		LOG(LOG_DEBUG, "Queue Manager found %zd new jobs.", newJobs->size());
 		try {
 			handleJobs(submit, newJobs);
 		} catch (BackendException& a) {
@@ -156,7 +156,7 @@ void CGQueueManager::run()
 			LOG(LOG_ERR, "A backend exception occured: %s", a.what());
 		}
 
-		LOG(LOG_DEBUG, "Queue Manager found %d jobs to be aborted.", cancelJobs->size());
+		LOG(LOG_DEBUG, "Queue Manager found %zd jobs to be aborted.", cancelJobs->size());
 		try {
 			handleJobs(cancel, cancelJobs);
 		} catch (BackendException& a) {
@@ -185,7 +185,7 @@ void CGQueueManager::run()
 		else if (elapsed.tv_sec < 1)
 			elapsed.tv_sec = 1;
 		if (elapsed.tv_sec > 5)
-			LOG(LOG_DEBUG, "Sleeping for %d seconds", elapsed.tv_sec);
+			LOG(LOG_DEBUG, "Sleeping for %d seconds", (int)elapsed.tv_sec);
 		sleep(elapsed.tv_sec);
 	}
 }
@@ -308,7 +308,7 @@ void CGQueueManager::handlePackedSubmission(GridHandler *gh, vector<CGJob *> *jo
 		for (; useSize && it != jobs->end(); useSize--, it++)
 			sendJobs.push_back(*it);
 
-		LOG(LOG_INFO, "Submitting package of size %d.", sendJobs.size());
+		LOG(LOG_INFO, "Submitting package of size %zd.", sendJobs.size());
 		gh->submitJobs(&sendJobs);
 	}
 }
@@ -348,7 +348,7 @@ void CGQueueManager::schedReq(GridHandler *gh, vector<CGJob *> *jobs)
 			for (unsigned i = 0; i < maxGSize && it != jobs->end(); i++, it++)
 				sendJobs.push_back(*it);
 
-			LOG(LOG_DEBUG, "Sending %d jobs to grid plugin for submission.", sendJobs.size());
+			LOG(LOG_DEBUG, "Sending %zd jobs to grid plugin for submission.", sendJobs.size());
 			gh->submitJobs(&sendJobs);
 		}
 	}
