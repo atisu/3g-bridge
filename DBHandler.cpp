@@ -15,6 +15,9 @@
 
 using namespace std;
 
+
+static DBPool db_pool;
+
 DBResult::~DBResult()
 {
 	if (res)
@@ -407,43 +410,90 @@ void DBHandler::addJob(CGJob &job)
 	}
 }
 
-/* XXX We should have a constant-sized pool of DB connections instead of opening
- * a new one every time */
-DBHandler *DBHandler::get()
+DBHandler *DBPool::get() throw (QMException &)
 {
-	char *dbname = g_key_file_get_string(global_config, "database", "name", NULL);
-	char *host = g_key_file_get_string(global_config, "database", "host", NULL);
-	char *user = g_key_file_get_string(global_config, "database", "user", NULL);
-	char *passwd = g_key_file_get_string(global_config, "database", "password", NULL);
-
 	DBHandler *dbh;
 
-	try
+	if (!free_dbhs.empty())
 	{
-		dbh = new DBHandler(dbname, host, user, passwd);
-	}
-	catch (...)
-	{
-		g_free(dbname);
-		g_free(host);
-		g_free(user);
-		g_free(passwd);
-		throw;
+		dbh = free_dbhs.front();
+		free_dbhs.erase(free_dbhs.begin());
+		used_dbhs.push_back(dbh);
+		return dbh;
 	}
 
-	g_free(dbname);
-	g_free(host);
-	g_free(user);
-	g_free(passwd);
+	if (max_connections && used_dbhs.size() >= max_connections)
+		throw QMException("Too many database connections are open");
 
+	dbh = new DBHandler(dbname.c_str(), host.c_str(), user.c_str(), passwd.c_str());
+
+	used_dbhs.push_back(dbh);
 	return dbh;
+}
+
+void DBPool::put(DBHandler *dbh)
+{
+	vector<DBHandler *>::iterator it;
+	for (it = used_dbhs.begin(); it != used_dbhs.end(); it++)
+		if (*it == dbh)
+			break;
+	if (it == used_dbhs.end())
+		LOG(LOG_ERR, "Tried to put() a dbh that is not on the used list");
+	else
+		used_dbhs.erase(it);
+	free_dbhs.push_back(dbh);
+}
+
+DBPool::DBPool()
+{
+	GError *error = NULL;
+
+	/* Store the connection parameters locally for easier memory management */
+	char *str = g_key_file_get_string(global_config, "database", "name", NULL);
+	dbname = str ? str : "";
+	g_free(str);
+	str = g_key_file_get_string(global_config, "database", "host", NULL);
+	host = str ? str : "";
+	g_free(str);
+	str = g_key_file_get_string(global_config, "database", "user", NULL);
+	user = str ? str : "";
+	g_free(str);
+	str = g_key_file_get_string(global_config, "database", "password", NULL);
+	passwd = str ? str : "";
+	g_free(str);
+
+	max_connections = g_key_file_get_int(global_config, "database", "max-connections", &error);
+	if (error)
+	{
+		if (error->code != G_KEY_FILE_KEY_NOT_FOUND)
+			LOG(LOG_ERR, "Failed to parse the max DB connection number: %s", error->message);
+		g_error_free(error);
+	}
+}
+
+DBPool::~DBPool()
+{
+	/* If used_dbhs is not empty, we have a leak somewhere */
+	if (!used_dbhs.empty())
+		LOG(LOG_WARNING, "There are database handles in use on shutdown");
+
+	while (!free_dbhs.empty())
+	{
+		DBHandler *dbh = free_dbhs.front();
+		free_dbhs.erase(free_dbhs.begin());
+		delete dbh;
+	}
+}
+
+DBHandler *DBHandler::get()
+{
+	return db_pool.get();
 }
 
 void DBHandler::put(DBHandler *dbh)
 {
-	delete dbh;
+	db_pool.put(dbh);
 }
-
 
 /**
  * Add an algorithm queue to the database. Initially, the statistics for the
@@ -455,6 +505,6 @@ void DBHandler::put(DBHandler *dbh)
  */
 void DBHandler::addAlgQ(const char *grid, const char *alg, unsigned int batchsize)
 {
-	query("INSERT INTO cg_algqueue(grid, alg, batchsize, statistics) VALUES('%s', '%s', '%zd', '')",
+	query("INSERT INTO cg_algqueue(grid, alg, batchsize, statistics) VALUES('%s', '%s', '%u', '')",
 		grid, alg, batchsize);
 }

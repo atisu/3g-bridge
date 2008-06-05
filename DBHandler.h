@@ -1,15 +1,18 @@
 #ifndef __DBHANDLER_H
 #define __DBHANDLER_H
 
-#include <string>
 #include "CGJob.h"
 #include "CGAlgQueue.h"
+#include "QMException.h"
+
+#include <string>
 
 #include <mysql.h>
 
 
 using namespace std;
 
+class DBPool;
 
 class DBHandler {
     public:
@@ -27,15 +30,37 @@ class DBHandler {
 	void updateAlgQStat(const char *gridid, unsigned pSize, unsigned pTime);
 
 	static void put(DBHandler *dbh);
-	static DBHandler *get();
+	static DBHandler *get() throw (QMException &);
+
 	void addAlgQ(const char *grid, const char *alg, unsigned batchsize);
-    private:
+    protected:
+	friend class DBPool;
 	DBHandler(const char *dbname, const char *host, const char *user, const char *passwd);
+    private:
 	MYSQL *conn;
 	const char *getStatStr(CGJobStatus stat);
 	const char *Alg2Str(CGAlgType type);
 	CGAlgType Str2Alg(const char *name);
 	vector<CGJob *> *parseJobs(void);
+};
+
+class DBPool
+{
+    public:
+	DBPool();
+	~DBPool();
+    protected:
+	friend class DBHandler;
+	DBHandler *get();
+	void put(DBHandler *dbh);
+    private:
+	int max_connections;
+	string dbname;
+	string host;
+	string user;
+	string passwd;
+	vector<DBHandler *> used_dbhs;
+	vector<DBHandler *> free_dbhs;
 };
 
 class DBResult {
