@@ -141,52 +141,6 @@ const char *DBHandler::getStatStr(CGJobStatus stat)
 
 
 /**
- * Convert algorithm to string.
- *
- * @param[in] type Algorithm type to convert
- * @return String representation of the algorithm type
- */
-const char *DBHandler::Alg2Str(CGAlgType type)
-{
-	switch (type) {
-	case CG_ALG_DB:
-		return "DB";
-	case CG_ALG_LOCAL:
-		return "LOCAL";
-	case CG_ALG_DCAPI:
-		return "DCAPI";
-	case CG_ALG_EGEE:
-		return "EGEE";
-	default:
-		return "UNKNOWN";
-	}
-}
-
-
-/**
- * Convert string to algorithm.
- *
- * @param[in] type Algorithm string to convert
- * @return Algorithm type representation of the string
- */
-CGAlgType DBHandler::Str2Alg(const char *name)
-{
-	if (!strcmp(name, "DB"))
-		return CG_ALG_DB;
-
-	if (!strcmp(name, "LOCAL"))
-		return CG_ALG_LOCAL;
-
-	if (!strcmp(name, "DCAPI"))
-		return CG_ALG_DCAPI;
-
-	if (!strcmp(name, "EGEE"))
-		return CG_ALG_EGEE;
-
-	return CG_ALG_EGEE;
-}
-
-/**
  * Parse job results of a query.
  *
  * @param[in] squery Pointer to the query to perform on the cg_job table
@@ -212,18 +166,14 @@ vector<CGJob *> *DBHandler::parseJobs(void)
 	{
 		// Get instance of the relevant algorithm queue
 		CGAlgQueue *algQ;
-#ifdef HAVE_DCAPI
-		CGAlgType algT = Str2Alg("DCAPI");
-#endif
-#ifdef HAVE_EGEE
-		CGAlgType algT = Str2Alg("EGEE");
-#endif
+
 		const char *alg = res.get_field("alg");
+		const char *grid = res.get_field("grid");
 		const char *args = res.get_field("args");
 		const char *gridid = res.get_field("gridid");
 		const char *id = res.get_field("id");
 
-		algQ = CGAlgQueue::getInstance(algT, alg, 10);
+		algQ = CGAlgQueue::getInstance(grid, alg, 10);
 
 		// Create new job descriptor
 		CGJob *nJob = new CGJob(alg, args, algQ);
@@ -291,13 +241,13 @@ vector<CGJob *> *DBHandler::getJobs(const char *gridID)
  * @return statistics field for the given algorithm queue in the DB, and ""
  *         if no such entry exists
  */
-string DBHandler::getAlgQStat(CGAlgType type, const string &name, unsigned *ssize)
+string DBHandler::getAlgQStat(const string &grid, const string &name, unsigned *ssize)
 {
 	string rv = "";
 	*ssize = 1;
 	DBResult res;
 
-	if (!query("SELECT batchsize,statistics FROM cg_algqueue WHERE grid='%s' AND alg='%s'", Alg2Str(type), name.c_str()))
+	if (!query("SELECT batchsize,statistics FROM cg_algqueue WHERE grid='%s' AND alg='%s'", grid.c_str(), name.c_str()))
 		return rv;
 	res.store(conn);
 	if (res.fetch()) {
@@ -322,7 +272,7 @@ void DBHandler::updateAlgQStat(CGAlgQueue *algQ, unsigned pSize, unsigned pTime)
 	algQ->updateStat(pSize, pTime);
 
 	query("UPDATE cg_algqueue SET statistics='%s' WHERE dsttype='%s' AND alg='%s'",
-		algQ->getStatStr().c_str(), Alg2Str(algQ->getType()), algQ->getName().c_str());
+		algQ->getStatStr().c_str(), algQ->getGrid().c_str(), algQ->getName().c_str());
 }
 
 
@@ -462,10 +412,10 @@ DBPool::DBPool()
 	passwd = str ? str : "";
 	g_free(str);
 
-	max_connections = g_key_file_get_int(global_config, "database", "max-connections", &error);
+	max_connections = g_key_file_get_integer(global_config, "database", "max-connections", &error);
 	if (error)
 	{
-		if (error->code != G_KEY_FILE_KEY_NOT_FOUND)
+		if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND)
 			LOG(LOG_ERR, "Failed to parse the max DB connection number: %s", error->message);
 		g_error_free(error);
 	}
@@ -485,7 +435,7 @@ DBPool::~DBPool()
 	}
 }
 
-DBHandler *DBHandler::get()
+DBHandler *DBHandler::get() throw (QMException &)
 {
 	return db_pool.get();
 }

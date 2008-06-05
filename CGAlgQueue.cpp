@@ -14,7 +14,7 @@ using namespace std;
 
 vector<CGAlgQueue *> CGAlgQueue::queues;
 
-CGAlgQueue::CGAlgQueue(const CGAlgType &type, const string &name, const unsigned maxPackSize):ttype(type),tname(name)
+CGAlgQueue::CGAlgQueue(const string &grid, const string &name, const unsigned maxPackSize):grid(grid),tname(name)
 {
 	mPSize = (maxPackSize ? maxPackSize : 1);
 	pStats.resize(mPSize);
@@ -27,7 +27,7 @@ CGAlgQueue::CGAlgQueue(const CGAlgType &type, const string &name, const unsigned
 }
 
 
-CGAlgQueue::CGAlgQueue(const CGAlgType &type, const string &name, const unsigned maxPackSize, const string &statStr):ttype(type),tname(name)
+CGAlgQueue::CGAlgQueue(const string &grid, const string &name, const unsigned maxPackSize, const string &statStr):grid(grid),tname(name)
 {
 	stringstream strstr(statStr);
 
@@ -72,23 +72,23 @@ void CGAlgQueue::cleanUp()
 }
 
 
-CGAlgQueue *CGAlgQueue::getInstance(const CGAlgType &type, const string &algName, const unsigned maxPackSize)
+CGAlgQueue *CGAlgQueue::getInstance(const string &grid, const string &algName, const unsigned maxPackSize)
 {
 	for (unsigned i = 0; i < queues.size(); i++)
-	        if (queues[i]->getName() == algName && queues[i]->getType() == type)
+	        if (queues[i]->getName() == algName && queues[i]->getGrid() == grid)
 			return queues[i];
 
 	CGAlgQueue *rv;
 	unsigned msize;
 
 	DBHandler *dbH = DBHandler::get();
-	string statStr = dbH->getAlgQStat(type, algName, &msize);
+	string statStr = dbH->getAlgQStat(grid, algName, &msize);
 	DBHandler::put(dbH);
 
 	if (statStr == "")
-		rv = new CGAlgQueue(type, algName, msize);
+		rv = new CGAlgQueue(grid, algName, msize);
 	else
-		rv = new CGAlgQueue(type, algName, msize, statStr);
+		rv = new CGAlgQueue(grid, algName, msize, statStr);
 
         queues.push_back(rv);
         return rv;

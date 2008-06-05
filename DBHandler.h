@@ -25,7 +25,7 @@ class DBHandler {
 	void updateJobStat(string ID, CGJobStatus newstat);
 	void addJob(CGJob &job);
 	void deleteJob(const string &ID);
-	string getAlgQStat(CGAlgType type, const string &name, unsigned *ssize);
+	string getAlgQStat(const string &grid, const string &name, unsigned *ssize);
 	void updateAlgQStat(CGAlgQueue *algQ, unsigned pSize, unsigned pTime);
 	void updateAlgQStat(const char *gridid, unsigned pSize, unsigned pTime);
 
@@ -39,8 +39,6 @@ class DBHandler {
     private:
 	MYSQL *conn;
 	const char *getStatStr(CGJobStatus stat);
-	const char *Alg2Str(CGAlgType type);
-	CGAlgType Str2Alg(const char *name);
 	vector<CGJob *> *parseJobs(void);
 };
 
@@ -51,10 +49,10 @@ class DBPool
 	~DBPool();
     protected:
 	friend class DBHandler;
-	DBHandler *get();
+	DBHandler *get() throw (QMException &);
 	void put(DBHandler *dbh);
     private:
-	int max_connections;
+	unsigned max_connections;
 	string dbname;
 	string host;
 	string user;

@@ -27,8 +27,7 @@ private:
     map<string, string> inputs;
     map<string, string> outputs;
     CGJobStatus status;
-    CGAlgType dstType;
-    string dstLoc;
+    string grid;
 public:
     CGJob(const string name, string args, CGAlgQueue *algQ);
     ~CGJob();

@@ -81,29 +81,26 @@ CGQueueManager::~CGQueueManager()
  */
 void CGQueueManager::handleJobs(jobOperation op, vector<CGJob *> *jobs)
 {
-	map<CGAlgType, vector<CGJob *> > gridMap;
+	map<string, vector<CGJob *> > gridMap;
 
 	// Create a map of algorithm (grid) types to jobs
 	if (jobs)
 		for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
-			CGAlgType actType = (*it)->getAlgQueue()->getType();
-			gridMap[actType].push_back(*it);
+			string grid = (*it)->getAlgQueue()->getGrid();
+			gridMap[grid].push_back(*it);
 		}
 
-	// Use the selected grid plugin for handling the jobs
-	for (CGAlgType c = CG_ALG_MIN; c != CG_ALG_MAX; c = CGAlgType(c+1)) {
-		if (!gridHandlers[c])
-    			continue;
-
+	for (vector<GridHandler *>::const_iterator it = gridHandlers.begin(); it != gridHandlers.end(); it++)
+	{
 		switch (op) {
 		case submit:
-    			schedReq(gridHandlers[c], &(gridMap[c])); 
+    			schedReq(*it, &(gridMap[(*it)->getName()])); 
     			break;
 		case status:
-    			gridHandlers[c]->updateStatus();
+    			(*it)->updateStatus();
     			break;
 		case cancel:
-    			gridHandlers[c]->cancelJobs(&(gridMap[c]));
+    			(*it)->cancelJobs(&(gridMap[(*it)->getName()]));
     			break;
 		}
 	}
