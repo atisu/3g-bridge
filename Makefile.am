@@ -6,52 +6,52 @@ AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@
 
 bin_PROGRAMS = injector CGManager
 
+noinst_HEADERS = \
+		common.h \
+		BackendException.h \
+		CGAlgQueue.h \
+		CGJob.h \
+		CGManager.h \
+		CGQueueManager.h \
+		DCAPIHandler.h \
+		DBHandler.h \
+		EGEEHandler.h \
+		GridHandler.h \
+		Logging.h \
+		QMException.h
+
 injector_SOURCES = \
 		injector.cpp \
 		CGAlgQueue.cpp \
-		CGAlgQueue.h \
 		CGJob.cpp \
-		CGJob.h \
 		DBHandler.cpp \
-		DBHandler.h \
 		Logging.cpp \
-		Logging.h \
-		QMException.cpp \
-		QMException.h
+		QMException.cpp
 injector_LDADD = -luuid $(MYSQL_LIBS) $(GLIB_LIBS)
 
 BACKEND_SOURCES =
 BACKEND_LIBS =
 
 if HAVE_DCAPI
-BACKEND_SOURCES += DCAPIHandler.cpp DCAPIHandler.h
+BACKEND_SOURCES += DCAPIHandler.cpp
 BACKEND_LIBS += $(DCAPI_MASTER_LIBS)
 endif
 
 if HAVE_EGEE
-BACKEND_SOURCES += EGEEHandler.cpp EGEEHandler.h
+BACKEND_SOURCES += EGEEHandler.cpp
 BACKEND_LIBS += $(EGEE_LIBS)
 AM_CPPFLAGS += $(EGEE_CPPFLAGS)
 endif
 
 CGManager_SOURCES = \
-		common.h \
 		BackendException.cpp \
-		BackendException.h \
 		CGAlgQueue.cpp \
-		CGAlgQueue.h \
 		CGJob.cpp \
-		CGJob.h \
 		CGManager.cpp \
 		CGQueueManager.cpp \
-		CGQueueManager.h \
-		DBHandler.h \
 		DBHandler.cpp \
-		GridHandler.h \
 		Logging.cpp \
-		Logging.h \
 		QMException.cpp \
-		QMException.h \
 		$(BACKEND_SOURCES)
 CGManager_LDADD = $(BACKEND_LIBS) $(MYSQL_LIBS) $(GLIB_LIBS)
 
