@@ -18,6 +18,12 @@ using namespace std;
 
 static DBPool db_pool;
 
+/* The order here must match the definition of CGJobStatus */
+static const char *status_str[] =
+{
+	"INIT", "RUNNING", "FINISHED", "ERROR", "CANCEL"
+};
+
 DBResult::~DBResult()
 {
 	if (res)
@@ -123,20 +129,9 @@ DBHandler::~DBHandler()
  */
 const char *DBHandler::getStatStr(CGJobStatus stat)
 {
-	switch (stat) {
-	case INIT:
-		return "INIT";
-	case RUNNING:
-		return "RUNNING";
-	case FINISHED:
-		return "FINISHED";
-	case ERROR:
-		return "ERROR";
-	case CANCEL:
-		return "CANCEL";
-	default:
+	if (stat < 0 || stat > (int)(sizeof(status_str) / sizeof(status_str[0])))
 		throw QMException("Unknown job status value %d", (int)stat);
-	}
+	return status_str[stat];
 }
 
 
@@ -301,7 +296,7 @@ void DBHandler::updateAlgQStat(const char *gridId, unsigned pSize, unsigned pTim
  * @param[in] ID The job's identifier
  * @param[in] gridID The grid identifier to set
  */
-void DBHandler::updateJobGridID(string ID, string gridID)
+void DBHandler::updateJobGridID(const string &ID, const string &gridID)
 {
 	query("UPDATE cg_job SET gridid='%s' WHERE id='%s'", gridID.c_str(), ID.c_str());
 }
@@ -313,7 +308,7 @@ void DBHandler::updateJobGridID(string ID, string gridID)
  * @param[in] ID The job's identifier
  * @param[in] newstat The status to set
  */
-void DBHandler::updateJobStat(string ID, CGJobStatus newstat)
+void DBHandler::updateJobStat(const string &ID, CGJobStatus newstat)
 {
 	query("UPDATE cg_job SET status='%s' WHERE id='%s'", getStatStr(newstat), ID.c_str());
 }

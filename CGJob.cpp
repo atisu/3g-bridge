@@ -13,7 +13,7 @@
 using namespace std;
 
 
-CGJob::CGJob(const string tname, string args, CGAlgQueue *algQ):name(tname),talgQ(algQ),targs(args)
+CGJob::CGJob(const string &tname, const string &args, CGAlgQueue *algQ):name(tname),talgQ(algQ),targs(args)
 {
     inputs.clear();
     outputs.clear();
@@ -23,12 +23,12 @@ CGJob::~CGJob()
 {
 }
 
-void CGJob::addInput(const string localname, const string fsyspath)
+void CGJob::addInput(const string &localname, const string &fsyspath)
 {
     inputs[localname] = fsyspath;
 }
 
-void CGJob::addOutput(const string localname, const string fsyspath)
+void CGJob::addOutput(const string &localname, const string &fsyspath)
 {
     outputs[localname] = fsyspath;
 }

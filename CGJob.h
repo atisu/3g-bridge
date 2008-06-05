@@ -29,10 +29,10 @@ private:
     map<string, string> outputs;
     CGJobStatus status;
 public:
-    CGJob(const string name, string args, CGAlgQueue *algQ);
+    CGJob(const string &name, const string &args, CGAlgQueue *algQ);
     ~CGJob();
-    void addInput(const string localname, const string fsyspath);
-    void addOutput(const string localname, const string fsyspath);
+    void addInput(const string &localname, const string &fsyspath);
+    void addOutput(const string &localname, const string &fsyspath);
     const string getName() const { return name; }
     const string getGrid() const { return grid; }
     const string getArgs() const { return targs; }
@@ -41,9 +41,9 @@ public:
     CGAlgQueue *getAlgQueue() { return talgQ; }
     vector<string> getInputs() const;
     vector<string> getOutputs() const;
-    string getGridId() const { return gridId; }
+    const string &getGridId() const { return gridId; }
     void setGridId(const string &sId);
-    string getId() const { return id; }
+    const string &getId() const { return id; }
     void setId(const string sId) { id = sId; }
     string getInputPath(const string localname);
     string getOutputPath(const string localname);
