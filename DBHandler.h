@@ -24,9 +24,10 @@ class DBHandler {
 	void updateJobStat(string ID, CGJobStatus newstat);
 	void addJob(CGJob &job);
 	void deleteJob(const string &ID);
-	string getAlgQStat(CGAlgType type, const string &name);
+	string getAlgQStat(CGAlgType type, const string &name, unsigned *ssize);
 	void updateAlgQStat(CGAlgQueue *algQ, unsigned pSize, unsigned pTime);
 	void updateAlgQStat(const char *gridid, unsigned pSize, unsigned pTime);
+	void addAlgQ(const char *grid, const char *alg, unsigned batchsize);
     private:
 	MYSQL *conn;
 	const char *getStatStr(CGJobStatus stat);

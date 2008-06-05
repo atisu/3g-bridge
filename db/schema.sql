@@ -46,8 +46,9 @@ create table cg_outputs (
  * Algorithm queue table. Used for scheduling purposes
  */
 create table cg_algqueue (
-    dsttype		varchar(254) not null /* Destination type */,
-    alg			char(32)     not null /* Algorithm (executable) name */,
+    grid		varchar(254) not null /* Relevant grid name */,
+    alg			char(128)    not null /* Algorithm (executable) name */,
+    batchsize		int	     not null /* Maximum batch size */,
     statistics		text		      /* Statistics data */,
-    primary key entry (dsttype, alg)
+    primary key entry (grid, alg)
 ) type=InnoDB;

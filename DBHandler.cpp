@@ -292,16 +292,19 @@ vector<CGJob *> *DBHandler::getJobs(const char *gridID)
  * @return statistics field for the given algorithm queue in the DB, and ""
  *         if no such entry exists
  */
-string DBHandler::getAlgQStat(CGAlgType type, const string &name)
+string DBHandler::getAlgQStat(CGAlgType type, const string &name, unsigned *ssize)
 {
 	string rv = "";
+	*ssize = 1;
 	DBResult res;
 
-	if (!query("SELECT statistics FROM cg_algqueue WHERE dsttype='%s' AND alg='%s'", Alg2Str(type), name.c_str()))
+	if (!query("SELECT batchsize,statistics FROM cg_algqueue WHERE grid='%s' AND alg='%s'", Alg2Str(type), name.c_str()))
 		return rv;
 	res.store(conn);
-	if (res.fetch())
-		rv = res.get_field(0);
+	if (res.fetch()) {
+		*ssize = atoi(res.get_field(0));
+		rv = res.get_field(1);
+	}
 	return rv;
 }
 
@@ -377,6 +380,7 @@ void DBHandler::deleteJob(const string &ID)
 	query("DELETE FROM cg_outputs WHERE id='%s'", ID.c_str());
 }
 
+
 void DBHandler::addJob(CGJob &job)
 {
 	query("START TRANSACTION");
@@ -405,4 +409,19 @@ void DBHandler::addJob(CGJob &job)
 		query("ROLLBACK");
 		throw;
 	}
+}
+
+
+/**
+ * Add an algorithm queue to the database. Initially, the statistics for the
+ * algorithm are set empty.
+ *
+ * @param[in] grid The grid's name
+ * @param[in] alg The algorithm's name
+ * @param[in] batchsize Maximum batch size for the algorithm
+ */
+void DBHandler::addAlgQ(const char *grid, const char *alg, unsigned int batchsize)
+{
+	query("INSERT INTO cg_algqueue(grid, alg, batchsize, statistics) VALUES('%s', '%s', '%zd', '')",
+		grid, alg, batchsize);
 }

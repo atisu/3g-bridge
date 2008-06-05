@@ -27,11 +27,11 @@ CGAlgQueue::CGAlgQueue(const CGAlgType &type, const string &name, const unsigned
 }
 
 
-CGAlgQueue::CGAlgQueue(const CGAlgType &type, const string &name, const string &statStr):ttype(type),tname(name)
+CGAlgQueue::CGAlgQueue(const CGAlgType &type, const string &name, const unsigned maxPackSize, const string &statStr):ttype(type),tname(name)
 {
 	stringstream strstr(statStr);
 
-	strstr >> mPSize;
+	mPSize = maxPackSize;
 	pStats.resize(mPSize);
 
 	unsigned i = 0;
@@ -79,12 +79,13 @@ CGAlgQueue *CGAlgQueue::getInstance(const CGAlgType &type, const string &algName
 			return queues[i];
 
 	CGAlgQueue *rv;
-	string statStr = dbH->getAlgQStat(type, algName);
+	unsigned msize;
+	string statStr = dbH->getAlgQStat(type, algName, &msize);
 
 	if (statStr == "")
-		rv = new CGAlgQueue(type, algName, maxPackSize);
+		rv = new CGAlgQueue(type, algName, msize);
 	else
-		rv = new CGAlgQueue(type, algName, statStr);
+		rv = new CGAlgQueue(type, algName, msize, statStr);
 
         queues.push_back(rv);
         return rv;

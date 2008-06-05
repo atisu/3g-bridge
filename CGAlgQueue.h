@@ -49,7 +49,7 @@ class CGAlgQueue {
 	string getStatStr();
     private:
 	CGAlgQueue(const CGAlgType &type, const string &algName, const unsigned maxPackSize);
-	CGAlgQueue(const CGAlgType &type, const string &algName, const string &statStr);
+	CGAlgQueue(const CGAlgType &type, const string &algName, const unsigned maxPackSize, const string &statStr);
 	CGAlgType ttype;
 	string tname;
 	unsigned mPSize;
