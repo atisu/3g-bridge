@@ -72,7 +72,7 @@ void CGAlgQueue::cleanUp()
 }
 
 
-CGAlgQueue *CGAlgQueue::getInstance(const CGAlgType &type, const string &algName, DBHandler *dbH, const unsigned maxPackSize)
+CGAlgQueue *CGAlgQueue::getInstance(const CGAlgType &type, const string &algName, const unsigned maxPackSize)
 {
 	for (unsigned i = 0; i < queues.size(); i++)
 	        if (queues[i]->getName() == algName && queues[i]->getType() == type)
@@ -80,7 +80,10 @@ CGAlgQueue *CGAlgQueue::getInstance(const CGAlgType &type, const string &algName
 
 	CGAlgQueue *rv;
 	unsigned msize;
+
+	DBHandler *dbH = DBHandler::get();
 	string statStr = dbH->getAlgQStat(type, algName, &msize);
+	DBHandler::put(dbH);
 
 	if (statStr == "")
 		rv = new CGAlgQueue(type, algName, msize);

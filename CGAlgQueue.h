@@ -9,9 +9,6 @@
 using namespace std;
 
 
-class DBHandler;
-
-
 /**
  * Algorithm types.
  */
@@ -42,7 +39,7 @@ class CGAlgQueue {
 	CGAlgType getType() { return ttype; }
 	string getName() { return tname; }
 	unsigned getPackSize() { return mPSize; }
-	static CGAlgQueue *getInstance(const CGAlgType &type, const string &algName, DBHandler *dbH, const unsigned maxPackSize = 1);
+	static CGAlgQueue *getInstance(const CGAlgType &type, const string &algName, const unsigned maxPackSize = 1);
 	static void cleanUp();
 	vector<processStatistics> *getPStats() { return &pStats; }
 	void updateStat(unsigned pSize, unsigned pTime);

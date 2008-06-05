@@ -9,7 +9,6 @@
 #include <iostream>
 
 #include "Logging.h"
-#include "QMConfig.h"
 #include "DBHandler.h"
 #include "QMException.h"
 
@@ -17,8 +16,12 @@
 #include <unistd.h>
 #include <uuid/uuid.h>
 
+#include <glib.h>
+
 extern char *optarg;
 extern int optind, opterr, optopt;
+
+GKeyFile *global_config = NULL;
 
 using namespace std;
 
@@ -41,6 +44,7 @@ int main(int argc, char **argv)
     string algName = "";
     vector<string *> inputs;
     vector<string *> outputs;
+    GError *error;
 
     int c;
     while (1) {
@@ -83,10 +87,18 @@ int main(int argc, char **argv)
 	exit(1);
     }
 
+    global_config = g_key_file_new();
+    error = NULL;
+    g_key_file_load_from_file(global_config, argv[1], G_KEY_FILE_NONE, &error);
+    if (error)
+    {
+	    cerr << "Failed to load the config file: " << error->message << endl;
+	    exit(1);
+    }
+
     DBHandler *dbh;
     try {
-	QMConfig config(argv[optind]);
-	dbh = new DBHandler(config);
+	dbh = DBHandler::get();
     }
     catch (QMException &e) {
         cerr << "Error: " << e.what() << endl;
@@ -103,7 +115,7 @@ int main(int argc, char **argv)
     uuid_generate(jid);
     uuid_unparse(jid, sid);
 
-    CGJob job(algName, cmdLine, 0, dbh);
+    CGJob job(algName, cmdLine, 0);
     job.setId(sid);
 
     for (vector<string *>::const_iterator it = inputs.begin(); it != inputs.end(); it++)

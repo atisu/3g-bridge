@@ -2,7 +2,7 @@ MAINTAINERCLEANFILES = Makefile.in
 
 ACLOCAL_AMFLAGS = -I cf
 
-AM_CPPFLAGS = @MYSQL_CPPFLAGS@
+AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@
 
 bin_PROGRAMS = injector CGManager
 
@@ -16,11 +16,9 @@ injector_SOURCES = \
 		DBHandler.h \
 		Logging.cpp \
 		Logging.h \
-		QMConfig.cpp \
-		QMConfig.h \
 		QMException.cpp \
 		QMException.h
-injector_LDADD = -luuid $(MYSQL_LIBS)
+injector_LDADD = -luuid $(MYSQL_LIBS) $(GLIB_LIBS)
 
 BACKEND_SOURCES =
 BACKEND_LIBS =
@@ -52,12 +50,10 @@ CGManager_SOURCES = \
 		GridHandler.h \
 		Logging.cpp \
 		Logging.h \
-		QMConfig.cpp \
-		QMConfig.h \
 		QMException.cpp \
 		QMException.h \
 		$(BACKEND_SOURCES)
-CGManager_LDADD = $(BACKEND_LIBS) $(MYSQL_LIBS)
+CGManager_LDADD = $(BACKEND_LIBS) $(MYSQL_LIBS) $(GLIB_LIBS)
 
 master.xml: master.xml.in
 	$(SED) -e "s,@PACKAGE_VERSION\@,$(PACKAGE_VERSION)," \

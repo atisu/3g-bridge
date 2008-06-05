@@ -43,11 +43,12 @@ int EGEEHandler::global_offset;
  * @param[in] jDB DB handler pointer
  * @param[in] WMProxy_EndPoint URL of the WMProxy server
  */
-EGEEHandler::EGEEHandler(DBHandler *jDB, QMConfig &config) throw (BackendException &)
+EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException &)
 {
-	jobDB = jDB;
 	global_offset = 0;
-	wmpendp = config.getStr("WMProxy_EndPoint");
+	wmpendp = g_key_file_get_string(config, instance, "wmproxy-endpoint", NULL);
+	if (!wmpendp)
+		throw BackendException("EGEE: no WM proxy endpoint for %s", instance);
 	cfg = 0;
 
 	groupByNames = false;
@@ -81,6 +82,7 @@ void EGEEHandler::createCFG()
  */
 EGEEHandler::~EGEEHandler()
 {
+	g_free(wmpendp);
 	delete cfg;
 }
 
@@ -233,7 +235,10 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 
 void EGEEHandler::updateStatus() throw (BackendException &)
 {
+	DBHandler *jobDB = DBHandler::get();
 	vector<CGJob *> *myJobs = jobDB->getJobs(RUNNING);
+	DBHandler::put(jobDB);
+
 	if (!myJobs)
 		return;
 
@@ -346,14 +351,17 @@ void EGEEHandler::cancelJobs(vector<CGJob *> *jobs) throw (BackendException &)
 
 	createCFG();
 
+	DBHandler *jobDB = DBHandler::get();
         for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
 		LOG(LOG_DEBUG, "About to cancel and remove job \"" + (*it)->getId() + "\".");
 		try {
 			jobCancel((*it)->getGridId(), cfg);
 		} catch (BaseException e) {
 		}
+
 		jobDB->deleteJob((*it)->getId());
 	}
+	DBHandler::put(jobDB);
 }
 
 
@@ -650,4 +658,9 @@ void EGEEHandler::renew_proxy()
 	throwStrExc(__func__, "Adding VOMS extensions failed!");
     unlink(proxyf.c_str());
     setenv("X509_USER_PROXY", vproxyf.c_str(), 1);
+}
+
+GridHandler *EGEEHandler::getInstance(GKeyFile *config, const char *instance)
+{
+	return new EGEEHandler(config, instance);
 }

@@ -31,10 +31,6 @@
 /* Forward declarations */
 static void result_callback(DC_Workunit *wu, DC_Result *res);
 
-/* This should be a class member but it has to be referenced from a C callback
- * so it must be global */
-static DBHandler *dbh;
-
 using namespace std;
 
 /**********************************************************************
@@ -237,7 +233,9 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	string tag(tmp);
 	free(tmp);
 
+	DBHandler *dbh = DBHandler::get();
 	vector<CGJob *> *jobs = dbh->getJobs(id.c_str());
+	DBHandler::put(dbh);
 
 	if (!result)
 	{
@@ -313,16 +311,18 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
  * Class: DCAPIHandler
  */
 
-DCAPIHandler::DCAPIHandler(DBHandler *jobdb, QMConfig &config)
+DCAPIHandler::DCAPIHandler(GKeyFile *config, const char *instance)
 {
-	string conffile = config.getStr("DCAPI_Config");
+	name = instance;
 
-	if (DC_OK != DC_initMaster(conffile.length() ? conffile.c_str(): NULL))
+	char *conffile = g_key_file_get_string(config, instance, "dc-api-config", NULL);
+
+	if (DC_OK != DC_initMaster(conffile ? conffile : NULL))
 		throw BackendException("Failed to initialize the DC-API");
 
-	DC_setMasterCb(result_callback, NULL, NULL);
+	g_free(conffile);
 
-	dbh = jobdb;
+	DC_setMasterCb(result_callback, NULL, NULL);
 
 	groupByNames = true;
 	maxGroupSize = 100;
@@ -331,7 +331,6 @@ DCAPIHandler::DCAPIHandler(DBHandler *jobdb, QMConfig &config)
 
 DCAPIHandler::~DCAPIHandler()
 {
-	dbh = 0;
 }
 
 static void do_mkdir(const string &path) throw (BackendException &)
@@ -513,4 +512,9 @@ void DCAPIHandler::updateStatus(void) throw (BackendException &)
 	int ret = DC_processMasterEvents(0);
 	if (ret && ret != DC_ERR_TIMEOUT)
 		throw BackendException("DC_processMasterEvents() returned failure");
+}
+
+GridHandler *DCAPIHandler::getInstance(GKeyFile *config, const char *instance)
+{
+	return new DCAPIHandler(config, instance);
 }

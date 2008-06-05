@@ -2,11 +2,11 @@
 #define __CGQUEUEMANAGER_H
 
 #include "CGJob.h"
-#include "DBHandler.h"
 #include "common.h"
 #include "CGAlgQueue.h"
 #include "GridHandler.h"
-#include "QMConfig.h"
+
+#include <glib.h>
 
 #include <map>
 #include <set>
@@ -23,14 +23,13 @@ enum jobOperation {
 
 class CGQueueManager {
 public:
-    CGQueueManager(QMConfig &config);
+    CGQueueManager(GKeyFile *config);
     ~CGQueueManager();
     void run();
 private:
-    DBHandler *jobDB;
     map<string, CGAlgQueue *> algs;
     string basedir;
-    map<CGAlgType, GridHandler *> gridHandlers;
+    vector<GridHandler *> gridHandlers;
     unsigned selectSize(CGAlgQueue *algQ);
     unsigned selectSizeAdv(CGAlgQueue *algQ);
     void handlePackedSubmission(GridHandler *gh, vector<CGJob *> *jobs);

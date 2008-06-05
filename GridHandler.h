@@ -4,6 +4,8 @@
 #include "BackendException.h"
 #include "CGJob.h"
 
+#include <glib.h>
+
 #include <vector>
 
 using namespace std;
@@ -27,7 +29,11 @@ public:
 	maxGroupSize = 0;
     }
 
+    GridHandler(GKeyFile *config, const char *instance);
+
     virtual ~GridHandler() {}
+
+    const char *getName(void) { return name.c_str(); }
 
     bool schGroupByNames() const { return groupByNames; }
     unsigned schMaxGroupSize() const { return maxGroupSize; }
@@ -51,6 +57,7 @@ public:
 protected:
     bool groupByNames;
     unsigned maxGroupSize;
+    string name;
 };
 
 #endif

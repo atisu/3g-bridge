@@ -16,9 +16,6 @@
 using namespace std;
 
 
-class DBHandler;
-
-
 class CGJob {
 private:
     string id;
@@ -32,9 +29,8 @@ private:
     CGJobStatus status;
     CGAlgType dstType;
     string dstLoc;
-    DBHandler *tdbH;
 public:
-    CGJob(const string name, string args, CGAlgQueue *algQ, DBHandler *dbH);
+    CGJob(const string name, string args, CGAlgQueue *algQ);
     ~CGJob();
     void addInput(const string localname, const string fsyspath);
     void addOutput(const string localname, const string fsyspath);

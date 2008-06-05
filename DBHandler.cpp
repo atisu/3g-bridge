@@ -11,6 +11,7 @@
 
 #include "Logging.h"
 #include "QMException.h"
+#include "CGManager.h"
 
 using namespace std;
 
@@ -91,17 +92,12 @@ bool DBHandler::query(const char *fmt, ...)
  * @param[in] passwd Password to use
  * @param[in] dbname Name of the DB to use
  */
-DBHandler::DBHandler(QMConfig &config)
+DBHandler::DBHandler(const char *dbname, const char *host, const char *user, const char *passwd)
 {
-	string dbname = config.getStr("DB_NAME");
-	string host = config.getStr("DB_HOST");
-	string user = config.getStr("DB_USER");
-	string passwd = config.getStr("DB_PASSWORD");
-
 	conn = mysql_init(0);
 	if (!conn)
 		throw QMException("Out of memory");
-	if (!mysql_real_connect(conn, host.c_str(), user.c_str(), passwd.c_str(), dbname.c_str(), 0, 0, 0))
+	if (!mysql_real_connect(conn, host, user, passwd, dbname, 0, 0, 0))
 		throw QMException("Could not connect to the database: %s", mysql_error(conn));
 	if (mysql_ping(conn))
 		throw QMException("The connection to the database is broken: %s", mysql_error(conn));
@@ -224,10 +220,10 @@ vector<CGJob *> *DBHandler::parseJobs(void)
 		const char *gridid = res.get_field("gridid");
 		const char *id = res.get_field("id");
 
-		algQ = CGAlgQueue::getInstance(algT, alg, this, 10);
+		algQ = CGAlgQueue::getInstance(algT, alg, 10);
 
 		// Create new job descriptor
-		CGJob *nJob = new CGJob(alg, args, algQ, this);
+		CGJob *nJob = new CGJob(alg, args, algQ);
 		nJob->setId(id);
 		if (gridid)
 			nJob->setGridId(gridid);
@@ -409,6 +405,43 @@ void DBHandler::addJob(CGJob &job)
 		query("ROLLBACK");
 		throw;
 	}
+}
+
+/* XXX We should have a constant-sized pool of DB connections instead of opening
+ * a new one every time */
+DBHandler *DBHandler::get()
+{
+	char *dbname = g_key_file_get_string(global_config, "database", "name", NULL);
+	char *host = g_key_file_get_string(global_config, "database", "host", NULL);
+	char *user = g_key_file_get_string(global_config, "database", "user", NULL);
+	char *passwd = g_key_file_get_string(global_config, "database", "password", NULL);
+
+	DBHandler *dbh;
+
+	try
+	{
+		dbh = new DBHandler(dbname, host, user, passwd);
+	}
+	catch (...)
+	{
+		g_free(dbname);
+		g_free(host);
+		g_free(user);
+		g_free(passwd);
+		throw;
+	}
+
+	g_free(dbname);
+	g_free(host);
+	g_free(user);
+	g_free(passwd);
+
+	return dbh;
+}
+
+void DBHandler::put(DBHandler *dbh)
+{
+	delete dbh;
 }
 
 

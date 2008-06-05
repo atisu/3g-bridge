@@ -4,6 +4,7 @@
 
 #include "Logging.h"
 
+#include <string.h>
 #include <time.h>
 
 static ostream *log_stream;
@@ -21,7 +22,7 @@ static void print_header(int level)
 	strftime(buf, sizeof(buf), "%F %T", tm);
 
 	const char *str = "UNKNOWN";
-	if (level >= 0 && level < sizeof(level_str) / sizeof(level_str[0]))
+	if (level >= 0 && level < (int)(sizeof(level_str) / sizeof(level_str[0])))
 		str = level_str[level];
 
 	*log_stream << buf << ' ' << str << ": ";
@@ -31,6 +32,22 @@ void Logging::init(ostream &stream, int level)
 {
 	log_stream = &stream;
 	log_level = level;
+}
+
+void Logging::init(ostream &stream, const char *level)
+{
+	int i;
+
+	for (i = 0; i < (int)(sizeof(level_str) / sizeof(level_str[0])); i++)
+	{
+		if (!strcasecmp(level, level_str[i]))
+		{
+			init(stream, i);
+			return;
+		}
+	}
+	init(stream, LOG_INFO);
+	log(LOG_WARNING, "Failed to interpret log level %s, using INFO", level);
 }
 
 void Logging::log(int lvl, const char *fmt, va_list ap) {

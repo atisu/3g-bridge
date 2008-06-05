@@ -2,7 +2,6 @@
 #define __EGEEHANDLER_H
 
 #include "CGJob.h"
-#include "DBHandler.h"
 #include "GridHandler.h"
 
 #include <string>
@@ -18,11 +17,13 @@ using namespace glite::wms::wmproxyapi;
 
 class EGEEHandler : public GridHandler {
     public:
-	EGEEHandler(DBHandler *jDB, QMConfig &config) throw (BackendException &);
+	EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException &);
 	~EGEEHandler();
 	void submitJobs(vector<CGJob *> *jobs) throw (BackendException &);
 	void updateStatus(void) throw (BackendException &);
 	void cancelJobs(vector<CGJob *> *jobs) throw (BackendException &);
+
+	static GridHandler *getInstance(GKeyFile *config, const char *instance);
 
     private:
 	void getStatus(vector<CGJob *> *jobs) throw (BackendException &);
@@ -33,9 +34,8 @@ class EGEEHandler : public GridHandler {
 	static globus_bool_t done;
 	static bool globus_err;
 	static int global_offset;
-	string wmpendp;
+	char *wmpendp;
 	ConfigContext *cfg;
-	DBHandler *jobDB;
 	void init_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs);
 	void destroy_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs);
 	static void handle_finish(void *user_args, globus_ftp_client_handle_t *ftp_handle, globus_object_t *error);

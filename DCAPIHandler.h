@@ -3,8 +3,6 @@
 
 #include "CGJob.h"
 #include "GridHandler.h"
-#include "DBHandler.h"
-#include "QMConfig.h"
 
 #include <vector>
 
@@ -12,10 +10,12 @@ using namespace std;
 
 class DCAPIHandler: public GridHandler {
 public:
-	DCAPIHandler(DBHandler *jobdb, QMConfig &config);
+	DCAPIHandler(GKeyFile *config, const char *instance);
 	~DCAPIHandler();
 	void submitJobs(vector<CGJob *> *jobs) throw (BackendException &);
 	void updateStatus(void) throw (BackendException &);
+
+	static GridHandler *getInstance(GKeyFile *config, const char *instance);
 
 	/* Obsolote/unimplemented methods */
 	void cancelJobs(vector <CGJob *> *jobs) throw (BackendException &) {};

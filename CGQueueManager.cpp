@@ -4,6 +4,8 @@
 
 #include "Logging.h"
 #include "CGQueueManager.h"
+#include "CGManager.h"
+#include "DBHandler.h"
 
 #include <map>
 #include <list>
@@ -13,13 +15,6 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <sys/time.h>
-
-#ifdef HAVE_DCAPI
-#include "DCAPIHandler.h"
-#endif
-#ifdef HAVE_EGEE
-#include "EGEEHandler.h"
-#endif
 
 using namespace std;
 
@@ -33,19 +28,31 @@ static void sigint_handler(int signal __attribute__((__unused__)))
 /**
  * Constructor. Initialize selected grid plugin, and database connection.
  */
-CGQueueManager::CGQueueManager(QMConfig &config)
+CGQueueManager::CGQueueManager(GKeyFile *config)
 {
+	char **sections, *handler, *instance;
+	unsigned i;
+
 	// Clear algorithm list
 	algs.clear();
 
-	jobDB = new DBHandler(config);
-  
-#ifdef HAVE_DCAPI
-	gridHandlers[CG_ALG_DCAPI] = new DCAPIHandler(jobDB, config);
-#endif
-#ifdef HAVE_EGEE
-	gridHandlers[CG_ALG_EGEE] = new EGEEHandler(jobDB, config);
-#endif
+	sections = g_key_file_get_groups(config, NULL);
+	for (i = 0; sections && sections[i]; i++)
+	{
+		/* Skip sections that are not grid definitions */
+		if (strncmp(sections[i], "grid:", 5))
+			continue;
+
+		instance = sections[i] + 5;
+		handler = g_key_file_get_string(config, sections[i], "handler", NULL);
+		if (!handler)
+			throw QMException("Handler definition is missing for grid %s", instance);
+
+		GridHandler *plugin = getPluginInstance(config, handler, instance);
+		gridHandlers.push_back(plugin);
+		g_free(handler);
+	}
+	g_strfreev(sections);
 }
 
 
@@ -54,15 +61,12 @@ CGQueueManager::CGQueueManager(QMConfig &config)
  */
 CGQueueManager::~CGQueueManager()
 {
-
-#ifdef HAVE_DCAPI
-	delete gridHandlers[CG_ALG_DCAPI];
-#endif
-#ifdef HAVE_EGEE
-	delete gridHandlers[CG_ALG_EGEE];
-#endif
-
-	delete jobDB;
+	while (!gridHandlers.empty())
+	{
+		GridHandler *plugin = gridHandlers.front();
+		gridHandlers.erase(gridHandlers.begin());
+		delete plugin;
+	}
 	CGAlgQueue::cleanUp();
 }
 
@@ -142,8 +146,10 @@ void CGQueueManager::run()
 		/* Measure the time needed to maintain the database */
 		gettimeofday(&begin, NULL);
 
+		DBHandler *jobDB = DBHandler::get();
 		vector<CGJob *> *newJobs = jobDB->getJobs(INIT);
 		vector<CGJob *> *cancelJobs = jobDB->getJobs(CANCEL);
+		DBHandler::put(jobDB);
 
 		if (newJobs)
 		{

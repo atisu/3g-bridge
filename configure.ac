@@ -10,6 +10,9 @@ AM_INIT_AUTOMAKE([1.9 foreign])
 AC_PROG_CC
 AC_PROG_CXX
 
+dnl We need sed for substituting the XML templates
+AC_PATH_PROG([SED], [sed])
+
 dnl Enable useful warnings
 if test "$ac_cv_c_compiler_gnu" = yes; then
 	CFLAGS="-Wall -Wmissing-prototypes -Wstrict-prototypes -Wsign-compare ${CFLAGS}"
@@ -24,13 +27,15 @@ if test $MYSQL_CONFIG = none; then
 	AC_MSG_ERROR([MySQL development environment is not installed])
 fi
 
-dnl We need sed for substituting the XML templates
-AC_PATH_PROG([SED], [sed])
-
 MYSQL_CPPFLAGS=`$MYSQL_CONFIG --include`
 AC_SUBST([MYSQL_CPPFLAGS])
 MYSQL_LIBS=`$MYSQL_CONFIG --libs`
 AC_SUBST([MYSQL_LIBS])
+
+AM_PATH_GLIB_2_0([2.10.0],,, [gthread])
+if test "$no_glib" = yes; then
+	AC_MSG_ERROR([glib libraries were not found])
+fi
 
 AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@yes@:>@]),
 	[], [with_dcapi=yes])
