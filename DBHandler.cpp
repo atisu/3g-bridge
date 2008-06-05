@@ -173,7 +173,7 @@ vector<CGJob *> *DBHandler::parseJobs(void)
 		const char *gridid = res.get_field("gridid");
 		const char *id = res.get_field("id");
 
-		algQ = CGAlgQueue::getInstance(grid, alg, 10);
+		algQ = CGAlgQueue::getInstance(grid, alg);
 
 		// Create new job descriptor
 		CGJob *nJob = new CGJob(alg, args, algQ);
@@ -201,21 +201,25 @@ vector<CGJob *> *DBHandler::parseJobs(void)
 }
 
 
-/**
- * Get jobs with a given status.
- *
- * @param[in] stat Status we're interested in
- * @return Pointer to a newly allocated vector of pointer to CGJobs having the
- *         requested status. Should be freed by the caller
- */
-vector<CGJob *> *DBHandler::getJobs(CGJobStatus stat)
+vector<CGJob *> *DBHandler::getJobs(const string &grid, const string &alg, CGJobStatus stat, int batch)
 {
-	if (query("SELECT * FROM cg_job WHERE status = '%s' ORDER BY creation_time",
-			getStatStr(stat)))
+	if (query("SELECT * FROM cg_job "
+			"WHERE grid = '%s' AND alg = '%s' status = '%s' "
+			"ORDER BY creation_time",
+			grid.c_str(), alg.c_str(), getStatStr(stat)))
 		return parseJobs();
 	return 0;
 }
 
+vector<CGJob *> *DBHandler::getJobs(const string &grid, CGJobStatus stat, int batch)
+{
+	if (query("SELECT * FROM cg_job "
+			"WHERE grid = '%s' AND status = '%s' "
+			"ORDER BY creation_time",
+			grid.c_str(), getStatStr(stat)))
+		return parseJobs();
+	return 0;
+}
 
 
 /**
@@ -235,26 +239,19 @@ vector<CGJob *> *DBHandler::getJobs(const char *gridID)
 
 /**
  * Get algorithm queue statistics from the database.
- *
- * @param[in] type Algorithm type
- * @param[in] name Algorithm name
- * @return statistics field for the given algorithm queue in the DB, and ""
- *         if no such entry exists
  */
-string DBHandler::getAlgQStat(const string &grid, const string &name, unsigned *ssize)
+void DBHandler::loadAlgQStats(void)
 {
-	string rv = "";
-	*ssize = 1;
 	DBResult res;
 
-	if (!query("SELECT batchsize,statistics FROM cg_algqueue WHERE grid='%s' AND alg='%s'", grid.c_str(), name.c_str()))
-		return rv;
+	if (!query("SELECT grid, alg, batchsize, statistics FROM cg_algqueue"))
+		return;
 	res.store(conn);
-	if (res.fetch()) {
-		*ssize = atoi(res.get_field(0));
-		rv = res.get_field(1);
+	while (res.fetch())
+	{
+		int size = atoi(res.get_field(2));
+		new CGAlgQueue(res.get_field(0), res.get_field(1), size, res.get_field(3));
 	}
-	return rv;
 }
 
 

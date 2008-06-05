@@ -245,6 +245,15 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 		return;
 	}
 
+	/* Update the statistics */
+	if (jobs && !jobs->empty())
+	{
+		CGJob *job = jobs->at(0);
+		CGAlgQueue *alg = CGAlgQueue::getInstance(job->getGrid(), job->getName());
+		if (alg)
+			alg->updateStat(jobs->size(), (unsigned)DC_getResultCPUTime(result));
+	}
+
 	tmp = DC_getResultOutput(result, OUTPUT_NAME);
 	if (!tmp)
 	{
@@ -256,7 +265,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	string outputs(tmp);
 	free(tmp);
 
-	if (!jobs || !jobs->size())
+	if (!jobs || jobs->empty())
 	{
 		LOG(LOG_ERR, "DC-API: WU %s: No matching entries in the job database", id.c_str());
 		error_jobs(jobs);

@@ -19,13 +19,14 @@ class DBHandler {
 	~DBHandler();
 	bool query(const char *fmt, ...) __attribute__((__format__(printf, 2, 3)));
 	bool query(string &str) { return query("%s", str.c_str()); }
-	vector<CGJob *> *getJobs(CGJobStatus stat);
+	vector<CGJob *> *getJobs(const string &grid, const string &alg, CGJobStatus stat, int batch);
+	vector<CGJob *> *getJobs(const string &grid, CGJobStatus stat, int batch);
 	vector<CGJob *> *getJobs(const char *gridID);
 	void updateJobGridID(string ID, string gridID);
 	void updateJobStat(string ID, CGJobStatus newstat);
 	void addJob(CGJob &job);
 	void deleteJob(const string &ID);
-	string getAlgQStat(const string &grid, const string &name, unsigned *ssize);
+	void loadAlgQStats(void);
 	void updateAlgQStat(CGAlgQueue *algQ, unsigned pSize, unsigned pTime);
 	void updateAlgQStat(const char *gridid, unsigned pSize, unsigned pTime);
 

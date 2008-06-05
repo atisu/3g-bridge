@@ -23,17 +23,22 @@ struct processStatistics {
 class CGAlgQueue {
     public:
 	static vector<CGAlgQueue *> queues;
-	string getGrid() { return grid; }
-	string getName() { return tname; }
-	unsigned getPackSize() { return mPSize; }
-	static CGAlgQueue *getInstance(const string &grid, const string &algName, const unsigned maxPackSize = 1);
+	const string getGrid() const { return grid; }
+	const string getName() const { return tname; }
+	unsigned getPackSize() const { return mPSize; }
+	static CGAlgQueue *getInstance(const string &grid, const string &algName);
+	static CGAlgQueue *getInstance(const string &grid);
+	static vector<CGAlgQueue *> *getAlgs(const string &grid);
 	static void cleanUp();
+	static void load();
 	vector<processStatistics> *getPStats() { return &pStats; }
 	void updateStat(unsigned pSize, unsigned pTime);
 	string getStatStr();
+    protected:
+	friend class DBHandler;
+	CGAlgQueue(const string &grid, const string &algName, const unsigned maxPackSize, const string &statStr);
     private:
 	CGAlgQueue(const string &grid, const string &algName, const unsigned maxPackSize);
-	CGAlgQueue(const string &grid, const string &algName, const unsigned maxPackSize, const string &statStr);
 	string grid;
 	string tname;
 	unsigned mPSize;

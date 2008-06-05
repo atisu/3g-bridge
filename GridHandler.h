@@ -33,7 +33,7 @@ public:
 
     virtual ~GridHandler() {}
 
-    const char *getName(void) { return name.c_str(); }
+    const char *getName(void) const { return name.c_str(); }
 
     bool schGroupByNames() const { return groupByNames; }
     unsigned schMaxGroupSize() const { return maxGroupSize; }

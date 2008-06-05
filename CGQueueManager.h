@@ -36,6 +36,7 @@ private:
     void schedReq(GridHandler *gh, vector<CGJob *> *jobs);
     void handleJobs(jobOperation op, vector<CGJob *> *jobs);
     void freeVector(vector<CGJob *> *what);
+    bool runHandler(GridHandler *handler);
 };
 
 #endif  /* __CGQUEUEMANAGER_H */

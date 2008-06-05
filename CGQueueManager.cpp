@@ -20,6 +20,8 @@ using namespace std;
 
 static volatile bool finish = false;
 
+#define STOPFILE_NAME		"stopfile"
+
 static void sigint_handler(int signal __attribute__((__unused__)))
 {
 	finish = true;
@@ -72,42 +74,6 @@ CGQueueManager::~CGQueueManager()
 
 
 /**
- * Handle jobs. This function handles selected jobs. The performed operation
- * depends on the given op. For successful operations, the job enties in the
- * DB are updated
- *
- * @param[in] op The operation to perform
- * @param[in,out] jobs Pointer to vector of jobs to perform the operation on
- */
-void CGQueueManager::handleJobs(jobOperation op, vector<CGJob *> *jobs)
-{
-	map<string, vector<CGJob *> > gridMap;
-
-	// Create a map of algorithm (grid) types to jobs
-	if (jobs)
-		for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
-			string grid = (*it)->getAlgQueue()->getGrid();
-			gridMap[grid].push_back(*it);
-		}
-
-	for (vector<GridHandler *>::const_iterator it = gridHandlers.begin(); it != gridHandlers.end(); it++)
-	{
-		switch (op) {
-		case submit:
-    			schedReq(*it, &(gridMap[(*it)->getName()])); 
-    			break;
-		case status:
-    			(*it)->updateStatus();
-    			break;
-		case cancel:
-    			(*it)->cancelJobs(&(gridMap[(*it)->getName()]));
-    			break;
-		}
-	}
-}
-
-
-/**
  * Free vectors. This function releases memory space allocated that is not
  * needed anymore.
  *
@@ -122,6 +88,84 @@ void CGQueueManager::freeVector(vector<CGJob *> *what)
 	delete what;
 }
 
+bool CGQueueManager::runHandler(GridHandler *handler)
+{
+	bool work_done = false;
+
+	if (handler->schGroupByNames())
+	{
+		vector<CGAlgQueue *> *algs = CGAlgQueue::getAlgs(handler->getName());
+
+		for (vector<CGAlgQueue *>::iterator it = algs->begin(); it != algs->end(); it++)
+		{
+			DBHandler *dbh = DBHandler::get();
+			vector<CGJob *> *jobs = dbh->getJobs(handler->getName(),
+				(*it)->getName(), INIT, (*it)->getPackSize());
+			DBHandler::put(dbh);
+
+			if (!jobs)
+				continue;
+			if (!jobs->empty())
+			{
+				handler->submitJobs(jobs);
+				work_done = true;
+			}
+			freeVector(jobs);
+
+			dbh = DBHandler::get();
+			jobs = dbh->getJobs(handler->getName(),
+				(*it)->getName(), CANCEL, (*it)->getPackSize());
+			DBHandler::put(dbh);
+
+			if (!jobs)
+				continue;
+			if (!jobs->empty())
+			{
+				handler->cancelJobs(jobs);
+				work_done = true;
+			}
+			freeVector(jobs);
+		}
+
+		delete algs;
+	}
+	else
+	{
+		CGAlgQueue *alg = CGAlgQueue::getInstance(handler->getName());
+
+		DBHandler *dbh = DBHandler::get();
+		vector<CGJob *> *jobs = dbh->getJobs(handler->getName(), INIT, alg->getPackSize());
+		DBHandler::put(dbh);
+
+		if (jobs)
+		{
+			if (!jobs->empty())
+			{
+				handler->submitJobs(jobs);
+				work_done = true;
+			}
+			freeVector(jobs);
+		}
+
+		dbh = DBHandler::get();
+		jobs = dbh->getJobs(handler->getName(), CANCEL, alg->getPackSize());
+		DBHandler::put(dbh);
+
+		if (jobs)
+		{
+			if (!jobs->empty())
+			{
+				handler->cancelJobs(jobs);
+				work_done = true;
+			}
+			freeVector(jobs);
+		}
+	}
+
+	handler->updateStatus();
+
+	return work_done;
+}
 
 /**
  * Main loop. Periodically queries database for new, sent, finished and
@@ -143,42 +187,20 @@ void CGQueueManager::run()
 		/* Measure the time needed to maintain the database */
 		gettimeofday(&begin, NULL);
 
-		DBHandler *jobDB = DBHandler::get();
-		vector<CGJob *> *newJobs = jobDB->getJobs(INIT);
-		vector<CGJob *> *cancelJobs = jobDB->getJobs(CANCEL);
-		DBHandler::put(jobDB);
-
-		if (newJobs)
+		/* Call the runHandler() methods repeatedly until all of them says
+		 * there is no more work to do */
+		bool work_done;
+		do
 		{
-			LOG(LOG_DEBUG, "Queue Manager found %zd new jobs.", newJobs->size());
-			try {
-				handleJobs(submit, newJobs);
-			} catch (BackendException& a) {
-				LOG(LOG_ERR, "A backend exception occured: %s", a.what());
-			}
-		}
+			work_done = false;
+			for (vector<GridHandler *>::const_iterator it = gridHandlers.begin(); it != gridHandlers.end(); it++)
+				work_done |= runHandler(*it);
 
-		try {
-			handleJobs(status, 0);
-		} catch (BackendException& a) {
-			LOG(LOG_ERR, "A backend exception occured: %s", a.what());
-		}
+			if (!access(STOPFILE_NAME, R_OK))
+				break;
+		} while (work_done);
 
-		if (cancelJobs)
-		{
-			LOG(LOG_DEBUG, "Queue Manager found %zd jobs to be aborted.", cancelJobs->size());
-			try {
-				handleJobs(cancel, cancelJobs);
-			} catch (BackendException& a) {
-				LOG(LOG_ERR, "A backend exception occured: %s", a.what());
-			}
-		}
-
-		freeVector(newJobs);
-		freeVector(cancelJobs);
-
-		ifstream stopfile("stopfile");
-		if (stopfile)
+		if (!access(STOPFILE_NAME, R_OK))
 			break;
 
 		gettimeofday(&end, NULL);

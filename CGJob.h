@@ -20,6 +20,7 @@ class CGJob {
 private:
     string id;
     string name;
+    string grid;
     CGAlgQueue *talgQ;
     string targs;
     list<string> *envs;
@@ -27,14 +28,14 @@ private:
     map<string, string> inputs;
     map<string, string> outputs;
     CGJobStatus status;
-    string grid;
 public:
     CGJob(const string name, string args, CGAlgQueue *algQ);
     ~CGJob();
     void addInput(const string localname, const string fsyspath);
     void addOutput(const string localname, const string fsyspath);
-    string getName() { return name; }
-    string getArgs() { return targs; }
+    const string getName() const { return name; }
+    const string getGrid() const { return grid; }
+    const string getArgs() const { return targs; }
     void setEnv(list<string> *envvals) { envs = envvals; }
     list<string> *getEnvs() { return envs; }
     CGAlgQueue *getAlgQueue() { return talgQ; }
