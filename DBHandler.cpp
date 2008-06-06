@@ -30,7 +30,7 @@ DBResult::~DBResult()
 		mysql_free_result(res);
 }
 
-void DBResult::store()
+void DBResult::store() throw()
 {
 	/* Allow re-use */
 	if (res)
@@ -39,11 +39,12 @@ void DBResult::store()
 	field_num = mysql_field_count(dbh->conn);
 	res = mysql_store_result(dbh->conn);
 	if (field_num && !res)
-		throw QMException("Failed to fetch results: %s", mysql_error(dbh->conn));
-	fields = mysql_fetch_fields(res);
+		LOG(LOG_ERR, "Failed to fetch results: %s", mysql_error(dbh->conn));
+	else
+		fields = mysql_fetch_fields(res);
 }
 
-void DBResult::use()
+void DBResult::use() throw()
 {
 	/* Allow re-use */
 	if (res)
@@ -52,12 +53,16 @@ void DBResult::use()
 	field_num = mysql_field_count(dbh->conn);
 	res = mysql_use_result(dbh->conn);
 	if (field_num && !res)
-		throw QMException("Failed to fetch results: %s", mysql_error(dbh->conn));
-	fields = mysql_fetch_fields(res);
+		LOG(LOG_ERR, "Failed to fetch results: %s", mysql_error(dbh->conn));
+	else
+		fields = mysql_fetch_fields(res);
 }
 
-bool DBResult::fetch()
+bool DBResult::fetch() throw()
 {
+	if (!res)
+		return false;
+
 	row = mysql_fetch_row(res);
 	if (!row)
 	{
@@ -126,8 +131,6 @@ DBHandler::DBHandler(const char *dbname, const char *host, const char *user, con
 		throw QMException("Out of memory");
 	if (!mysql_real_connect(conn, host, user, passwd, dbname, 0, 0, 0))
 		throw QMException("Could not connect to the database: %s", mysql_error(conn));
-	if (mysql_ping(conn))
-		throw QMException("The connection to the database is broken: %s", mysql_error(conn));
 }
 
 /**
@@ -165,16 +168,7 @@ vector<CGJob *> *DBHandler::parseJobs(void)
 	DBResult res(this);
 	vector<CGJob *> *jobs = new vector<CGJob *>();
 
-	try
-	{
-		res.store();
-	}
-	catch (QMException &e)
-	{
-		LOG(LOG_ERR, "%s", e.what());
-		return jobs;
-	}
-
+	res.store();
 	while (res.fetch())
 	{
 		// Get instance of the relevant algorithm queue
@@ -344,32 +338,31 @@ void DBHandler::deleteJob(const string &ID)
 
 void DBHandler::addJob(CGJob &job)
 {
+	bool success = true;
 	query("START TRANSACTION");
-	try
+
+	success &= query("INSERT INTO cg_job (id, alg, status, args) VALUES ('%s', '%s', 'INIT', '%s')",
+		job.getId().c_str(), job.getName().c_str(), job.getArgs().c_str());
+
+	vector<string> inputs = job.getInputs();
+	for (vector<string>::const_iterator it = inputs.begin(); it != inputs.end(); it++)
 	{
-		query("INSERT INTO cg_job (id, alg, status, args) VALUES ('%s', '%s', 'INIT', '%s')",
-			job.getId().c_str(), job.getName().c_str(), job.getArgs().c_str());
-		vector<string> inputs = job.getInputs();
-		for (vector<string>::const_iterator it = inputs.begin(); it != inputs.end(); it++)
-		{
-			string path = job.getInputPath(*it);
-			query("INSERT INTO cg_inputs (id, localname, path) VALUES ('%s', '%s', '%s')",
-				job.getId().c_str(), it->c_str(), path.c_str());
-		}
-		vector<string> outputs = job.getOutputs();
-		for (vector<string>::const_iterator it = outputs.begin(); it != outputs.end(); it++)
-		{
-			string path = job.getOutputPath(*it);
-			query("INSERT INTO cg_outputs (id, localname, path) VALUES ('%s', '%s', '%s')",
-				job.getId().c_str(), it->c_str(), path.c_str());
-		}
+		string path = job.getInputPath(*it);
+		success &= query("INSERT INTO cg_inputs (id, localname, path) VALUES ('%s', '%s', '%s')",
+			job.getId().c_str(), it->c_str(), path.c_str());
+	}
+	vector<string> outputs = job.getOutputs();
+	for (vector<string>::const_iterator it = outputs.begin(); it != outputs.end(); it++)
+	{
+		string path = job.getOutputPath(*it);
+		success &= query("INSERT INTO cg_outputs (id, localname, path) VALUES ('%s', '%s', '%s')",
+			job.getId().c_str(), it->c_str(), path.c_str());
+	}
+
+	if (success)
 		query("COMMIT");
-	}
-	catch (QMException &e)
-	{
+	else
 		query("ROLLBACK");
-		throw;
-	}
 }
 
 DBHandler *DBPool::get() throw (QMException &)

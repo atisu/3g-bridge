@@ -68,9 +68,9 @@ class DBPool
 class DBResult {
     public:
 	~DBResult();
-	void store();
-	void use();
-	bool fetch();
+	void store() throw();
+	void use() throw();
+	bool fetch() throw();
 	const char *get_field(const char *name);
 	const char *get_field(int index);
     protected:
