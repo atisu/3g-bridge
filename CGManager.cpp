@@ -78,6 +78,9 @@ int main(int argc, char **argv)
 	LOG(LOG_DEBUG, "Creating Queue Manager");
 	CGQueueManager qm(global_config);
 
+	LOG(LOG_DEBUG, "Reading algorithm datas");
+	CGAlgQueue::load();
+
 	LOG(LOG_DEBUG, "Starting Queue Manager");
 	qm.run();
     } catch (QMException &error) {
