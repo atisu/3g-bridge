@@ -32,7 +32,7 @@ static void sigint_handler(int signal __attribute__((__unused__)))
  */
 CGQueueManager::CGQueueManager(GKeyFile *config)
 {
-	char **sections, *handler, *instance;
+	char **sections, *handler;
 	unsigned i;
 
 	// Clear algorithm list
@@ -45,12 +45,11 @@ CGQueueManager::CGQueueManager(GKeyFile *config)
 		if (strncmp(sections[i], "grid:", 5))
 			continue;
 
-		instance = sections[i] + 5;
 		handler = g_key_file_get_string(config, sections[i], "handler", NULL);
 		if (!handler)
-			throw QMException("Handler definition is missing for grid %s", instance);
+			throw QMException("Handler definition is missing in %s", sections[i]);
 
-		GridHandler *plugin = getPluginInstance(config, handler, instance);
+		GridHandler *plugin = getPluginInstance(config, handler, sections[i]);
 		gridHandlers.push_back(plugin);
 		g_free(handler);
 	}

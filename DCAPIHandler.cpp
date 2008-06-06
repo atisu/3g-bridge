@@ -324,7 +324,7 @@ DCAPIHandler::DCAPIHandler(GKeyFile *config, const char *instance)
 {
 	name = instance;
 
-	char *conffile = g_key_file_get_string(config, string("grid:" + string(instance)).c_str(), "dc-api-config", NULL);
+	char *conffile = g_key_file_get_string(config, instance, "dc-api-config", NULL);
 
 	if (DC_OK != DC_initMaster(conffile ? conffile : NULL))
 		throw BackendException("Failed to initialize the DC-API");
