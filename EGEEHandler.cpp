@@ -6,6 +6,7 @@
 #include "Logging.h"
 #include "GridHandler.h"
 #include "EGEEHandler.h"
+#include "DBHandler.h"
 
 #include <string>
 #include <vector>
@@ -46,9 +47,9 @@ int EGEEHandler::global_offset;
 EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException &)
 {
 	global_offset = 0;
-	wmpendp = g_key_file_get_string(config, instance, "wmproxy-endpoint", NULL);
+	wmpendp = g_key_file_get_string(config, string("grid:" + string(instance)).c_str(), "wmproxy-endpoint", NULL);
 	if (!wmpendp)
-		throw BackendException("EGEE: no WM proxy endpoint for %s", instance);
+		throw BackendException("EGEE: no WMProxy endpoint for %s", instance);
 	cfg = 0;
 
 	groupByNames = false;
@@ -236,7 +237,7 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 void EGEEHandler::updateStatus() throw (BackendException &)
 {
 	DBHandler *jobDB = DBHandler::get();
-	vector<CGJob *> *myJobs = jobDB->getJobs(RUNNING);
+	vector<CGJob *> *myJobs = jobDB->getJobs(getName(), RUNNING, 0);
 	DBHandler::put(jobDB);
 
 	if (!myJobs)

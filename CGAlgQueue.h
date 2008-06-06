@@ -9,6 +9,9 @@
 using namespace std;
 
 
+class DBHandler;
+
+
 /**
  * Keep track of number of WUs and  total processing time of a given package
  * size. Used for scheduling.
