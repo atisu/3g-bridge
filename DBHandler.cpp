@@ -364,10 +364,15 @@ DBHandler *DBPool::get() throw (QMException &)
 		return dbh;
 	}
 
+	/* Defer initialization until someone requests a new handle to ensure
+	 * that global_config is initialized */
+	if (!dbname)
+		init();
+
 	if (max_connections && used_dbhs.size() >= max_connections)
 		throw QMException("Too many database connections are open");
 
-	dbh = new DBHandler(dbname.c_str(), host.c_str(), user.c_str(), passwd.c_str());
+	dbh = new DBHandler(dbname, host, user, passwd);
 
 	used_dbhs.push_back(dbh);
 	return dbh;
@@ -386,23 +391,17 @@ void DBPool::put(DBHandler *dbh)
 	free_dbhs.push_back(dbh);
 }
 
-DBPool::DBPool()
+void DBPool::init()
 {
 	GError *error = NULL;
 
-	/* Store the connection parameters locally for easier memory management */
-	char *str = g_key_file_get_string(global_config, "database", "name", NULL);
-	dbname = str ? str : "";
-	g_free(str);
-	str = g_key_file_get_string(global_config, "database", "host", NULL);
-	host = str ? str : "";
-	g_free(str);
-	str = g_key_file_get_string(global_config, "database", "user", NULL);
-	user = str ? str : "";
-	g_free(str);
-	str = g_key_file_get_string(global_config, "database", "password", NULL);
-	passwd = str ? str : "";
-	g_free(str);
+	dbname = g_key_file_get_string(global_config, "database", "name", &error);
+	if (error)
+		throw QMException("Failed to retrieve the database name: %s", error->message);
+
+	host = g_key_file_get_string(global_config, "database", "host", NULL);
+	user = g_key_file_get_string(global_config, "database", "user", NULL);
+	passwd = g_key_file_get_string(global_config, "database", "password", NULL);
 
 	max_connections = g_key_file_get_integer(global_config, "database", "max-connections", &error);
 	if (error)
@@ -425,6 +424,11 @@ DBPool::~DBPool()
 		free_dbhs.erase(free_dbhs.begin());
 		delete dbh;
 	}
+
+	g_free(dbname);
+	g_free(host);
+	g_free(user);
+	g_free(passwd);
 }
 
 DBHandler *DBHandler::get() throw (QMException &)

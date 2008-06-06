@@ -46,18 +46,19 @@ class DBHandler {
 class DBPool
 {
     public:
-	DBPool();
 	~DBPool();
     protected:
 	friend class DBHandler;
 	DBHandler *get() throw (QMException &);
 	void put(DBHandler *dbh);
     private:
+	void init(void);
+
 	unsigned max_connections;
-	string dbname;
-	string host;
-	string user;
-	string passwd;
+	char *dbname;
+	char *host;
+	char *user;
+	char *passwd;
 	vector<DBHandler *> used_dbhs;
 	vector<DBHandler *> free_dbhs;
 };
