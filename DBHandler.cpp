@@ -395,14 +395,18 @@ void DBPool::init()
 {
 	GError *error = NULL;
 
+	/* The database name is mandatory. Here we leak the GError but this is
+	 * a non-recoverable error so... */
 	dbname = g_key_file_get_string(global_config, "database", "name", &error);
 	if (error)
 		throw QMException("Failed to retrieve the database name: %s", error->message);
 
+	/* These are not mandatory */
 	host = g_key_file_get_string(global_config, "database", "host", NULL);
 	user = g_key_file_get_string(global_config, "database", "user", NULL);
 	passwd = g_key_file_get_string(global_config, "database", "password", NULL);
 
+	/* max-connections is not mandatory, but if it is present it must be valid */
 	max_connections = g_key_file_get_integer(global_config, "database", "max-connections", &error);
 	if (error)
 	{
