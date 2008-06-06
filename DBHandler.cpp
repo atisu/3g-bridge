@@ -30,22 +30,40 @@ DBResult::~DBResult()
 		mysql_free_result(res);
 }
 
-void DBResult::store(MYSQL *dbh)
+void DBResult::store()
 {
 	/* Allow re-use */
 	if (res)
 		mysql_free_result(res);
 
-	field_num = mysql_field_count(dbh);
-	res = mysql_store_result(dbh);
+	field_num = mysql_field_count(dbh->conn);
+	res = mysql_store_result(dbh->conn);
 	if (field_num && !res)
-		throw QMException("Failed to fetch results: %s", mysql_error(dbh));
+		throw QMException("Failed to fetch results: %s", mysql_error(dbh->conn));
+	fields = mysql_fetch_fields(res);
+}
+
+void DBResult::use()
+{
+	/* Allow re-use */
+	if (res)
+		mysql_free_result(res);
+
+	field_num = mysql_field_count(dbh->conn);
+	res = mysql_use_result(dbh->conn);
+	if (field_num && !res)
+		throw QMException("Failed to fetch results: %s", mysql_error(dbh->conn));
 	fields = mysql_fetch_fields(res);
 }
 
 bool DBResult::fetch()
 {
 	row = mysql_fetch_row(res);
+	if (!row)
+	{
+		mysql_free_result(res);
+		res = NULL;
+	}
 	return !!row;
 }
 
@@ -144,12 +162,12 @@ const char *DBHandler::getStatStr(CGJobStatus stat)
  */
 vector<CGJob *> *DBHandler::parseJobs(void)
 {
-	DBResult res;
+	DBResult res(this);
 	vector<CGJob *> *jobs = new vector<CGJob *>();
 
 	try
 	{
-		res.store(conn);
+		res.store();
 	}
 	catch (QMException &e)
 	{
@@ -177,17 +195,19 @@ vector<CGJob *> *DBHandler::parseJobs(void)
 			nJob->setGridId(gridid);
 
 		// Get inputs for job from db
-		query("SELECT localname, path FROM cg_inputs WHERE id = '%s'", id);
-		DBResult res2;
-		res2.store(conn);
+		DBHandler *dbh2 = get();
+		dbh2->query("SELECT localname, path FROM cg_inputs WHERE id = '%s'", id);
+		DBResult res2(dbh2);
+		res2.use();
 		while (res2.fetch())
 			nJob->addInput(res2.get_field(0), res2.get_field(1));
 
 		// Get outputs for job from db
-		query("SELECT localname, path FROM cg_outputs WHERE id = '%s'", id);
-		res2.store(conn);
+		dbh2->query("SELECT localname, path FROM cg_outputs WHERE id = '%s'", id);
+		res2.use();
 		while (res2.fetch())
 			nJob->addOutput(res2.get_field(0), res2.get_field(1));
+		put(dbh2);
 
 		jobs->push_back(nJob);
 	}
@@ -237,11 +257,11 @@ vector<CGJob *> *DBHandler::getJobs(const char *gridID)
  */
 void DBHandler::loadAlgQStats(void)
 {
-	DBResult res;
+	DBResult res(this);
 
 	if (!query("SELECT grid, alg, batchsize, statistics FROM cg_algqueue"))
 		return;
-	res.store(conn);
+	res.store();
 	while (res.fetch())
 	{
 		int size = atoi(res.get_field(2));

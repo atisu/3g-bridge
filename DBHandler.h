@@ -13,6 +13,7 @@
 using namespace std;
 
 class DBPool;
+class DBResult;
 
 class DBHandler {
     public:
@@ -36,9 +37,10 @@ class DBHandler {
 	void addAlgQ(const char *grid, const char *alg, unsigned batchsize);
     protected:
 	friend class DBPool;
+	friend class DBResult;
 	DBHandler(const char *dbname, const char *host, const char *user, const char *passwd);
-    private:
 	MYSQL *conn;
+    private:
 	const char *getStatStr(CGJobStatus stat);
 	vector<CGJob *> *parseJobs(void);
 };
@@ -65,14 +67,18 @@ class DBPool
 
 class DBResult {
     public:
-	DBResult():res(0) {};
 	~DBResult();
-	void store(MYSQL *dbh);
+	void store();
+	void use();
 	bool fetch();
 	const char *get_field(const char *name);
 	const char *get_field(int index);
+    protected:
+	friend class DBHandler;
+	DBResult(DBHandler *dbh):res(0),dbh(dbh) {};
     private:
 	MYSQL_RES *res;
+	DBHandler *dbh;
 	MYSQL_ROW row;
 	MYSQL_FIELD *fields;
 	int field_num;
