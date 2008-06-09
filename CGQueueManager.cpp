@@ -72,92 +72,66 @@ CGQueueManager::~CGQueueManager()
 }
 
 
-/**
- * Free vectors. This function releases memory space allocated that is not
- * needed anymore.
- *
- * @param[in] what Pointer to vector to free up
- */
-void CGQueueManager::freeVector(vector<CGJob *> *what)
-{
-	if (!what)
-		return;
-	for (vector<CGJob *>::iterator it = what->begin(); it != what->end(); it++)
-		delete *it;
-	delete what;
-}
-
 bool CGQueueManager::runHandler(GridHandler *handler)
 {
 	bool work_done = false;
+	JobVector jobs;
 
 	if (handler->schGroupByNames())
 	{
-		vector<CGAlgQueue *> *algs = CGAlgQueue::getAlgs(handler->getName());
-
-		for (vector<CGAlgQueue *>::iterator it = algs->begin(); it != algs->end(); it++)
+		vector<CGAlgQueue *> algs;
+		
+		CGAlgQueue::getAlgs(algs, handler->getName());
+		for (vector<CGAlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
 		{
+
 			DBHandler *dbh = DBHandler::get();
-			vector<CGJob *> *jobs = dbh->getJobs(handler->getName(),
-				(*it)->getName(), INIT, (*it)->getPackSize());
+			dbh->getJobs(jobs, handler->getName(), (*it)->getName(), INIT, (*it)->getPackSize());
 			DBHandler::put(dbh);
 
-			if (!jobs)
-				continue;
-			if (!jobs->empty())
+			if (!jobs.empty())
 			{
 				handler->submitJobs(jobs);
 				work_done = true;
+				jobs.clear();
 			}
-			freeVector(jobs);
 
 			dbh = DBHandler::get();
-			jobs = dbh->getJobs(handler->getName(),
-				(*it)->getName(), CANCEL, (*it)->getPackSize());
+			dbh->getJobs(jobs, handler->getName(), (*it)->getName(), CANCEL, (*it)->getPackSize());
 			DBHandler::put(dbh);
 
-			if (!jobs)
-				continue;
-			if (!jobs->empty())
+			if (!jobs.empty())
 			{
 				handler->cancelJobs(jobs);
 				work_done = true;
+				jobs.clear();
 			}
-			freeVector(jobs);
 		}
-
-		delete algs;
 	}
 	else
 	{
 		CGAlgQueue *alg = CGAlgQueue::getInstance(handler->getName());
 
 		DBHandler *dbh = DBHandler::get();
-		vector<CGJob *> *jobs = dbh->getJobs(handler->getName(), INIT, alg->getPackSize());
+		dbh->getJobs(jobs, handler->getName(), INIT, alg->getPackSize());
 		DBHandler::put(dbh);
 
-		if (jobs)
+		if (!jobs.empty())
 		{
-			if (!jobs->empty())
-			{
-				handler->submitJobs(jobs);
-				work_done = true;
-			}
-			freeVector(jobs);
+			handler->submitJobs(jobs);
+			work_done = true;
+			jobs.clear();
 		}
 
 		dbh = DBHandler::get();
-		jobs = dbh->getJobs(handler->getName(), CANCEL, alg->getPackSize());
+		dbh->getJobs(jobs, handler->getName(), CANCEL, alg->getPackSize());
 		DBHandler::put(dbh);
 
-		if (jobs)
+		if (!jobs.empty())
 		{
-			if (!jobs->empty())
-			{
-				handler->cancelJobs(jobs);
-				work_done = true;
-			}
-			freeVector(jobs);
+			handler->cancelJobs(jobs);
+			work_done = true;
+			jobs.clear();
 		}
 	}
 
@@ -311,100 +285,4 @@ unsigned CGQueueManager::selectSizeAdv(CGAlgQueue *algQ)
                     return i+1;
 
 	return 1;
-}
-
-
-/**
- * Package submission. For CancerGrid, this implements creating "optimal"
- * size packets and also submits them.
- *
- * @param[in] gh The grid plugin's pointer
- * @param[in] jobs Jobs belonging to an algorithm queue
- */
-void CGQueueManager::handlePackedSubmission(GridHandler *gh, vector<CGJob *> *jobs)
-{
-	CGAlgQueue *algQ = jobs->at(0)->getAlgQueue();
-	vector<CGJob *>::iterator it = jobs->begin();
-	unsigned maxGSize = gh->schMaxGroupSize();
-	unsigned maxASize = algQ->getPackSize();
-	unsigned maxSize = (maxGSize < maxASize ? maxGSize : maxASize);
-
-	LOG(LOG_DEBUG, "Packed submission requested, maximum packet size is %d.", maxSize);
-	while (it != jobs->end())
-	{
-		vector<CGJob *> sendJobs;
-		unsigned prefSize = selectSizeAdv(algQ);
-		unsigned useSize = (prefSize < maxSize ? prefSize : maxSize);
-		LOG(LOG_DEBUG, "Scheduler: selected package size is %d.", useSize);
-
-		for (; useSize && it != jobs->end(); useSize--, it++)
-			sendJobs.push_back(*it);
-
-		LOG(LOG_INFO, "Submitting package of size %zd.", sendJobs.size());
-		gh->submitJobs(&sendJobs);
-	}
-}
-
-
-/**
- * Handle scheduling request. This function is called for every Grid plugin,
- * with a vector of jobs to be submitted to the given grid. Based on the
- * plugin properties, jobs are grouped based on algorithm names.
- * 
- * @param[in] gh The grid plugin's pointer
- * @param[in] jobs Pointer to a vector of jobs to submitted using the grid
- *                 plugin
- */
-void CGQueueManager::schedReq(GridHandler *gh, vector<CGJob *> *jobs)
-{
-	if (!jobs || !jobs->size())
-		return;
-
-	LOG(LOG_DEBUG, "Scheduling request received");
-	// Query maximum group size of the grid plugin
-	unsigned maxGSize = gh->schMaxGroupSize();
-	LOG(LOG_DEBUG, "Maximum group size of grid plugin is: %d", maxGSize);
-
-	// Check is jobs should be grouped by algorithm names
-	if (!gh->schGroupByNames())
-	{
-		LOG(LOG_DEBUG, "Grid plugin doesn't request grouping by algorithm names.");
-		// If not, simply create maxGSize "packages", and submit
-		// the packages
-		vector<CGJob *>::iterator it = jobs->begin();
-
-		while (it != jobs->end())
-		{
-			vector<CGJob *> sendJobs;
-
-			for (unsigned i = 0; i < maxGSize && it != jobs->end(); i++, it++)
-				sendJobs.push_back(*it);
-
-			LOG(LOG_DEBUG, "Sending %zd jobs to grid plugin for submission.", sendJobs.size());
-			gh->submitJobs(&sendJobs);
-		}
-	}
-	else
-	{
-		LOG(LOG_DEBUG, "Grid plugin requests grouping by algorithm names.");
-		// If yes, do the grouping
-		map<CGAlgQueue *, vector<CGJob *> > algs2Jobs;
-		vector<CGAlgQueue *> algs;
-
-		for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++)
-		{
-			CGJob *actJ = *it;
-			if (!algs2Jobs[actJ->getAlgQueue()].size())
-				algs.push_back(actJ->getAlgQueue());
-			algs2Jobs[actJ->getAlgQueue()].push_back(actJ);
-		}
-
-		// Call "optimal" packet size calculator, that also submits
-		// the subgroups
-		srandom(time(NULL));
-		for (vector<CGAlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
-			handlePackedSubmission(gh, &(algs2Jobs[*it]));
-
-	}
-
 }

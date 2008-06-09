@@ -89,3 +89,15 @@ void CGJob::deleteJob()
 	dbH->deleteJob(id);
 	DBHandler::put(dbH);
 }
+
+JobVector::~JobVector()
+{
+	clear();
+}
+
+void JobVector::clear()
+{
+	for (JobVector::iterator it = begin(); it != end(); it++)
+		delete *it;
+	erase(begin(), end());
+}

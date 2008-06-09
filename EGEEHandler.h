@@ -19,14 +19,14 @@ class EGEEHandler : public GridHandler {
     public:
 	EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException &);
 	~EGEEHandler();
-	void submitJobs(vector<CGJob *> *jobs) throw (BackendException &);
+	void submitJobs(JobVector &jobs) throw (BackendException &);
 	void updateStatus(void) throw (BackendException &);
-	void cancelJobs(vector<CGJob *> *jobs) throw (BackendException &);
+	void cancelJobs(JobVector &jobs) throw (BackendException &);
 
 	static GridHandler *getInstance(GKeyFile *config, const char *instance);
 
     private:
-	void getStatus(vector<CGJob *> *jobs) throw (BackendException &);
+	void getStatus(JobVector &jobs) throw (BackendException &);
 	static const int GSIFTP_BSIZE = 1024000;
 	static const int SUCCESS = 0;
 	static globus_mutex_t lock;

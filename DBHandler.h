@@ -20,9 +20,9 @@ class DBHandler {
 	~DBHandler();
 	bool query(const char *fmt, ...) __attribute__((__format__(printf, 2, 3)));
 	bool query(const string &str) { return query("%s", str.c_str()); }
-	vector<CGJob *> *getJobs(const string &grid, const string &alg, CGJobStatus stat, int batch);
-	vector<CGJob *> *getJobs(const string &grid, CGJobStatus stat, int batch);
-	vector<CGJob *> *getJobs(const char *gridID);
+	void getJobs(JobVector &jobs, const string &grid, const string &alg, CGJobStatus stat, int batch);
+	void getJobs(JobVector &jobs, const string &grid, CGJobStatus stat, int batch);
+	void getJobs(JobVector &jobs, const char *gridID);
 	void updateJobGridID(const string &ID, const string &gridID);
 	void updateJobStat(const string &ID, CGJobStatus newstat);
 	void addJob(CGJob &job);
@@ -42,7 +42,7 @@ class DBHandler {
 	MYSQL *conn;
     private:
 	const char *getStatStr(CGJobStatus stat);
-	vector<CGJob *> *parseJobs(void);
+	void parseJobs(JobVector &jobs);
 };
 
 class DBPool

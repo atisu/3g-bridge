@@ -113,18 +113,12 @@ void CGAlgQueue::updateStat(unsigned pSize, unsigned pTime)
 	pStats[pSize-1].avgTT = (double)pStats[pSize-1].totalProcessTime / (pSize * pStats[pSize-1].numPackages);
 }
 
-vector <CGAlgQueue *> *CGAlgQueue::getAlgs(const string &grid)
+void CGAlgQueue::getAlgs(vector<CGAlgQueue *> &algs, const string &grid)
 {
-	vector<CGAlgQueue *> *algs;
-
-	algs = new vector<CGAlgQueue *>;
-
 	for (vector<CGAlgQueue *>::iterator it = queues.begin(); it != queues.end(); it++)
 	{
 		if ((*it)->getGrid() != grid)
 			continue;
-		algs->push_back(*it);
+		algs.push_back(*it);
 	}
-
-	return algs;
 }

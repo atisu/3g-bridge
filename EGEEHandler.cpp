@@ -99,9 +99,9 @@ EGEEHandler::~EGEEHandler()
  *
  * @param[in] jobs Pointer to the set of jobs to submit
  */
-void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
+void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 {
-	if (!jobs || !jobs->size())
+	if (!jobs.size())
 		return;
 
 	createCFG();
@@ -117,7 +117,7 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 
 	mkdir("jdlfiles", 0700);
 	unsigned i = 0;
-	for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++, i++) {
+	for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++, i++) {
 		char jdirname[32];
 		sprintf(jdirname, "%d", i);
 		mkdir(jdirname, 0700);
@@ -221,7 +221,7 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 				break;
 			}
 
-		for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++)
+		for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
 			if ((*it)->getGridId() == childNodeName) {
 				(*it)->setGridId(childIDs[i]);
 				(*it)->setStatus(RUNNING);
@@ -238,7 +238,7 @@ void EGEEHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 void EGEEHandler::updateStatus() throw (BackendException &)
 {
 	DBHandler *jobDB = DBHandler::get();
-	vector<CGJob *> *myJobs = jobDB->getJobs(getName(), RUNNING, 0);
+	JobVector &myJobs = jobDB->getJobs(getName(), RUNNING, 0);
 	DBHandler::put(jobDB);
 
 	if (!myJobs)
@@ -262,7 +262,7 @@ void EGEEHandler::updateStatus() throw (BackendException &)
 /*
  * Update status of jobs
  */
-void EGEEHandler::getStatus(vector<CGJob *> *jobs) throw (BackendException &)
+void EGEEHandler::getStatus(JobVector &jobs) throw (BackendException &)
 {
     const struct { string EGEEs; CGJobStatus jobS; } statusRelation[] = {
 	{"Submitted", RUNNING},
@@ -277,12 +277,12 @@ void EGEEHandler::getStatus(vector<CGJob *> *jobs) throw (BackendException &)
 	{"", INIT}
     };
 
-    if (!jobs || !jobs->size())
+    if (!jobs.size())
 	return;
 
     renew_proxy();
 
-    for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
+    for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++) {
 	CGJob *actJ = *it;
 	JobId jID(actJ->getGridId());
 	glite::lb::Job tJob(jID);
@@ -346,15 +346,15 @@ void EGEEHandler::getOutputs_real(CGJob *job)
 /*
  * Cancel jobs
  */
-void EGEEHandler::cancelJobs(vector<CGJob *> *jobs) throw (BackendException &)
+void EGEEHandler::cancelJobs(JobVector &jobs) throw (BackendException &)
 {
-	if (!jobs || !jobs->size())
+	if (!jobs.size())
 		return;
 
 	createCFG();
 
 	DBHandler *jobDB = DBHandler::get();
-        for (vector<CGJob *>::iterator it = jobs->begin(); it != jobs->end(); it++) {
+        for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++) {
 		LOG(LOG_DEBUG, "About to cancel and remove job \"" + (*it)->getId() + "\".");
 		try {
 			jobCancel((*it)->getGridId(), cfg);

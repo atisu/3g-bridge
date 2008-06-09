@@ -32,10 +32,6 @@ private:
     vector<GridHandler *> gridHandlers;
     unsigned selectSize(CGAlgQueue *algQ);
     unsigned selectSizeAdv(CGAlgQueue *algQ);
-    void handlePackedSubmission(GridHandler *gh, vector<CGJob *> *jobs);
-    void schedReq(GridHandler *gh, vector<CGJob *> *jobs);
-    void handleJobs(jobOperation op, vector<CGJob *> *jobs);
-    void freeVector(vector<CGJob *> *what);
     bool runHandler(GridHandler *handler);
 };
 

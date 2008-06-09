@@ -42,7 +42,7 @@ public:
      * Submit jobs in the argument. Set the different properties of jobs (Grid
      * ID, status, ...) through the objects' property change functions.
      */
-    virtual void submitJobs(vector<CGJob *> *jobs) throw (BackendException &) = 0;
+    virtual void submitJobs(JobVector &jobs) throw (BackendException &) = 0;
 
     /**
      * Update the status of previously submitted jobs in the database.
@@ -52,7 +52,7 @@ public:
     /**
      * Cancel jobs.
      */
-    virtual void cancelJobs(vector <CGJob *> *jobs) throw (BackendException &) = 0;
+    virtual void cancelJobs(JobVector &jobs) throw (BackendException &) = 0;
 
 protected:
     bool groupByNames;

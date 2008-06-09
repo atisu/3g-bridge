@@ -52,4 +52,11 @@ public:
     void deleteJob();
 };
 
+class JobVector: public vector<CGJob *> {
+public:
+    JobVector() { vector<CGJob *>(); }
+    ~JobVector();
+    void clear();
+};
+
 #endif

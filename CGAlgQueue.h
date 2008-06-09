@@ -31,7 +31,7 @@ class CGAlgQueue {
 	unsigned getPackSize() const { return mPSize; }
 	static CGAlgQueue *getInstance(const string &grid, const string &algName);
 	static CGAlgQueue *getInstance(const string &grid);
-	static vector<CGAlgQueue *> *getAlgs(const string &grid);
+	static void getAlgs(vector<CGAlgQueue *> &algs, const string &grid);
 	static void cleanUp();
 	static void load();
 	vector<processStatistics> *getPStats() { return &pStats; }

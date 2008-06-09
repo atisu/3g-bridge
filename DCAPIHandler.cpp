@@ -159,23 +159,10 @@ static void remove_tmpdir(const string &dir) throw (BackendException &)
 	invoke_cmd("/bin/rm", args);
 }
 
-static void error_jobs(vector<CGJob *> *jobs)
+static void error_jobs(JobVector &jobs)
 {
-	if (!jobs)
-		return;
-	for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++)
-	{
+	for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
 		(*it)->setStatus(ERROR);
-		delete *it;
-	}
-	delete jobs;
-}
-
-static void delete_vector(vector<CGJob *> *jobs)
-{
-	for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++)
-		delete *it;
-	delete jobs;
 }
 
 static bool check_job(const string &basedir, CGJob *job)
@@ -233,8 +220,9 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	string tag(tmp);
 	free(tmp);
 
+	JobVector jobs;
 	DBHandler *dbh = DBHandler::get();
-	vector<CGJob *> *jobs = dbh->getJobs(id.c_str());
+	dbh->getJobs(jobs, id.c_str());
 	DBHandler::put(dbh);
 
 	if (!result)
@@ -246,12 +234,12 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	}
 
 	/* Update the statistics */
-	if (jobs && !jobs->empty())
+	if (!jobs.empty())
 	{
-		CGJob *job = jobs->at(0);
+		CGJob *job = jobs.at(0);
 		CGAlgQueue *alg = CGAlgQueue::getInstance(job->getGrid(), job->getName());
 		if (alg)
-			alg->updateStat(jobs->size(), (unsigned)DC_getResultCPUTime(result));
+			alg->updateStat(jobs.size(), (unsigned)DC_getResultCPUTime(result));
 	}
 
 	tmp = DC_getResultOutput(result, OUTPUT_NAME);
@@ -265,10 +253,9 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	string outputs(tmp);
 	free(tmp);
 
-	if (!jobs || jobs->empty())
+	if (jobs.empty())
 	{
 		LOG(LOG_ERR, "DC-API: WU %s: No matching entries in the job database", id.c_str());
-		error_jobs(jobs);
 		DC_destroyWU(wu);
 		return;
 	}
@@ -287,7 +274,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 		};
 		invoke_cmd(unpack_script.c_str(), unpack_args);
 
-		for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++)
+		for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
 		{
 			/* If the job is already marked as cancelled, just
 			 * delete it */
@@ -306,13 +293,11 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	catch (BackendException &e)
 	{
 		remove_tmpdir(basedir.c_str());
-		delete_vector(jobs);
 		DC_destroyWU(wu);
 		throw;
 	}
 
 	remove_tmpdir(basedir.c_str());
-	delete_vector(jobs);
 	DC_destroyWU(wu);
 }
 
@@ -350,7 +335,7 @@ static void do_mkdir(const string &path) throw (BackendException &)
 	throw BackendException("Failed to create directory '%s': %s", path.c_str(), strerror(errno));
 }
 
-static void emit_job(CGJob *job, const string &basedir, ofstream *script, const string &job_template) throw (BackendException &)
+static void emit_job(CGJob *job, const string &basedir, ofstream &script, const string &job_template) throw (BackendException &)
 {
 	string input_dir = INPUT_DIR "/" + job->getId();
 	string output_dir = OUTPUT_DIR "/" + job->getId();
@@ -380,22 +365,22 @@ static void emit_job(CGJob *job, const string &basedir, ofstream *script, const 
 	tmpl = substitute(tmpl, "output_dir", output_dir);
 	tmpl = substitute(tmpl, "args", job->getArgs());
 
-	*script << tmpl;
+	script << tmpl;
 }
 
-void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
+void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 {
 	char input_name[PATH_MAX] = { 0 };
 	DC_Workunit *wu = 0;
 	string basedir;
 
 	/* First, sanity check: all jobs must belong to the same alg */
-	vector<CGJob *>::const_iterator i = jobs->begin();
-	if (i == jobs->end())
+	JobVector::iterator i = jobs.begin();
+	if (i == jobs.end())
 		return;
 
 	string algname = (*i)->getAlgQueue()->getName();
-	while (i != jobs->end())
+	while (i != jobs.end())
 	{
 		if (algname != (*i)->getAlgQueue()->getName())
 			throw BackendException("Multiple algorithms cannot be in the same batch");
@@ -409,40 +394,40 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 
 	basedir = create_tmpdir();
 	string script_name = basedir + "/" SCRIPT_NAME;
-	ofstream *script = 0;
+	ofstream script(script_name.c_str(), ios::out);
+	if (script.fail())
+	{
+		remove_tmpdir(basedir);
+		throw BackendException("Failed to create '%s': %s", script_name.c_str(),
+			strerror(errno));
+	}
+
+	script << substitute(head_template, "inputs", INPUT_NAME);
 
 	try
 	{
-		script = new ofstream(script_name.c_str(), ios::out);
-		if (script->fail())
-			throw BackendException("Failed to create '%s': %s", script_name.c_str(),
-				strerror(errno));
-
-		*script << substitute(head_template, "inputs", INPUT_NAME);
 
 		string dir = basedir + "/" INPUT_DIR;
 		do_mkdir(dir);
 		dir = basedir + "/" OUTPUT_DIR;
 		do_mkdir(dir);
 
-		double total = jobs->size();
+		double total = jobs.size();
 		int cnt = 0;
-		for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++)
+		for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
 		{
 			char cmd[128];
 
 			emit_job(*it, basedir, script, job_template);
 			snprintf(cmd, sizeof(cmd), "boinc fraction_done %.6g\n", (double)++cnt / total);
-			*script << cmd;
+			script << cmd;
 		}
 
 		tail_template = substitute(tail_template, "outputs", OUTPUT_NAME);
 		tail_template = substitute(tail_template, "output_pattern", OUTPUT_PATTERN);
-		*script << tail_template;
+		script << tail_template;
 
-		script->close();
-		delete script;
-		script = 0;
+		script.close();
 
 		snprintf(input_name, sizeof(input_name), "inputs_XXXXXX");
 		int fd = mkstemp(input_name);
@@ -482,9 +467,9 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 
 		char *wu_id = DC_getWUId(wu);
 		LOG(LOG_INFO, "DC-API: Submitted work unit %s for app '%s' (%zd tasks)",
-			wu_id, algname.c_str(), jobs->size());
+			wu_id, algname.c_str(), jobs.size());
 
-		for (vector<CGJob *>::const_iterator it = jobs->begin(); it != jobs->end(); it++)
+		for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
 		{
 			(*it)->setGridId(wu_id);
 			(*it)->setStatus(RUNNING);
@@ -498,20 +483,14 @@ void DCAPIHandler::submitJobs(vector<CGJob *> *jobs) throw (BackendException &)
 			unlink(input_name);
 		if (wu)
 			DC_destroyWU(wu);
-		if (script)
-		{
-			script->close();
-			delete script;
-		}
+		if (script.is_open())
+			script.close();
 		remove_tmpdir(basedir.c_str());
 		throw;
 	}
 
-	if (script)
-	{
-		script->close();
-		delete script;
-	}
+	if (script.is_open())
+		script.close();
 	remove_tmpdir(basedir.c_str());
 }
 
