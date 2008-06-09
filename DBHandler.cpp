@@ -24,6 +24,10 @@ static const char *status_str[] =
 	"INIT", "RUNNING", "FINISHED", "ERROR", "CANCEL"
 };
 
+/**********************************************************************
+ * Class: DBResult
+ */
+
 DBResult::~DBResult()
 {
 	if (res)
@@ -89,6 +93,10 @@ const char *DBResult::get_field(const char *name)
 		throw QMException("Unknown field requested: %s ", name);
 	return row[i];
 }
+
+/**********************************************************************
+ * Class: DBHandler
+ */
 
 bool DBHandler::query(const char *fmt, ...)
 {
@@ -167,7 +175,7 @@ void DBHandler::parseJobs(JobVector &jobs)
 {
 	DBResult res(this);
 
-	res.store();
+	res.use();
 	while (res.fetch())
 	{
 		// Get instance of the relevant algorithm queue
@@ -182,25 +190,36 @@ void DBHandler::parseJobs(JobVector &jobs)
 		algQ = CGAlgQueue::getInstance(grid, alg);
 
 		// Create new job descriptor
-		CGJob *nJob = new CGJob(alg, args, algQ);
-		nJob->setId(id);
+		CGJob *nJob = new CGJob(id, alg, args, algQ);
 		if (gridid)
 			nJob->setGridId(gridid);
 
 		// Get inputs for job from db
-		DBHandler *dbh2 = get();
-		dbh2->query("SELECT localname, path FROM cg_inputs WHERE id = '%s'", id);
-		DBResult res2(dbh2);
+		DBHandler *dbh = get();
+		if (!dbh->query("SELECT localname, path FROM cg_inputs WHERE id = '%s'", id))
+		{
+			delete nJob;
+			put(dbh);
+			continue;
+		}
+
+		DBResult res2(dbh);
 		res2.use();
 		while (res2.fetch())
 			nJob->addInput(res2.get_field(0), res2.get_field(1));
 
 		// Get outputs for job from db
-		dbh2->query("SELECT localname, path FROM cg_outputs WHERE id = '%s'", id);
+		if (!dbh->query("SELECT localname, path FROM cg_outputs WHERE id = '%s'", id))
+		{
+			delete nJob;
+			put(dbh);
+			continue;
+		}
+
 		res2.use();
 		while (res2.fetch())
 			nJob->addOutput(res2.get_field(0), res2.get_field(1));
-		put(dbh2);
+		put(dbh);
 
 		jobs.push_back(nJob);
 	}
@@ -210,7 +229,7 @@ void DBHandler::parseJobs(JobVector &jobs)
 void DBHandler::getJobs(JobVector &jobs, const string &grid, const string &alg, CGJobStatus stat, int batch)
 {
 	if (query("SELECT * FROM cg_job "
-			"WHERE grid = '%s' AND alg = '%s' status = '%s' "
+			"WHERE grid = '%s' AND alg = '%s' AND status = '%s' "
 			"ORDER BY creation_time",
 			grid.c_str(), alg.c_str(), getStatStr(stat)))
 		return parseJobs(jobs);
@@ -355,6 +374,34 @@ void DBHandler::addJob(CGJob &job)
 		query("ROLLBACK");
 }
 
+DBHandler *DBHandler::get() throw (QMException &)
+{
+	return db_pool.get();
+}
+
+void DBHandler::put(DBHandler *dbh)
+{
+	db_pool.put(dbh);
+}
+
+/**
+ * Add an algorithm queue to the database. Initially, the statistics for the
+ * algorithm are set empty.
+ *
+ * @param[in] grid The grid's name
+ * @param[in] alg The algorithm's name
+ * @param[in] batchsize Maximum batch size for the algorithm
+ */
+void DBHandler::addAlgQ(const char *grid, const char *alg, unsigned int batchsize)
+{
+	query("INSERT INTO cg_algqueue(grid, alg, batchsize, statistics) VALUES('%s', '%s', '%u', '')",
+		grid, alg, batchsize);
+}
+
+/**********************************************************************
+ * Class: DBPool
+ */
+
 DBHandler *DBPool::get() throw (QMException &)
 {
 	DBHandler *dbh;
@@ -436,28 +483,4 @@ DBPool::~DBPool()
 	g_free(host);
 	g_free(user);
 	g_free(passwd);
-}
-
-DBHandler *DBHandler::get() throw (QMException &)
-{
-	return db_pool.get();
-}
-
-void DBHandler::put(DBHandler *dbh)
-{
-	db_pool.put(dbh);
-}
-
-/**
- * Add an algorithm queue to the database. Initially, the statistics for the
- * algorithm are set empty.
- *
- * @param[in] grid The grid's name
- * @param[in] alg The algorithm's name
- * @param[in] batchsize Maximum batch size for the algorithm
- */
-void DBHandler::addAlgQ(const char *grid, const char *alg, unsigned int batchsize)
-{
-	query("INSERT INTO cg_algqueue(grid, alg, batchsize, statistics) VALUES('%s', '%s', '%u', '')",
-		grid, alg, batchsize);
 }

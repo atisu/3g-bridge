@@ -40,8 +40,8 @@ void usage(const char *cmdname)
 
 int main(int argc, char **argv)
 {
-    string cmdLine = "";
-    string algName = "";
+    char *cmdLine = "";
+    char *algName = "";
     vector<string *> inputs;
     vector<string *> outputs;
     GError *error;
@@ -62,10 +62,10 @@ int main(int argc, char **argv)
 	    break;
 	switch (c) {
 	    case 'c':
-		cmdLine = string(optarg);
+		cmdLine = optarg;
 		break;
 	    case 'a':
-		algName = string(optarg);
+		algName = optarg;
 		break;
 	    case 'i':
 		inputs.push_back(new string(optarg));
@@ -115,8 +115,7 @@ int main(int argc, char **argv)
     uuid_generate(jid);
     uuid_unparse(jid, sid);
 
-    CGJob job(algName, cmdLine, 0);
-    job.setId(sid);
+    CGJob job(sid, algName, cmdLine, 0);
 
     for (vector<string *>::const_iterator it = inputs.begin(); it != inputs.end(); it++)
     {
