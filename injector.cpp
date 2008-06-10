@@ -160,9 +160,15 @@ int main(int argc, char **argv)
 	job.addOutput(logical, path);
     }
 
-    DBHandler *dbh = DBHandler::get();
-    dbh->addJob(job);
-    DBHandler::put(dbh);
+    try {
+	DBHandler *dbh = DBHandler::get();
+	dbh->addJob(job);
+	DBHandler::put(dbh);
+    }
+    catch (QMException &e) {
+	cerr << "Error: " << e.what() << endl;
+	exit(1);
+    }
 
     return 0;
 }
