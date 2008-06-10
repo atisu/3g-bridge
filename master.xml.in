@@ -1,10 +1,10 @@
 <?xml version="1.0" standalone="no"?>
 <!--
-	Configuration template for the Queue Manager
+	Configuration template for the 3G Bridge
 -->
 <master>
 	<!-- Application name -->
-	<name>queuemanager</name>
+	<name>3g-bridge</name>
 
 	<!-- Application version. There are no restrictions for the format of
 	     master version numbers -->
@@ -12,16 +12,16 @@
 
 	<!-- Data files used by the master -->
 	<files>
-		<file>qm.conf.sample</file>
+		<file>bridge.conf.sample</file>
 		<file>batch_pack</file>
 		<file>batch_unpack</file>
 	</files>
 
 	<!-- Master daemon definition -->
 	<daemon>
-		<binary>Manager</binary>
+		<binary>bridge</binary>
 		<arguments>
-			<arg>${workdir}/qm.conf</arg>
+			<arg>${workdir}/bridge.conf</arg>
 		</arguments>
 	</daemon>
 

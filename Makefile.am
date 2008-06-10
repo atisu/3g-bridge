@@ -65,9 +65,9 @@ CLEANFILES = master.xml queuemanager.tar.gz
 
 package_contents = \
 		   bridge \
-		   master.xml \
+		   bridge.conf.sample \
 		   dc-api.conf \
-		   qm.conf.sample \
+		   master.xml \
 		   examples/batch_pack \
 		   examples/batch_unpack
 
