@@ -4,6 +4,7 @@
 
 #include "DBHandler.h"
 #include "AlgQueue.h"
+#include "Logging.h"
 
 #include <string>
 #include <iostream>
@@ -26,6 +27,7 @@ AlgQueue::AlgQueue(const string &grid, const string &name, const unsigned maxPac
 	}
 
 	queues.push_back(this);
+	LOG(LOG_DEBUG, "Grid %s: added algorithm %s", grid.c_str(), name.length() ? name.c_str() : "*");
 }
 
 AlgQueue::AlgQueue(const string &grid, const string &name, const unsigned maxPackSize, const string &statStr):grid(grid),tname(name)
@@ -50,6 +52,7 @@ AlgQueue::AlgQueue(const string &grid, const string &name, const unsigned maxPac
 	}
 
 	queues.push_back(this);
+	LOG(LOG_DEBUG, "Grid %s: added algorithm %s", grid.c_str(), name.length() ? name.c_str() : "*");
 }
 
 
