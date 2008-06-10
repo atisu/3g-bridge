@@ -13,6 +13,8 @@
 #include "EGEEHandler.h"
 #endif
 
+#include <stdlib.h>
+
 using namespace std;
 
 GKeyFile *global_config = NULL;

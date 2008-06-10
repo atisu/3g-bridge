@@ -12,9 +12,10 @@
 #include "DBHandler.h"
 #include "QMException.h"
 
-#include <getopt.h>
-#include <unistd.h>
 #include <uuid/uuid.h>
+#include <getopt.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include <glib.h>
 
@@ -40,8 +41,8 @@ void usage(const char *cmdname)
 
 int main(int argc, char **argv)
 {
-    char *cmdLine = "";
-    char *algName = "";
+    char *cmdLine = NULL;
+    char *algName = NULL;
     vector<string *> inputs;
     vector<string *> outputs;
     GError *error;
@@ -106,7 +107,7 @@ int main(int argc, char **argv)
     }
 
     // Check for mandatory options
-    if (algName == "" || !inputs.size() || !outputs.size())
+    if (!algName || !inputs.size() || !outputs.size())
 	usage(argv[0]);
 
     // Generate an identifier for our job

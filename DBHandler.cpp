@@ -7,6 +7,8 @@
 
 #include <string>
 
+#include <stdlib.h>
+#include <string.h>
 #include <mysql.h>
 
 #include "Logging.h"

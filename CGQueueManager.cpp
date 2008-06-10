@@ -12,9 +12,12 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+
 #include <sys/stat.h>
-#include <signal.h>
 #include <sys/time.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <string.h>
 
 using namespace std;
 

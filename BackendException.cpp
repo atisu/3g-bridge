@@ -5,6 +5,7 @@
 #include "BackendException.h"
 
 #include <stdarg.h>
+#include <stdlib.h>
 
 BackendException::BackendException(const char *fmt, ...)
 {
