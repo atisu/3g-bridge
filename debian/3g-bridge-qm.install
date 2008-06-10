@@ -1,0 +1,3 @@
+debian/tmp/usr/bin/bridge
+debian/tmp/usr/bin/injector
+db/schema.sql				usr/share/3g-bridge

@@ -1,0 +1,14 @@
+Source: 3g-bridge
+Section: net
+Priority: extra
+Maintainer: Gábor Gombás <gombasg@sztaki.hu>
+Standards-Version: 3.7.2
+Build-Depends: libmysqlclient15-dev | libmysqlclient-dev, pkg-config, libglib2.0-dev, libdcapi-boinc-dev, debhelper (>= 5)
+
+Package: 3g-bridge-qm
+Section: net
+Priority: extra
+Architecture: any
+Depends: ${shlibs:Depends}
+Description: A bridge connecting various grid infrastructures
+ This package contains the queue manager component.
