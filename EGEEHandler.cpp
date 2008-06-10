@@ -24,7 +24,6 @@
 #include <globus_ftp_client.h>
 
 using namespace std;
-using namespace glite::lb;
 using namespace glite::wms;
 using namespace glite::jdl;
 using namespace glite::wms::wmproxyapi;
@@ -212,13 +211,13 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 	// Find out job's ID
 	JobId jID(collID);
 	glite::lb::Job tJob(jID);
-	JobStatus stat = tJob.status(tJob.STAT_CLASSADS|tJob.STAT_CHILDREN|tJob.STAT_CHILDSTAT);
+	glite::lb::JobStatus stat = tJob.status(tJob.STAT_CLASSADS|tJob.STAT_CHILDREN|tJob.STAT_CHILDSTAT);
 	vector<string> childIDs = stat.getValStringList(stat.CHILDREN);
 	for (unsigned i = 0; i < childIDs.size(); i++) {
 		string childNodeName = "UNKNOWN";
 		JobId cjID(childIDs[i]);
 		glite::lb::Job ctJob(cjID);
-		vector<Event> events;
+		vector<glite::lb::Event> events;
 		events.clear();
 		while (!events.size()) {
 			try {
@@ -293,13 +292,13 @@ void EGEEHandler::getStatus(JobVector &jobs) throw (BackendException &)
 	Job *actJ = *it;
 	JobId jID(actJ->getGridId());
 	glite::lb::Job tJob(jID);
-	JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
+	glite::lb::JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
 	string statStr = stat.name();
 	cout << "EGEEHandler::getStatus: updating status of job \"" << actJ->getGridId() << "\"." << endl;
 	for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
 	    if (statusRelation[j].EGEEs == statStr) {
 		if (FINISHED == statusRelation[j].jobS)
-		    if (JobStatus::DONE_CODE_OK == stat.getValInt(JobStatus::DONE_CODE))
+		    if (glite::lb::JobStatus::DONE_CODE_OK == stat.getValInt(glite::lb::JobStatus::DONE_CODE))
 			getOutputs_real(actJ);
 		    else
 			j = 0;
