@@ -468,8 +468,8 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 			throw BackendException("WU submission failed");
 
 		char *wu_id = DC_getWUId(wu);
-		LOG(LOG_INFO, "DC-API: Submitted work unit %s for app '%s' (%zd tasks)",
-			wu_id, algname.c_str(), jobs.size());
+		LOG(LOG_INFO, "DC-API: Submitted work unit %s for app '%s' to grid %s (%zd tasks)",
+			wu_id, algname.c_str(), name.c_str(), jobs.size());
 
 		for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
 		{
