@@ -180,19 +180,14 @@ void DBHandler::parseJobs(JobVector &jobs)
 	res.use();
 	while (res.fetch())
 	{
-		// Get instance of the relevant algorithm queue
-		AlgQueue *algQ;
-
 		const char *alg = res.get_field("alg");
 		const char *grid = res.get_field("grid");
 		const char *args = res.get_field("args");
 		const char *gridid = res.get_field("gridid");
 		const char *id = res.get_field("id");
 
-		algQ = AlgQueue::getInstance(grid, alg);
-
 		// Create new job descriptor
-		Job *nJob = new Job(id, alg, args, algQ);
+		Job *nJob = new Job(id, alg, grid, args);
 		if (gridid)
 			nJob->setGridId(gridid);
 

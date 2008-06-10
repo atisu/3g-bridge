@@ -31,6 +31,7 @@ void usage(ostream &stream, const char *cmdname, int exitCode)
     stream << "Usage: " << cmdname << " <options>" << endl;
     stream << " * -c, --config <FILE>           configuration file name" << endl;
     stream << " * -a, --algname <NAME>          algorithm (executable) name" << endl;
+    stream << " * -g, --grid <NAME>             destination grid name" << endl;
     stream << " * -i, --input <LOGICAL>:<PATH>  logical/physical input file name" << endl;
     stream << " * -o, --output <LOGICAL>:<PATH> logical/physical output file name" << endl;
     stream << "   -p, --params <PARAMS>         command-line parameters" << endl;
@@ -44,6 +45,7 @@ int main(int argc, char **argv)
     char *cmdLine = NULL;
     char *algName = NULL;
     char *configFile = NULL;
+    char *grid = NULL;
     vector<string *> inputs;
     vector<string *> outputs;
     GError *error;
@@ -53,13 +55,14 @@ int main(int argc, char **argv)
 	static struct option long_options[] = {
 	    {"algname", 1, 0, 'a'},
 	    {"config", 1, 0, 'c'},
+	    {"grid", 1, 0, 'g'},
 	    {"help", 0, 0, 'h'},
 	    {"input", 1, 0, 'i'},
 	    {"output", 1, 0, 'o'},
 	    {"params", 1, 0, 'p'},
 	    {0, 0, 0, 0}
 	};
-	c = getopt_long(argc, argv, "a:c:hi:o:p:", long_options, NULL);
+	c = getopt_long(argc, argv, "a:c:g:hi:o:p:", long_options, NULL);
 	if (c == -1)
 	    break;
 	switch (c) {
@@ -68,6 +71,9 @@ int main(int argc, char **argv)
 		break;
 	    case 'c':
 		configFile = optarg;
+		break;
+	    case 'g':
+		grid = optarg;
 		break;
 	    case 'h':
 		usage(cout, argv[0], 0);
@@ -115,6 +121,11 @@ int main(int argc, char **argv)
 	cerr << "The algorithm name is missing" << endl << endl;
 	usage(cerr, argv[0], 1);
     }
+    if (!grid)
+    {
+	cerr << "The destination grid name is missing" << endl << endl;
+	usage(cerr, argv[0], 1);
+    }
     if (!inputs.size())
     {
 	cerr << "There are no input files specified" << endl << endl;
@@ -132,7 +143,7 @@ int main(int argc, char **argv)
     uuid_generate(jid);
     uuid_unparse(jid, sid);
 
-    Job job(sid, algName, cmdLine ? cmdLine : "", 0);
+    Job job(sid, algName, grid, cmdLine ? cmdLine : "");
 
     for (vector<string *>::const_iterator it = inputs.begin(); it != inputs.end(); it++)
     {

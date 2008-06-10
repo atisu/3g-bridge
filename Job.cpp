@@ -13,6 +13,12 @@
 using namespace std;
 
 
+Job::Job(const char *id, const char *name, const char *grid, const char *args):
+		id(id),name(name),args(args),grid(grid)
+{
+	algQ = AlgQueue::getInstance(grid, name);
+}
+
 void Job::addInput(const string &localname, const string &fsyspath)
 {
 	inputs[localname] = fsyspath;
