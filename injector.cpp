@@ -26,47 +26,51 @@ GKeyFile *global_config = NULL;
 
 using namespace std;
 
-void usage(const char *cmdname)
+void usage(ostream &stream, const char *cmdname, int exitCode)
 {
-    cout << "--== Prototype job submitter for Cancergrid ==--" << endl << endl;
-    cout << "Usage: " << cmdname << " config [switches]" << endl;
-    cout << " * -a, --algname <NAME>          algorithm (executable) name" << endl;
-    cout << "   -c, --cmdline <ARGUMENTS>     command-line arguments" << endl;
-    cout << " * -i, --input <LOGICAL>:<PATH>  logical/physical input file name" << endl;
-    cout << " * -o, --output <LOGICAL>:<PATH> logical/physical output file name" << endl;
-    cout << "   -h, --help                    this help screen" << endl;
-    cout << " *: switch is mandatory" << endl;
-    exit(0);
+    stream << "Usage: " << cmdname << " <options>" << endl;
+    stream << " * -c, --config <FILE>           configuration file name" << endl;
+    stream << " * -a, --algname <NAME>          algorithm (executable) name" << endl;
+    stream << " * -i, --input <LOGICAL>:<PATH>  logical/physical input file name" << endl;
+    stream << " * -o, --output <LOGICAL>:<PATH> logical/physical output file name" << endl;
+    stream << "   -p, --params <PARAMS>         command-line parameters" << endl;
+    stream << "   -h, --help                    this help screen" << endl;
+    stream << " *: switch is mandatory" << endl;
+    exit(exitCode);
 }
 
 int main(int argc, char **argv)
 {
     char *cmdLine = NULL;
     char *algName = NULL;
+    char *configFile = NULL;
     vector<string *> inputs;
     vector<string *> outputs;
     GError *error;
 
     int c;
     while (1) {
-        int option_index = 0;
 	static struct option long_options[] = {
 	    {"algname", 1, 0, 'a'},
-	    {"cmdline", 1, 0, 'c'},
+	    {"config", 1, 0, 'c'},
+	    {"help", 0, 0, 'h'},
 	    {"input", 1, 0, 'i'},
 	    {"output", 1, 0, 'o'},
-	    {"help", 0, 0, 'h'},
+	    {"params", 1, 0, 'p'},
 	    {0, 0, 0, 0}
 	};
-	c = getopt_long(argc, argv, "c:a:i:p:o:t:w", long_options, &option_index);
+	c = getopt_long(argc, argv, "a:c:hi:o:p:", long_options, NULL);
 	if (c == -1)
 	    break;
 	switch (c) {
-	    case 'c':
-		cmdLine = optarg;
-		break;
 	    case 'a':
 		algName = optarg;
+		break;
+	    case 'c':
+		configFile = optarg;
+		break;
+	    case 'h':
+		usage(cout, argv[0], 0);
 		break;
 	    case 'i':
 		inputs.push_back(new string(optarg));
@@ -74,41 +78,53 @@ int main(int argc, char **argv)
 	    case 'o':
 		outputs.push_back(new string(optarg));
 		break;
+	    case 'p':
+		cmdLine = optarg;
+		break;
 	    case '?':
-		usage(argv[0]);
+		usage(cerr, argv[0], 0);
 		break;
 	}
     }
 
     Logging::init(cout, LOG_DEBUG);
 
-    if (optind >= argc)
+    if (argc > optind)
     {
-	cerr << "Configuration file must be specified" << endl;
-	exit(1);
+	    cerr << "Garbage on the command line" << endl << endl;
+	    usage(cerr, argv[0], 1);
     }
 
     global_config = g_key_file_new();
     error = NULL;
-    g_key_file_load_from_file(global_config, argv[1], G_KEY_FILE_NONE, &error);
+    g_key_file_load_from_file(global_config, configFile, G_KEY_FILE_NONE, &error);
     if (error)
     {
 	    cerr << "Failed to load the config file: " << error->message << endl;
 	    exit(1);
     }
 
-    DBHandler *dbh;
-    try {
-	dbh = DBHandler::get();
-    }
-    catch (QMException &e) {
-        cerr << "Error: " << e.what() << endl;
-	exit(1);
-    }
-
     // Check for mandatory options
-    if (!algName || !inputs.size() || !outputs.size())
-	usage(argv[0]);
+    if (!configFile)
+    {
+	cerr << "The config file name is missing" << endl << endl;
+	usage(cerr, argv[0], 1);
+    }
+    if (!algName)
+    {
+	cerr << "The algorithm name is missing" << endl << endl;
+	usage(cerr, argv[0], 1);
+    }
+    if (!inputs.size())
+    {
+	cerr << "There are no input files specified" << endl << endl;
+	usage(cerr, argv[0], 1);
+    }
+    if (!outputs.size())
+    {
+	cerr << "There are no output files specified" << endl << endl;
+	usage(cerr, argv[0], 1);
+    }
 
     // Generate an identifier for our job
     uuid_t jid;
@@ -116,7 +132,7 @@ int main(int argc, char **argv)
     uuid_generate(jid);
     uuid_unparse(jid, sid);
 
-    Job job(sid, algName, cmdLine, 0);
+    Job job(sid, algName, cmdLine ? cmdLine : "", 0);
 
     for (vector<string *>::const_iterator it = inputs.begin(); it != inputs.end(); it++)
     {
@@ -144,12 +160,9 @@ int main(int argc, char **argv)
 	job.addOutput(logical, path);
     }
 
-    try {
-	dbh->addJob(job);
-    } catch (QMException &e) {
-	cerr << "Error: " << e.what() << endl;
-	return -1;
-    }
+    DBHandler *dbh = DBHandler::get();
+    dbh->addJob(job);
+    DBHandler::put(dbh);
 
     return 0;
 }
