@@ -45,7 +45,7 @@ QueueManager::QueueManager(GKeyFile *config)
 	for (i = 0; sections && sections[i]; i++)
 	{
 		/* Skip sections that are not grid definitions */
-		if (strncmp(sections[i], "grid:", 5))
+		if (!strcmp(sections[i], "defaults") || !strcmp(sections[i], "database"))
 			continue;
 
 		handler = g_key_file_get_string(config, sections[i], "handler", NULL);
