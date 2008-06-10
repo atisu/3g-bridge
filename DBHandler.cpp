@@ -453,6 +453,8 @@ void DBPool::init()
 	dbname = g_key_file_get_string(global_config, "database", "name", &error);
 	if (error)
 		throw QMException("Failed to retrieve the database name: %s", error->message);
+	if (!dbname || !strlen(dbname))
+		throw QMException("The database name is not specified in the configuration file");
 
 	/* These are not mandatory */
 	host = g_key_file_get_string(global_config, "database", "host", NULL);
