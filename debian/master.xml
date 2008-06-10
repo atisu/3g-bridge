@@ -1,0 +1,31 @@
+<?xml version="1.0" standalone="no"?>
+<!--
+	Configuration template for the 3G Bridge
+-->
+<master>
+	<!-- Application name -->
+	<name>3g-bridge</name>
+
+	<!-- Application version. There are no restrictions for the format of
+	     master version numbers -->
+	<version>0.5</version>
+
+	<!-- Data files used by the master -->
+	<files>
+		<file>/usr/share/3g-bridge/bridge.conf</file>
+		<file>/usr/share/3g-bridge/batch_pack</file>
+		<file>/usr/share/3g-bridge/batch_unpack</file>
+	</files>
+
+	<!-- Master daemon definition -->
+	<daemon>
+		<binary>/usr/bin/bridge</binary>
+		<arguments>
+			<arg>${workdir}/bridge.conf</arg>
+		</arguments>
+	</daemon>
+
+	<!-- The application manager script will substitute the correct
+	     values for us -->
+	<dcapi-conf>/usr/share/3g-bridge/dc-api.conf</dcapi-conf>
+</master>
