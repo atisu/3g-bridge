@@ -97,7 +97,7 @@ CGAlgQueue *CGAlgQueue::getInstance(const string &grid, const string &algName)
 CGAlgQueue *CGAlgQueue::getInstance(const string &grid)
 {
 	for (unsigned i = 0; i < queues.size(); i++)
-	        if (queues[i]->getName() == "" && queues[i]->getGrid() == grid)
+	        if (queues[i]->getGrid() == grid)
 			return queues[i];
 	return NULL;
 }

@@ -35,6 +35,10 @@ class EGEEHandler : public GridHandler {
 	static bool globus_err;
 	static int global_offset;
 	char *wmpendp;
+	char *myproxy_host;
+	char *myproxy_port;
+	char *myproxy_user;
+	char *myproxy_pass;
 	ConfigContext *cfg;
 	void init_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs);
 	void destroy_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs);

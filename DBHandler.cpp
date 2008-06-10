@@ -271,8 +271,9 @@ void DBHandler::loadAlgQStats(void)
 	res.store();
 	while (res.fetch())
 	{
+		string statStr = res.get_field(3) ? res.get_field(3) : "";
 		int size = atoi(res.get_field(2));
-		new CGAlgQueue(res.get_field(0), res.get_field(1), size, res.get_field(3));
+		new CGAlgQueue(res.get_field(0), res.get_field(1), size, statStr);
 	}
 }
 

@@ -47,10 +47,24 @@ int EGEEHandler::global_offset;
 EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException &)
 {
 	global_offset = 0;
-	name = instance;
+	name = instance+5;
 	wmpendp = g_key_file_get_string(config, instance, "wmproxy-endpoint", NULL);
 	if (!wmpendp)
 		throw BackendException("EGEE: no WMProxy endpoint for %s", instance);
+
+	myproxy_host = g_key_file_get_string(config, instance, "myproxy_host", NULL);
+	if (!myproxy_host)
+		throw BackendException("EGEE: no MyProxy host for %s", instance);
+	myproxy_user = g_key_file_get_string(config, instance, "myproxy_user", NULL);
+	if (!myproxy_user)
+		throw BackendException("EGEE: no MyProxy user for %s", instance);
+	myproxy_pass = g_key_file_get_string(config, instance, "myproxy_pass", NULL);
+	if (!myproxy_pass)
+		throw BackendException("EGEE: no MyProxy password for %s", instance);
+	myproxy_port = g_key_file_get_string(config, instance, "myproxy_port", NULL);
+	if (!myproxy_port)
+		myproxy_port = "7512";
+
 	cfg = 0;
 
 	groupByNames = false;
@@ -238,26 +252,19 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 void EGEEHandler::updateStatus() throw (BackendException &)
 {
 	DBHandler *jobDB = DBHandler::get();
-	JobVector &myJobs = jobDB->getJobs(getName(), RUNNING, 0);
+	JobVector myJobs;
+	jobDB->getJobs(myJobs, getName(), RUNNING, 0);
 	DBHandler::put(jobDB);
 
-	if (!myJobs)
+	if (myJobs.empty())
 		return;
 
 	try {
 		getStatus(myJobs);
 	} catch(BackendException& a) {
-		for (unsigned i = 0; i < myJobs->size(); i++)
-			delete myJobs->at(i);
-		delete myJobs;
 		throw;
 	}
-
-	for (unsigned i = 0; i < myJobs->size(); i++)
-		delete myJobs->at(i);
-	delete myJobs;
 }
-
 
 /*
  * Update status of jobs
@@ -649,7 +656,7 @@ void EGEEHandler::renew_proxy()
     string voname = "gilda";
     string proxyf = "/tmp/proxy." + voname;
     string vproxyf = "/tmp/proxy.voms." + voname;
-    string cmd = "echo \"IeKohg1A\" | myproxy-logon -s n40.hpcc.sztaki.hu -p 7512 -l bebridge -S -o " + proxyf + " &> /dev/null";
+    string cmd = "echo \"" + string(myproxy_pass) + "\" | myproxy-logon -s " + string(myproxy_host) + " -p " + string(myproxy_port) + " -l " + string(myproxy_user) + " -S -o " + proxyf + " &> /dev/null";
     int rv = system(cmd.c_str());
     if (rv)
 	throwStrExc(__func__, "Proxy initialization failed!");
