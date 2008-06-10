@@ -116,7 +116,7 @@ int main(int argc, char **argv)
     uuid_generate(jid);
     uuid_unparse(jid, sid);
 
-    CGJob job(sid, algName, cmdLine, 0);
+    Job job(sid, algName, cmdLine, 0);
 
     for (vector<string *>::const_iterator it = inputs.begin(); it != inputs.end(); it++)
     {

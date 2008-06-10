@@ -3,8 +3,8 @@
 #endif
 
 #include "Logging.h"
-#include "CGQueueManager.h"
-#include "CGManager.h"
+#include "QueueManager.h"
+#include "Manager.h"
 #include "DBHandler.h"
 
 #include <map>
@@ -33,7 +33,7 @@ static void sigint_handler(int signal __attribute__((__unused__)))
 /**
  * Constructor. Initialize selected grid plugin, and database connection.
  */
-CGQueueManager::CGQueueManager(GKeyFile *config)
+QueueManager::QueueManager(GKeyFile *config)
 {
 	char **sections, *handler;
 	unsigned i;
@@ -63,7 +63,7 @@ CGQueueManager::CGQueueManager(GKeyFile *config)
 /**
  * Destructor. Frees up memory.
  */
-CGQueueManager::~CGQueueManager()
+QueueManager::~QueueManager()
 {
 	while (!gridHandlers.empty())
 	{
@@ -71,21 +71,21 @@ CGQueueManager::~CGQueueManager()
 		gridHandlers.erase(gridHandlers.begin());
 		delete plugin;
 	}
-	CGAlgQueue::cleanUp();
+	AlgQueue::cleanUp();
 }
 
 
-bool CGQueueManager::runHandler(GridHandler *handler)
+bool QueueManager::runHandler(GridHandler *handler)
 {
 	bool work_done = false;
 	JobVector jobs;
 
 	if (handler->schGroupByNames())
 	{
-		vector<CGAlgQueue *> algs;
+		vector<AlgQueue *> algs;
 		
-		CGAlgQueue::getAlgs(algs, handler->getName());
-		for (vector<CGAlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
+		AlgQueue::getAlgs(algs, handler->getName());
+		for (vector<AlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
 		{
 
 			DBHandler *dbh = DBHandler::get();
@@ -113,12 +113,7 @@ bool CGQueueManager::runHandler(GridHandler *handler)
 	}
 	else
 	{
-		CGAlgQueue *alg = CGAlgQueue::getInstance(handler->getName());
-
-		if (!alg) {
-			LOG(LOG_ERR, "Algorithm queue for grid %s not found! Handling skipped...", handler->getName());
-			return false;
-		}
+		AlgQueue *alg = AlgQueue::getInstance(handler->getName());
 
 		DBHandler *dbh = DBHandler::get();
 		dbh->getJobs(jobs, handler->getName(), INIT, alg->getPackSize());
@@ -152,7 +147,7 @@ bool CGQueueManager::runHandler(GridHandler *handler)
  * Main loop. Periodically queries database for new, sent, finished and
  * aborted jobs. Handler funcitons are called for the different job vectors.
  */
-void CGQueueManager::run()
+void QueueManager::run()
 {
 	struct sigaction sa;
 
@@ -213,7 +208,7 @@ void CGQueueManager::run()
  *                 needed, as the decision depends only on this
  * @return Determined package size
  */
-unsigned CGQueueManager::selectSize(CGAlgQueue *algQ)
+unsigned QueueManager::selectSize(AlgQueue *algQ)
 {
 	unsigned maxPSize = algQ->getPackSize();
 	double tATT = 0, tVB = 0;
@@ -267,7 +262,7 @@ unsigned CGQueueManager::selectSize(CGAlgQueue *algQ)
  *                 needed, as the decision depends only on this
  * @return Determined package size
  */
-unsigned CGQueueManager::selectSizeAdv(CGAlgQueue *algQ)
+unsigned QueueManager::selectSizeAdv(AlgQueue *algQ)
 {
 	unsigned maxPSize = algQ->getPackSize();
 	double tATT = 0;

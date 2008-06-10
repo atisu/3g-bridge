@@ -2,7 +2,7 @@
 #include <config.h>
 #endif
 
-#include "CGJob.h"
+#include "Job.h"
 #include "DCAPIHandler.h"
 #include "DBHandler.h"
 #include "Logging.h"
@@ -167,7 +167,7 @@ static void error_jobs(JobVector &jobs)
 		(*it)->setStatus(ERROR);
 }
 
-static bool check_job(const string &basedir, CGJob *job)
+static bool check_job(const string &basedir, Job *job)
 {
 	vector<string> outputs = job->getOutputs();
 	bool result = true;
@@ -238,8 +238,8 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	/* Update the statistics */
 	if (!jobs.empty())
 	{
-		CGJob *job = jobs.at(0);
-		CGAlgQueue *alg = CGAlgQueue::getInstance(job->getGrid(), job->getName());
+		Job *job = jobs.at(0);
+		AlgQueue *alg = AlgQueue::getInstance(job->getGrid(), job->getName());
 		if (alg)
 			alg->updateStat(jobs.size(), (unsigned)DC_getResultCPUTime(result));
 	}
@@ -337,7 +337,7 @@ static void do_mkdir(const string &path) throw (BackendException &)
 	throw BackendException("Failed to create directory '%s': %s", path.c_str(), strerror(errno));
 }
 
-static void emit_job(CGJob *job, const string &basedir, ofstream &script, const string &job_template) throw (BackendException &)
+static void emit_job(Job *job, const string &basedir, ofstream &script, const string &job_template) throw (BackendException &)
 {
 	string input_dir = INPUT_DIR "/" + job->getId();
 	string output_dir = OUTPUT_DIR "/" + job->getId();

@@ -1,5 +1,5 @@
-#ifndef __CG_JOB_H_
-#define __CG_JOB_H_
+#ifndef ___JOB_H_
+#define ___JOB_H_
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -9,25 +9,25 @@
 #include <string>
 #include <vector>
 #include "common.h"
-#include "CGAlgQueue.h"
+#include "AlgQueue.h"
 
 
 using namespace std;
 
 
-class CGJob {
+class Job {
 public:
 	/* Constructor & destructor */
-	CGJob(const char *id, const char *name, const char *args, CGAlgQueue *algQ):
+	Job(const char *id, const char *name, const char *args, AlgQueue *algQ):
 			id(id),name(name),args(args),algQ(algQ) {};
-	~CGJob() {};
+	~Job() {};
 
 	/* Accessor functions for the immutable fields */
 	const string &getId() const { return id; }
 	const string &getName() const { return name; }
 	const string &getGrid() const { return grid; }
 	const string &getArgs() const { return args; }
-	CGAlgQueue *getAlgQueue() { return algQ; }
+	AlgQueue *getAlgQueue() { return algQ; }
 
 	/* Input files */
 	void addInput(const string &localname, const string &fsyspath);
@@ -44,8 +44,8 @@ public:
 	const string &getGridId() const { return gridId; }
 
 	/* Status handling */
-	void setStatus(CGJobStatus nStat);
-	CGJobStatus getStatus() const { return status; }
+	void setStatus(JobStatus nStat);
+	JobStatus getStatus() const { return status; }
 
 	void deleteJob();
 private:
@@ -54,15 +54,15 @@ private:
 	string args;
 	string grid;
 	string gridId;
-	CGAlgQueue *algQ;
+	AlgQueue *algQ;
 	map<string, string> inputs;
 	map<string, string> outputs;
-	CGJobStatus status;
+	JobStatus status;
 };
 
-class JobVector: public vector<CGJob *> {
+class JobVector: public vector<Job *> {
 public:
-	JobVector() { vector<CGJob *>(); }
+	JobVector() { vector<Job *>(); }
 	~JobVector() { clear(); }
 	void clear();
 };

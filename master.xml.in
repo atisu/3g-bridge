@@ -19,7 +19,7 @@
 
 	<!-- Master daemon definition -->
 	<daemon>
-		<binary>CGManager</binary>
+		<binary>Manager</binary>
 		<arguments>
 			<arg>${workdir}/qm.conf</arg>
 		</arguments>

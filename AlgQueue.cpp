@@ -3,7 +3,7 @@
 #endif
 
 #include "DBHandler.h"
-#include "CGAlgQueue.h"
+#include "AlgQueue.h"
 
 #include <string>
 #include <iostream>
@@ -12,9 +12,9 @@
 
 using namespace std;
 
-vector<CGAlgQueue *> CGAlgQueue::queues;
+vector<AlgQueue *> AlgQueue::queues;
 
-CGAlgQueue::CGAlgQueue(const string &grid, const string &name, const unsigned maxPackSize):grid(grid),tname(name)
+AlgQueue::AlgQueue(const string &grid, const string &name, const unsigned maxPackSize):grid(grid),tname(name)
 {
 	mPSize = (maxPackSize ? maxPackSize : 1);
 	pStats.resize(mPSize);
@@ -28,7 +28,7 @@ CGAlgQueue::CGAlgQueue(const string &grid, const string &name, const unsigned ma
 	queues.push_back(this);
 }
 
-CGAlgQueue::CGAlgQueue(const string &grid, const string &name, const unsigned maxPackSize, const string &statStr):grid(grid),tname(name)
+AlgQueue::AlgQueue(const string &grid, const string &name, const unsigned maxPackSize, const string &statStr):grid(grid),tname(name)
 {
 	stringstream strstr(statStr);
 
@@ -53,7 +53,7 @@ CGAlgQueue::CGAlgQueue(const string &grid, const string &name, const unsigned ma
 }
 
 
-string CGAlgQueue::getStatStr()
+string AlgQueue::getStatStr()
 {
 	stringstream strstr;
 
@@ -68,7 +68,7 @@ string CGAlgQueue::getStatStr()
 }
 
 
-void CGAlgQueue::cleanUp()
+void AlgQueue::cleanUp()
 {
 	for (unsigned i = 0; i < queues.size(); i++)
 	{
@@ -78,7 +78,7 @@ void CGAlgQueue::cleanUp()
 }
 
 /* Load all queue definitions from the database */
-void CGAlgQueue::load()
+void AlgQueue::load()
 {
 	DBHandler *dbh = DBHandler::get();
 	dbh->loadAlgQStats();
@@ -86,7 +86,7 @@ void CGAlgQueue::load()
 }
 
 
-CGAlgQueue *CGAlgQueue::getInstance(const string &grid, const string &algName)
+AlgQueue *AlgQueue::getInstance(const string &grid, const string &algName)
 {
 	for (unsigned i = 0; i < queues.size(); i++)
 	        if (queues[i]->getName() == algName && queues[i]->getGrid() == grid)
@@ -94,7 +94,7 @@ CGAlgQueue *CGAlgQueue::getInstance(const string &grid, const string &algName)
 	return NULL;
 }
 
-CGAlgQueue *CGAlgQueue::getInstance(const string &grid)
+AlgQueue *AlgQueue::getInstance(const string &grid)
 {
 	for (unsigned i = 0; i < queues.size(); i++)
 	        if (queues[i]->getGrid() == grid)
@@ -103,7 +103,7 @@ CGAlgQueue *CGAlgQueue::getInstance(const string &grid)
 }
 
 
-void CGAlgQueue::updateStat(unsigned pSize, unsigned pTime)
+void AlgQueue::updateStat(unsigned pSize, unsigned pTime)
 {
 	if (pSize >= mPSize)
 		return;
@@ -113,9 +113,9 @@ void CGAlgQueue::updateStat(unsigned pSize, unsigned pTime)
 	pStats[pSize-1].avgTT = (double)pStats[pSize-1].totalProcessTime / (pSize * pStats[pSize-1].numPackages);
 }
 
-void CGAlgQueue::getAlgs(vector<CGAlgQueue *> &algs, const string &grid)
+void AlgQueue::getAlgs(vector<AlgQueue *> &algs, const string &grid)
 {
-	for (vector<CGAlgQueue *>::iterator it = queues.begin(); it != queues.end(); it++)
+	for (vector<AlgQueue *>::iterator it = queues.begin(); it != queues.end(); it++)
 	{
 		if ((*it)->getGrid() != grid)
 			continue;

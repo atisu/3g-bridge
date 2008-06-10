@@ -2,7 +2,7 @@
 #include <config.h>
 #endif
 
-#include "CGJob.h"
+#include "Job.h"
 #include "DBHandler.h"
 
 #include <string>
@@ -13,14 +13,14 @@
 
 #include "Logging.h"
 #include "QMException.h"
-#include "CGManager.h"
+#include "Manager.h"
 
 using namespace std;
 
 
 static DBPool db_pool;
 
-/* The order here must match the definition of CGJobStatus */
+/* The order here must match the definition of JobStatus */
 static const char *status_str[] =
 {
 	"INIT", "RUNNING", "FINISHED", "ERROR", "CANCEL"
@@ -153,12 +153,12 @@ DBHandler::~DBHandler()
 
 
 /**
- * Convert CGJobStatus to string.
+ * Convert JobStatus to string.
  *
  * @param[in] stat Status info
  * @return String representation of the requested status
  */
-const char *DBHandler::getStatStr(CGJobStatus stat)
+const char *DBHandler::getStatStr(JobStatus stat)
 {
 	if (stat < 0 || stat > (int)(sizeof(status_str) / sizeof(status_str[0])))
 		throw QMException("Unknown job status value %d", (int)stat);
@@ -170,7 +170,7 @@ const char *DBHandler::getStatStr(CGJobStatus stat)
  * Parse job results of a query.
  *
  * @param[in] squery Pointer to the query to perform on the cg_job table
- * @return Pointer to a newly allocated vector of pointer to CGJobs. Should be
+ * @return Pointer to a newly allocated vector of pointer to Jobs. Should be
  *         freed by the caller
  */
 void DBHandler::parseJobs(JobVector &jobs)
@@ -181,7 +181,7 @@ void DBHandler::parseJobs(JobVector &jobs)
 	while (res.fetch())
 	{
 		// Get instance of the relevant algorithm queue
-		CGAlgQueue *algQ;
+		AlgQueue *algQ;
 
 		const char *alg = res.get_field("alg");
 		const char *grid = res.get_field("grid");
@@ -189,10 +189,10 @@ void DBHandler::parseJobs(JobVector &jobs)
 		const char *gridid = res.get_field("gridid");
 		const char *id = res.get_field("id");
 
-		algQ = CGAlgQueue::getInstance(grid, alg);
+		algQ = AlgQueue::getInstance(grid, alg);
 
 		// Create new job descriptor
-		CGJob *nJob = new CGJob(id, alg, args, algQ);
+		Job *nJob = new Job(id, alg, args, algQ);
 		if (gridid)
 			nJob->setGridId(gridid);
 
@@ -228,7 +228,7 @@ void DBHandler::parseJobs(JobVector &jobs)
 }
 
 
-void DBHandler::getJobs(JobVector &jobs, const string &grid, const string &alg, CGJobStatus stat, int batch)
+void DBHandler::getJobs(JobVector &jobs, const string &grid, const string &alg, JobStatus stat, int batch)
 {
 	if (query("SELECT * FROM cg_job "
 			"WHERE grid = '%s' AND alg = '%s' AND status = '%s' "
@@ -237,7 +237,7 @@ void DBHandler::getJobs(JobVector &jobs, const string &grid, const string &alg, 
 		return parseJobs(jobs);
 }
 
-void DBHandler::getJobs(JobVector &jobs, const string &grid, CGJobStatus stat, int batch)
+void DBHandler::getJobs(JobVector &jobs, const string &grid, JobStatus stat, int batch)
 {
 	if (query("SELECT * FROM cg_job "
 			"WHERE grid = '%s' AND status = '%s' "
@@ -251,7 +251,7 @@ void DBHandler::getJobs(JobVector &jobs, const string &grid, CGJobStatus stat, i
  * Get jobs with a given grid identifier.
  *
  * @param[in] stat Identifier we're interested in
- * @return Pointer to a newly allocated vector of pointer to CGJobs having the
+ * @return Pointer to a newly allocated vector of pointer to Jobs having the
  *         requested grid identier. Should be freed by the caller
  */
 void DBHandler::getJobs(JobVector &jobs, const char *gridID)
@@ -275,7 +275,7 @@ void DBHandler::loadAlgQStats(void)
 	{
 		string statStr = res.get_field(3) ? res.get_field(3) : "";
 		int size = atoi(res.get_field(2));
-		new CGAlgQueue(res.get_field(0), res.get_field(1), size, statStr);
+		new AlgQueue(res.get_field(0), res.get_field(1), size, statStr);
 	}
 }
 
@@ -289,7 +289,7 @@ void DBHandler::loadAlgQStats(void)
  *                  package)
  * @param[in] pTime Time used to process the package
  */
-void DBHandler::updateAlgQStat(CGAlgQueue *algQ, unsigned pSize, unsigned pTime)
+void DBHandler::updateAlgQStat(AlgQueue *algQ, unsigned pSize, unsigned pTime)
 {
 	algQ->updateStat(pSize, pTime);
 
@@ -311,7 +311,7 @@ void DBHandler::updateAlgQStat(const char *gridId, unsigned pSize, unsigned pTim
 {
 	JobVector jobs;
 	getJobs(jobs, gridId);
-	CGAlgQueue *algQ = jobs.at(0)->getAlgQueue();
+	AlgQueue *algQ = jobs.at(0)->getAlgQueue();
 	updateAlgQStat(algQ, pSize, pTime);
 }
 
@@ -334,7 +334,7 @@ void DBHandler::updateJobGridID(const string &ID, const string &gridID)
  * @param[in] ID The job's identifier
  * @param[in] newstat The status to set
  */
-void DBHandler::updateJobStat(const string &ID, CGJobStatus newstat)
+void DBHandler::updateJobStat(const string &ID, JobStatus newstat)
 {
 	query("UPDATE cg_job SET status='%s' WHERE id='%s'", getStatStr(newstat), ID.c_str());
 }
@@ -348,7 +348,7 @@ void DBHandler::deleteJob(const string &ID)
 }
 
 
-void DBHandler::addJob(CGJob &job)
+void DBHandler::addJob(Job &job)
 {
 	bool success = true;
 	query("START TRANSACTION");

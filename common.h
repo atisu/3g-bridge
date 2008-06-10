@@ -1,7 +1,7 @@
-#ifndef __CG_COMMON_H
-#define __CG_COMMON_H
+#ifndef ___COMMON_H
+#define ___COMMON_H
 
-enum CGJobStatus {
+enum JobStatus {
     INIT,
     RUNNING,
     FINISHED,
@@ -9,4 +9,4 @@ enum CGJobStatus {
     CANCEL,
 };
 
-#endif  /* __CG_COMMON_H */
+#endif  /* ___COMMON_H */

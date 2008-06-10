@@ -2,7 +2,7 @@
 #define __GRIDHANDLER_H
 
 #include "BackendException.h"
-#include "CGJob.h"
+#include "Job.h"
 
 #include <glib.h>
 

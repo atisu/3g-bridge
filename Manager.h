@@ -1,5 +1,5 @@
-#ifndef CGMANAGER_H
-#define CGMANAGER_H
+#ifndef MANAGER_H
+#define MANAGER_H
 
 using namespace std;
 
@@ -13,4 +13,4 @@ GridHandler *getPluginInstance(GKeyFile *config, const char *plugin, const char 
 
 extern GKeyFile *global_config;
 
-#endif /* CGMANAGER_H */
+#endif /* MANAGER_H */

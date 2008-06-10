@@ -6,24 +6,24 @@
 #include <string>
 #include <cstring>
 
-#include "CGJob.h"
+#include "Job.h"
 #include "DBHandler.h"
 
 
 using namespace std;
 
 
-void CGJob::addInput(const string &localname, const string &fsyspath)
+void Job::addInput(const string &localname, const string &fsyspath)
 {
 	inputs[localname] = fsyspath;
 }
 
-void CGJob::addOutput(const string &localname, const string &fsyspath)
+void Job::addOutput(const string &localname, const string &fsyspath)
 {
 	outputs[localname] = fsyspath;
 }
 
-vector<string> CGJob::getInputs() const
+vector<string> Job::getInputs() const
 {
 	map<string, string>::const_iterator it;
 	vector<string> rval;
@@ -32,7 +32,7 @@ vector<string> CGJob::getInputs() const
 	return rval;
 }
 
-vector<string> CGJob::getOutputs() const
+vector<string> Job::getOutputs() const
 {
 	map<string, string>::const_iterator it;
 	vector<string> rval;
@@ -41,7 +41,7 @@ vector<string> CGJob::getOutputs() const
 	return rval;
 }
 
-void CGJob::setGridId(const string &sID)
+void Job::setGridId(const string &sID)
 {
 	gridId = sID;
 
@@ -51,7 +51,7 @@ void CGJob::setGridId(const string &sID)
 }
 
 
-void CGJob::setStatus(CGJobStatus nStat)
+void Job::setStatus(JobStatus nStat)
 {
 	status = nStat;
 
@@ -60,7 +60,7 @@ void CGJob::setStatus(CGJobStatus nStat)
 	DBHandler::put(dbH);
 }
 
-void CGJob::deleteJob()
+void Job::deleteJob()
 {
 	DBHandler *dbH = DBHandler::get();
 	dbH->deleteJob(id);
@@ -71,5 +71,5 @@ void JobVector::clear()
 {
 	for (JobVector::iterator it = begin(); it != end(); it++)
 		delete *it;
-	vector<CGJob *>::clear();
+	vector<Job *>::clear();
 }

@@ -3,8 +3,8 @@
 #endif
 
 #include "Logging.h"
-#include "CGQueueManager.h"
-#include "CGManager.h"
+#include "QueueManager.h"
+#include "Manager.h"
 
 #ifdef HAVE_DCAPI
 #include "DCAPIHandler.h"
@@ -78,10 +78,10 @@ int main(int argc, char **argv)
 
     try {
 	LOG(LOG_DEBUG, "Creating Queue Manager");
-	CGQueueManager qm(global_config);
+	QueueManager qm(global_config);
 
 	LOG(LOG_DEBUG, "Reading algorithm datas");
-	CGAlgQueue::load();
+	AlgQueue::load();
 
 	LOG(LOG_DEBUG, "Starting Queue Manager");
 	qm.run();

@@ -1,9 +1,9 @@
-#ifndef __CGQUEUEMANAGER_H
-#define __CGQUEUEMANAGER_H
+#ifndef __QUEUEMANAGER_H
+#define __QUEUEMANAGER_H
 
-#include "CGJob.h"
+#include "Job.h"
 #include "common.h"
-#include "CGAlgQueue.h"
+#include "AlgQueue.h"
 #include "GridHandler.h"
 
 #include <glib.h>
@@ -21,18 +21,18 @@ enum jobOperation {
   cancel
 };
 
-class CGQueueManager {
+class QueueManager {
 public:
-    CGQueueManager(GKeyFile *config);
-    ~CGQueueManager();
+    QueueManager(GKeyFile *config);
+    ~QueueManager();
     void run();
 private:
-    map<string, CGAlgQueue *> algs;
+    map<string, AlgQueue *> algs;
     string basedir;
     vector<GridHandler *> gridHandlers;
-    unsigned selectSize(CGAlgQueue *algQ);
-    unsigned selectSizeAdv(CGAlgQueue *algQ);
+    unsigned selectSize(AlgQueue *algQ);
+    unsigned selectSizeAdv(AlgQueue *algQ);
     bool runHandler(GridHandler *handler);
 };
 
-#endif  /* __CGQUEUEMANAGER_H */
+#endif  /* __QUEUEMANAGER_H */

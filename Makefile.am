@@ -4,27 +4,27 @@ ACLOCAL_AMFLAGS = -I cf
 
 AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@
 
-bin_PROGRAMS = injector CGManager
+bin_PROGRAMS = injector Manager
 
 noinst_HEADERS = \
 		common.h \
+		AlgQueue.h \
 		BackendException.h \
-		CGAlgQueue.h \
-		CGJob.h \
-		CGManager.h \
-		CGQueueManager.h \
-		DCAPIHandler.h \
 		DBHandler.h \
+		DCAPIHandler.h \
 		EGEEHandler.h \
 		GridHandler.h \
+		Job.h \
 		Logging.h \
-		QMException.h
+		Manager.h \
+		QMException.h \
+		QueueManager.h
 
 injector_SOURCES = \
 		injector.cpp \
-		CGAlgQueue.cpp \
-		CGJob.cpp \
+		AlgQueue.cpp \
 		DBHandler.cpp \
+		Job.cpp \
 		Logging.cpp \
 		QMException.cpp
 injector_LDADD = -luuid $(MYSQL_LIBS) $(GLIB_LIBS)
@@ -43,17 +43,17 @@ BACKEND_LIBS += $(EGEE_LIBS)
 AM_CPPFLAGS += $(EGEE_CPPFLAGS)
 endif
 
-CGManager_SOURCES = \
+Manager_SOURCES = \
+		AlgQueue.cpp \
 		BackendException.cpp \
-		CGAlgQueue.cpp \
-		CGJob.cpp \
-		CGManager.cpp \
-		CGQueueManager.cpp \
 		DBHandler.cpp \
+		Job.cpp \
 		Logging.cpp \
+		Manager.cpp \
 		QMException.cpp \
+		QueueManager.cpp \
 		$(BACKEND_SOURCES)
-CGManager_LDADD = $(BACKEND_LIBS) $(MYSQL_LIBS) $(GLIB_LIBS)
+Manager_LDADD = $(BACKEND_LIBS) $(MYSQL_LIBS) $(GLIB_LIBS)
 
 master.xml: master.xml.in
 	$(SED) -e "s,@PACKAGE_VERSION\@,$(PACKAGE_VERSION)," \
@@ -64,7 +64,7 @@ package: queuemanager.tar.gz
 CLEANFILES = master.xml queuemanager.tar.gz
 
 package_contents = \
-		   CGManager \
+		   Manager \
 		   master.xml \
 		   dc-api.conf \
 		   qm.conf.sample \

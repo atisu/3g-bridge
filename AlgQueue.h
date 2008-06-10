@@ -1,5 +1,5 @@
-#ifndef __CG_ALGQUEUE_H
-#define __CG_ALGQUEUE_H
+#ifndef ___ALGQUEUE_H
+#define ___ALGQUEUE_H
 
 #include "common.h"
 
@@ -23,15 +23,15 @@ struct processStatistics {
 };
 
 
-class CGAlgQueue {
+class AlgQueue {
     public:
-	static vector<CGAlgQueue *> queues;
+	static vector<AlgQueue *> queues;
 	const string getGrid() const { return grid; }
 	const string getName() const { return tname; }
 	unsigned getPackSize() const { return mPSize; }
-	static CGAlgQueue *getInstance(const string &grid, const string &algName);
-	static CGAlgQueue *getInstance(const string &grid);
-	static void getAlgs(vector<CGAlgQueue *> &algs, const string &grid);
+	static AlgQueue *getInstance(const string &grid, const string &algName);
+	static AlgQueue *getInstance(const string &grid);
+	static void getAlgs(vector<AlgQueue *> &algs, const string &grid);
 	static void cleanUp();
 	static void load();
 	vector<processStatistics> *getPStats() { return &pStats; }
@@ -39,13 +39,13 @@ class CGAlgQueue {
 	string getStatStr();
     protected:
 	friend class DBHandler;
-	CGAlgQueue(const string &grid, const string &algName, const unsigned maxPackSize, const string &statStr);
+	AlgQueue(const string &grid, const string &algName, const unsigned maxPackSize, const string &statStr);
     private:
-	CGAlgQueue(const string &grid, const string &algName, const unsigned maxPackSize);
+	AlgQueue(const string &grid, const string &algName, const unsigned maxPackSize);
 	string grid;
 	string tname;
 	unsigned mPSize;
 	vector<processStatistics> pStats;
 };
 
-#endif  /* __CG_ALGQUEUE_H */
+#endif  /* ___ALGQUEUE_H */

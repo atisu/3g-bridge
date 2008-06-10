@@ -1,7 +1,7 @@
 #ifndef __EGEEHANDLER_H
 #define __EGEEHANDLER_H
 
-#include "CGJob.h"
+#include "Job.h"
 #include "GridHandler.h"
 
 #include <string>
@@ -53,7 +53,7 @@ class EGEEHandler : public GridHandler {
 	void throwStrExc(const char *func, const BaseException &e) throw(BackendException &);
 	void throwStrExc(const char *func, const string &str) throw(BackendException &);
 	void renew_proxy();
-	void getOutputs_real(CGJob *jobs);
+	void getOutputs_real(Job *jobs);
 	void createCFG();
 };
 

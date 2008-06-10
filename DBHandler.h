@@ -1,8 +1,8 @@
 #ifndef __DBHANDLER_H
 #define __DBHANDLER_H
 
-#include "CGJob.h"
-#include "CGAlgQueue.h"
+#include "Job.h"
+#include "AlgQueue.h"
 #include "QMException.h"
 
 #include <string>
@@ -20,15 +20,15 @@ class DBHandler {
 	~DBHandler();
 	bool query(const char *fmt, ...) __attribute__((__format__(printf, 2, 3)));
 	bool query(const string &str) { return query("%s", str.c_str()); }
-	void getJobs(JobVector &jobs, const string &grid, const string &alg, CGJobStatus stat, int batch);
-	void getJobs(JobVector &jobs, const string &grid, CGJobStatus stat, int batch);
+	void getJobs(JobVector &jobs, const string &grid, const string &alg, JobStatus stat, int batch);
+	void getJobs(JobVector &jobs, const string &grid, JobStatus stat, int batch);
 	void getJobs(JobVector &jobs, const char *gridID);
 	void updateJobGridID(const string &ID, const string &gridID);
-	void updateJobStat(const string &ID, CGJobStatus newstat);
-	void addJob(CGJob &job);
+	void updateJobStat(const string &ID, JobStatus newstat);
+	void addJob(Job &job);
 	void deleteJob(const string &ID);
 	void loadAlgQStats(void);
-	void updateAlgQStat(CGAlgQueue *algQ, unsigned pSize, unsigned pTime);
+	void updateAlgQStat(AlgQueue *algQ, unsigned pSize, unsigned pTime);
 	void updateAlgQStat(const char *gridid, unsigned pSize, unsigned pTime);
 
 	static void put(DBHandler *dbh);
@@ -41,7 +41,7 @@ class DBHandler {
 	DBHandler(const char *dbname, const char *host, const char *user, const char *passwd);
 	MYSQL *conn;
     private:
-	const char *getStatStr(CGJobStatus stat);
+	const char *getStatStr(JobStatus stat);
 	void parseJobs(JobVector &jobs);
 };
 

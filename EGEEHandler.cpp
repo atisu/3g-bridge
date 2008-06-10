@@ -2,7 +2,7 @@
 #include <config.h>
 #endif
 
-#include "CGJob.h"
+#include "Job.h"
 #include "Logging.h"
 #include "GridHandler.h"
 #include "EGEEHandler.h"
@@ -136,7 +136,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 		sprintf(jdirname, "%d", i);
 		mkdir(jdirname, 0700);
 		prodDirs.push_back(string(tmpdir) + "/" + string(jdirname));
-		CGJob *actJ = *it;
+		Job *actJ = *it;
 
 		// Get JDL template
 		string jobJDLStr;
@@ -271,7 +271,7 @@ void EGEEHandler::updateStatus() throw (BackendException &)
  */
 void EGEEHandler::getStatus(JobVector &jobs) throw (BackendException &)
 {
-    const struct { string EGEEs; CGJobStatus jobS; } statusRelation[] = {
+    const struct { string EGEEs; JobStatus jobS; } statusRelation[] = {
 	{"Submitted", RUNNING},
 	{"Waiting", RUNNING},
 	{"Ready", RUNNING},
@@ -290,7 +290,7 @@ void EGEEHandler::getStatus(JobVector &jobs) throw (BackendException &)
     renew_proxy();
 
     for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++) {
-	CGJob *actJ = *it;
+	Job *actJ = *it;
 	JobId jID(actJ->getGridId());
 	glite::lb::Job tJob(jID);
 	JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
@@ -312,7 +312,7 @@ void EGEEHandler::getStatus(JobVector &jobs) throw (BackendException &)
 /*
  * Get outputs of one job
  */
-void EGEEHandler::getOutputs_real(CGJob *job)
+void EGEEHandler::getOutputs_real(Job *job)
 {
     if (!job)
 	return;

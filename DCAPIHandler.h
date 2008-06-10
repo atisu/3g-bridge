@@ -1,7 +1,7 @@
 #ifndef __DCAPIHANDLER_H
 #define __DCAPIHANDLER_H
 
-#include "CGJob.h"
+#include "Job.h"
 #include "GridHandler.h"
 
 #include <vector>
