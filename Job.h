@@ -8,12 +8,18 @@
 #include <map>
 #include <string>
 #include <vector>
-#include "common.h"
 #include "AlgQueue.h"
 
 
 using namespace std;
 
+enum JobStatus {
+	INIT,
+	RUNNING,
+	FINISHED,
+	ERROR,
+	CANCEL
+};
 
 class Job {
 public:

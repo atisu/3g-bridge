@@ -1,8 +1,6 @@
 #ifndef ALGQUEUE_H
 #define ALGQUEUE_H
 
-#include "common.h"
-
 #include <string>
 #include <vector>
 

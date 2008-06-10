@@ -2,7 +2,6 @@
 #define QUEUEMANAGER_H
 
 #include "Job.h"
-#include "common.h"
 #include "AlgQueue.h"
 #include "GridHandler.h"
 

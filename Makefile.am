@@ -7,7 +7,6 @@ AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@
 bin_PROGRAMS = injector bridge
 
 noinst_HEADERS = \
-		common.h \
 		AlgQueue.h \
 		BackendException.h \
 		Bridge.h \
