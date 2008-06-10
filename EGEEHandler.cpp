@@ -68,6 +68,7 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 
 	groupByNames = false;
 	maxGroupSize = 10;
+	LOG(LOG_INFO, "EGEE Plugin: instance \"%s\" initialized.", instance);
 }
 
 
@@ -116,6 +117,8 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 {
 	if (!jobs.size())
 		return;
+
+	LOG(LOG_INFO, "EGEE Plugin: about to submit %zd jobs.", jobs.size());
 
 	createCFG();
 	vector<string> prodFiles;
@@ -208,6 +211,8 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 		collIDf >> collID;
 	} while ("https://" != collID.substr(0, 8));
 
+	LOG(LOG_DEBUG, "EGEE Plugin: collection subitted, now detemining node IDs.");
+
 	// Find out job's ID
 	JobId jID(collID);
 	glite::lb::Job tJob(jID);
@@ -245,6 +250,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 	chdir("..");
 	cmd = "rm -rf " + string(tmpl);
 	system(cmd.c_str());
+	LOG(LOG_INFO, "EGEE Plugin: job submission finished.");
 }
 
 
@@ -258,11 +264,15 @@ void EGEEHandler::updateStatus() throw (BackendException &)
 	if (myJobs.empty())
 		return;
 
+	LOG(LOG_INFO, "EGEE Plugin: about to update status of %zd jobs.", myJobs.size());
+
 	try {
 		getStatus(myJobs);
 	} catch(BackendException& a) {
 		throw;
 	}
+
+	LOG(LOG_INFO, "EGEE Plugin: status update finished.");
 }
 
 /*
@@ -294,7 +304,7 @@ void EGEEHandler::getStatus(JobVector &jobs) throw (BackendException &)
 	glite::lb::Job tJob(jID);
 	glite::lb::JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
 	string statStr = stat.name();
-	cout << "EGEEHandler::getStatus: updating status of job \"" << actJ->getGridId() << "\"." << endl;
+	LOG(LOG_DEBUG, "EGEE Plugin: updating status of job \"%s\".", actJ->getGridId().c_str());
 	for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
 	    if (statusRelation[j].EGEEs == statStr) {
 		if (FINISHED == statusRelation[j].jobS)
@@ -318,20 +328,19 @@ void EGEEHandler::getOutputs_real(Job *job)
 
     createCFG();
 
-    cout << "EGEEHandler::getOutputs_real: getting output of job \"" << job->getGridId() << "\"." << endl;
+    LOG(LOG_DEBUG, "EGEE Plugin: getting output of job \"%s\".", job->getGridId().c_str());
     char wd[2048];
     getcwd(wd, 2048);
     vector<pair<string, long> > URIs;
     try {
 	URIs = getOutputFileList(job->getGridId(), cfg);
     } catch (BaseException e) {
-	cout << "EGEEHandler::getOutputs_real: Warning - failed to get output file list, I assume the job has already been fetched." << endl;
+	LOG(LOG_WARNING, "EGEE Plugin: failed to get output file list, I assume the job has already been fetched.");
 	try {
 	    cleanJob(job->getGridId());
 	} catch (BackendException &e) {
-	    cout << "EGEEHandler::getOutputs_real: Warning - cleaning job \"" << job->getGridId() << "\" failed." << endl;
+	    LOG(LOG_WARNING, "EGEE Plugin: cleaning job \"%s\" failed.", job->getGridId().c_str());
 	}
-	//throwStrExc(__func__, e);
     }
     vector<string> remFiles(URIs.size());
     vector<string> locFiles(URIs.size());
@@ -344,7 +353,7 @@ void EGEEHandler::getOutputs_real(Job *job)
     try {
 	cleanJob(job->getGridId());
     } catch (BackendException &e) {
-	cout << "EGEEHandler::getOutputs_real: Warning - cleaning job \"" << job->getGridId() << "\" failed." << endl;
+	LOG(LOG_WARNING, "EGEE Plugin: cleaning job \"%s\" failed.", job->getGridId().c_str());
     }
 }
 
@@ -606,7 +615,7 @@ void EGEEHandler::delete_file_globus(const vector<string> &fileNames, const stri
 void EGEEHandler::cleanJob(const string &jobID)
 {
     int i = 0;
-    cout << "EGEEHandler::cleanJob: cleaning job \"" << jobID << "\"." << endl;
+    LOG(LOG_DEBUG, "EGEE Plugin: cleaning job \"%s\".", jobID.c_str());
     while (i < 3) {
 	try {
 	    jobPurge(jobID, cfg);
