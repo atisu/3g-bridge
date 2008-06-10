@@ -293,7 +293,7 @@ void DBHandler::updateAlgQStat(AlgQueue *algQ, unsigned pSize, unsigned pTime)
 {
 	algQ->updateStat(pSize, pTime);
 
-	query("UPDATE cg_algqueue SET statistics='%s' WHERE dsttype='%s' AND alg='%s'",
+	query("UPDATE cg_algqueue SET statistics='%s' WHERE grid='%s' AND alg='%s'",
 		algQ->getStatStr().c_str(), algQ->getGrid().c_str(), algQ->getName().c_str());
 }
 
