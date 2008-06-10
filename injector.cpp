@@ -143,7 +143,7 @@ int main(int argc, char **argv)
     uuid_generate(jid);
     uuid_unparse(jid, sid);
 
-    Job job(sid, algName, grid, cmdLine ? cmdLine : "");
+    Job job(sid, algName, grid, cmdLine);
 
     for (vector<string *>::const_iterator it = inputs.begin(); it != inputs.end(); it++)
     {

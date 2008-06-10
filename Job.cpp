@@ -14,8 +14,10 @@ using namespace std;
 
 
 Job::Job(const char *id, const char *name, const char *grid, const char *args):
-		id(id),name(name),args(args),grid(grid)
+		id(id),name(name),grid(grid)
 {
+	if (args)
+		this->args = args;
 	algQ = AlgQueue::getInstance(grid, name);
 }
 
