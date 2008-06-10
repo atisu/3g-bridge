@@ -2,9 +2,9 @@
 #include <config.h>
 #endif
 
+#include "Bridge.h"
 #include "Logging.h"
 #include "QueueManager.h"
-#include "Manager.h"
 #include "DBHandler.h"
 
 #include <map>

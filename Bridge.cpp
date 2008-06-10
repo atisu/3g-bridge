@@ -4,7 +4,7 @@
 
 #include "Logging.h"
 #include "QueueManager.h"
-#include "Manager.h"
+#include "Bridge.h"
 
 #ifdef HAVE_DCAPI
 #include "DCAPIHandler.h"

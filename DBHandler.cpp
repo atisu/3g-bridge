@@ -11,9 +11,9 @@
 #include <string.h>
 #include <mysql.h>
 
+#include "Bridge.h"
 #include "Logging.h"
 #include "QMException.h"
-#include "Manager.h"
 
 using namespace std;
 

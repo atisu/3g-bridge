@@ -1,5 +1,5 @@
-#ifndef MANAGER_H
-#define MANAGER_H
+#ifndef BRIDGE_H
+#define BRIDGE_H
 
 using namespace std;
 
@@ -13,4 +13,4 @@ GridHandler *getPluginInstance(GKeyFile *config, const char *plugin, const char 
 
 extern GKeyFile *global_config;
 
-#endif /* MANAGER_H */
+#endif /* BRIDGE_H */
