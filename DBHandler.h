@@ -20,8 +20,8 @@ class DBHandler {
 	~DBHandler();
 	bool query(const char *fmt, ...) __attribute__((__format__(printf, 2, 3)));
 	bool query(const string &str) { return query("%s", str.c_str()); }
-	void getJobs(JobVector &jobs, const string &grid, const string &alg, JobStatus stat, int batch);
-	void getJobs(JobVector &jobs, const string &grid, JobStatus stat, int batch);
+	void getJobs(JobVector &jobs, const string &grid, const string &alg, JobStatus stat, unsigned batch);
+	void getJobs(JobVector &jobs, const string &grid, JobStatus stat, unsigned batch);
 	void getJobs(JobVector &jobs, const char *gridID);
 	void updateJobGridID(const string &ID, const string &gridID);
 	void updateJobStat(const string &ID, JobStatus newstat);

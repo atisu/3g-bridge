@@ -87,9 +87,8 @@ bool QueueManager::runHandler(GridHandler *handler)
 		AlgQueue::getAlgs(algs, handler->getName());
 		for (vector<AlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
 		{
-
 			DBHandler *dbh = DBHandler::get();
-			dbh->getJobs(jobs, handler->getName(), (*it)->getName(), INIT, (*it)->getPackSize());
+			dbh->getJobs(jobs, handler->getName(), (*it)->getName(), INIT, selectSizeAdv(*it));
 			DBHandler::put(dbh);
 
 			if (!jobs.empty())

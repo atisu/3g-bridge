@@ -223,22 +223,36 @@ void DBHandler::parseJobs(JobVector &jobs)
 }
 
 
-void DBHandler::getJobs(JobVector &jobs, const string &grid, const string &alg, JobStatus stat, int batch)
+void DBHandler::getJobs(JobVector &jobs, const string &grid, const string &alg, JobStatus stat, unsigned batch)
 {
-	if (query("SELECT * FROM cg_job "
-			"WHERE grid = '%s' AND alg = '%s' AND status = '%s' "
-			"ORDER BY creation_time",
-			grid.c_str(), alg.c_str(), getStatStr(stat)))
-		return parseJobs(jobs);
+	if (batch)
+		if (query("SELECT * FROM cg_job "
+				"WHERE grid = '%s' AND alg = '%s' AND status = '%s' "
+				"ORDER BY creation_time LIMIT %d",
+				grid.c_str(), alg.c_str(), getStatStr(stat), batch))
+			return parseJobs(jobs);
+	else
+		if (query("SELECT * FROM cg_job "
+				"WHERE grid = '%s' AND alg = '%s' AND status = '%s' "
+				"ORDER BY creation_time",
+				grid.c_str(), alg.c_str(), getStatStr(stat)))
+			return parseJobs(jobs);
 }
 
-void DBHandler::getJobs(JobVector &jobs, const string &grid, JobStatus stat, int batch)
+void DBHandler::getJobs(JobVector &jobs, const string &grid, JobStatus stat, unsigned batch)
 {
-	if (query("SELECT * FROM cg_job "
-			"WHERE grid = '%s' AND status = '%s' "
-			"ORDER BY creation_time",
-			grid.c_str(), getStatStr(stat)))
-		return parseJobs(jobs);
+	if (batch)
+		if (query("SELECT * FROM cg_job "
+				"WHERE grid = '%s' AND status = '%s' "
+				"ORDER BY creation_time LIMIT %d",
+				grid.c_str(), getStatStr(stat), batch))
+			return parseJobs(jobs);
+	else
+		if (query("SELECT * FROM cg_job "
+				"WHERE grid = '%s' AND status = '%s' "
+				"ORDER BY creation_time",
+				grid.c_str(), getStatStr(stat)))
+			return parseJobs(jobs);
 }
 
 
