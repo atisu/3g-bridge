@@ -1,5 +1,5 @@
-#ifndef ___ALGQUEUE_H
-#define ___ALGQUEUE_H
+#ifndef ALGQUEUE_H
+#define ALGQUEUE_H
 
 #include "common.h"
 
@@ -48,4 +48,4 @@ class AlgQueue {
 	vector<processStatistics> pStats;
 };
 
-#endif  /* ___ALGQUEUE_H */
+#endif  /* ALGQUEUE_H */

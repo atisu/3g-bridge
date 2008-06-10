@@ -1,5 +1,5 @@
-#ifndef __DCAPIHANDLER_H
-#define __DCAPIHANDLER_H
+#ifndef DCAPIHANDLER_H
+#define DCAPIHANDLER_H
 
 #include "Job.h"
 #include "GridHandler.h"
@@ -21,4 +21,4 @@ public:
 	void cancelJobs(JobVector &jobs) throw (BackendException &) {};
 };
 
-#endif
+#endif /* DCAPIHANDLER_H */

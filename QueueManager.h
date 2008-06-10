@@ -1,5 +1,5 @@
-#ifndef __QUEUEMANAGER_H
-#define __QUEUEMANAGER_H
+#ifndef QUEUEMANAGER_H
+#define QUEUEMANAGER_H
 
 #include "Job.h"
 #include "common.h"
@@ -35,4 +35,4 @@ private:
     bool runHandler(GridHandler *handler);
 };
 
-#endif  /* __QUEUEMANAGER_H */
+#endif  /* QUEUEMANAGER_H */

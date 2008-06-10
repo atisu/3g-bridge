@@ -1,5 +1,5 @@
-#ifndef __EGEEHANDLER_H
-#define __EGEEHANDLER_H
+#ifndef EGEEHANDLER_H
+#define EGEEHANDLER_H
 
 #include "Job.h"
 #include "GridHandler.h"
@@ -57,4 +57,4 @@ class EGEEHandler : public GridHandler {
 	void createCFG();
 };
 
-#endif
+#endif /* EGEEHANDLER_H */

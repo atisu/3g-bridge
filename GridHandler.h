@@ -1,5 +1,5 @@
-#ifndef __GRIDHANDLER_H
-#define __GRIDHANDLER_H
+#ifndef GRIDHANDLER_H
+#define GRIDHANDLER_H
 
 #include "BackendException.h"
 #include "Job.h"
@@ -60,4 +60,4 @@ protected:
     string name;
 };
 
-#endif
+#endif /* GRIDHANDLER_H */

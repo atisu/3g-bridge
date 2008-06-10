@@ -1,5 +1,5 @@
-#ifndef __DBHANDLER_H
-#define __DBHANDLER_H
+#ifndef DBHANDLER_H
+#define DBHANDLER_H
 
 #include "Job.h"
 #include "AlgQueue.h"
@@ -84,4 +84,4 @@ class DBResult {
 	int field_num;
 };
 
-#endif /* __DBHANDLER_H */
+#endif /* DBHANDLER_H */

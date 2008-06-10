@@ -1,5 +1,5 @@
-#ifndef ___JOB_H_
-#define ___JOB_H_
+#ifndef JOB_H
+#define JOB_H
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -67,4 +67,4 @@ public:
 	void clear();
 };
 
-#endif
+#endif /* JOB_H */

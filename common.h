@@ -1,5 +1,5 @@
-#ifndef ___COMMON_H
-#define ___COMMON_H
+#ifndef COMMON_H
+#define COMMON_H
 
 enum JobStatus {
     INIT,
@@ -9,4 +9,4 @@ enum JobStatus {
     CANCEL,
 };
 
-#endif  /* ___COMMON_H */
+#endif  /* COMMON_H */

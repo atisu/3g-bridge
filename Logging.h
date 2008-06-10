@@ -1,3 +1,6 @@
+#ifndef LOGGING_H
+#define LOGGING_H
+
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -17,3 +20,5 @@ namespace Logging
 };
 
 #define LOG(y, ...)	Logging::log(y, __VA_ARGS__)
+
+#endif /* LOGGING_H */
