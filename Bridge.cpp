@@ -90,6 +90,8 @@ int main(int argc, char **argv)
 	return -1;
     }
 
+    LOG(LOG_NOTICE, "Exiting");
+
     g_key_file_free(global_config);
 
     return 0;
