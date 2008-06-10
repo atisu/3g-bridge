@@ -46,7 +46,7 @@ int EGEEHandler::global_offset;
 EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException &)
 {
 	global_offset = 0;
-	name = instance+5;
+	name = instance;
 	wmpendp = g_key_file_get_string(config, instance, "wmproxy-endpoint", NULL);
 	if (!wmpendp)
 		throw BackendException("EGEE: no WMProxy endpoint for %s", instance);
