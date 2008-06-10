@@ -115,6 +115,11 @@ bool CGQueueManager::runHandler(GridHandler *handler)
 	{
 		CGAlgQueue *alg = CGAlgQueue::getInstance(handler->getName());
 
+		if (!alg) {
+			LOG(LOG_ERR, "Algorithm queue for grid %s not found! Handling skipped...", handler->getName());
+			return false;
+		}
+
 		DBHandler *dbh = DBHandler::get();
 		dbh->getJobs(jobs, handler->getName(), INIT, alg->getPackSize());
 		DBHandler::put(dbh);
