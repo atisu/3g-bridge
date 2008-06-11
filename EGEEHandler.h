@@ -55,6 +55,7 @@ class EGEEHandler : public GridHandler {
 	void renew_proxy();
 	void getOutputs_real(Job *jobs);
 	void createCFG();
+	char *getProxyInfo(const char *proxyfile, time_t *lifetime);
 };
 
 #endif /* EGEEHANDLER_H */

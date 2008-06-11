@@ -22,6 +22,8 @@
 #include <glite/wms/wmproxyapi/wmproxy_api.h>
 #include <glite/wmsutils/jobid/JobId.h>
 #include <globus_ftp_client.h>
+#include <globus_gsi_credential.h>
+
 
 using namespace std;
 using namespace glite::wms;
@@ -676,7 +678,46 @@ void EGEEHandler::renew_proxy()
     setenv("X509_USER_PROXY", vproxyf.c_str(), 1);
 }
 
+
 GridHandler *EGEEHandler::getInstance(GKeyFile *config, const char *instance)
 {
 	return new EGEEHandler(config, instance);
+}
+
+
+/**
+ * Get identity and lifetime of a proxy file.
+ *
+ * @param[in] proxyfile location of the proxy file
+ * @param[out] lifetime validity in seconds
+ * @return newly allocated identity string of the proxy, or NULL in case
+ *         of errors
+ */
+char *EGEEHandler::getProxyInfo(const char *proxyfile, time_t *lifetime)
+{
+	char *id;
+	*lifetime = 0;
+
+	if (!proxyfile)
+		return NULL;
+
+        globus_module_activate(GLOBUS_GSI_CREDENTIAL_MODULE);
+
+        globus_gsi_cred_handle_t handle;
+        globus_gsi_cred_handle_attrs_t attrs;
+        if (GLOBUS_SUCCESS != globus_gsi_cred_handle_attrs_init(&attrs))
+		return NULL;
+        if (GLOBUS_SUCCESS != globus_gsi_cred_handle_init(&handle, attrs))
+		return NULL;
+
+        if (GLOBUS_SUCCESS != globus_gsi_cred_read_proxy(handle, proxyfile))
+                return NULL;
+
+        if (GLOBUS_SUCCESS != globus_gsi_cred_get_identity_name(handle, &id))
+		return NULL;
+
+	if (GLOBUS_SUCCESS != globus_gsi_cred_get_lifetime(handle, lifetime))
+		return NULL;
+
+	return id;
 }
