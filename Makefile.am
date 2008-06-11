@@ -26,7 +26,7 @@ injector_SOURCES = \
 		Job.cpp \
 		Logging.cpp \
 		QMException.cpp
-injector_LDADD = -luuid $(MYSQL_LIBS) $(GLIB_LIBS)
+injector_LDADD = -luuid $(GLIB_LIBS) $(MYSQL_LIBS)
 
 BACKEND_SOURCES =
 BACKEND_LIBS =
@@ -52,7 +52,7 @@ bridge_SOURCES = \
 		QMException.cpp \
 		QueueManager.cpp \
 		$(BACKEND_SOURCES)
-bridge_LDADD = $(BACKEND_LIBS) $(MYSQL_LIBS) $(GLIB_LIBS)
+bridge_LDADD = $(GLIB_LIBS) $(BACKEND_LIBS) $(MYSQL_LIBS)
 
 master.xml: master.xml.in
 	$(SED) -e "s,@PACKAGE_VERSION\@,$(PACKAGE_VERSION)," \
