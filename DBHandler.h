@@ -3,6 +3,7 @@
 
 #include "Job.h"
 #include "AlgQueue.h"
+#include "GridHandler.h"
 #include "QMException.h"
 
 #include <string>
@@ -23,6 +24,7 @@ class DBHandler {
 	void getJobs(JobVector &jobs, const string &grid, const string &alg, JobStatus stat, unsigned batch);
 	void getJobs(JobVector &jobs, const string &grid, JobStatus stat, unsigned batch);
 	void getJobs(JobVector &jobs, const char *gridID);
+	void pollJobs(JobStatus stat, GridHandler *handler);
 	void updateJobGridID(const string &ID, const string &gridID);
 	void updateJobStat(const string &ID, JobStatus newstat);
 	void addJob(Job &job);
@@ -42,6 +44,7 @@ class DBHandler {
 	MYSQL *conn;
     private:
 	const char *getStatStr(JobStatus stat);
+	Job *parseJob(DBResult &res);
 	void parseJobs(JobVector &jobs);
 };
 

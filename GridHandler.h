@@ -54,6 +54,12 @@ public:
      */
     virtual void cancelJobs(JobVector &jobs) throw (BackendException &) = 0;
 
+    /**
+     * Poll the status of a submitted job. This is used as a callback for
+     * DBHandler::pollJobs().
+     */
+    virtual void poll(Job *job) throw (BackendException &) {}
+
 protected:
     bool groupByNames;
     unsigned maxGroupSize;

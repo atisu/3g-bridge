@@ -166,6 +166,48 @@ const char *DBHandler::getStatStr(JobStatus stat)
 }
 
 
+Job *DBHandler::parseJob(DBResult &res)
+{
+	const char *alg = res.get_field("alg");
+	const char *grid = res.get_field("grid");
+	const char *args = res.get_field("args");
+	const char *gridid = res.get_field("gridid");
+	const char *id = res.get_field("id");
+
+	// Create new job descriptor
+	Job *job = new Job(id, alg, grid, args);
+	if (gridid)
+		job->setGridId(gridid);
+
+	// Get inputs for job from db
+	DBHandler *dbh = get();
+	if (!dbh->query("SELECT localname, path FROM cg_inputs WHERE id = '%s'", id))
+	{
+		delete job;
+		put(dbh);
+		return 0;
+	}
+
+	DBResult res2(dbh);
+	res2.use();
+	while (res2.fetch())
+		job->addInput(res2.get_field(0), res2.get_field(1));
+
+	// Get outputs for job from db
+	if (!dbh->query("SELECT localname, path FROM cg_outputs WHERE id = '%s'", id))
+	{
+		delete job;
+		put(dbh);
+		return 0;
+	}
+
+	res2.use();
+	while (res2.fetch())
+		job->addOutput(res2.get_field(0), res2.get_field(1));
+	put(dbh);
+	return job;
+}
+
 /**
  * Parse job results of a query.
  *
@@ -180,80 +222,50 @@ void DBHandler::parseJobs(JobVector &jobs)
 	res.use();
 	while (res.fetch())
 	{
-		const char *alg = res.get_field("alg");
-		const char *grid = res.get_field("grid");
-		const char *args = res.get_field("args");
-		const char *gridid = res.get_field("gridid");
-		const char *id = res.get_field("id");
-
-		// Create new job descriptor
-		Job *nJob = new Job(id, alg, grid, args);
-		if (gridid)
-			nJob->setGridId(gridid);
-
-		// Get inputs for job from db
-		DBHandler *dbh = get();
-		if (!dbh->query("SELECT localname, path FROM cg_inputs WHERE id = '%s'", id))
-		{
-			delete nJob;
-			put(dbh);
+		Job *job = parseJob(res);
+		if (!job)
 			continue;
-		}
-
-		DBResult res2(dbh);
-		res2.use();
-		while (res2.fetch())
-			nJob->addInput(res2.get_field(0), res2.get_field(1));
-
-		// Get outputs for job from db
-		if (!dbh->query("SELECT localname, path FROM cg_outputs WHERE id = '%s'", id))
-		{
-			delete nJob;
-			put(dbh);
-			continue;
-		}
-
-		res2.use();
-		while (res2.fetch())
-			nJob->addOutput(res2.get_field(0), res2.get_field(1));
-		put(dbh);
-
-		jobs.push_back(nJob);
+		jobs.push_back(job);
 	}
 }
 
 
 void DBHandler::getJobs(JobVector &jobs, const string &grid, const string &alg, JobStatus stat, unsigned batch)
 {
-	if (batch) {
-		if (query("SELECT * FROM cg_job "
-				"WHERE grid = '%s' AND alg = '%s' AND status = '%s' "
-				"ORDER BY creation_time LIMIT %d",
-				grid.c_str(), alg.c_str(), getStatStr(stat), batch))
-			return parseJobs(jobs);
-	} else {
-		if (query("SELECT * FROM cg_job "
-				"WHERE grid = '%s' AND alg = '%s' AND status = '%s' "
-				"ORDER BY creation_time",
-				grid.c_str(), alg.c_str(), getStatStr(stat)))
-			return parseJobs(jobs);
-	}
+	if (query("SELECT * FROM cg_job "
+			"WHERE grid = '%s' AND alg = '%s' AND status = '%s' "
+			"ORDER BY creation_time LIMIT %d",
+			grid.c_str(), alg.c_str(), getStatStr(stat), batch))
+		return parseJobs(jobs);
 }
 
 void DBHandler::getJobs(JobVector &jobs, const string &grid, JobStatus stat, unsigned batch)
 {
-	if (batch) {
-		if (query("SELECT * FROM cg_job "
-				"WHERE grid = '%s' AND status = '%s' "
-				"ORDER BY creation_time LIMIT %d",
-				grid.c_str(), getStatStr(stat), batch))
-			return parseJobs(jobs);
-	} else {
-		if (query("SELECT * FROM cg_job "
-				"WHERE grid = '%s' AND status = '%s' "
-				"ORDER BY creation_time",
-				grid.c_str(), getStatStr(stat)))
-			return parseJobs(jobs);
+	if (query("SELECT * FROM cg_job "
+			"WHERE grid = '%s' AND status = '%s' "
+			"ORDER BY creation_time LIMIT %d",
+			grid.c_str(), getStatStr(stat), batch))
+		return parseJobs(jobs);
+}
+
+void DBHandler::pollJobs(JobStatus stat, GridHandler *handler)
+{
+	if (!query("SELECT * FROM cg_job WHERE grid = '%s' AND status = '%s'",
+			handler->getName(), getStatStr(stat)))
+		return;
+
+	DBResult res(this);
+	res.use();
+	while (res.fetch())
+	{
+		Job *job = parseJob(res);
+		try {
+			handler->poll(job);
+		}
+		catch (BackendException &e) {
+			LOG(LOG_ERR, "Polling job %s: %s", job->getId().c_str(), e.what());
+		}
+		delete job;
 	}
 }
 

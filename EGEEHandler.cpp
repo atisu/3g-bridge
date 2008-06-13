@@ -258,29 +258,21 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 
 void EGEEHandler::updateStatus() throw (BackendException &)
 {
+	LOG(LOG_DEBUG, "EGEE Plugin: about to update status of running jobs.");
+
+	renew_proxy();
+
 	DBHandler *jobDB = DBHandler::get();
-	JobVector myJobs;
-	jobDB->getJobs(myJobs, getName(), RUNNING, 0);
+	jobDB->pollJobs(RUNNING, this);
 	DBHandler::put(jobDB);
 
-	if (myJobs.empty())
-		return;
-
-	LOG(LOG_INFO, "EGEE Plugin: about to update status of %zd jobs.", myJobs.size());
-
-	try {
-		getStatus(myJobs);
-	} catch(BackendException& a) {
-		throw;
-	}
-
-	LOG(LOG_INFO, "EGEE Plugin: status update finished.");
+	LOG(LOG_DEBUG, "EGEE Plugin: status update finished.");
 }
 
 /*
  * Update status of jobs
  */
-void EGEEHandler::getStatus(JobVector &jobs) throw (BackendException &)
+void EGEEHandler::poll(Job *job) throw (BackendException &)
 {
     const struct { string EGEEs; JobStatus jobS; } statusRelation[] = {
 	{"Submitted", RUNNING},
@@ -295,28 +287,20 @@ void EGEEHandler::getStatus(JobVector &jobs) throw (BackendException &)
 	{"", INIT}
     };
 
-    if (!jobs.size())
-	return;
-
-    renew_proxy();
-
-    for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++) {
-	Job *actJ = *it;
-	JobId jID(actJ->getGridId());
-	glite::lb::Job tJob(jID);
-	glite::lb::JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
-	string statStr = stat.name();
-	LOG(LOG_DEBUG, "EGEE Plugin: updating status of job \"%s\".", actJ->getGridId().c_str());
-	for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
-	    if (statusRelation[j].EGEEs == statStr) {
-		if (FINISHED == statusRelation[j].jobS)
-		    if (glite::lb::JobStatus::DONE_CODE_OK == stat.getValInt(glite::lb::JobStatus::DONE_CODE))
-			getOutputs_real(actJ);
-		    else
-			j = 0;
-		actJ->setStatus(statusRelation[j].jobS);
-	    }
-    }
+    JobId jID(job->getGridId());
+    glite::lb::Job tJob(jID);
+    glite::lb::JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
+    string statStr = stat.name();
+    LOG(LOG_DEBUG, "EGEE Plugin: updating status of job \"%s\".", job->getGridId().c_str());
+    for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
+	if (statusRelation[j].EGEEs == statStr) {
+	    if (FINISHED == statusRelation[j].jobS)
+		if (glite::lb::JobStatus::DONE_CODE_OK == stat.getValInt(glite::lb::JobStatus::DONE_CODE))
+		    getOutputs_real(job);
+		else
+		    j = 0;
+	    job->setStatus(statusRelation[j].jobS);
+	}
 }
 
 
