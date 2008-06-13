@@ -21,7 +21,6 @@ class EGEEHandler : public GridHandler {
 	~EGEEHandler();
 	void submitJobs(JobVector &jobs) throw (BackendException &);
 	void updateStatus(void) throw (BackendException &);
-	void cancelJobs(JobVector &jobs) throw (BackendException &);
 	void poll(Job *job) throw (BackendException &);
 
 	static GridHandler *getInstance(GKeyFile *config, const char *instance);
@@ -57,6 +56,8 @@ class EGEEHandler : public GridHandler {
 	void getOutputs_real(Job *jobs);
 	void createCFG();
 	char *getProxyInfo(const char *proxyfile, time_t *lifetime);
+	void updateJob(Job *job);
+	void cancelJob(Job *job);
 };
 
 #endif /* EGEEHANDLER_H */

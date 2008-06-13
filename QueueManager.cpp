@@ -97,17 +97,6 @@ bool QueueManager::runHandler(GridHandler *handler)
 				work_done = true;
 				jobs.clear();
 			}
-
-			dbh = DBHandler::get();
-			dbh->getJobs(jobs, handler->getName(), (*it)->getName(), CANCEL, (*it)->getPackSize());
-			DBHandler::put(dbh);
-
-			if (!jobs.empty())
-			{
-				handler->cancelJobs(jobs);
-				work_done = true;
-				jobs.clear();
-			}
 		}
 	}
 	else
@@ -121,17 +110,6 @@ bool QueueManager::runHandler(GridHandler *handler)
 		if (!jobs.empty())
 		{
 			handler->submitJobs(jobs);
-			work_done = true;
-			jobs.clear();
-		}
-
-		dbh = DBHandler::get();
-		dbh->getJobs(jobs, handler->getName(), CANCEL, alg->getPackSize());
-		DBHandler::put(dbh);
-
-		if (!jobs.empty())
-		{
-			handler->cancelJobs(jobs);
 			work_done = true;
 			jobs.clear();
 		}

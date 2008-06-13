@@ -259,9 +259,10 @@ void EGEEHandler::updateStatus() throw (BackendException &)
 {
 	LOG(LOG_DEBUG, "EGEE Plugin: about to update status of running jobs.");
 
-	renew_proxy();
+	createCFG();
 
 	DBHandler *jobDB = DBHandler::get();
+	jobDB->pollJobs(CANCEL, this);
 	jobDB->pollJobs(RUNNING, this);
 	DBHandler::put(jobDB);
 
@@ -269,9 +270,9 @@ void EGEEHandler::updateStatus() throw (BackendException &)
 }
 
 /*
- * Update status of jobs
+ * Update status of a job
  */
-void EGEEHandler::poll(Job *job) throw (BackendException &)
+void EGEEHandler::updateJob(Job *job) throw (BackendException &)
 {
     const struct { string EGEEs; JobStatus jobS; } statusRelation[] = {
 	{"Submitted", RUNNING},
@@ -299,6 +300,37 @@ void EGEEHandler::poll(Job *job) throw (BackendException &)
 		else
 		    j = 0;
 	    job->setStatus(statusRelation[j].jobS);
+	}
+}
+
+/*
+ * Cancel a job
+ */
+void cancelJob(Job *job) throw (BackendException &)
+{
+	LOG(LOG_DEBUG, "About to cancel and remove job \"" + job->getId() + "\".");
+	try {
+		jobCancel(job->getGridId(), cfg);
+	} catch (BaseException e) {
+	}
+
+	DBHandler *jobDB = DBHandler::get();
+	jobDB->deleteJob(job->getId());
+	DBHandler::put(jobDB);
+}
+
+void poll(Job *job) throw (BackendException &)
+{
+	switch (job->getStatus())
+	{
+		case RUNNING:
+			updateJob(job);
+			break;
+		case CANCEL:
+			cancelJob(job);
+			break;
+		default:
+			break;
 	}
 }
 
@@ -342,29 +374,6 @@ void EGEEHandler::getOutputs_real(Job *job)
     }
 }
 
-
-/*
- * Cancel jobs
- */
-void EGEEHandler::cancelJobs(JobVector &jobs) throw (BackendException &)
-{
-	if (!jobs.size())
-		return;
-
-	createCFG();
-
-	DBHandler *jobDB = DBHandler::get();
-        for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++) {
-		LOG(LOG_DEBUG, "About to cancel and remove job \"" + (*it)->getId() + "\".");
-		try {
-			jobCancel((*it)->getGridId(), cfg);
-		} catch (BaseException e) {
-		}
-
-		jobDB->deleteJob((*it)->getId());
-	}
-	DBHandler::put(jobDB);
-}
 
 
 void EGEEHandler::init_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs)

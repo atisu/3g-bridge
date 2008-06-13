@@ -498,15 +498,18 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 
 void DCAPIHandler::updateStatus(void) throw (BackendException &)
 {
+	DBHandler *dbh = DBHandler::get();
+	dbh->pollJobs(CANCEL, this);
+	DBHandler::put(dbh);
+
 	int ret = DC_processMasterEvents(0);
 	if (ret && ret != DC_ERR_TIMEOUT)
 		throw BackendException("DC_processMasterEvents() returned failure");
 }
 
-void DCAPIHandler::cancelJobs(JobVector &jobs) throw (BackendException &)
+void DCAPIHandler::poll(Job *job) throw (BackendException &)
 {
-	for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
-		(*it)->setStatus(DISPOSE);
+	job->setStatus(DISPOSE);
 }
 
 GridHandler *DCAPIHandler::getInstance(GKeyFile *config, const char *instance)

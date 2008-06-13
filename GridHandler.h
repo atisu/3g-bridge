@@ -13,8 +13,7 @@ using namespace std;
 /*
  * GridHandler interface. Used by the Queue Manager to:
  *  - submit jobs (as WUs)
- *  - query status of jobs (or WUs)
- *  - cancel jobs (or WUs)
+ *  - update status of jobs (or WUs)
  *  - get output
  */
 class GridHandler {
@@ -48,15 +47,10 @@ public:
     virtual void updateStatus(void) throw (BackendException &) = 0;
 
     /**
-     * Cancel jobs.
-     */
-    virtual void cancelJobs(JobVector &jobs) throw (BackendException &) = 0;
-
-    /**
      * Poll the status of a submitted job. This is used as a callback for
      * DBHandler::pollJobs().
      */
-    virtual void poll(Job *job) throw (BackendException &) {}
+    virtual void poll(Job *job) throw (BackendException &) = 0;
 
 protected:
     bool groupByNames;
