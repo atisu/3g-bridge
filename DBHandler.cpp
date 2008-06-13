@@ -371,8 +371,11 @@ void DBHandler::updateJobStat(const string &ID, JobStatus newstat)
 void DBHandler::deleteJob(const string &ID)
 {
 	query("DELETE FROM cg_job WHERE id='%s'", ID.c_str());
-	query("DELETE FROM cg_inputs WHERE id='%s'", ID.c_str());
-	query("DELETE FROM cg_outputs WHERE id='%s'", ID.c_str());
+}
+
+void DBHandler::deleteBatch(const string &gridId)
+{
+	query("DELETE FROM cg_job WHERE gridid = '%s'", gridId.c_str());
 }
 
 
@@ -427,6 +430,22 @@ void DBHandler::addAlgQ(const char *grid, const char *alg, unsigned int batchsiz
 {
 	query("INSERT INTO cg_algqueue(grid, alg, batchsize, statistics) VALUES('%s', '%s', '%u', '')",
 		grid, alg, batchsize);
+}
+
+void DBHandler::getCompleteWUs(vector<string> &ids, const string &grid, JobStatus stat)
+{
+	query("SELECT grid, gridid, COUNT(*) AS total, COUNT(NULLIF(FALSE, status = '%s')) AS matching "
+		"FROM cg_job "
+		"GROUP BY grid, gridid "
+		"WHERE total = matching AND grid = '%s' "
+		"LIMIT 100", 
+		getStatStr(stat), grid.c_str());
+
+	DBResult res(this);
+	res.use();
+	while (res.fetch())
+		ids.push_back(res.get_field(1));
+
 }
 
 /**********************************************************************

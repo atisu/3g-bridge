@@ -280,7 +280,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 		{
 			/* If the job is already marked as cancelled, just
 			 * delete it */
-			if ((*it)->getStatus() == CANCEL || (*it)->getStatus() == DISPOSE)
+			if ((*it)->getStatus() == CANCEL)
 			{
 				(*it)->deleteJob();
 				continue;
@@ -499,17 +499,29 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 void DCAPIHandler::updateStatus(void) throw (BackendException &)
 {
 	DBHandler *dbh = DBHandler::get();
-	dbh->pollJobs(CANCEL, this);
+
+	/* Cancel WUs that contain only tasks in state CANCEL */
+	vector<string> ids;
+	dbh->getCompleteWUs(ids, name, CANCEL);
+	for (vector<string>::const_iterator it = ids.begin(); it != ids.end(); it++)
+	{
+		DC_Workunit *wu;
+
+		wu = DC_deserializeWU(it->c_str());
+		if (wu)
+		{
+			LOG(LOG_DEBUG, "%s: Cancelling WU %s", name.c_str(), it->c_str());
+			DC_cancelWU(wu);
+			DC_destroyWU(wu);
+			dbh->deleteBatch(*it);
+		}
+	}
+
 	DBHandler::put(dbh);
 
 	int ret = DC_processMasterEvents(0);
 	if (ret && ret != DC_ERR_TIMEOUT)
 		throw BackendException("DC_processMasterEvents() returned failure");
-}
-
-void DCAPIHandler::poll(Job *job) throw (BackendException &)
-{
-	job->setStatus(DISPOSE);
 }
 
 GridHandler *DCAPIHandler::getInstance(GKeyFile *config, const char *instance)

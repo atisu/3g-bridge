@@ -18,8 +18,7 @@ enum JobStatus {
 	RUNNING,
 	FINISHED,
 	ERROR,
-	CANCEL,
-	DISPOSE
+	CANCEL
 };
 
 class Job {

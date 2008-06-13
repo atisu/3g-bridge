@@ -25,10 +25,12 @@ class DBHandler {
 	void getJobs(JobVector &jobs, const string &grid, JobStatus stat, unsigned batch);
 	void getJobs(JobVector &jobs, const char *gridID);
 	void pollJobs(JobStatus stat, GridHandler *handler);
+	void getCompleteWUs(vector<string> &ids, const string &grid, JobStatus stat);
 	void updateJobGridID(const string &ID, const string &gridID);
 	void updateJobStat(const string &ID, JobStatus newstat);
 	void addJob(Job &job);
 	void deleteJob(const string &ID);
+	void deleteBatch(const string &gridId);
 	void loadAlgQStats(void);
 	void updateAlgQStat(AlgQueue *algQ, unsigned pSize, unsigned pTime);
 	void updateAlgQStat(const char *gridid, unsigned pSize, unsigned pTime);
