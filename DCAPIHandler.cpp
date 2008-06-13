@@ -321,7 +321,6 @@ DCAPIHandler::DCAPIHandler(GKeyFile *config, const char *instance)
 	DC_setMasterCb(result_callback, NULL, NULL);
 
 	groupByNames = true;
-	maxGroupSize = 100;
 }
 
 

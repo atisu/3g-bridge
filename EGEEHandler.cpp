@@ -69,7 +69,6 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 	cfg = 0;
 
 	groupByNames = false;
-	maxGroupSize = 10;
 	LOG(LOG_INFO, "EGEE Plugin: instance \"%s\" initialized.", instance);
 }
 

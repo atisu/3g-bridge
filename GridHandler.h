@@ -26,7 +26,6 @@ public:
     GridHandler()
     {
 	groupByNames = false;
-	maxGroupSize = 0;
     }
 
     GridHandler(GKeyFile *config, const char *instance);
@@ -36,7 +35,6 @@ public:
     const char *getName(void) const { return name.c_str(); }
 
     bool schGroupByNames() const { return groupByNames; }
-    unsigned schMaxGroupSize() const { return maxGroupSize; }
 
     /**
      * Submit jobs in the argument. Set the different properties of jobs (Grid
@@ -62,7 +60,6 @@ public:
 
 protected:
     bool groupByNames;
-    unsigned maxGroupSize;
     string name;
 };
 
