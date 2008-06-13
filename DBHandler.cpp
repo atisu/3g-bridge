@@ -250,9 +250,13 @@ void DBHandler::getJobs(JobVector &jobs, const string &grid, JobStatus stat, uns
 
 void DBHandler::pollJobs(JobStatus stat, GridHandler *handler)
 {
+	query("START TRANSACTION");
 	if (!query("SELECT * FROM cg_job WHERE grid = '%s' AND status = '%s'",
 			handler->getName(), getStatStr(stat)))
+	{
+		query("ROLLBACK");
 		return;
+	}
 
 	DBResult res(this);
 	res.use();
@@ -267,6 +271,7 @@ void DBHandler::pollJobs(JobStatus stat, GridHandler *handler)
 		}
 		delete job;
 	}
+	query("COMMIT");
 }
 
 
