@@ -17,8 +17,7 @@ public:
 
 	static GridHandler *getInstance(GKeyFile *config, const char *instance);
 
-	/* Obsolote/unimplemented methods */
-	void cancelJobs(JobVector &jobs) throw (BackendException &) {};
+	void cancelJobs(JobVector &jobs) throw (BackendException &);
 };
 
 #endif /* DCAPIHANDLER_H */

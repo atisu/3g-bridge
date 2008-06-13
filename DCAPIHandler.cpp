@@ -280,7 +280,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 		{
 			/* If the job is already marked as cancelled, just
 			 * delete it */
-			if ((*it)->getStatus() == CANCEL)
+			if ((*it)->getStatus() == CANCEL || (*it)->getStatus() == DISPOSE)
 			{
 				(*it)->deleteJob();
 				continue;
@@ -467,7 +467,7 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 		if (DC_submitWU(wu))
 			throw BackendException("WU submission failed");
 
-		char *wu_id = DC_getWUId(wu);
+		char *wu_id = DC_serializeWU(wu);
 		LOG(LOG_INFO, "DC-API: Submitted work unit %s for app '%s' to grid %s (%zd tasks)",
 			wu_id, algname.c_str(), name.c_str(), jobs.size());
 
@@ -502,6 +502,12 @@ void DCAPIHandler::updateStatus(void) throw (BackendException &)
 	int ret = DC_processMasterEvents(0);
 	if (ret && ret != DC_ERR_TIMEOUT)
 		throw BackendException("DC_processMasterEvents() returned failure");
+}
+
+void DCAPIHandler::cancelJobs(JobVector &jobs) throw (BackendException &)
+{
+	for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
+		(*it)->setStatus(DISPOSE);
 }
 
 GridHandler *DCAPIHandler::getInstance(GKeyFile *config, const char *instance)
