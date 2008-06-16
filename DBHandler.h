@@ -24,7 +24,7 @@ class DBHandler {
 	void getJobs(JobVector &jobs, const string &grid, const string &alg, JobStatus stat, unsigned batch);
 	void getJobs(JobVector &jobs, const string &grid, JobStatus stat, unsigned batch);
 	void getJobs(JobVector &jobs, const char *gridID);
-	void pollJobs(JobStatus stat, GridHandler *handler);
+	void pollJobs(GridHandler *handler, JobStatus stat1, JobStatus stat2);
 	void getCompleteWUs(vector<string> &ids, const string &grid, JobStatus stat);
 	void updateJobGridID(const string &ID, const string &gridID);
 	void updateJobStat(const string &ID, JobStatus newstat);

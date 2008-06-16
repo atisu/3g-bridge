@@ -47,6 +47,8 @@ int EGEEHandler::global_offset;
  */
 EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException &)
 {
+	char buf[128];
+
 	global_offset = 0;
 	name = instance;
 	wmpendp = g_key_file_get_string(config, instance, "wmproxy-endpoint", NULL);
@@ -67,6 +69,11 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 		myproxy_port = "7512";
 
 	cfg = 0;
+
+	snprintf(buf, sizeof(buf), "/tmp/.egee_%s_XXXXXX", instance);
+	if (!mkdtemp(buf))
+		throw BackendException("EGEE: failed to create temp. directory");
+	tmpdir = buf;
 
 	groupByNames = false;
 	LOG(LOG_INFO, "EGEE Plugin: instance \"%s\" initialized.", instance);
@@ -99,8 +106,13 @@ void EGEEHandler::createCFG()
  */
 EGEEHandler::~EGEEHandler()
 {
+	char cmd[PATH_MAX];
+
 	g_free(wmpendp);
 	delete cfg;
+
+	snprintf(cmd, sizeof(cmd), "rm -rf '%s'", tmpdir.c_str());
+	system(cmd);
 }
 
 
@@ -262,8 +274,7 @@ void EGEEHandler::updateStatus(void) throw (BackendException&)
 	createCFG();
 
 	DBHandler *jobDB = DBHandler::get();
-	jobDB->pollJobs(CANCEL, this);
-	jobDB->pollJobs(RUNNING, this);
+	jobDB->pollJobs(this, RUNNING, CANCEL);
 	DBHandler::put(jobDB);
 
 	LOG(LOG_DEBUG, "EGEE Plugin: status update finished.");
@@ -654,8 +665,8 @@ void EGEEHandler::throwStrExc(const char *func, const string &str) throw (Backen
 
 void EGEEHandler::renew_proxy()
 {
-    string proxyf = "/tmp/proxy." + name;
-    string vproxyf = "/tmp/proxy.voms." + name;
+    string proxyf = tmpdir + "/proxy";
+    string vproxyf = tmpdir + "/proxy.voms";
     string cmd = "echo \"" + string(myproxy_pass) + "\" | myproxy-logon -s " + string(myproxy_host) + " -p " + string(myproxy_port) + " -l " + string(myproxy_user) + " -S -o " + proxyf + " &> /dev/null";
     int rv = system(cmd.c_str());
     if (rv)

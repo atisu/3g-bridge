@@ -258,11 +258,12 @@ void DBHandler::getJobs(JobVector &jobs, const string &grid, JobStatus stat, uns
 		return parseJobs(jobs);
 }
 
-void DBHandler::pollJobs(JobStatus stat, GridHandler *handler)
+void DBHandler::pollJobs(GridHandler *handler, JobStatus stat1, JobStatus stat2)
 {
 	query("START TRANSACTION");
-	if (!query("SELECT * FROM cg_job WHERE grid = '%s' AND status = '%s'",
-			handler->getName(), statToStr(stat)))
+	if (!query("SELECT * FROM cg_job WHERE grid = '%s' "
+			"AND (status = '%s' OR status = '%s')",
+			handler->getName(), statToStr(stat1), statToStr(stat2)))
 	{
 		query("ROLLBACK");
 		return;

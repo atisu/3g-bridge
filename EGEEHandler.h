@@ -34,6 +34,7 @@ class EGEEHandler : public GridHandler {
 	static globus_bool_t done;
 	static bool globus_err;
 	static int global_offset;
+	string tmpdir;
 	char *wmpendp;
 	char *myproxy_host;
 	char *myproxy_port;
