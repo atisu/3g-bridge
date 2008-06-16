@@ -214,7 +214,7 @@ static bool check_job(const string &basedir, Job *job)
 
 static void result_callback(DC_Workunit *wu, DC_Result *result)
 {
-	char *tmp = DC_getWUId(wu);
+	char *tmp = DC_serializeWU(wu);
 	string id(tmp);
 	free(tmp);
 
@@ -476,7 +476,6 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 			(*it)->setStatus(RUNNING);
 		}
 		free(wu_id);
-
 	}
 	catch (BackendException &e)
 	{
@@ -500,7 +499,7 @@ void DCAPIHandler::updateStatus(void) throw (BackendException &)
 {
 	DBHandler *dbh = DBHandler::get();
 
-	/* Cancel WUs that contain only tasks in state CANCEL */
+	/* Cancel WUs where all the contained tasks are in state CANCEL */
 	vector<string> ids;
 	dbh->getCompleteWUs(ids, name, CANCEL);
 	for (vector<string>::const_iterator it = ids.begin(); it != ids.end(); it++)
@@ -513,8 +512,8 @@ void DCAPIHandler::updateStatus(void) throw (BackendException &)
 			LOG(LOG_DEBUG, "%s: Cancelling WU %s", name.c_str(), it->c_str());
 			DC_cancelWU(wu);
 			DC_destroyWU(wu);
-			dbh->deleteBatch(*it);
 		}
+		dbh->deleteBatch(*it);
 	}
 
 	DBHandler::put(dbh);
