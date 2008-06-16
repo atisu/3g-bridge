@@ -173,11 +173,18 @@ Job *DBHandler::parseJob(DBResult &res)
 	const char *args = res.get_field("args");
 	const char *gridid = res.get_field("gridid");
 	const char *id = res.get_field("id");
+	const char *sstat = res.get_field("status");
 
 	// Create new job descriptor
 	Job *job = new Job(id, alg, grid, args);
 	if (gridid)
 		job->setGridId(gridid);
+
+	// Set job's status
+	JobStatus tS = INIT;
+	while (strcmp(sstat, status_str[tS]))
+		tS = JobStatus(tS + 1);
+	job->setStatus(tS);
 
 	// Get inputs for job from db
 	DBHandler *dbh = get();

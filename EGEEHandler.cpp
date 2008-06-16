@@ -255,9 +255,9 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 }
 
 
-void EGEEHandler::updateStatus() throw (BackendException &)
+void EGEEHandler::updateStatus(void) throw (BackendException&)
 {
-	LOG(LOG_DEBUG, "EGEE Plugin: about to update status of running jobs.");
+	LOG(LOG_DEBUG, "EGEE Plugin: about to update status of jobs for %s.", name.c_str());
 
 	createCFG();
 
@@ -272,7 +272,7 @@ void EGEEHandler::updateStatus() throw (BackendException &)
 /*
  * Update status of a job
  */
-void EGEEHandler::updateJob(Job *job) throw (BackendException &)
+void EGEEHandler::updateJob(Job *job)
 {
     const struct { string EGEEs; JobStatus jobS; } statusRelation[] = {
 	{"Submitted", RUNNING},
@@ -291,7 +291,7 @@ void EGEEHandler::updateJob(Job *job) throw (BackendException &)
     glite::lb::Job tJob(jID);
     glite::lb::JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
     string statStr = stat.name();
-    LOG(LOG_DEBUG, "EGEE Plugin: updating status of job \"%s\".", job->getGridId().c_str());
+    LOG(LOG_DEBUG, "EGEE Plugin: updating status of job \"%s\" for %s.", job->getGridId().c_str(), name.c_str());
     for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
 	if (statusRelation[j].EGEEs == statStr) {
 	    if (FINISHED == statusRelation[j].jobS)
@@ -306,7 +306,7 @@ void EGEEHandler::updateJob(Job *job) throw (BackendException &)
 /*
  * Cancel a job
  */
-void cancelJob(Job *job) throw (BackendException &)
+void EGEEHandler::cancelJob(Job *job)
 {
 	LOG(LOG_DEBUG, "About to cancel and remove job \"" + job->getId() + "\".");
 	try {
@@ -319,7 +319,7 @@ void cancelJob(Job *job) throw (BackendException &)
 	DBHandler::put(jobDB);
 }
 
-void poll(Job *job) throw (BackendException &)
+void EGEEHandler::poll(Job *job) throw (BackendException &)
 {
 	switch (job->getStatus())
 	{
@@ -373,7 +373,6 @@ void EGEEHandler::getOutputs_real(Job *job)
 	LOG(LOG_WARNING, "EGEE Plugin: cleaning job \"%s\" failed.", job->getGridId().c_str());
     }
 }
-
 
 
 void EGEEHandler::init_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs)
