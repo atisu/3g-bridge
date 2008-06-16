@@ -665,19 +665,28 @@ void EGEEHandler::throwStrExc(const char *func, const string &str) throw (Backen
 
 void EGEEHandler::renew_proxy()
 {
-    string proxyf = tmpdir + "/proxy";
-    string vproxyf = tmpdir + "/proxy.voms";
-    string cmd = "echo \"" + string(myproxy_pass) + "\" | myproxy-logon -s " + string(myproxy_host) + " -p " + string(myproxy_port) + " -l " + string(myproxy_user) + " -S -o " + proxyf + " &> /dev/null";
-    int rv = system(cmd.c_str());
-    if (rv)
-	throwStrExc(__func__, "Proxy initialization failed!");
-    setenv("X509_USER_PROXY", proxyf.c_str(), 1);
-    cmd = "voms-proxy-init -voms " + name + " -noregen -out " + vproxyf + " &> /dev/null";
-    rv = system(cmd.c_str());
-    if (-1 == rv)
-	throwStrExc(__func__, "Adding VOMS extensions failed!");
-    unlink(proxyf.c_str());
-    setenv("X509_USER_PROXY", vproxyf.c_str(), 1);
+	time_t lifetime;
+	string proxyf = tmpdir + "/proxy";
+	string vproxyf = tmpdir + "/proxy.voms";
+
+	getProxyInfo(vproxyf.c_str(), &lifetime);
+	if (lifetime > 18*60*60) {
+		setenv("X509_USER_PROXY", vproxyf.c_str(), 1);
+		return;
+	}
+
+	string cmd = "echo \"" + string(myproxy_pass) + "\" | myproxy-logon -s " + string(myproxy_host) + " -p " + string(myproxy_port) + " -l " + string(myproxy_user) + " -S -t 24 -o " + proxyf + " &> /dev/null";
+	int rv = system(cmd.c_str());
+	if (rv)
+		throwStrExc(__func__, "Proxy initialization failed!");
+	setenv("X509_USER_PROXY", proxyf.c_str(), 1);
+
+	cmd = "voms-proxy-init -voms " + name + " -noregen -out " + vproxyf + " -valid 23:00 &> /dev/null";
+	rv = system(cmd.c_str());
+	if (-1 == rv)
+		throwStrExc(__func__, "Adding VOMS extensions failed!");
+	unlink(proxyf.c_str());
+	setenv("X509_USER_PROXY", vproxyf.c_str(), 1);
 }
 
 
