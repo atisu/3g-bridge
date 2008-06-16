@@ -441,17 +441,18 @@ void DBHandler::addAlgQ(const char *grid, const char *alg, unsigned int batchsiz
 
 void DBHandler::getCompleteWUs(vector<string> &ids, const string &grid, JobStatus stat)
 {
-	query("SELECT grid, gridid, COUNT(*) AS total, COUNT(NULLIF(FALSE, status = '%s')) AS matching "
+	query("SELECT gridid, COUNT(*) AS total, COUNT(NULLIF(FALSE, status = '%s')) AS matching "
 		"FROM cg_job "
-		"GROUP BY grid, gridid "
-		"WHERE total = matching AND grid = '%s' "
+		"WHERE grid = '%s' "
+		"GROUP BY gridid "
+		"HAVING total = matching "
 		"LIMIT 100", 
 		getStatStr(stat), grid.c_str());
 
 	DBResult res(this);
 	res.use();
 	while (res.fetch())
-		ids.push_back(res.get_field(1));
+		ids.push_back(res.get_field(0));
 
 }
 
