@@ -102,6 +102,10 @@ bool QueueManager::runHandler(GridHandler *handler)
 	else
 	{
 		AlgQueue *alg = AlgQueue::getInstance(handler->getName());
+		if (!alg) {
+			LOG(LOG_WARNING, "Algorithm queue not found for plugin name \"%s\"!", handler->getName());
+			return false;
+		}
 
 		DBHandler *dbh = DBHandler::get();
 		dbh->getJobs(jobs, handler->getName(), INIT, alg->getPackSize());
