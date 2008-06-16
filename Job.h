@@ -24,7 +24,7 @@ enum JobStatus {
 class Job {
 public:
 	/* Constructor & destructor */
-	Job(const char *id, const char *name, const char *grid, const char *args);
+	Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status);
 	~Job() {};
 
 	/* Accessor functions for the immutable fields */

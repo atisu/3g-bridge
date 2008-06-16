@@ -13,8 +13,8 @@
 using namespace std;
 
 
-Job::Job(const char *id, const char *name, const char *grid, const char *args):
-		id(id),name(name),grid(grid)
+Job::Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status):
+		id(id),name(name),grid(grid),status(status)
 {
 	if (args)
 		this->args = args;

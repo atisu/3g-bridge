@@ -158,13 +158,22 @@ DBHandler::~DBHandler()
  * @param[in] stat Status info
  * @return String representation of the requested status
  */
-const char *DBHandler::getStatStr(JobStatus stat)
+static const char *statToStr(JobStatus stat)
 {
 	if (stat < 0 || stat > (int)(sizeof(status_str) / sizeof(status_str[0])))
 		throw QMException("Unknown job status value %d", (int)stat);
 	return status_str[stat];
 }
 
+static JobStatus statFromStr(const char *stat)
+{
+	unsigned i;
+
+	for (i = 0; i < sizeof(status_str) / sizeof(status_str[0]); i++)
+		if (!strcmp(status_str[i], stat))
+			return (JobStatus)i;
+	return INIT;
+}
 
 Job *DBHandler::parseJob(DBResult &res)
 {
@@ -173,18 +182,12 @@ Job *DBHandler::parseJob(DBResult &res)
 	const char *args = res.get_field("args");
 	const char *gridid = res.get_field("gridid");
 	const char *id = res.get_field("id");
-	const char *sstat = res.get_field("status");
+	const char *stat = res.get_field("status");
 
 	// Create new job descriptor
-	Job *job = new Job(id, alg, grid, args);
+	Job *job = new Job(id, alg, grid, args, statFromStr(stat));
 	if (gridid)
 		job->setGridId(gridid);
-
-	// Set job's status
-	JobStatus tS = INIT;
-	while (strcmp(sstat, status_str[tS]))
-		tS = JobStatus(tS + 1);
-	job->setStatus(tS);
 
 	// Get inputs for job from db
 	DBHandler *dbh = get();
@@ -242,7 +245,7 @@ void DBHandler::getJobs(JobVector &jobs, const string &grid, const string &alg, 
 	if (query("SELECT * FROM cg_job "
 			"WHERE grid = '%s' AND alg = '%s' AND status = '%s' "
 			"ORDER BY creation_time LIMIT %d",
-			grid.c_str(), alg.c_str(), getStatStr(stat), batch))
+			grid.c_str(), alg.c_str(), statToStr(stat), batch))
 		return parseJobs(jobs);
 }
 
@@ -251,7 +254,7 @@ void DBHandler::getJobs(JobVector &jobs, const string &grid, JobStatus stat, uns
 	if (query("SELECT * FROM cg_job "
 			"WHERE grid = '%s' AND status = '%s' "
 			"ORDER BY creation_time LIMIT %d",
-			grid.c_str(), getStatStr(stat), batch))
+			grid.c_str(), statToStr(stat), batch))
 		return parseJobs(jobs);
 }
 
@@ -259,7 +262,7 @@ void DBHandler::pollJobs(JobStatus stat, GridHandler *handler)
 {
 	query("START TRANSACTION");
 	if (!query("SELECT * FROM cg_job WHERE grid = '%s' AND status = '%s'",
-			handler->getName(), getStatStr(stat)))
+			handler->getName(), statToStr(stat)))
 	{
 		query("ROLLBACK");
 		return;
@@ -371,7 +374,7 @@ void DBHandler::updateJobGridID(const string &ID, const string &gridID)
  */
 void DBHandler::updateJobStat(const string &ID, JobStatus newstat)
 {
-	query("UPDATE cg_job SET status='%s' WHERE id='%s'", getStatStr(newstat), ID.c_str());
+	query("UPDATE cg_job SET status='%s' WHERE id='%s'", statToStr(newstat), ID.c_str());
 }
 
 
@@ -447,7 +450,7 @@ void DBHandler::getCompleteWUs(vector<string> &ids, const string &grid, JobStatu
 		"GROUP BY gridid "
 		"HAVING total = matching "
 		"LIMIT 100", 
-		getStatStr(stat), grid.c_str());
+		statToStr(stat), grid.c_str());
 
 	DBResult res(this);
 	res.use();

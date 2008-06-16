@@ -45,7 +45,6 @@ class DBHandler {
 	DBHandler(const char *dbname, const char *host, const char *user, const char *passwd);
 	MYSQL *conn;
     private:
-	const char *getStatStr(JobStatus stat);
 	Job *parseJob(DBResult &res);
 	void parseJobs(JobVector &jobs);
 };
