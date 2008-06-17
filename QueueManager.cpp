@@ -38,9 +38,6 @@ QueueManager::QueueManager(GKeyFile *config)
 	char **sections, *handler;
 	unsigned i;
 
-	// Clear algorithm list
-	algs.clear();
-
 	sections = g_key_file_get_groups(config, NULL);
 	for (i = 0; sections && sections[i]; i++)
 	{
