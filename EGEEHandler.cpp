@@ -45,9 +45,13 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 
 	global_offset = 0;
 	name = instance;
+
 	wmpendp = g_key_file_get_string(config, instance, "wmproxy-endpoint", NULL);
 	if (!wmpendp)
 		throw BackendException("EGEE: no WMProxy endpoint for %s", instance);
+	voname = g_key_file_get_string(config, instance, "voname", NULL);
+	if (!voname)
+		throw BackendException("EGEE: no Virtual Organization for %s", instance);
 
 	myproxy_host = g_key_file_get_string(config, instance, "myproxy_host", NULL);
 	if (!myproxy_host)
@@ -112,7 +116,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 	if (!jobs.size())
 		return;
 
-	LOG(LOG_INFO, "EGEE Plugin: about to submit %zd jobs.", jobs.size());
+	LOG(LOG_INFO, "EGEE Plugin (%s): about to submit %zd jobs.", name.c_str(), jobs.size());
 
 	createCFG();
 	vector<string> prodFiles;
@@ -193,7 +197,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 	}
 
 	// Submit the JDLs
-	string cmd = "glite-wms-job-submit -a -o collection.id --collection jdlfiles";
+	string cmd = "glite-wms-job-submit -a -e " + string(wmpendp) + " -o collection.id --collection jdlfiles";
 	if (-1 == system(cmd.c_str()))
 		throwStrExc(__func__, "Job submission using glite-wms-job-submit failed!");
 	prodFiles.push_back(string(tmpdir) + "/collection.id");
@@ -250,7 +254,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 
 void EGEEHandler::updateStatus(void) throw (BackendException&)
 {
-	LOG(LOG_DEBUG, "EGEE Plugin: about to update status of jobs for %s.", name.c_str());
+	LOG(LOG_DEBUG, "EGEE Plugin (%s): about to update status of jobs.", name.c_str());
 
 	createCFG();
 
@@ -281,7 +285,7 @@ void EGEEHandler::updateJob(Job *job)
     glite::lb::Job tJob(jID);
     glite::lb::JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
     string statStr = stat.name();
-    LOG(LOG_DEBUG, "EGEE Plugin: updating status of job \"%s\" for %s.", job->getGridId().c_str(), name.c_str());
+    LOG(LOG_DEBUG, "EGEE Plugin (%s): updating status of job \"%s\".", name.c_str(), job->getGridId().c_str());
     for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
 	if (statusRelation[j].EGEEs == statStr) {
 	    if (Job::FINISHED == statusRelation[j].jobS)
@@ -655,7 +659,7 @@ void EGEEHandler::renew_proxy()
 		throwStrExc(__func__, "Proxy initialization failed!");
 	setenv("X509_USER_PROXY", proxyf.c_str(), 1);
 
-	cmd = "voms-proxy-init -voms " + name + " -noregen -out " + vproxyf + " -valid 23:00 &> /dev/null";
+	cmd = "voms-proxy-init -voms " + string(voname) + " -noregen -out " + vproxyf + " -valid 23:00 &> /dev/null";
 	rv = system(cmd.c_str());
 	if (-1 == rv)
 		throwStrExc(__func__, "Adding VOMS extensions failed!");

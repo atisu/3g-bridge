@@ -109,6 +109,9 @@ class EGEEHandler : public GridHandler {
 	/// ConfigContext for EGEE operations
 	ConfigContext *cfg;
 
+	/// Name of the supported Virtual Organization
+	char *voname;
+
 	/**
 	 * Initialize GSIFTP for operations. Initializes different structures
 	 * for GSIFTP operations.
