@@ -39,12 +39,6 @@ bool EGEEHandler::globus_err;
 int EGEEHandler::global_offset;
 
 
-/**
- * Constructor. Initialize ConfigContext based on passed WMProxy endpoint URL
- *
- * @param[in] jDB DB handler pointer
- * @param[in] WMProxy_EndPoint URL of the WMProxy server
- */
 EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException &)
 {
 	char buf[128];
@@ -101,9 +95,6 @@ void EGEEHandler::createCFG()
 }
 
 
-/**
- * Destructor. Simply delete cfg.
- */
 EGEEHandler::~EGEEHandler()
 {
 	char cmd[PATH_MAX];
@@ -116,16 +107,6 @@ EGEEHandler::~EGEEHandler()
 }
 
 
-/**
- * Submit vector of jobs. A temporary directory is created, where every job has
- * its own directory. Input files are copied into this direcotries, and JDL
- * files are created in the "jdlfiles" directory. Next, glite-wms-job-submit is
- * executed (no documentation exists about how to use collections from the C++
- * API) to submit the JDL files as a collection. Finally, a loop tries to match
- * EGEE IDs with the received jobs.
- *
- * @param[in] jobs Pointer to the set of jobs to submit
- */
 void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 {
 	if (!jobs.size())
@@ -280,9 +261,7 @@ void EGEEHandler::updateStatus(void) throw (BackendException&)
 	LOG(LOG_DEBUG, "EGEE Plugin: status update finished.");
 }
 
-/*
- * Update status of a job
- */
+
 void EGEEHandler::updateJob(Job *job)
 {
     const struct { string EGEEs; Job::JobStatus jobS; } statusRelation[] = {
@@ -314,9 +293,7 @@ void EGEEHandler::updateJob(Job *job)
 	}
 }
 
-/*
- * Cancel a job
- */
+
 void EGEEHandler::cancelJob(Job *job)
 {
 	LOG(LOG_DEBUG, "About to cancel and remove job \"" + job->getId() + "\".");
@@ -346,9 +323,6 @@ void EGEEHandler::poll(Job *job) throw (BackendException &)
 }
 
 
-/*
- * Get outputs of one job
- */
 void EGEEHandler::getOutputs_real(Job *job)
 {
     if (!job)
@@ -696,14 +670,6 @@ GridHandler *EGEEHandler::getInstance(GKeyFile *config, const char *instance)
 }
 
 
-/**
- * Get identity and lifetime of a proxy file.
- *
- * @param[in] proxyfile location of the proxy file
- * @param[out] lifetime validity in seconds
- * @return newly allocated identity string of the proxy, or NULL in case
- *         of errors
- */
 char *EGEEHandler::getProxyInfo(const char *proxyfile, time_t *lifetime)
 {
 	char *id;

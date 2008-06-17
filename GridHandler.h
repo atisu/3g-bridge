@@ -10,51 +10,67 @@
 
 using namespace std;
 
-/*
- * GridHandler interface. Used by the Queue Manager to:
- *  - submit jobs (as WUs)
- *  - update status of jobs (or WUs)
- *  - get output
+/**
+ * GridHandler interface. Used by the Queue Manager to submit jobs, update
+ * status of jobs and get output of finished jobs using grid functions.
  */
 class GridHandler {
 public:
-    /**
-     * Initialize GridHandler. For DC-API this should call DC_initMaster, for
-     * EGEE should create the config context, ...
-     */
-    GridHandler()
-    {
-	groupByNames = false;
-    }
+	/// Initialize GridHandler.
+	GridHandler() {	groupByNames = false; }
 
-    GridHandler(GKeyFile *config, const char *instance);
+	/**
+	 * Constructor using config file and instance name
+	 * @param config the config file object
+	 * @param instance the name of the instance
+	 * @see name
+	 */
+        GridHandler(GKeyFile *config, const char *instance);
 
-    virtual ~GridHandler() {}
+	/// Destructor
+	virtual ~GridHandler() {}
 
-    const char *getName(void) const { return name.c_str(); }
+	/**
+	 * Return the name of the plugin instance.
+	 * @see name
+	 * @return instance name
+	 */
+        const char *getName(void) const { return name.c_str(); }
 
-    bool schGroupByNames() const { return groupByNames; }
+	/**
+	 * Indicates wether the plugin groups jobs by algorithm names or not.
+	 * @see groupByNames
+	 * @return true if plugin groups algorithms by names
+	 */
+	bool schGroupByNames() const { return groupByNames; }
 
-    /**
-     * Submit jobs in the argument. Set the different properties of jobs (Grid
-     * ID, status, ...) through the objects' property change functions.
-     */
-    virtual void submitJobs(JobVector &jobs) throw (BackendException &) = 0;
+	/**
+	 * Submit jobs in the argument.
+	 * @param jobs JobVector of jobs to be submitted
+	 */
+        virtual void submitJobs(JobVector &jobs) throw (BackendException &) = 0;
 
-    /**
-     * Update the status of previously submitted jobs in the database.
-     */
-    virtual void updateStatus(void) throw (BackendException &) = 0;
+	/// Update the status of previously submitted jobs in the database.
+        virtual void updateStatus(void) throw (BackendException &) = 0;
 
-    /**
-     * Poll the status of a submitted job. This is used as a callback for
-     * DBHandler::pollJobs().
-     */
-    virtual void poll(Job *job) throw (BackendException &) = 0;
+        /**
+         * Poll the status of a submitted job. This is used as a callback for
+         * DBHandler::pollJobs().
+	 * @param job the job to poll
+         */
+        virtual void poll(Job *job) throw (BackendException &) = 0;
 
 protected:
-    bool groupByNames;
-    string name;
+	/**
+	 * Indicates wether the GridHandler plugin is able to create batch
+	 * packages of job using the same executable or not. Should be true
+	 * for plugins that are able to create one grid job out of a number
+	 * of jobs in the database (e.g. DC-API).
+	 */
+        bool groupByNames;
+
+	/// Instance name of the GridHandler plugin
+        string name;
 };
 
 #endif /* GRIDHANDLER_H */
