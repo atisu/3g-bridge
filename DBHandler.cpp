@@ -158,21 +158,21 @@ DBHandler::~DBHandler()
  * @param[in] stat Status info
  * @return String representation of the requested status
  */
-static const char *statToStr(JobStatus stat)
+static const char *statToStr(Job::JobStatus stat)
 {
 	if (stat < 0 || stat > (int)(sizeof(status_str) / sizeof(status_str[0])))
 		throw QMException("Unknown job status value %d", (int)stat);
 	return status_str[stat];
 }
 
-static JobStatus statFromStr(const char *stat)
+static Job::JobStatus statFromStr(const char *stat)
 {
 	unsigned i;
 
 	for (i = 0; i < sizeof(status_str) / sizeof(status_str[0]); i++)
 		if (!strcmp(status_str[i], stat))
-			return (JobStatus)i;
-	return INIT;
+			return (Job::JobStatus)i;
+	return Job::INIT;
 }
 
 Job *DBHandler::parseJob(DBResult &res)
@@ -240,7 +240,7 @@ void DBHandler::parseJobs(JobVector &jobs)
 }
 
 
-void DBHandler::getJobs(JobVector &jobs, const string &grid, const string &alg, JobStatus stat, unsigned batch)
+void DBHandler::getJobs(JobVector &jobs, const string &grid, const string &alg, Job::JobStatus stat, unsigned batch)
 {
 	if (query("SELECT * FROM cg_job "
 			"WHERE grid = '%s' AND alg = '%s' AND status = '%s' "
@@ -249,7 +249,7 @@ void DBHandler::getJobs(JobVector &jobs, const string &grid, const string &alg, 
 		return parseJobs(jobs);
 }
 
-void DBHandler::getJobs(JobVector &jobs, const string &grid, JobStatus stat, unsigned batch)
+void DBHandler::getJobs(JobVector &jobs, const string &grid, Job::JobStatus stat, unsigned batch)
 {
 	if (query("SELECT * FROM cg_job "
 			"WHERE grid = '%s' AND status = '%s' "
@@ -258,7 +258,7 @@ void DBHandler::getJobs(JobVector &jobs, const string &grid, JobStatus stat, uns
 		return parseJobs(jobs);
 }
 
-void DBHandler::pollJobs(GridHandler *handler, JobStatus stat1, JobStatus stat2)
+void DBHandler::pollJobs(GridHandler *handler, Job::JobStatus stat1, Job::JobStatus stat2)
 {
 	query("START TRANSACTION");
 	if (!query("SELECT * FROM cg_job WHERE grid = '%s' "
@@ -373,7 +373,7 @@ void DBHandler::updateJobGridID(const string &ID, const string &gridID)
  * @param[in] ID The job's identifier
  * @param[in] newstat The status to set
  */
-void DBHandler::updateJobStat(const string &ID, JobStatus newstat)
+void DBHandler::updateJobStat(const string &ID, Job::JobStatus newstat)
 {
 	query("UPDATE cg_job SET status='%s' WHERE id='%s'", statToStr(newstat), ID.c_str());
 }
@@ -443,7 +443,7 @@ void DBHandler::addAlgQ(const char *grid, const char *alg, unsigned int batchsiz
 		grid, alg, batchsize);
 }
 
-void DBHandler::getCompleteWUs(vector<string> &ids, const string &grid, JobStatus stat)
+void DBHandler::getCompleteWUs(vector<string> &ids, const string &grid, Job::JobStatus stat)
 {
 	query("SELECT gridid, COUNT(*) AS total, COUNT(NULLIF(FALSE, status = '%s')) AS matching "
 		"FROM cg_job "

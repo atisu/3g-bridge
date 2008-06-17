@@ -21,13 +21,13 @@ class DBHandler {
 	~DBHandler();
 	bool query(const char *fmt, ...) __attribute__((__format__(printf, 2, 3)));
 	bool query(const string &str) { return query("%s", str.c_str()); }
-	void getJobs(JobVector &jobs, const string &grid, const string &alg, JobStatus stat, unsigned batch);
-	void getJobs(JobVector &jobs, const string &grid, JobStatus stat, unsigned batch);
+	void getJobs(JobVector &jobs, const string &grid, const string &alg, Job::JobStatus stat, unsigned batch);
+	void getJobs(JobVector &jobs, const string &grid, Job::JobStatus stat, unsigned batch);
 	void getJobs(JobVector &jobs, const char *gridID);
-	void pollJobs(GridHandler *handler, JobStatus stat1, JobStatus stat2);
-	void getCompleteWUs(vector<string> &ids, const string &grid, JobStatus stat);
+	void pollJobs(GridHandler *handler, Job::JobStatus stat1, Job::JobStatus stat2);
+	void getCompleteWUs(vector<string> &ids, const string &grid, Job::JobStatus stat);
 	void updateJobGridID(const string &ID, const string &gridID);
-	void updateJobStat(const string &ID, JobStatus newstat);
+	void updateJobStat(const string &ID, Job::JobStatus newstat);
 	void addJob(Job &job);
 	void deleteJob(const string &ID);
 	void deleteBatch(const string &gridId);

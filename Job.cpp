@@ -18,18 +18,23 @@ Job::Job(const char *id, const char *name, const char *grid, const char *args, J
 {
 	if (args)
 		this->args = args;
+
+	// Get algorithm queue instance
 	algQ = AlgQueue::getInstance(grid, name);
 }
+
 
 void Job::addInput(const string &localname, const string &fsyspath)
 {
 	inputs[localname] = fsyspath;
 }
 
+
 void Job::addOutput(const string &localname, const string &fsyspath)
 {
 	outputs[localname] = fsyspath;
 }
+
 
 vector<string> Job::getInputs() const
 {
@@ -40,6 +45,7 @@ vector<string> Job::getInputs() const
 	return rval;
 }
 
+
 vector<string> Job::getOutputs() const
 {
 	map<string, string>::const_iterator it;
@@ -48,6 +54,7 @@ vector<string> Job::getOutputs() const
 		rval.push_back(it->first);
 	return rval;
 }
+
 
 void Job::setGridId(const string &sID)
 {
@@ -68,6 +75,7 @@ void Job::setStatus(JobStatus nStat)
 	DBHandler::put(dbH);
 }
 
+
 void Job::deleteJob()
 {
 	DBHandler *dbH = DBHandler::get();
@@ -75,6 +83,10 @@ void Job::deleteJob()
 	DBHandler::put(dbH);
 }
 
+
+/**
+ * Deletes every Job object contained in the JobVector.
+ */
 void JobVector::clear()
 {
 	for (JobVector::iterator it = begin(); it != end(); it++)

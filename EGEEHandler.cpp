@@ -255,7 +255,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 		for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
 			if ((*it)->getGridId() == childNodeName) {
 				(*it)->setGridId(childIDs[i]);
-				(*it)->setStatus(RUNNING);
+				(*it)->setStatus(Job::RUNNING);
 				break;
 			}
 	}
@@ -274,7 +274,7 @@ void EGEEHandler::updateStatus(void) throw (BackendException&)
 	createCFG();
 
 	DBHandler *jobDB = DBHandler::get();
-	jobDB->pollJobs(this, RUNNING, CANCEL);
+	jobDB->pollJobs(this, Job::RUNNING, Job::CANCEL);
 	DBHandler::put(jobDB);
 
 	LOG(LOG_DEBUG, "EGEE Plugin: status update finished.");
@@ -285,17 +285,17 @@ void EGEEHandler::updateStatus(void) throw (BackendException&)
  */
 void EGEEHandler::updateJob(Job *job)
 {
-    const struct { string EGEEs; JobStatus jobS; } statusRelation[] = {
-	{"Submitted", RUNNING},
-	{"Waiting", RUNNING},
-	{"Ready", RUNNING},
-	{"Scheduled", RUNNING},
-	{"Running", RUNNING},
-	{"Done", FINISHED},
-	{"Cleared", ERROR},
-	{"Cancelled", ERROR},
-	{"Aborted", ERROR},
-	{"", INIT}
+    const struct { string EGEEs; Job::JobStatus jobS; } statusRelation[] = {
+	{"Submitted", Job::RUNNING},
+	{"Waiting", Job::RUNNING},
+	{"Ready", Job::RUNNING},
+	{"Scheduled", Job::RUNNING},
+	{"Running", Job::RUNNING},
+	{"Done", Job::FINISHED},
+	{"Cleared", Job::ERROR},
+	{"Cancelled", Job::ERROR},
+	{"Aborted", Job::ERROR},
+	{"", Job::INIT}
     };
 
     JobId jID(job->getGridId());
@@ -305,7 +305,7 @@ void EGEEHandler::updateJob(Job *job)
     LOG(LOG_DEBUG, "EGEE Plugin: updating status of job \"%s\" for %s.", job->getGridId().c_str(), name.c_str());
     for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
 	if (statusRelation[j].EGEEs == statStr) {
-	    if (FINISHED == statusRelation[j].jobS)
+	    if (Job::FINISHED == statusRelation[j].jobS)
 		if (glite::lb::JobStatus::DONE_CODE_OK == stat.getValInt(glite::lb::JobStatus::DONE_CODE))
 		    getOutputs_real(job);
 		else
@@ -334,10 +334,10 @@ void EGEEHandler::poll(Job *job) throw (BackendException &)
 {
 	switch (job->getStatus())
 	{
-		case RUNNING:
+		case Job::RUNNING:
 			updateJob(job);
 			break;
-		case CANCEL:
+		case Job::CANCEL:
 			cancelJob(job);
 			break;
 		default:

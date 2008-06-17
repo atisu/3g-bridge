@@ -164,7 +164,7 @@ static void remove_tmpdir(const string &dir) throw (BackendException &)
 static void error_jobs(JobVector &jobs)
 {
 	for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
-		(*it)->setStatus(ERROR);
+		(*it)->setStatus(Job::ERROR);
 }
 
 static bool check_job(const string &basedir, Job *job)
@@ -280,16 +280,16 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 		{
 			/* If the job is already marked as cancelled, just
 			 * delete it */
-			if ((*it)->getStatus() == CANCEL)
+			if ((*it)->getStatus() == Job::CANCEL)
 			{
 				(*it)->deleteJob();
 				continue;
 			}
 
 			if (check_job(basedir, *it))
-				(*it)->setStatus(FINISHED);
+				(*it)->setStatus(Job::FINISHED);
 			else
-				(*it)->setStatus(ERROR);
+				(*it)->setStatus(Job::ERROR);
 		}
 	}
 	catch (BackendException &e)
@@ -473,7 +473,7 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 		for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
 		{
 			(*it)->setGridId(wu_id);
-			(*it)->setStatus(RUNNING);
+			(*it)->setStatus(Job::RUNNING);
 		}
 		free(wu_id);
 	}
@@ -501,7 +501,7 @@ void DCAPIHandler::updateStatus(void) throw (BackendException &)
 
 	/* Cancel WUs where all the contained tasks are in state CANCEL */
 	vector<string> ids;
-	dbh->getCompleteWUs(ids, name, CANCEL);
+	dbh->getCompleteWUs(ids, name, Job::CANCEL);
 	for (vector<string>::const_iterator it = ids.begin(); it != ids.end(); it++)
 	{
 		DC_Workunit *wu;
