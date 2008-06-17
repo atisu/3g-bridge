@@ -103,7 +103,12 @@ EGEEHandler::~EGEEHandler()
 {
 	char cmd[PATH_MAX];
 
+	g_free(voname);
 	g_free(wmpendp);
+	g_free(myproxy_host);
+	g_free(myproxy_user);
+	g_free(myproxy_pass);
+	g_free(myproxy_port);
 	delete cfg;
 
 	snprintf(cmd, sizeof(cmd), "rm -rf '%s'", tmpdir.c_str());
@@ -688,17 +693,31 @@ char *EGEEHandler::getProxyInfo(const char *proxyfile, time_t *lifetime)
         globus_gsi_cred_handle_attrs_t attrs;
         if (GLOBUS_SUCCESS != globus_gsi_cred_handle_attrs_init(&attrs))
 		return NULL;
-        if (GLOBUS_SUCCESS != globus_gsi_cred_handle_init(&handle, attrs))
+        if (GLOBUS_SUCCESS != globus_gsi_cred_handle_init(&handle, attrs)) {
+		globus_gsi_cred_handle_attrs_destroy(attrs);
 		return NULL;
+	}
 
-        if (GLOBUS_SUCCESS != globus_gsi_cred_read_proxy(handle, proxyfile))
+        if (GLOBUS_SUCCESS != globus_gsi_cred_read_proxy(handle, proxyfile)) {
+		globus_gsi_cred_handle_destroy(handle);
+		globus_gsi_cred_handle_attrs_destroy(attrs);
                 return NULL;
+	}
 
-        if (GLOBUS_SUCCESS != globus_gsi_cred_get_identity_name(handle, &id))
+        if (GLOBUS_SUCCESS != globus_gsi_cred_get_identity_name(handle, &id)) {
+		globus_gsi_cred_handle_destroy(handle);
+		globus_gsi_cred_handle_attrs_destroy(attrs);
 		return NULL;
+	}
 
-	if (GLOBUS_SUCCESS != globus_gsi_cred_get_lifetime(handle, lifetime))
+	if (GLOBUS_SUCCESS != globus_gsi_cred_get_lifetime(handle, lifetime)) {
+		globus_gsi_cred_handle_destroy(handle);
+		globus_gsi_cred_handle_attrs_destroy(attrs);
 		return NULL;
+	}
+
+	globus_gsi_cred_handle_destroy(handle);
+	globus_gsi_cred_handle_attrs_destroy(attrs);
 
 	return id;
 }
