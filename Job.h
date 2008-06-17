@@ -171,9 +171,7 @@ public:
 	void deleteJob();
 
 private:
-	/**
-	 * The Job's unique identifier
-	 */
+	/// The Job's unique identifier
 	string id;
 
 	/// The Job executables's name

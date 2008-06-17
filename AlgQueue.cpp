@@ -13,7 +13,9 @@
 
 using namespace std;
 
+
 vector<AlgQueue *> AlgQueue::queues;
+
 
 AlgQueue::AlgQueue(const string &grid, const string &name, const unsigned maxPackSize):grid(grid),tname(name)
 {
@@ -29,6 +31,7 @@ AlgQueue::AlgQueue(const string &grid, const string &name, const unsigned maxPac
 	queues.push_back(this);
 	LOG(LOG_DEBUG, "Grid %s: added algorithm %s", grid.c_str(), name.length() ? name.c_str() : "*");
 }
+
 
 AlgQueue::AlgQueue(const string &grid, const string &name, const unsigned maxPackSize, const string &statStr):grid(grid),tname(name)
 {
@@ -80,6 +83,7 @@ void AlgQueue::cleanUp()
 	}
 }
 
+
 /* Load all queue definitions from the database */
 void AlgQueue::load()
 {
@@ -96,6 +100,7 @@ AlgQueue *AlgQueue::getInstance(const string &grid, const string &algName)
 			return queues[i];
 	return NULL;
 }
+
 
 AlgQueue *AlgQueue::getInstance(const string &grid)
 {
@@ -115,6 +120,7 @@ void AlgQueue::updateStat(unsigned pSize, unsigned pTime)
 	pStats[pSize-1].totalProcessTime += pTime;
 	pStats[pSize-1].avgTT = (double)pStats[pSize-1].totalProcessTime / (pSize * pStats[pSize-1].numPackages);
 }
+
 
 void AlgQueue::getAlgs(vector<AlgQueue *> &algs, const string &grid)
 {

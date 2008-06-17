@@ -125,15 +125,7 @@ bool DBHandler::query(const char *fmt, ...)
 	return true;
 }
 
-/**
- * Constructor. Opens the connection to the database specified in the
- * parameters.
- *
- * @param[in] host Hostname of the MySQL DB
- * @param[in] user Username to connecto to the DB
- * @param[in] passwd Password to use
- * @param[in] dbname Name of the DB to use
- */
+
 DBHandler::DBHandler(const char *dbname, const char *host, const char *user, const char *passwd)
 {
 	conn = mysql_init(0);
@@ -143,27 +135,20 @@ DBHandler::DBHandler(const char *dbname, const char *host, const char *user, con
 		throw QMException("Could not connect to the database: %s", mysql_error(conn));
 }
 
-/**
- * Destructor. Close connection to the DB.
- */
+
 DBHandler::~DBHandler()
 {
 	mysql_close(conn);
 }
 
 
-/**
- * Convert JobStatus to string.
- *
- * @param[in] stat Status info
- * @return String representation of the requested status
- */
 static const char *statToStr(Job::JobStatus stat)
 {
 	if (stat < 0 || stat > (int)(sizeof(status_str) / sizeof(status_str[0])))
 		throw QMException("Unknown job status value %d", (int)stat);
 	return status_str[stat];
 }
+
 
 static Job::JobStatus statFromStr(const char *stat)
 {
@@ -174,6 +159,7 @@ static Job::JobStatus statFromStr(const char *stat)
 			return (Job::JobStatus)i;
 	return Job::INIT;
 }
+
 
 Job *DBHandler::parseJob(DBResult &res)
 {
@@ -218,13 +204,7 @@ Job *DBHandler::parseJob(DBResult &res)
 	return job;
 }
 
-/**
- * Parse job results of a query.
- *
- * @param[in] squery Pointer to the query to perform on the cg_job table
- * @return Pointer to a newly allocated vector of pointer to Jobs. Should be
- *         freed by the caller
- */
+
 void DBHandler::parseJobs(JobVector &jobs)
 {
 	DBResult res(this);
@@ -249,6 +229,7 @@ void DBHandler::getJobs(JobVector &jobs, const string &grid, const string &alg, 
 		return parseJobs(jobs);
 }
 
+
 void DBHandler::getJobs(JobVector &jobs, const string &grid, Job::JobStatus stat, unsigned batch)
 {
 	if (query("SELECT * FROM cg_job "
@@ -257,6 +238,7 @@ void DBHandler::getJobs(JobVector &jobs, const string &grid, Job::JobStatus stat
 			grid.c_str(), statToStr(stat), batch))
 		return parseJobs(jobs);
 }
+
 
 void DBHandler::pollJobs(GridHandler *handler, Job::JobStatus stat1, Job::JobStatus stat2)
 {
@@ -286,13 +268,6 @@ void DBHandler::pollJobs(GridHandler *handler, Job::JobStatus stat1, Job::JobSta
 }
 
 
-/**
- * Get jobs with a given grid identifier.
- *
- * @param[in] stat Identifier we're interested in
- * @return Pointer to a newly allocated vector of pointer to Jobs having the
- *         requested grid identier. Should be freed by the caller
- */
 void DBHandler::getJobs(JobVector &jobs, const char *gridID)
 {
 	if (query("SELECT * FROM cg_job WHERE gridid = '%s'", gridID))
@@ -300,9 +275,6 @@ void DBHandler::getJobs(JobVector &jobs, const char *gridID)
 }
 
 
-/**
- * Get algorithm queue statistics from the database.
- */
 void DBHandler::loadAlgQStats(void)
 {
 	DBResult res(this);
@@ -319,15 +291,6 @@ void DBHandler::loadAlgQStats(void)
 }
 
 
-/**
- * Update algorithm queue statistics and store the new statistics in the
- * database.
- *
- * @param[in] algQ The algorithm queue
- * @param[in] pSize Size of the package processed (i.e. number of jobs in a
- *                  package)
- * @param[in] pTime Time used to process the package
- */
 void DBHandler::updateAlgQStat(AlgQueue *algQ, unsigned pSize, unsigned pTime)
 {
 	algQ->updateStat(pSize, pTime);
@@ -337,15 +300,6 @@ void DBHandler::updateAlgQStat(AlgQueue *algQ, unsigned pSize, unsigned pTime)
 }
 
 
-/**
- * Update algorithm queue statistics and store the new statistics in the
- * database.
- *
- * @param[in] gridId The finished grid identifier
- * @param[in] pSize Size of the package processed (i.e. number of jobs in a
- *                  package)
- * @param[in] pTime Time used to process the package
- */
 void DBHandler::updateAlgQStat(const char *gridId, unsigned pSize, unsigned pTime)
 {
 	JobVector jobs;
@@ -355,24 +309,12 @@ void DBHandler::updateAlgQStat(const char *gridId, unsigned pSize, unsigned pTim
 }
 
 
-/**
- * Update grid identifier of a job.
- *
- * @param[in] ID The job's identifier
- * @param[in] gridID The grid identifier to set
- */
 void DBHandler::updateJobGridID(const string &ID, const string &gridID)
 {
 	query("UPDATE cg_job SET gridid='%s' WHERE id='%s'", gridID.c_str(), ID.c_str());
 }
 
 
-/**
- * Update status of a job.
- *
- * @param[in] ID The job's identifier
- * @param[in] newstat The status to set
- */
 void DBHandler::updateJobStat(const string &ID, Job::JobStatus newstat)
 {
 	query("UPDATE cg_job SET status='%s' WHERE id='%s'", statToStr(newstat), ID.c_str());
@@ -383,6 +325,7 @@ void DBHandler::deleteJob(const string &ID)
 {
 	query("DELETE FROM cg_job WHERE id='%s'", ID.c_str());
 }
+
 
 void DBHandler::deleteBatch(const string &gridId)
 {
@@ -419,29 +362,25 @@ void DBHandler::addJob(Job &job)
 		query("ROLLBACK");
 }
 
+
 DBHandler *DBHandler::get() throw (QMException &)
 {
 	return db_pool.get();
 }
+
 
 void DBHandler::put(DBHandler *dbh)
 {
 	db_pool.put(dbh);
 }
 
-/**
- * Add an algorithm queue to the database. Initially, the statistics for the
- * algorithm are set empty.
- *
- * @param[in] grid The grid's name
- * @param[in] alg The algorithm's name
- * @param[in] batchsize Maximum batch size for the algorithm
- */
-void DBHandler::addAlgQ(const char *grid, const char *alg, unsigned int batchsize)
+
+void DBHandler::addAlgQ(const char *grid, const char *alg, unsigned batchsize)
 {
 	query("INSERT INTO cg_algqueue(grid, alg, batchsize, statistics) VALUES('%s', '%s', '%u', '')",
 		grid, alg, batchsize);
 }
+
 
 void DBHandler::getCompleteWUs(vector<string> &ids, const string &grid, Job::JobStatus stat)
 {
