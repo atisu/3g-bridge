@@ -32,9 +32,17 @@ AC_SUBST([MYSQL_CPPFLAGS])
 MYSQL_LIBS=`$MYSQL_CONFIG --libs`
 AC_SUBST([MYSQL_LIBS])
 
-AM_PATH_GLIB_2_0([2.10.0],,, [gthread])
-if test "$no_glib" = yes; then
-	AC_MSG_ERROR([glib libraries were not found])
+AC_ARG_WITH(glib,  [  --with-glib=PREFIX        Use glib in PREFIX])
+if test "x${with_glib}" != x; then
+	GLIB_CFLAGS="-I${with_glib}/include/glib-2.0 -I${with_glib}/lib/glib-2.0/include"
+	GLIB_LIBS="${with_glib}/lib/libglib-2.0.a"
+	AC_SUBST(GLIB_CFLAGS)
+	AC_SUBST(GLIB_LIBS)
+else
+	AM_PATH_GLIB_2_0([2.10.0],,, [gthread])
+	if test "$no_glib" = yes; then
+		AC_MSG_ERROR([glib libraries were not found])
+	fi
 fi
 
 AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@yes@:>@]),
