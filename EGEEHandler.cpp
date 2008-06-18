@@ -290,7 +290,7 @@ void EGEEHandler::updateJob(Job *job)
     glite::lb::Job tJob(jID);
     glite::lb::JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
     string statStr = stat.name();
-    LOG(LOG_DEBUG, "EGEE Plugin (%s): updating status of job \"%s\".", name.c_str(), job->getGridId().c_str());
+    LOG(LOG_DEBUG, "EGEE Plugin (%s): updating status of job \"%s\" (unique identifier is \"%s\").", name.c_str(), job->getGridId().c_str(), job->getId().c_str());
     for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
 	if (statusRelation[j].EGEEs == statStr) {
 	    if (Job::FINISHED == statusRelation[j].jobS)
