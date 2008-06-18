@@ -5,7 +5,7 @@ CancerGrid QueueManager
 Compile:
 --------
 autoreconf -if
-./configure 
+./configure [--with-egee] [--with-dcapi]
 make
 
 Dependencies:
