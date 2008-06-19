@@ -5,7 +5,7 @@
 \usepackage{graphics} 
 \usepackage{verbatim}
 
-\title{Queue Manager User Manual -- v0.2}
+\title{3G Bridge User Manual -- v0.2}
 % \resizebox{3cm}{!}{\includegraphics{sztaki.jpg}}
 \author{Laboratory of Parallel and Distributed Systems}
 \date{}
@@ -15,30 +15,30 @@
 \maketitle
 \thispagestyle{empty}
 
-\section{Queue Manager}
+\section{3G bridge}
 
-The purpose of the Queue Manager application is to create a connection between a submitter and a grid backend. The supported grid backends are BOINC and EGEE. The Queue Manager communicates with the submitter application via a MySQL database. The submitter application renders job descriptors in the MySQL database. The Queue Manager processes the job descriptors by creating job packages suitable for the underlying grid backend. These job packages are submitted by the Queue Manager into the grid backend. The grid backend processes the job packages and notifies the Queue Manager of any returning results. The Queue Manager notifies the submitter application in turn.
+The purpose of the 3G bridge application is to create a connection between a job source and a grid backend. The supported grid backends are BOINC and EGEE. The 3G bridge communicates with the job source via a MySQL database. The job source renders job descriptors in the MySQL database. The 3G bridge processes the job descriptors by creating job packages suitable for the underlying grid backend. These job packages are submitted by the 3G bridge into the grid backend. The grid backend processes the job packages and notifies the 3G bridge of any returning results. The 3G bridge settles the outputs of the returning results on the path predefined by the job source and sets the state of the job to finished. The job source polls the database for any finished jobs and gathers the outputs for them.
 
 \section{Execution}
-The Queue Manager is meant to be run as a daemon process. The sole, but mandatory argument taken by the Queue Manager is the name of the configuration file. The configuration file should be named {\tt qm.conf} and should be placed in the same directory in which the Queue Manager resides. The command below executes the Queue Manager as a daemon process and directing the log messages into the file {\tt CGManager.log}.
+The 3G bridge is meant to be run as a daemon process. The sole, but mandatory argument taken by the 3G bridge is the name of the configuration file. The configuration file should be named {\tt bridge.conf} and should be placed in the same directory in which the 3G bridge resides. The command below executes the 3G bridge as a daemon process and directing the log messages into the file {\tt bridge.log}.
 \begin{verbatim}
-nohup ./CGManager bridge.conf 2>&1 > CGManager.log &
+nohup ./bridge bridge.conf 2>&1 > bridge.log &
 \end{verbatim}
-Upon successful execution the Queue Manager can access the database and can initialize the grid backend. After initialization, the Queue Manager will poll the database for jobs to be processed in a varying interval between 1 second and 5 minutes.
+Upon successful execution the 3G bridge can access the database and can initialize the grid backend. After initialization, the 3G bridge will poll the database for jobs to be processed in a varying interval between 1 second and 5 minutes.
 
-The Queue Manager can also be deployed as a BOINC daemon. Refer to section \ref{subsec:boinc} on how to deploy the Queue Manager as a BOINC daemon. 
+The 3G bridge can also be deployed as a BOINC daemon. Refer to section \ref{subsec:boinc} on how to deploy the 3G bridge as a BOINC daemon. 
 
 \section{Grid backends}
 \subsection{BOINC}
-The Queue Manager should be placed in a separate directory under the home directory of the corresponding BOINC project and should be executed by the project administrator user, to ensure that it has the proper right to access the BOINC database. In this case there is no need to create a separate database for the Queue Manager, but the tables for the Queue Manager can be inserted in the database of the BOINC project.
+The 3G bridge should be placed in a separate directory under the home directory of the corresponding BOINC project and should be executed by the project administrator user, to ensure that it has the proper right to access the BOINC database. In this case there is no need to create a separate database for the 3G bridge, but the tables for the 3G bridge can be inserted in the database of the BOINC project.
 
 \subsection{EGEE}
-The Queue Manager can be executed with the EGEE backend solely. In this case, you have to create a separate MySQL database with the neccessary tables supplied in the file {\tt schema.sql}. Refer to section \ref{sec:db} on how to create the tables. If the Queue Manager is to be executed with both backends at the same time, the EGEE backend can use the database of the BOINC project. 
+The 3G bridge can be executed with the EGEE backend solely. In this case, you have to create a separate MySQL database with the neccessary tables supplied in the file {\tt schema.sql}. Refer to section \ref{sec:db} on how to create the tables. If the 3G bridge is to be executed with both backends at the same time, the EGEE backend can use the database of the BOINC project. 
 
 \section{Database}
 \label{sec:db}
 
-The Queue Manager uses database tables to communicate with the job submitter. These tables has to be created prior to first use of the Queue Manager. A database has to be created for the tables of the Queue Manager or in case of the BOINC backend, the tables can be inserted in the database of the BOINC project. Locate the supplied file named {\tt schema.sql} or create it with the contents of section \ref{sec:schema} and execute the command below under the administrator user account of the grid environment, to create the neccessary tables for the Queue Manager.
+The 3G bridge uses database tables to communicate with the job source These tables has to be created prior to first use of the 3G bridge. A database has to be created for the tables of the 3G bridge or in case of the BOINC backend, the tables can be inserted in the database of the BOINC project. Locate the supplied file named {\tt schema.sql} and execute the command below under the administrator user account of the grid environment, to create the neccessary tables for the 3G bridge.
 \begin{verbatim}
 mysql <database_name> < schema.sql
 Assuming the database name is qm_db, eg.:
@@ -47,21 +47,21 @@ mysql qm_db < schema.sql
 
 \subsection{Adding algorithms to the database}
 
-Prior to the first use of the Queue Manager the {\tt cg\_algqueue} table has to be populated with algrithms, so the Queue Manager will know which algorithms to handle. To insert a new algorithm into the {\tt cg\_algqueue} table execute the following command after configuring it to your needs:
+Prior to the first use of the 3G bridge the {\tt cg\_algqueue} table has to be populated with algrithms, so the 3G bridge will know which algorithms to handle. To insert a new algorithm into the {\tt cg\_algqueue} table execute the following command after configuring it to your needs:
 
 \begin{verbatim}
 INSERT INTO cg_algqueue (grid, alg, batchsize) VALUES 
 (<NAME OF GRID>, <NAME OF EXECUTABLE>, <INT SIZE OF BATCH>);
 \end{verbatim}
 
-For example, let us assume that the Queue Manager will handle the following algorithm. The name of the algorithm is "Sample". The name of the executable for the algorithm is "sample\_executable". The name of the grid environment the algorithm will be executed in is "see-grid". The Queue Manager can pack up to 10 jobs in one package handled to the grid environment. The SQL command for the above example is as follows:
+For example, let us assume that the 3G bridge will handle the following algorithm. The name of the algorithm is "Sample". The name of the executable for the algorithm is "sample\_executable". The name of the grid environment the algorithm will be executed in is "see-grid". The 3G bridge can pack up to 10 jobs in one package handled to the grid environment. The SQL command for the above example is as follows:
 
 \begin{verbatim}
 INSERT INTO cg_algqueue (grid, alg, batchsize) VALUES 
 ("see-grid", "sample_executable", 10);
 \end{verbatim}
 
-Note that the Queue Manager is capable of managing the same algorithm in multiple grid environments so the above example can be executed multiple times by changing the value of the grid name only.
+Note that the 3G bridge is capable of managing the same algorithm in multiple grid environments so the above example can be executed multiple times by changing the value of the grid name only.
 
 \subsection{Removing algortihms from the database}
 
@@ -72,77 +72,13 @@ DELETE FROM cg_algqueue WHERE
 grid = "see-grid" and alg =  "sample_executable";
 \end{verbatim}
 
-
-\subsection{Schema of the database}
-\label{sec:schema}
-
-\begin{verbatim}
-/*
- * Schema description for CancerGrid job database
- */
-drop table if exists cg_job;
-drop table if exists cg_inputs;
-drop table if exists cg_outputs;
-drop table if exists cg_algqueue;
-
-/*
- * Job table
- */
-create table cg_job (
-    id                  char(36)     not null,
-    alg                 char(128)    not null,
-    grid                varchar(254) not null,
-    status              char(10)     not null,
-    gridid              varchar(254),
-    args                varchar(254),
-    creation_time       timestamp    null default 
-                                     current_timestamp,
-    primary key (id)
-) type=InnoDB;
-
-
-/*
- * Job input table
- */
-create table cg_inputs (
-    id                  char(36)     not null,
-    localname           varchar(254) not null,
-    path                varchar(254) not null,
-    primary key entry (id, localname),
-    foreign key (id) references cg_job(id) on delete cascade
-) type=InnoDB;
-
-/*
- * Job output table
- */
-create table cg_outputs (
-    id                  char(36)     not null,
-    localname           varchar(254) not null,
-    path                varchar(254) not null,
-    primary key entry (id, localname),
-    foreign key (id) references cg_job(id) on delete cascade
-) type=InnoDB;
-
-
-/*
- * Algorithm queue table. Used for scheduling purposes
- */
-create table cg_algqueue (
-    grid                varchar(254) not null,
-    alg                 char(128)    not null,
-    batchsize           int          not null,
-    statistics          text,
-    primary key entry (grid, alg)
-) type=InnoDB;
-\end{verbatim}
-
 \section{Configuration}
 
-The Queue Manager needs to be properly configured before execution. For this a configuration file conforming with the format given below has to be provided. 
+The 3G bridge needs to be properly configured before execution. For this a configuration file conforming with the format given below has to be provided. 
 
 \begin{verbatim}
 ###############################################################
-# Sample queue manager configuration file
+# Sample 3G bridge configuration file
 #
 # For the syntax, see the "Basic format of the file" and 
 # "Possible value types" sections of the Desktop Entry 
@@ -181,6 +117,7 @@ dc-api-config = dc-api.conf
 [SEE-GRID]
 
 handler = EGEE
+voname = seegrid
 wmproxy-endpoint = ...
 myproxy_host = ...
 myproxy_port = ...
@@ -194,7 +131,7 @@ The database access parameters are mandatory. {\tt host} is the name of the host
 \subsection{Grid backend specific configuration}
 \subsubsection{BOINC}
 \label{subsec:boinc}
-The Queue Manager uses the DC-API to communicate with the BOINC backend. The DC-API needs a separate configuration file. {\tt dc-api-config} parameter is the optional name of the DC-API configuration file. The default name of the file the Queue Manager looks for is {\tt dcapi.conf}. If you would like to place the DC-API configuration data in  another file, than you have to provied the {\tt dc-api-config} parameter. 
+The 3G bridge uses the DC-API to communicate with the BOINC backend. The DC-API needs a separate configuration file. {\tt dc-api-config} parameter is the optional name of the DC-API configuration file. The default name of the file the 3G bridge looks for is {\tt dcapi.conf}. If you would like to place the DC-API configuration data in  another file, than you have to provied the {\tt dc-api-config} parameter. 
 
 The format of the DC-API configuration file is as follows:
 
@@ -252,10 +189,10 @@ BatchTailTemplate =
 BatchPackScript = batch_pack
 BatchUnpackScript = batch_unpack
 \end{verbatim}
-The parameters of the DC-API configuration file can be set manually, or the Queue Manager can be deployed on the BOINC project with the \\ boinc\_appmgr utility, which also sets master side parameters and deploys the Queue Manager as a BOINC daemon. In this case the Queue Manager can be started and stopped along with the other BOINC daemons using the {\tt start} and {\tt stop} commands of BOINC respectively. 
+The parameters of the DC-API configuration file can be set manually, or the 3G bridge can be deployed on the BOINC project with the \\ boinc\_appmgr utility, which also sets master side parameters and deploys the 3G bridge as a BOINC daemon. In this case the 3G bridge can be started and stopped along with the other BOINC daemons using the {\tt start} and {\tt stop} commands of BOINC respectively. 
 
 \subsubsection{EGEE}
 
-An optional configuration parameter for the EGEE backend is the \\ {\tt wmproxy-endpoint} parameter, which refers to the URL of the WMProxy. A myproxy can also be specified with the {\tt myproxy\_host, myproxy\_port, myproxy\_user, myproxy\_pass} parameters.
+An optional configuration parameter for the EGEE backend is the \\ {\tt wmproxy-endpoint} parameter, which refers to the URL of the WMProxy. The {\tt voname} parameter refers to the virtual organization name. A myproxy can also be specified with the {\tt myproxy\_host, myproxy\_port, myproxy\_user, myproxy\_pass} parameters.
 
 \end{document}
