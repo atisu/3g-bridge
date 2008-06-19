@@ -193,6 +193,17 @@ The parameters of the DC-API configuration file can be set manually, or the 3G b
 
 \subsubsection{EGEE}
 
-An optional configuration parameter for the EGEE backend is the \\ {\tt wmproxy-endpoint} parameter, which refers to the URL of the WMProxy. The {\tt voname} parameter refers to the virtual organization name. A myproxy can also be specified with the {\tt myproxy\_host, myproxy\_port, myproxy\_user, myproxy\_pass} parameters.
+EGEE Plugin instances use the following parameters:
+\begin{description}
+\item[handler] type of the plugin. This should be EGEE for EGEE instances
+\item[voname] name of the virtual organization to use when submitting jobs using this instance
+\item[wmproxy-endpoint] URL of the WMProxy server. Used during submission
+\item[myproxy\_host] hostname of the MyProxy server used to fetch proxies to be used for submission
+\item[myproxy\_port] port of the MyProxy server used to fetch proxies to be used for submission
+\item[myproxy\_user] username for the MyProxy server used to fetch proxies to be used for submission
+\item[myproxy\_pass] password for the MyProxy server used to fetch proxies to be used for submission.
+\end{description}
+
+Every EGEE Plugin instance must have a unique name, but different EGEE Plugin instances are allowed to use the same virtual organizations. This is useful for cases when different proxies should be used to submit jobs to a given VO. In this case, two different EGEE Plugin instances can be created using the same \texttt{voname} and \texttt{wmproxy-endpoint}, but different MyProxy settings.
 
 \end{document}
