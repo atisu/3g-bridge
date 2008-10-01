@@ -142,7 +142,8 @@ DBHandler::~DBHandler()
 }
 
 
-static const char *statToStr(Job::JobStatus stat)
+//static const char *statToStr(Job::JobStatus stat)
+const char *statToStr(Job::JobStatus stat)
 {
 	if (stat < 0 || stat > (int)(sizeof(status_str) / sizeof(status_str[0])))
 		throw QMException("Unknown job status value %d", (int)stat);
@@ -217,6 +218,18 @@ void DBHandler::parseJobs(JobVector &jobs)
 			continue;
 		jobs.push_back(job);
 	}
+}
+
+
+void DBHandler::getJob(Job &job, const string &id)
+{
+	JobVector jobs;
+	if (query("SELECT * FROM cg_job WHERE id = '%s'", id.c_str()))
+	{
+		parseJobs(jobs);
+		job = *(jobs.at(0));
+	}
+	
 }
 
 
@@ -338,8 +351,8 @@ void DBHandler::addJob(Job &job)
 	bool success = true;
 	query("START TRANSACTION");
 
-	success &= query("INSERT INTO cg_job (id, alg, status, args) VALUES ('%s', '%s', 'INIT', '%s')",
-		job.getId().c_str(), job.getName().c_str(), job.getArgs().c_str());
+	success &= query("INSERT INTO cg_job (id, alg, grid, status, args) VALUES ('%s', '%s', '%s', 'INIT', '%s')",
+		job.getId().c_str(), job.getName().c_str(), job.getGrid().c_str(), job.getArgs().c_str());
 
 	vector<string> inputs = job.getInputs();
 	for (vector<string>::const_iterator it = inputs.begin(); it != inputs.end(); it++)

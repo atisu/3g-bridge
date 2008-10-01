@@ -5,6 +5,22 @@
 # sections of the Desktop Entry Specification at
 # http://standards.freedesktop.org/desktop-entry-spec/latest/
 
+[defaults]
+log-level = DEBUG
+
+#################
+# Service options
+[service]
+
+# Listening port of WS
+port =
+
+# Directory storage of incoming files
+workdir =
+
+# Location of the web service interface binary
+wsbinary = wsbridge
+
 ############################
 # Database access parameters
 [database]

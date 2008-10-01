@@ -58,6 +58,25 @@ if test "$with_egee" != no; then
 fi
 AM_CONDITIONAL([HAVE_EGEE], [test "$with_egee" != no])
 
+AC_ARG_WITH([gsoap], AS_HELP_STRING([--with-gsoap], [Use gSOAP in @<:@/usr@:>@]),
+	[], [with_gsoap=/usr])
+GSOAP_CPPFLAGS=`PKG_CONFIG_PATH=$with_gsoap/lib/pkgconfig pkg-config --cflags gsoap++ gsoap 2> /dev/null`
+GSOAP_LDFLAGS=`PKG_CONFIG_PATH=$with_gsoap/lib/pkgconfig pkg-config --libs gsoap++ gsoap 2> /dev/null`
+GSOAP_SSL_CPPFLAGS=`PKG_CONFIG_PATH=$with_gsoap/lib/pkgconfig pkg-config --cflags gsoapssl++ gsoapssl 2> /dev/null`
+GSOAP_SSL_LDFLAGS=`PKG_CONFIG_PATH=$with_gsoap/lib/pkgconfig pkg-config --libs gsoapssl++ gsoapssl 2> /dev/null`
+if test "x$GSOAP_CPPFLAGS" = "x"; then
+	AC_MSG_ERROR([gSOAP header files not found])
+fi
+if test "x$GSOAP_LDFLAGS" = "x"; then
+	AC_MSG_ERROR([gSOAP libraries not found])
+fi
+SOAP=$with_gsoap/bin/soapcpp2
+AC_SUBST([GSOAP_CPPFLAGS])
+AC_SUBST([GSOAP_LDFLAGS])
+AC_SUBST([GSOAP_SSL_CPPFLAGS])
+AC_SUBST([GSOAP_SSL_LDFLAGS])
+AC_SUBST([SOAP])
+
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

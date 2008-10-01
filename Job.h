@@ -48,6 +48,11 @@ public:
 	Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status);
 
 	/**
+	 * Empty constructor.
+	 */
+	Job() {};
+
+	/**
 	 * The Job destructor.
 	 */
 	~Job() {};

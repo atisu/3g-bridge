@@ -18,6 +18,8 @@ class DBPool;
 class DBResult;
 
 
+const char *statToStr(Job::JobStatus stat);
+
 /**
  * Database handler class. This class is responsible for providing an interface
  * for the bride's database.
@@ -41,6 +43,14 @@ class DBHandler {
 	 * @return true is the query succeeded, false otherwise
 	 */
 	bool query(const string &str) { return query("%s", str.c_str()); }
+
+	/**
+	 * Get job from the database. The function reads job from the database
+	 * matching the given identifier, and returns in a Job
+	 * @param[out] job Job storage for the job read
+	 * @param id job identifier to use
+	 */
+	void getJob(Job &job, const string &id);
 
 	/**
 	 * Get jobs from the database. The function reads jobs from the database
