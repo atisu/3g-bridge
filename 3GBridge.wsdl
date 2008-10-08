@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="3GBridge"
+		targetNamespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"
+		xmlns:ns="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"
+		xmlns:xsd1="http://www.edges-grid.eu/wsdl/3GBridge.xsd"
+		xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+		xmlns:SOAP="http://schemas.xmlsoap.org/wsdl/soap/"
+		xmlns="http://schemas.xmlsoap.org/wsdl/">
+
+	<documentation>
+		This is the description of the 3G Bridge web service interface.
+	</documentation>
+
+	<types>
+		<schema xmlns="http://www.w3.org/2001/XMLSchema"
+				targetNamespace="http://www.edges-grid.eu/wsdl/3GBridge.xsd"
+				xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+				xmlns:ns="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"
+				xmlns:xsd1="http://www.edges-grid.eu/wsdl/3GBridge.xsd"
+				elementFormDefault="unqualified"
+				attributeFormDefault="unqualified">
+
+			<import namespace="http://schemas.xmlsoap.org/soap/encoding/"/>
+
+			<!-- Job status codes -->
+			<simpleType name="JobStatus">
+				<restriction base="xsd:string">
+					<enumeration value="UNKNOWN"/><!-- enum const = 0 -->
+					<enumeration value="INIT"/><!-- enum const = 1 -->
+					<enumeration value="RUNNING"/><!-- enum const = 2 -->
+					<enumeration value="FINISHED"/><!-- enum const = 3 -->
+					<enumeration value="ERROR"/><!-- enum const = 4 -->
+				</restriction>
+			</simpleType>
+
+			<!-- Description of an LFN specification -->
+			<complexType name="LogicalFile">
+				<sequence>
+					<element name="logicalName" type="xsd:string" minOccurs="1" maxOccurs="1"/>
+					<element name="URL" type="xsd:string" minOccurs="1" maxOccurs="1"/>
+				</sequence>
+			</complexType>
+
+			<!-- Description of a job to submit -->
+			<complexType name="Job">
+				<sequence>
+					<element name="alg" type="xsd:string" minOccurs="1" maxOccurs="1"/>
+					<element name="grid" type="xsd:string" minOccurs="1" maxOccurs="1"/>
+					<element name="args" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+					<element name="inputs" type="xsd1:LogicalFile" minOccurs="1" maxOccurs="unbounded"/>
+					<element name="outputs" type="xsd:string" minOccurs="1" maxOccurs="unbounded"/>
+				</sequence>
+			</complexType>
+
+			<complexType name="JobOutput">
+				<sequence>
+					<element name="jobid" type="xsd:string" minOccurs="1" maxOccurs="1"/>
+					<element name="output" type="xsd1:LogicalFile" minOccurs="0" maxOccurs="unbounded"/>
+				</sequence>
+			</complexType>
+
+			<complexType name="JobIDList">
+				<sequence>
+					<element name="jobid" type="xsd:string" minOccurs="1" maxOccurs="unbounded"/>
+				</sequence>
+			</complexType>
+
+			<complexType name="JobList">
+				<sequence>
+					<element name="job" type="xsd1:Job" minOccurs="1" maxOccurs="unbounded"/>
+				</sequence>
+			</complexType>
+
+			<complexType name="StatusList">
+				<sequence>
+					<element name="status" type="xsd1:JobStatus" minOccurs="1" maxOccurs="unbounded"/>
+				</sequence>
+			</complexType>
+
+			<complexType name="OutputList">
+				<sequence>
+					<element name="output" type="xsd1:JobOutput" minOccurs="1" maxOccurs="unbounded"/>
+				</sequence>
+			</complexType>
+
+		</schema>
+	</types>
+
+	<!-- Message types for "submit" -->
+	<message name="submitRequest">
+		<part name="jobs" type="xsd1:JobList"/>
+	</message>
+	<message name="submitResponse">
+		<part name="jobids" type="xsd1:JobIDList"/>
+	</message>
+
+	<!-- Message types for "getStatus" -->
+	<message name="getStatusRequest">
+		<part name="jobids" type="xsd1:JobIDList"/>
+	</message>
+	<message name="getStatusResponse">
+		<part name="statuses" type="xsd1:StatusList"/>
+	</message>
+
+	<!-- Message types for "delJob" -->
+	<message name="delJobRequest">
+		<part name="jobids" type="xsd1:JobIDList"/>
+	</message>
+	<message name="delJobResponse">
+	</message>
+
+	<!-- Message types for "getOutput" -->
+	<message name="getOutputRequest">
+		<part name="jobids" type="xsd1:JobIDList"/>
+	</message>
+	<message name="getOutputResponse">
+		<part name="outputs" type="xsd1:OutputList"/>
+	</message>
+
+	<portType name="3GBridgePortType">
+		<operation name="submit">
+			<documentation>Submit jobs to the bridge</documentation>
+			<input message="ns:submitRequest"/>
+			<output message="ns:submitResponse"/>
+		</operation>
+		<operation name="getStatus">
+			<documentation>Query the status of previously submitted jobs</documentation>
+			<input message="ns:getStatusRequest"/>
+			<output message="ns:getStatusResponse"/>
+		</operation>
+		<operation name="delJob">
+			<documentation>Cancel running jobs or delete the outputs of finished jobs</documentation>
+			<input message="ns:delJobRequest"/>
+			<output message="ns:delJobResponse"/>
+		</operation>
+		<operation name="getOutput">
+			<documentation>Get the output URLs for a job</documentation>
+			<input message="ns:getOutputRequest"/>
+			<output message="ns:getOutputResponse"/>
+		</operation>
+	</portType>
+
+	<binding name="3GBridgeBinding" type="ns:3GBridgePortType">
+		<SOAP:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+		<operation name="submit">
+		        <SOAP:operation style="rpc" soapAction=""/>
+		        <input>
+			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+		        </input>
+		        <output>
+			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+		        </output>
+		</operation>
+		<operation name="getStatus">
+		        <SOAP:operation style="rpc" soapAction=""/>
+		        <input>
+			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+		        </input>
+		        <output>
+			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+		        </output>
+		</operation>
+		<operation name="delJob">
+		        <SOAP:operation style="rpc" soapAction=""/>
+		        <input>
+			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+		        </input>
+		        <output>
+			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+		        </output>
+		</operation>
+		<operation name="getOutput">
+		        <SOAP:operation style="rpc" soapAction=""/>
+		        <input>
+			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+		        </input>
+		        <output>
+			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+		       </output>
+		</operation>
+	</binding>
+
+	<service name="3GBridgeService">
+		<documentation>3G Bridge submit service definition</documentation>
+		<port name="3GBridgePort" binding="ns:3GBridgeBinding">
+			<SOAP:address location="http://localhost:8080"/>
+		</port>
+	</service>
+
+</definitions>
