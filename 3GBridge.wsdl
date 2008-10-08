@@ -143,44 +143,44 @@
 	<binding name="G3BridgeBinding" type="ns:G3BridgePortType">
 		<SOAP:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
 		<operation name="submit">
-		        <SOAP:operation style="rpc" soapAction=""/>
-		        <input>
-			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
-		        </input>
-		        <output>
-			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
-		        </output>
+			<SOAP:operation style="rpc" soapAction=""/>
+			<input>
+				<SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+			</input>
+			<output>
+				<SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+			</output>
 		</operation>
 		<operation name="getStatus">
-		        <SOAP:operation style="rpc" soapAction=""/>
-		        <input>
-			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
-		        </input>
-		        <output>
-			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
-		        </output>
+			<SOAP:operation style="rpc" soapAction=""/>
+			<input>
+				<SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+			</input>
+			<output>
+				<SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+			</output>
 		</operation>
 		<operation name="delJob">
-		        <SOAP:operation style="rpc" soapAction=""/>
-		        <input>
-			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
-		        </input>
-		        <output>
-			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
-		        </output>
+			<SOAP:operation style="rpc" soapAction=""/>
+			<input>
+				<SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+			</input>
+			<output>
+				<SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+			</output>
 		</operation>
 		<operation name="getOutput">
-		        <SOAP:operation style="rpc" soapAction=""/>
-		        <input>
-			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
-		        </input>
-		        <output>
-			        <SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
-		       </output>
+			<SOAP:operation style="rpc" soapAction=""/>
+			<input>
+				<SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+			</input>
+			<output>
+				<SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
+			</output>
 		</operation>
 	</binding>
 
-	<service name="G333BridgeService">
+	<service name="G3BridgeService">
 		<documentation>3G Bridge submit service definition</documentation>
 		<port name="G3BridgePort" binding="ns:G3BridgeBinding">
 			<SOAP:address location="http://localhost:8080"/>
