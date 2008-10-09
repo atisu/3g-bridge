@@ -46,7 +46,7 @@
 				<sequence>
 					<element name="alg" type="xsd:string" minOccurs="1" maxOccurs="1"/>
 					<element name="grid" type="xsd:string" minOccurs="1" maxOccurs="1"/>
-					<element name="args" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+					<element name="args" type="xsd:string" minOccurs="1" maxOccurs="1"/>
 					<element name="inputs" type="xsd1:LogicalFile" minOccurs="1" maxOccurs="unbounded"/>
 					<element name="outputs" type="xsd:string" minOccurs="1" maxOccurs="unbounded"/>
 				</sequence>

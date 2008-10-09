@@ -12,7 +12,6 @@ using namespace std;
 
 
 void help_screen(bool doshort = false);
-void parse_args(G3BridgeType__Job &job, const char *args);
 void parse_inputs(G3BridgeType__Job &job, const char *inputs);
 void parse_outputs(G3BridgeType__Job &job, const char *outputs);
 void handle_add(G3BridgeType__Job &job, const char *endpoint);
@@ -53,13 +52,13 @@ int main(int argc, char **argv)
 			mode = strdup(optarg);
 			break;
 		case 'n':
-			job.alg = strdup(optarg);
+			job.alg = optarg;
 			break;
 		case 'g':
-			job.grid = strdup(optarg);
+			job.grid = optarg;
 			break;
 		case 'a':
-			parse_args(job, optarg);
+			job.args = optarg;
 			break;
 		case 'i':
 			parse_inputs(job, optarg);
@@ -157,17 +156,6 @@ void split_by_delims(const char *src, const char *delims, vector<string> &res)
 		str1 = strtok(NULL, delims);
 	}
 	free(tsrc);
-}
-
-
-/**
- * Parse command line arguments
- * @param[out] job G3BridgeType__Job object to fill in
- * @param args argument string to parse
- */
-void parse_args(G3BridgeType__Job &job, const char *args)
-{
-	split_by_delims(args, ",", job.args);
 }
 
 
