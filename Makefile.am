@@ -28,6 +28,10 @@ injector_SOURCES = \
 		QMException.cpp
 injector_LDADD = -luuid $(GLIB_LIBS) $(MYSQL_LIBS)
 
+EXTRA_DIST = \
+		3GBridge.typemap \
+		3GBridge.wsdl
+
 BACKEND_SOURCES =
 BACKEND_LIBS =
 
@@ -42,7 +46,8 @@ BACKEND_LIBS += $(EGEE_LIBS)
 AM_CPPFLAGS += $(EGEE_CPPFLAGS)
 endif
 
-WSDL=3GBridge.wsdl
+WSDL = 3GBridge.wsdl
+TYPEMAP = 3GBridge.typemap
 
 # gSOAP-related stuff
 SOAP_HEADER = soap/3GBridge.h
@@ -50,9 +55,10 @@ SOAP_CPP_CORE = soap/soapC.cpp
 SOAP_NS = soap/gggbridge.nsmap soap/gggbridge.wsdl
 SOAP_H_FILES = soap/soapH.h soap/soapStub.h
 SOAP_CPP_SRC = $(SOAP_H_FILES) $(SOAP_NS) $(SOAP_CPP_CORE)
+SOAP_FLAGS = -I/usr/include/gsoap
 
-$(SOAP_HEADER): $(WSDL)
-	$(WSDL2H) -o$(SOAP_HEADER) $(WSDL)
+$(SOAP_HEADER): $(WSDL) $(TYPEMAP)
+	$(WSDL2H) -o$(SOAP_HEADER) -t$(TYPEMAP) $(WSDL)
 
 $(SOAP_CPP_SRC) : $(SOAP_HEADER)
 	$(SOAP) -dsoap -I$(GSOAP_IMPORT) $(SOAP_FLAGS) $<
