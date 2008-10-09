@@ -5,23 +5,14 @@
 # sections of the Desktop Entry Specification at
 # http://standards.freedesktop.org/desktop-entry-spec/latest/
 
+
+#######################################################################
+# Generic settings
 [defaults]
+
 log-level = DEBUG
 
-#################
-# Service options
-[service]
-
-# Listening port of WS
-port =
-
-# Directory storage of incoming files
-workdir =
-
-# Location of the web service interface binary
-wsbinary = wsbridge
-
-############################
+#######################################################################
 # Database access parameters
 [database]
 
@@ -39,6 +30,30 @@ password =
 
 # Max. number of database connections that can be opened simultaneously
 max-connections = 4
+
+#######################################################################
+# Web service settings
+[webservice]
+
+# Listening port
+port =
+
+# Number of web service threads
+service-threads = 3
+
+# Number of parallel downloads
+download-threads = 5
+
+# Where to put the downloaded input files
+download-dir =
+
+# Where to put temporary files
+partial-dir =
+
+# Directory for output files. When creating URLs for output files,
+# output-dir is replaced with output-url-prefix
+output-dir =
+output-url-prefix =
 
 ################
 # Sample grid using the DC-API plugin
