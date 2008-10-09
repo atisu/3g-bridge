@@ -6,6 +6,7 @@
 #include "Logging.h"
 #include "QueueManager.h"
 #include "DBHandler.h"
+#include "Conf.h"
 
 #include <map>
 #include <list>
@@ -42,7 +43,9 @@ QueueManager::QueueManager(GKeyFile *config)
 	for (i = 0; sections && sections[i]; i++)
 	{
 		/* Skip sections that are not grid definitions */
-		if (!strcmp(sections[i], "defaults") || !strcmp(sections[i], "database") || !strcmp(sections[i], "service"))
+		if (!strcmp(sections[i], GROUP_DEFAULTS) ||
+				!strcmp(sections[i], GROUP_DATABASE) ||
+				!strcmp(sections[i], GROUP_WEBSERVICE))
 			continue;
 
 		handler = g_key_file_get_string(config, sections[i], "handler", NULL);

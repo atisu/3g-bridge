@@ -10,6 +10,7 @@ noinst_HEADERS = \
 		AlgQueue.h \
 		BackendException.h \
 		Bridge.h \
+		Conf.h \
 		DBHandler.h \
 		DCAPIHandler.h \
 		EGEEHandler.h \

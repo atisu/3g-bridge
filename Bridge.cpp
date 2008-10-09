@@ -5,6 +5,7 @@
 #include "Logging.h"
 #include "QueueManager.h"
 #include "Bridge.h"
+#include "Conf.h"
 
 #ifdef HAVE_DCAPI
 #include "DCAPIHandler.h"
@@ -69,7 +70,7 @@ int main(int argc, char **argv)
 	    exit(1);
     }
 
-    char *level = g_key_file_get_string(global_config, "defaults", "log-level", NULL);
+    char *level = g_key_file_get_string(global_config, GROUP_DEFAULTS, "log-level", NULL);
     if (level)
     {
 	    Logging::init(cout, level);

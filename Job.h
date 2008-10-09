@@ -25,6 +25,7 @@ public:
 	 * The JobStatus enumerates the possible job status values.
 	 */
 	enum JobStatus {
+		PREPARE,	/**< Enum value for the PREPARE status. */
 		INIT,		/**< Enum value for the INIT status. */
 		RUNNING,	/**< Enum value for the RUNNING status. */
 		FINISHED,	/**< Enum value for the FINISHED status. */

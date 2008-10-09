@@ -4,6 +4,7 @@
 
 #include "Job.h"
 #include "DBHandler.h"
+#include "Conf.h"
 
 #include <string>
 
@@ -23,7 +24,7 @@ static DBPool db_pool;
 /* The order here must match the definition of JobStatus */
 static const char *status_str[] =
 {
-	"INIT", "RUNNING", "FINISHED", "ERROR", "CANCEL"
+	"PREPARE", "INIT", "RUNNING", "FINISHED", "ERROR", "CANCEL"
 };
 
 /**********************************************************************
@@ -351,8 +352,9 @@ void DBHandler::addJob(Job &job)
 	bool success = true;
 	query("START TRANSACTION");
 
-	success &= query("INSERT INTO cg_job (id, alg, grid, status, args) VALUES ('%s', '%s', '%s', 'INIT', '%s')",
-		job.getId().c_str(), job.getName().c_str(), job.getGrid().c_str(), job.getArgs().c_str());
+	success &= query("INSERT INTO cg_job (id, alg, grid, status, args) VALUES ('%s', '%s', '%s', '%s', '%s')",
+		job.getId().c_str(), job.getName().c_str(), job.getGrid().c_str(),
+		statToStr(job.getStatus()), job.getArgs().c_str());
 
 	vector<string> inputs = job.getInputs();
 	for (vector<string>::const_iterator it = inputs.begin(); it != inputs.end(); it++)
@@ -461,19 +463,19 @@ void DBPool::init()
 
 	/* The database name is mandatory. Here we leak the GError but this is
 	 * a non-recoverable error so... */
-	dbname = g_key_file_get_string(global_config, "database", "name", &error);
+	dbname = g_key_file_get_string(global_config, GROUP_DATABASE, "name", &error);
 	if (error)
 		throw QMException("Failed to retrieve the database name: %s", error->message);
 	if (!dbname || !strlen(dbname))
 		throw QMException("The database name is not specified in the configuration file");
 
 	/* These are not mandatory */
-	host = g_key_file_get_string(global_config, "database", "host", NULL);
-	user = g_key_file_get_string(global_config, "database", "user", NULL);
-	passwd = g_key_file_get_string(global_config, "database", "password", NULL);
+	host = g_key_file_get_string(global_config, GROUP_DATABASE, "host", NULL);
+	user = g_key_file_get_string(global_config, GROUP_DATABASE, "user", NULL);
+	passwd = g_key_file_get_string(global_config, GROUP_DATABASE, "password", NULL);
 
 	/* max-connections is not mandatory, but if it is present it must be valid */
-	max_connections = g_key_file_get_integer(global_config, "database", "max-connections", &error);
+	max_connections = g_key_file_get_integer(global_config, GROUP_DATABASE, "max-connections", &error);
 	if (error)
 	{
 		if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND)
