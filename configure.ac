@@ -71,11 +71,13 @@ if test "x$GSOAP_LDFLAGS" = "x"; then
 	AC_MSG_ERROR([gSOAP libraries not found])
 fi
 SOAP=$with_gsoap/bin/soapcpp2
+WSDL2H=$with_gsoap/bin/wsdl2h
 AC_SUBST([GSOAP_CPPFLAGS])
 AC_SUBST([GSOAP_LDFLAGS])
 AC_SUBST([GSOAP_SSL_CPPFLAGS])
 AC_SUBST([GSOAP_SSL_LDFLAGS])
 AC_SUBST([SOAP])
+AC_SUBST([WSDL2H])
 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])

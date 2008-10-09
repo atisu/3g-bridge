@@ -42,12 +42,17 @@ BACKEND_LIBS += $(EGEE_LIBS)
 AM_CPPFLAGS += $(EGEE_CPPFLAGS)
 endif
 
+WSDL=3GBridge.wsdl
+
 # gSOAP-related stuff
-SOAP_HEADER = WSBridge.h
+SOAP_HEADER = 3GBridge.h
 SOAP_CPP_CORE = soap/soapC.cpp
 SOAP_NS = soap/gggbridge.nsmap soap/gggbridge.wsdl
 SOAP_H_FILES = soap/soapH.h soap/soapStub.h
 SOAP_CPP_SRC = $(SOAP_H_FILES) $(SOAP_NS) $(SOAP_CPP_CORE)
+
+$(SOAP_HEADER): $(WSDL)
+	$(WSDL2H) -s $(WSDL)
 
 $(SOAP_CPP_SRC) : $(SOAP_HEADER)
 	$(SOAP) -dsoap $(SOAP_FLAGS) $<
