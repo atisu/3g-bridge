@@ -2,7 +2,7 @@ MAINTAINERCLEANFILES = Makefile.in
 
 ACLOCAL_AMFLAGS = -I cf
 
-AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@ $(GSOAP_CPPFLAGS)
+AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@
 
 bin_PROGRAMS = injector bridge wsclient wsbridge
 
@@ -53,16 +53,15 @@ TYPEMAP = 3GBridge.typemap
 # gSOAP-related stuff
 SOAP_HEADER = soap/3GBridge.h
 SOAP_CPP_CORE = soap/soapC.cpp
-SOAP_NS = soap/gggbridge.nsmap soap/gggbridge.wsdl
+SOAP_NS = soap/G3BridgeBinding.nsmap
 SOAP_H_FILES = soap/soapH.h soap/soapStub.h
 SOAP_CPP_SRC = $(SOAP_H_FILES) $(SOAP_NS) $(SOAP_CPP_CORE)
-SOAP_FLAGS = -I/usr/include/gsoap
 
 $(SOAP_HEADER): $(WSDL) $(TYPEMAP)
 	$(WSDL2H) -o$(SOAP_HEADER) -t$(TYPEMAP) $(WSDL)
 
 $(SOAP_CPP_SRC) : $(SOAP_HEADER)
-	$(SOAP) -dsoap -I$(GSOAP_IMPORT) $(SOAP_FLAGS) $<
+	$(SOAPCPP2) -dsoap -I$(GSOAP_IMPORT) $<
 
 bridge_SOURCES = \
 		AlgQueue.cpp \
@@ -76,7 +75,7 @@ bridge_SOURCES = \
 		$(BACKEND_SOURCES)
 bridge_LDADD = $(GLIB_LIBS) $(BACKEND_LIBS) $(MYSQL_LIBS)
 
-wsbridge_CPPFALGS = $(GSOAP_CPPFLAGS)
+wsbridge_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
 wsbridge_SOURCES = \
 		$(SOAP_HEADER) \
 		$(SOAP_CPP_SRC) \
@@ -87,14 +86,14 @@ wsbridge_SOURCES = \
 		AlgQueue.cpp \
 		QMException.cpp \
 		soap/soapServer.cpp
-wsbridge_LDADD = $(GLIB_LIBS) $(MYSQL_LIBS) $(GSOAP_LDFLAGS) -lpthread -luuid
+wsbridge_LDADD = $(GLIB_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto -luuid
 
-wsclient_CPPFALGS = $(GSOAP_CPPFLAGS)
+wsclient_CPPFALGS = $(GSOAP_CFLAGS)
 wsclient_SOURCES = \
 		$(SOAP_CPP_SRC) \
 		soap/soapClient.cpp \
 		wsclient.cpp
-wsclient_LDADD = $(GSOAP_LDFLAGS)
+wsclient_LDADD = $(GSOAP_LIBS)
 
 master.xml: master.xml.in
 	$(SED) -e "s,@PACKAGE_VERSION\@,$(PACKAGE_VERSION)," \

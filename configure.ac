@@ -37,6 +37,8 @@ if test "$no_glib" = yes; then
 	AC_MSG_ERROR([glib libraries were not found])
 fi
 
+LIBCURL_CHECK_CONFIG
+
 AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@yes@:>@]),
 	[], [with_dcapi=yes])
 if test "$with_dcapi" != no; then
@@ -60,22 +62,24 @@ AM_CONDITIONAL([HAVE_EGEE], [test "$with_egee" != no])
 
 AC_ARG_WITH([gsoap], AS_HELP_STRING([--with-gsoap], [Use gSOAP in @<:@/usr@:>@]),
 	[], [with_gsoap=/usr])
-GSOAP_CPPFLAGS=`PKG_CONFIG_PATH=$with_gsoap/lib/pkgconfig pkg-config --cflags gsoap++ gsoap 2> /dev/null`
-GSOAP_LDFLAGS=`PKG_CONFIG_PATH=$with_gsoap/lib/pkgconfig pkg-config --libs gsoap++ gsoap 2> /dev/null`
-if test "x$GSOAP_CPPFLAGS" = "x"; then
-	AC_MSG_ERROR([gSOAP header files not found])
+if test "$with_gsoap" != no; then
+	# This is an ugly hack and should not be part of configure.ac
+	if test "$with_gsoap" != "/usr"; then
+		PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$with_gsoap/lib/pkgconfig"
+	fi
+	PKG_CHECK_MODULES([GSOAP], [gsoap++], [], [with_gsoap=no])
 fi
-if test "x$GSOAP_LDFLAGS" = "x"; then
-	AC_MSG_ERROR([gSOAP libraries not found])
+if test "$with_gsoap" != no; then
+	AC_PATH_PROG([SOAPCPP2], [soapcpp2])
+	AC_PATH_PROG([WSDL2H], [wsdl2h])
+
+	if test "$with_gsoap" = "/usr"; then
+		GSOAP_IMPORT="/usr/include/gsoap"
+	else
+		GSOAP_IMPORT="$with_gsoap/share/gsoap/import"
+	fi
+	AC_SUBST([GSOAP_IMPORT])
 fi
-SOAP=$with_gsoap/bin/soapcpp2
-WSDL2H=$with_gsoap/bin/wsdl2h
-GSOAP_IMPORT=$with_gsoap/share/gsoap/import
-AC_SUBST([GSOAP_CPPFLAGS])
-AC_SUBST([GSOAP_LDFLAGS])
-AC_SUBST([GSOAP_IMPORT])
-AC_SUBST([SOAP])
-AC_SUBST([WSDL2H])
 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])
