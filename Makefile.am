@@ -13,6 +13,7 @@ noinst_HEADERS = \
 		Conf.h \
 		DBHandler.h \
 		DCAPIHandler.h \
+		DownloadManager.h \
 		EGEEHandler.h \
 		GridHandler.h \
 		Job.h \
@@ -81,6 +82,7 @@ wsbridge_SOURCES = \
 		$(SOAP_CPP_SRC) \
 		wsbridge.cpp \
 		DBHandler.cpp \
+		DownloadManager.cpp \
 		Logging.cpp \
 		Job.cpp \
 		AlgQueue.cpp \

@@ -4,6 +4,7 @@
 
 #include "Conf.h"
 #include "DBHandler.h"
+#include "DownloadManager.h"
 #include "Job.h"
 #include "Logging.h"
 
@@ -11,6 +12,9 @@
 
 #include <stdlib.h>
 #include <signal.h>
+
+#include <openssl/crypto.h>
+#include <curl/curl.h>
 #include <uuid/uuid.h>
 
 #include "soap/soapH.h"
@@ -33,17 +37,10 @@ static volatile int finish;
 
 GKeyFile *global_config = NULL;
 
-static GThreadPool *dl_pool;
 static GThreadPool *soap_pool;
 
-/**********************************************************************
- * The download handler function
- */
+static DownloadManager *dlm;
 
-static void download_handler(void *data, void *user_data G_GNUC_UNUSED)
-{
-	/* XXX */
-}
 
 /**********************************************************************
  * Schedule the download of an input file
@@ -321,22 +318,18 @@ int main(int argc, char **argv)
 	/* Initialize glib's thread system */
 	g_thread_init(NULL);
 
-	dl_pool = g_thread_pool_new(download_handler, NULL, dl_threads, TRUE, NULL);
-	if (!dl_pool)
-	{
-		fprintf(stderr, "Failed to launch download threads\n");
-		exit(1);
-	}
+	dlm = new DownloadManager(dl_threads);
 
-	soap_init(&soap);
+	soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE | SOAP_IO_CHUNK);
         soap.send_timeout = 60;
 	soap.recv_timeout = 60;
 	soap.accept_timeout = 3600;
 	soap.max_keep_alive = 100;
 
-	SOAP_SOCKET ss = soap_bind(&soap, NULL, 8080, 100);
+	SOAP_SOCKET ss = soap_bind(&soap, NULL, port, 100);
 	if (!soap_valid_socket(ss))
 	{
+		/* XXX Use LOG() */
 		soap_print_fault(&soap, stderr);
 		exit(-1);
 	}
@@ -344,12 +337,14 @@ int main(int argc, char **argv)
 	soap_pool = g_thread_pool_new(soap_service_handler, NULL, ws_threads, TRUE, NULL);
 	if (!soap_pool)
 	{
-		fprintf(stderr, "Failed to launch the WS threads\n");
+		LOG(LOG_ERR, "Failed to launch the WS threads");
 		exit(1);
 	}
 
         while (!finish)
         {
+		soap.socket_flags = MSG_NOSIGNAL;
+
     		SOAP_SOCKET cs = soap_accept(&soap);
                 if (!cs)
                 {
@@ -362,8 +357,9 @@ int main(int argc, char **argv)
 
 	soap_done(&soap);
 
-	g_thread_pool_free(dl_pool, TRUE, TRUE);
 	g_thread_pool_free(soap_pool, TRUE, TRUE);
+
+	delete dlm;
 
 	return 0;
 }
