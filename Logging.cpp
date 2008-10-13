@@ -51,7 +51,7 @@ void Logging::init(ostream &stream, const char *level)
 	log(LOG_WARNING, "Failed to interpret log level %s, using INFO", level);
 }
 
-void Logging::log(int lvl, const char *fmt, va_list ap) {
+void Logging::vlog(int lvl, const char *fmt, va_list ap) {
 	if (lvl > log_level)
 		return;
 
@@ -66,7 +66,7 @@ void Logging::log(int lvl, const char *fmt, ...) {
 	va_list ap;
 
 	va_start(ap, fmt);
-	Logging::log(lvl, fmt, ap);
+	Logging::vlog(lvl, fmt, ap);
 	va_end(ap);
 }
 
