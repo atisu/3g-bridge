@@ -38,7 +38,8 @@ max-connections = 4
 # Listening port
 port =
 
-# Number of web service threads
+# Number of web service threads. Must be smaller than the number of database connections
+# otherwise deadlocks may occur
 service-threads = 3
 
 # Number of parallel downloads

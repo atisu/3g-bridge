@@ -14,12 +14,14 @@ class DownloadManager;
 class DLItem
 {
 private:
+	int fd;
+	friend class DownloadManager;
+
+protected:
 	string url;
 	string path;
-	int fd;
 	GTimeVal when;
 	int retries;
-	friend class DownloadManager;
 
 public:
 	DLItem(const string &URL, const string &path);

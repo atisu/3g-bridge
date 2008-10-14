@@ -80,13 +80,13 @@ wsbridge_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
 wsbridge_SOURCES = \
 		$(SOAP_HEADER) \
 		$(SOAP_CPP_SRC) \
-		wsbridge.cpp \
+		AlgQueue.cpp \
 		DBHandler.cpp \
 		DownloadManager.cpp \
 		Logging.cpp \
 		Job.cpp \
-		AlgQueue.cpp \
 		QMException.cpp \
+		wsbridge.cpp \
 		soap/soapServer.cpp
 wsbridge_LDADD = $(GLIB_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto -luuid
 
