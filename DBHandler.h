@@ -9,6 +9,7 @@
 #include <string>
 
 #include <mysql.h>
+#include <glib.h>
 
 
 using namespace std;
@@ -182,6 +183,11 @@ class DBHandler {
 	 */
 	void addAlgQ(const char *grid, const char *alg, unsigned batchsize);
 
+	void addDL(const string &jobid, const string &localName, const string &url);
+	void deleteDL(const string &jobid, const string &localName);
+	void updateDL(const string &jobid, const string &localName, const GTimeVal &next,
+		int retries);
+
     protected:
 	/// DBPool friend class.
 	friend class DBPool;
@@ -272,6 +278,9 @@ class DBPool
 
 	/// Vector of free DBHandler objects
 	vector<DBHandler *> free_dbhs;
+
+	/// Lock for thread safeness
+	GStaticMutex g__dbhs_lock;
 };
 
 

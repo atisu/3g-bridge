@@ -414,6 +414,35 @@ void DBHandler::getCompleteWUs(vector<string> &ids, const string &grid, Job::Job
 
 }
 
+void DBHandler::addDL(const string &jobid, const string &localName, const string &url)
+{
+	query("INSERT INTO cg_download (jobid, localname, url) VALUES '%s', '%s', '%s'",
+		jobid.c_str(), localName.c_str(), url.c_str());
+}
+
+void DBHandler::deleteDL(const string &jobid, const string &localName)
+{
+	query("DELETE FROM cg_download WHERE jobid = '%s' AND localname = '%s'",
+		jobid.c_str(), localName.c_str());
+}
+
+void DBHandler::updateDL(const string &jobid, const string &localName, const GTimeVal &next,
+		int retries)
+{
+	char timebuf[20];
+	struct tm tm;
+	time_t t;
+
+	t = next.tv_sec;
+	localtime_r(&t, &tm);
+	strftime(timebuf, sizeof(timebuf), "%F %T", &tm);
+
+	query("UPDATE cg_download "
+		"SET next_try = '%s', retries = %d "
+		"WHERE jobid = '%s' AND localname = '%s'",
+		timebuf, retries, jobid.c_str(), localName.c_str());
+}
+
 /**********************************************************************
  * Class: DBPool
  */
@@ -422,31 +451,40 @@ DBHandler *DBPool::get() throw (QMException &)
 {
 	DBHandler *dbh;
 
-	if (!free_dbhs.empty())
-	{
-		dbh = free_dbhs.front();
-		free_dbhs.erase(free_dbhs.begin());
-		used_dbhs.push_back(dbh);
-		return dbh;
-	}
-
 	/* Defer initialization until someone requests a new handle to ensure
 	 * that global_config is initialized */
 	if (!dbname)
 		init();
 
+	G_LOCK(dbhs);
+
+	if (!free_dbhs.empty())
+	{
+		dbh = free_dbhs.front();
+		free_dbhs.erase(free_dbhs.begin());
+		goto out;
+	}
+
 	if (max_connections && used_dbhs.size() >= max_connections)
+	{
+		G_UNLOCK(dbhs);
 		throw QMException("Too many database connections are open");
+	}
 
 	dbh = new DBHandler(dbname, host, user, passwd);
 
+out:
 	used_dbhs.push_back(dbh);
+	G_UNLOCK(dbhs);
 	return dbh;
 }
 
 void DBPool::put(DBHandler *dbh)
 {
 	vector<DBHandler *>::iterator it;
+
+	G_LOCK(dbhs);
+
 	for (it = used_dbhs.begin(); it != used_dbhs.end(); it++)
 		if (*it == dbh)
 			break;
@@ -455,11 +493,14 @@ void DBPool::put(DBHandler *dbh)
 	else
 		used_dbhs.erase(it);
 	free_dbhs.push_back(dbh);
+	G_UNLOCK(dbhs);
 }
 
 void DBPool::init()
 {
 	GError *error = NULL;
+
+	g_static_mutex_init(&g__dbhs_lock);
 
 	/* The database name is mandatory. Here we leak the GError but this is
 	 * a non-recoverable error so... */
@@ -501,4 +542,5 @@ DBPool::~DBPool()
 	g_free(host);
 	g_free(user);
 	g_free(passwd);
+	g_static_mutex_free(&g__dbhs_lock);
 }

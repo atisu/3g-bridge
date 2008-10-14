@@ -64,8 +64,8 @@ CREATE TABLE cg_download (
 	jobid		CHAR(36)	NOT NULL,	/* Job identifier */
 	localname	VARCHAR(254)	NOT NULL,	/* Name of the input file */
 	url		VARCHAR(254)	NOT NULL,	/* Remote URL */
-	last_try	TIMESTAMP	NOT NULL DEFAULT CURRENT_TIMESTAMP,	/* Last download attempt */
-	failures	INT		NOT NULL DEFAULT 0,			/* No. of failed DL attempts */
+	next_try	TIMESTAMP	NOT NULL DEFAULT CURRENT_TIMESTAMP,	/* Next download attempt */
+	retries		INT		NOT NULL DEFAULT 0,			/* No. of failed DL attempts */
 	PRIMARY KEY entry (jobid, localname),
 	FOREIGN KEY (id) REFERENCES cg_job(id) ON DELETE CASCADE
 ) TYPE=InnoDB;
