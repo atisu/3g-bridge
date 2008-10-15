@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include <vector>
+#include <fstream>
 #include <iostream>
 
 #include "soap/soapH.h"
@@ -15,14 +16,14 @@ void help_screen(bool doshort = false);
 void parse_inputs(G3BridgeType__Job &job, const char *inputs);
 void parse_outputs(G3BridgeType__Job &job, const char *outputs);
 void handle_add(G3BridgeType__Job &job, const char *endpoint);
-void handle_status(const char *jobid, const char *endpoint);
+void handle_status(const char *jobid, const char *jidfname, const char *endpoint);
 void handle_del(const char *jobid, const char *endpoint);
 void handle_output(const char *jobid, const char *endpoint);
 
 
 int main(int argc, char **argv)
 {
-	char *mode = NULL, *endpoint = NULL, *jobid = NULL;
+	char *mode = NULL, *endpoint = NULL, *jobid = NULL, *jidfname = NULL;
 	G3BridgeType__Job job;
 
 	while (1)
@@ -38,10 +39,11 @@ int main(int argc, char **argv)
 			{"ins", 1, &c, 'i'},
 			{"outs", 1, &c, 'o'},
 			{"jobid", 1, &c, 'j'},
+			{"jidfile", 1, &c, 'f'},
 			{"endpoint", 1, &c, 'e'},
 			{"help", 0, &c, 'h'}
 		};
-		d = getopt_long(argc, argv, "m:n:g:a:i:o:j:e:h", long_options, &option_index);
+		d = getopt_long(argc, argv, "m:n:g:a:i:o:j:f:e:h", long_options, &option_index);
 		if (-1 == d)
 			break;
 		if (d)
@@ -69,6 +71,9 @@ int main(int argc, char **argv)
 		case 'j':
 			jobid = strdup(optarg);
 			break;
+		case 'f':
+			jidfname = strdup(optarg);
+			break;
 		case 'e':
 			endpoint = strdup(optarg);
 			break;
@@ -95,11 +100,11 @@ int main(int argc, char **argv)
 	if (!strcmp(mode, "add"))
 		handle_add(job, endpoint);
 	else if (!strcmp(mode, "status"))
-		handle_status(jobid, endpoint);
+		handle_status(jobid, jidfname, endpoint);
 	else if (!strcmp(mode, "del"))
-		handle_status(jobid, endpoint);
+		handle_del(jobid, endpoint);
 	else if (!strcmp(mode, "output"))
-		handle_status(jobid, endpoint);
+		handle_output(jobid, endpoint);
 	else
 	{
 		cerr << "Error: invalid mode specified: \"" << mode << "\"!" << endl;
@@ -135,8 +140,11 @@ void help_screen(bool doshort)
 	cout << "    -o|--outs [out1,...]               List of output files" << endl;
 	cout << "  'status', 'del' and 'output' mode switches:" << endl;
 	cout << "    -j|--jid [Job identifier]          Job's identifier to use (*)" << endl;
+	cout << "  'status':" << endl;
+	cout << "    -f|--jidfile [Job identifier file] Job identifier file to use (#)" << endl;
 	cout << endl;
 	cout << "  *: argument is mandatory" << endl;
+	cout << "  #: mandatory when '-j' isn't set" << endl;
 }
 
 
@@ -229,15 +237,30 @@ void handle_add(G3BridgeType__Job &job, const char *endpoint)
 
 
 /**
- * Check if job identifier is not empty. Exits when job identifier is empty
+ * Check if job identifier is not empty of if yes, the provided job id file is
+ * valid. Exits when there is a problem
  * @param val string to check
+ * @param fname file existence to check
  */
-void check_jobid(const char *val)
+void check_jobid(const char *val, const char *fname = NULL)
 {
 	if (val && strlen(val))
 		return;
-		
-	cerr << "Error: job identifier isn't set!" << endl;
+
+	if (fname)
+	{
+		ifstream jidfile(fname);
+		if (jidfile)
+		{
+			jidfile.close();
+			return;
+		}
+	}
+
+	if (!fname)
+		cerr << "Error: job identifier isn't set!" << endl;
+	else
+		cerr << "Error: neither job identifier and job identifier file are set!" << endl;
 	help_screen(true);
 }
 
@@ -247,7 +270,7 @@ void check_jobid(const char *val)
  * @param jobid job identifier we would like to use
  * @param endpoint Service endpoint to use
  */
-void handle_status(const char *jobid, const char *endpoint)
+void handle_status(const char *jobid, const char *jidfname, const char *endpoint)
 {
 	G3BridgeType__JobIDList jList;
 	struct G3BridgeOp__getStatusResponse resp;
@@ -262,9 +285,26 @@ void handle_status(const char *jobid, const char *endpoint)
 		{G3BridgeType__JobStatus__ERROR,    "Error"   }
 	};
 
-	check_jobid(jobid);
+	check_jobid(jobid, jidfname);
+
 	jList.jobid.clear();
-	jList.jobid.push_back(string(jobid));
+	if (jobid)
+		jList.jobid.push_back(string(jobid));
+	if (jidfname)
+	{
+		ifstream idfile(jidfname);
+		if (idfile)
+		{
+			string idread;
+			idfile >> idread;
+			while (!idfile.eof())
+			{
+				jList.jobid.push_back(idread);
+				idfile >> idread;
+			}
+			idfile.close();
+		}
+	}
 
 	struct soap *soap = soap_new();
 	soap_init(soap);
@@ -273,12 +313,17 @@ void handle_status(const char *jobid, const char *endpoint)
 		soap_print_fault(soap, stderr);
 		exit(-1);
 	}
-	G3BridgeType__JobStatus st = resp.statuses->status.at(0);
+
+	for (unsigned i = 0; i < jList.jobid.size(); i++)
+	{
+		G3BridgeType__JobStatus st = resp.statuses->status.at(i);
+		if (G3BridgeType__JobStatus__UNKNOWN != st)
+			cout << jList.jobid.at(i) << " " << statToStr[st].str << endl;
+	}
+
 	soap_destroy(soap);
 	soap_end(soap);
 	soap_done(soap);
-
-	cout << "Status of job \"" << jobid << "\" is: " << statToStr[st].str << endl;
 }
 
 
