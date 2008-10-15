@@ -193,19 +193,37 @@ void DBItem::failed()
 
 int G3BridgeOp__submit(struct soap*, G3BridgeType__JobList *jobs, struct G3BridgeOp__submitResponse &jobids)
 {
+	DBHandler *dbh;
+
+	try
+	{
+		dbh = DBHandler::get();
+	}
+	catch (QMException *e)
+	{
+		LOG(LOG_ERR, "submit: Failed to get a DB handle: %s", e->what());
+		delete(e);
+		return SOAP_FATAL_ERROR;
+	}
+	catch (...)
+	{
+		LOG(LOG_ERR, "submit: Failed to get a DB handle: Unknown exception");
+		return SOAP_FATAL_ERROR;
+	}
+
 	jobids.jobids = new G3BridgeType__JobIDList;
 	for (vector<G3BridgeType__Job *>::const_iterator jobit = jobs->job.begin(); jobit != jobs->job.end(); jobit++)
 	{
 		uuid_t uuid;
 		char jobid[37];
 
-        	uuid_generate(uuid);
-	        uuid_unparse(uuid, jobid);
+		uuid_generate(uuid);
+		uuid_unparse(uuid, jobid);
 
 		vector< pair<string, string> > inputs;
 
 		G3BridgeType__Job *wsjob = *jobit;
-        	Job qmjob((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::PREPARE);
+		Job qmjob((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::PREPARE);
 
 		for (vector<G3BridgeType__LogicalFile *>::const_iterator inpit = wsjob->inputs.begin(); inpit != wsjob->inputs.end(); inpit++)
 		{
@@ -223,7 +241,6 @@ int G3BridgeOp__submit(struct soap*, G3BridgeType__JobList *jobs, struct G3Bridg
 			qmjob.addOutput(*outit, path);
 		}
 
-		DBHandler *dbh = DBHandler::get();
 		dbh->addJob(qmjob);
 
 		/* The downloads can only be started after the job record is in the DB */
@@ -233,24 +250,41 @@ int G3BridgeOp__submit(struct soap*, G3BridgeType__JobList *jobs, struct G3Bridg
 			dbh->addDL(qmjob.getId(), it->first, it->second);
 			dlm->add(item);
 		}
-		DBHandler::put(dbh);
 	}
 
+	DBHandler::put(dbh);
 	return SOAP_OK;
 }
 
 int G3BridgeOp__getStatus(struct soap*, G3BridgeType__JobIDList *jobids, struct G3BridgeOp__getStatusResponse &statuses)
 {
+	DBHandler *dbh;
+
+	try
+	{
+		dbh = DBHandler::get();
+	}
+	catch (QMException *e)
+	{
+		LOG(LOG_ERR, "getStatus: Failed to get a DB handle: %s", e->what());
+		delete(e);
+		return SOAP_FATAL_ERROR;
+	}
+	catch (...)
+	{
+		LOG(LOG_ERR, "getStatus: Failed to get a DB handle: Unknown exception");
+		return SOAP_FATAL_ERROR;
+	}
 
 	statuses.statuses = new G3BridgeType__StatusList();
-
-        DBHandler *dbh = DBHandler::get();
 
 	for (vector<string>::const_iterator it = jobids->jobid.begin(); it != jobids->jobid.end(); it++)
 	{
 		G3BridgeType__JobStatus status = G3BridgeType__JobStatus__UNKNOWN;
 
-		auto_ptr<Job> job = dbh->getJob(*it);
+		auto_ptr<Job> job;
+		
+		job = dbh->getJob(*it);
 
 		if (job.get()) switch (job->getStatus())
 		{
@@ -280,7 +314,24 @@ int G3BridgeOp__getStatus(struct soap*, G3BridgeType__JobIDList *jobids, struct 
 
 int G3BridgeOp__delJob(struct soap*, G3BridgeType__JobIDList *jobids, struct G3BridgeOp__delJobResponse &_param_3 G_GNUC_UNUSED)
 {
-        DBHandler *dbh = DBHandler::get();
+	DBHandler *dbh;
+
+	try
+	{
+		dbh = DBHandler::get();
+	}
+	catch (QMException *e)
+	{
+		LOG(LOG_ERR, "delJob: Failed to get a DB handle: %s", e->what());
+		delete(e);
+		return SOAP_FATAL_ERROR;
+	}
+	catch (...)
+	{
+		LOG(LOG_ERR, "delJob: Failed to get a DB handle: Unknown exception");
+		return SOAP_FATAL_ERROR;
+	}
+
 	for (vector<string>::const_iterator it = jobids->jobid.begin(); it != jobids->jobid.end(); it++)
 	{
 		auto_ptr<Job> job = dbh->getJob(*it);
@@ -321,6 +372,7 @@ int G3BridgeOp__delJob(struct soap*, G3BridgeType__JobIDList *jobids, struct G3B
 		/* Delete the job itself */
 		dbh->deleteJob(*it);
 	}
+
 	DBHandler::put(dbh);
 	return SOAP_OK;
 }
@@ -328,9 +380,26 @@ int G3BridgeOp__delJob(struct soap*, G3BridgeType__JobIDList *jobids, struct G3B
 
 int G3BridgeOp__getOutput(struct soap*, G3BridgeType__JobIDList *jobids, struct G3BridgeOp__getOutputResponse &outputs)
 {
+	DBHandler *dbh;
+
+	try
+	{
+		dbh = DBHandler::get();
+	}
+	catch (QMException *e)
+	{
+		LOG(LOG_ERR, "getOutput: Failed to get a DB handle: %s", e->what());
+		delete(e);
+		return SOAP_FATAL_ERROR;
+	}
+	catch (...)
+	{
+		LOG(LOG_ERR, "getOutput: Failed to get a DB handle: Unknown exception");
+		return SOAP_FATAL_ERROR;
+	}
+
 	outputs.outputs = new G3BridgeType__OutputList;
 
-	DBHandler *dbh = DBHandler::get();
 	for (vector<string>::const_iterator it = jobids->jobid.begin(); it != jobids->jobid.end(); it++)
 	{
 
@@ -353,6 +422,7 @@ int G3BridgeOp__getOutput(struct soap*, G3BridgeType__JobIDList *jobids, struct 
 			jout->output.push_back(lf);
 		}
 	}
+
 	DBHandler::put(dbh);
 	return SOAP_OK;
 }
@@ -371,12 +441,12 @@ static void soap_service_handler(void *data, void *user_data G_GNUC_UNUSED)
 	}
 	catch (QMException *e)
 	{
-		LOG(LOG_ERR, "Caught exception: %s", e->what());
+		LOG(LOG_ERR, "SOAP: Caught exception: %s", e->what());
 		delete e;
 	}
 	catch (...)
 	{
-		LOG(LOG_ERR, "Caught unhandled exception");
+		LOG(LOG_ERR, "SOAP: Caught unhandled exception");
 	}
 	soap_destroy(soap);
 	soap_end(soap);
@@ -395,7 +465,7 @@ static void sigint_handler(int signal __attribute__((__unused__)))
 int main(int argc, char **argv)
 {
 	int port, ws_threads, dl_threads;
-        struct soap soap;
+	struct soap soap;
 	struct sigaction sa;
 
 	Logging::init(cout, LOG_INFO);
@@ -413,7 +483,7 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Failed to load the config file: %s", error->message);
 		g_error_free(error);
-	        exit(1);
+		exit(1);
 	}
 
 	char *level = g_key_file_get_string(global_config, GROUP_DEFAULTS, "log-level", NULL);
@@ -428,7 +498,7 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Failed to retrieve the listener port: %s", error->message);
 		g_error_free(error);
-	        exit(1);
+		exit(1);
 	}
 	if (port <= 0 || port > 65535)
 	{
@@ -441,7 +511,7 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Failed to parse the number of download threads: %s", error->message);
 		g_error_free(error);
-	        exit(1);
+		exit(1);
 	}
 	if (dl_threads <= 0 || dl_threads > 1000)
 	{
@@ -454,7 +524,7 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Failed to parse the number of service threads: %s", error->message);
 		g_error_free(error);
-	        exit(1);
+		exit(1);
 	}
 	if (ws_threads <= 0 || ws_threads > 1000)
 	{
@@ -467,7 +537,7 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Failed to get the download directory: %s", error->message);
 		g_error_free(error);
-	        exit(1);
+		exit(1);
 	}
 
 	partial_dir = g_key_file_get_string(global_config, GROUP_WEBSERVICE, "partial-dir", &error);
@@ -475,7 +545,7 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Failed to get the partial directory: %s", error->message);
 		g_error_free(error);
-	        exit(1);
+		exit(1);
 	}
 
 	output_dir = g_key_file_get_string(global_config, GROUP_WEBSERVICE, "output-dir", &error);
@@ -483,7 +553,7 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Failed to get the output base directory: %s", error->message);
 		g_error_free(error);
-	        exit(1);
+		exit(1);
 	}
 
 	output_url_prefix = g_key_file_get_string(global_config, GROUP_WEBSERVICE, "output-url-prefix", &error);
@@ -491,7 +561,7 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Failed to get the output URL prefix: %s", error->message);
 		g_error_free(error);
-	        exit(1);
+		exit(1);
 	}
 
 	/* Set up the signal handlers */
@@ -511,12 +581,13 @@ int main(int argc, char **argv)
 	/* XXX Load the pending downloads from the database */
 
 	soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE | SOAP_IO_CHUNK);
-        soap.send_timeout = 60;
+	soap.send_timeout = 60;
 	soap.recv_timeout = 60;
 	/* Give a small accept timeout to detect exit signals quickly */
 	soap.accept_timeout = 1;
 	soap.max_keep_alive = 100;
 	soap.socket_flags = MSG_NOSIGNAL;
+	soap.bind_flags = SO_REUSEADDR;
 
 	SOAP_SOCKET ss = soap_bind(&soap, NULL, port, 100);
 	if (!soap_valid_socket(ss))
@@ -533,27 +604,33 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-        while (!finish)
-        {
-    		SOAP_SOCKET ret = soap_accept(&soap);
+	while (!finish)
+	{
+		SOAP_SOCKET ret = soap_accept(&soap);
 		if (ret == SOAP_INVALID_SOCKET)
 		{
 			if (!soap.errnum)
 				continue;
-                        soap_print_fault(&soap, stderr);
-                        exit(-1);
+			soap_print_fault(&soap, stderr);
+			exit(-1);
 		}
-                struct soap *handler = soap_copy(&soap);
+		struct soap *handler = soap_copy(&soap);
 		g_thread_pool_push(soap_pool, handler, NULL);
 	}
 
 	LOG(LOG_DEBUG, "Signal caught, shutting down");
 
+	soap_destroy(&soap);
+	soap_end(&soap);
 	soap_done(&soap);
 
 	g_thread_pool_free(soap_pool, TRUE, TRUE);
-
 	delete dlm;
+	g_key_file_free(global_config);
+	g_free(download_dir);
+	g_free(partial_dir);
+	g_free(output_dir);
+	g_free(output_url_prefix);
 
 	return 0;
 }

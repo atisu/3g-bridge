@@ -546,4 +546,5 @@ DBPool::~DBPool()
 	g_free(user);
 	g_free(passwd);
 	g_static_mutex_free(&g__dbhs_lock);
+	mysql_library_end();
 }

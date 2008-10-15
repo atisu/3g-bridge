@@ -13,7 +13,12 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#include <openssl/conf.h>
 #include <openssl/crypto.h>
+#include <openssl/engine.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
+
 #include <curl/curl.h>
 
 /* For OpenSSL multithread support */
@@ -173,6 +178,14 @@ DownloadManager::~DownloadManager()
 
 	CRYPTO_set_id_callback(NULL);
 	CRYPTO_set_locking_callback(NULL);
+
+	ENGINE_cleanup();
+	CONF_modules_unload(1);
+
+	ERR_free_strings();
+	EVP_cleanup();
+	CRYPTO_cleanup_all_ex_data();
+
 	if (ssl_mutexes)
 	{
 		for (int i = 0; i < CRYPTO_num_locks(); i++)
@@ -314,6 +327,8 @@ void *DownloadManager::run_dl(void *data)
 
 	curl_easy_cleanup(curl);
 	g_free(errbuf);
+	ERR_remove_state(0);
+
 	return NULL;
 }
 
