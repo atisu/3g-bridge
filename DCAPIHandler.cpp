@@ -65,12 +65,12 @@ static string substitute(const string src, const string key, string value)
 	}
 }
 
-static void invoke_cmd(const char *exe, const char *const argv[]) throw (BackendException &)
+static void invoke_cmd(const char *exe, const char *const argv[]) throw (BackendException *)
 {
 	int sock[2];
 
 	if (socketpair(AF_UNIX, SOCK_STREAM, 0, sock) == -1)
-		throw BackendException("socketpair() failed: %s", strerror(errno));
+		throw new BackendException("socketpair() failed: %s", strerror(errno));
 
 	pid_t pid = fork();
 	if (pid)
@@ -86,12 +86,12 @@ static void invoke_cmd(const char *exe, const char *const argv[]) throw (Backend
 		close(sock[1]);
 
 		if (waitpid(pid, &status, 0) == -1)
-			throw BackendException("waitpid() failed: %s", strerror(errno));
+			throw new BackendException("waitpid() failed: %s", strerror(errno));
 		if (WIFSIGNALED(status))
-			throw BackendException("Command %s died with signal %d [%s]",
+			throw new BackendException("Command %s died with signal %d [%s]",
 				exe, WTERMSIG(status), error.c_str());
 		if (WEXITSTATUS(status))
-			throw BackendException("Command %s exited with status %d [%s]",
+			throw new BackendException("Command %s exited with status %d [%s]",
 				exe, WEXITSTATUS(status), error.c_str());
 		return;
 	}
@@ -115,13 +115,13 @@ static string get_dc_client_config(const string &app, const char *key, bool stri
 	char *value = DC_getClientCfgStr(app.c_str(), key, 1);
 
 	if (strict && !value)
-		throw BackendException("Configuration error: key %s is missing for app %s", key, app.c_str());
+		throw new BackendException("Configuration error: key %s is missing for app %s", key, app.c_str());
 	string str(value);
 	free(value);
 	return str;
 }
 
-static string abspath(string path) throw (BackendException &)
+static string abspath(string path) throw (BackendException *)
 {
 	if (!path.length())
 		return path;
@@ -130,29 +130,29 @@ static string abspath(string path) throw (BackendException &)
 
 	char *tmp = DC_getCfgStr("WorkingDirectory");
 	if (!tmp)
-		throw BackendException("DC-API working directory is not configured?!?");
+		throw new BackendException("DC-API working directory is not configured?!?");
 	path = string(tmp) + "/" + path;
 	free(tmp);
 	return path;
 }
 
-static string create_tmpdir(void) throw (BackendException &)
+static string create_tmpdir(void) throw (BackendException *)
 {
 	char buf[PATH_MAX];
 
 	char *workdir = DC_getCfgStr("WorkingDirectory");
 	if (!workdir)
-		throw BackendException("DC-API working directory is not configured?!?");
+		throw new BackendException("DC-API working directory is not configured?!?");
 
 	snprintf(buf, sizeof(buf), "%s/batch_XXXXXX", workdir);
 	free(workdir);
 	if (!mkdtemp(buf))
-		throw BackendException("Failed to create directory '%s': %s", buf, strerror(errno));
+		throw new BackendException("Failed to create directory '%s': %s", buf, strerror(errno));
 
 	return string(buf);
 }
 
-static void remove_tmpdir(const string &dir) throw (BackendException &)
+static void remove_tmpdir(const string &dir) throw (BackendException *)
 {
 	if (!dir.size())
 		return;
@@ -202,10 +202,11 @@ static bool check_job(const string &basedir, Job *job)
 		{
 			invoke_cmd("/bin/mv", mv_args);
 		}
-		catch (QMException &e)
+		catch (QMException *e)
 		{
 			LOG(LOG_ERR, "Job %s: Failed to move output file '%s' to '%s'",
 				job->getId().c_str(), src.c_str(), dst.c_str());
+			delete e;
 			result = false;
 		}
 	}
@@ -292,7 +293,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 				(*it)->setStatus(Job::ERROR);
 		}
 	}
-	catch (BackendException &e)
+	catch (BackendException *e)
 	{
 		remove_tmpdir(basedir.c_str());
 		DC_destroyWU(wu);
@@ -314,7 +315,7 @@ DCAPIHandler::DCAPIHandler(GKeyFile *config, const char *instance)
 	char *conffile = g_key_file_get_string(config, instance, "dc-api-config", NULL);
 
 	if (DC_OK != DC_initMaster(conffile ? conffile : NULL))
-		throw BackendException("Failed to initialize the DC-API");
+		throw new BackendException("Failed to initialize the DC-API");
 
 	g_free(conffile);
 
@@ -328,15 +329,15 @@ DCAPIHandler::~DCAPIHandler()
 {
 }
 
-static void do_mkdir(const string &path) throw (BackendException &)
+static void do_mkdir(const string &path) throw (BackendException *)
 {
 	if (!mkdir(path.c_str(), 0750) || errno == EEXIST)
 		return;
 
-	throw BackendException("Failed to create directory '%s': %s", path.c_str(), strerror(errno));
+	throw new BackendException("Failed to create directory '%s': %s", path.c_str(), strerror(errno));
 }
 
-static void emit_job(Job *job, const string &basedir, ofstream &script, const string &job_template) throw (BackendException &)
+static void emit_job(Job *job, const string &basedir, ofstream &script, const string &job_template) throw (BackendException *)
 {
 	string input_dir = INPUT_DIR "/" + job->getId();
 	string output_dir = OUTPUT_DIR "/" + job->getId();
@@ -369,7 +370,7 @@ static void emit_job(Job *job, const string &basedir, ofstream &script, const st
 	script << tmpl;
 }
 
-void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException &)
+void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 {
 	char input_name[PATH_MAX] = { 0 };
 	DC_Workunit *wu = 0;
@@ -384,7 +385,7 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 	while (i != jobs.end())
 	{
 		if (algname != (*i)->getAlgQueue()->getName())
-			throw BackendException("Multiple algorithms cannot be in the same batch");
+			throw new BackendException("Multiple algorithms cannot be in the same batch");
 		i++;
 	}
 
@@ -399,7 +400,7 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 	if (script.fail())
 	{
 		remove_tmpdir(basedir);
-		throw BackendException("Failed to create '%s': %s", script_name.c_str(),
+		throw new BackendException("Failed to create '%s': %s", script_name.c_str(),
 			strerror(errno));
 	}
 
@@ -433,7 +434,7 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 		snprintf(input_name, sizeof(input_name), "inputs_XXXXXX");
 		int fd = mkstemp(input_name);
 		if (fd == -1)
-			throw BackendException("Failed to create file '%s': %s", input_name, strerror(errno));
+			throw new BackendException("Failed to create file '%s': %s", input_name, strerror(errno));
 		close(fd);
 
 		const char *pack_args[] =
@@ -450,21 +451,21 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 		if (!wu)
 		{
 			unlink(input_name);
-			throw BackendException("Out of memory");
+			throw new BackendException("Out of memory");
 		}
 
 		if (DC_addWUInput(wu, INPUT_NAME, input_name, DC_FILE_VOLATILE))
 		{
 			unlink(input_name);
-			throw BackendException("Failed to add input file to WU");
+			throw new BackendException("Failed to add input file to WU");
 		}
 		if (DC_addWUInput(wu, SCRIPT_NAME, script_name.c_str(), DC_FILE_VOLATILE))
-			throw BackendException("Failed to add input file to WU");
+			throw new BackendException("Failed to add input file to WU");
 		if (DC_addWUOutput(wu, OUTPUT_NAME))
-			throw BackendException("Failed to add output file to WU");
+			throw new BackendException("Failed to add output file to WU");
 
 		if (DC_submitWU(wu))
-			throw BackendException("WU submission failed");
+			throw new BackendException("WU submission failed");
 
 		char *wu_id = DC_serializeWU(wu);
 		LOG(LOG_INFO, "DC-API: Submitted work unit %s for app '%s' to grid %s (%zd tasks)",
@@ -477,7 +478,7 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 		}
 		free(wu_id);
 	}
-	catch (BackendException &e)
+	catch (BackendException *e)
 	{
 		if (input_name[0])
 			unlink(input_name);
@@ -495,7 +496,7 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 }
 
 
-void DCAPIHandler::updateStatus(void) throw (BackendException &)
+void DCAPIHandler::updateStatus(void) throw (BackendException *)
 {
 	DBHandler *dbh = DBHandler::get();
 
@@ -520,7 +521,7 @@ void DCAPIHandler::updateStatus(void) throw (BackendException &)
 
 	int ret = DC_processMasterEvents(0);
 	if (ret && ret != DC_ERR_TIMEOUT)
-		throw BackendException("DC_processMasterEvents() returned failure");
+		throw new BackendException("DC_processMasterEvents() returned failure");
 }
 
 GridHandler *DCAPIHandler::getInstance(GKeyFile *config, const char *instance)

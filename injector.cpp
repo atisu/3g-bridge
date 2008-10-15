@@ -176,8 +176,8 @@ int main(int argc, char **argv)
 	dbh->addJob(job);
 	DBHandler::put(dbh);
     }
-    catch (QMException &e) {
-	cerr << "Error: " << e.what() << endl;
+    catch (QMException *e) {
+	cerr << "Error: " << e->what() << endl;
 	exit(1);
     }
 

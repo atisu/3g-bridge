@@ -48,17 +48,17 @@ public:
 	 * Submit jobs in the argument.
 	 * @param jobs JobVector of jobs to be submitted
 	 */
-        virtual void submitJobs(JobVector &jobs) throw (BackendException &) = 0;
+        virtual void submitJobs(JobVector &jobs) throw (BackendException *) = 0;
 
 	/// Update the status of previously submitted jobs in the database.
-        virtual void updateStatus(void) throw (BackendException &) = 0;
+        virtual void updateStatus(void) throw (BackendException *) = 0;
 
         /**
          * Poll the status of a submitted job. This is used as a callback for
          * DBHandler::pollJobs().
 	 * @param job the job to poll
          */
-        virtual void poll(Job *job) throw (BackendException &) = 0;
+        virtual void poll(Job *job) throw (BackendException *) = 0;
 
 protected:
 	/**

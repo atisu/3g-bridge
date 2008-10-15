@@ -39,7 +39,7 @@ bool EGEEHandler::globus_err;
 int EGEEHandler::global_offset;
 
 
-EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException &)
+EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException *)
 {
 	char buf[128];
 
@@ -48,20 +48,20 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 
 	wmpendp = g_key_file_get_string(config, instance, "wmproxy-endpoint", NULL);
 	if (!wmpendp)
-		throw BackendException("EGEE: no WMProxy endpoint for %s", instance);
+		throw new BackendException("EGEE: no WMProxy endpoint for %s", instance);
 	voname = g_key_file_get_string(config, instance, "voname", NULL);
 	if (!voname)
-		throw BackendException("EGEE: no Virtual Organization for %s", instance);
+		throw new BackendException("EGEE: no Virtual Organization for %s", instance);
 
 	myproxy_host = g_key_file_get_string(config, instance, "myproxy_host", NULL);
 	if (!myproxy_host)
-		throw BackendException("EGEE: no MyProxy host for %s", instance);
+		throw new BackendException("EGEE: no MyProxy host for %s", instance);
 	myproxy_user = g_key_file_get_string(config, instance, "myproxy_user", NULL);
 	if (!myproxy_user)
-		throw BackendException("EGEE: no MyProxy user for %s", instance);
+		throw new BackendException("EGEE: no MyProxy user for %s", instance);
 	myproxy_pass = g_key_file_get_string(config, instance, "myproxy_pass", NULL);
 	if (!myproxy_pass)
-		throw BackendException("EGEE: no MyProxy password for %s", instance);
+		throw new BackendException("EGEE: no MyProxy password for %s", instance);
 	myproxy_port = g_key_file_get_string(config, instance, "myproxy_port", NULL);
 	if (!myproxy_port)
 		myproxy_port = "7512";
@@ -70,7 +70,7 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 
 	snprintf(buf, sizeof(buf), "/tmp/.egee_%s_XXXXXX", instance);
 	if (!mkdtemp(buf))
-		throw BackendException("EGEE: failed to create temp. directory");
+		throw new BackendException("EGEE: failed to create temp. directory");
 	tmpdir = buf;
 
 	groupByNames = false;
@@ -116,7 +116,7 @@ EGEEHandler::~EGEEHandler()
 }
 
 
-void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
+void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 {
 	if (!jobs.size())
 		return;
@@ -130,7 +130,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 	sprintf(tmpl, "submitdir.XXXXXX");
 	char *tmpdir = mkdtemp(tmpl);
 	if (!tmpdir)
-		throw(BackendException("Failed to create temporary directory!"));
+		throw new BackendException("Failed to create temporary directory!");
 	chdir(tmpdir);
 	prodDirs.push_back(string(tmpdir));
 
@@ -257,7 +257,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 }
 
 
-void EGEEHandler::updateStatus(void) throw (BackendException&)
+void EGEEHandler::updateStatus(void) throw (BackendException *)
 {
 	LOG(LOG_DEBUG, "EGEE Plugin (%s): about to update status of jobs.", name.c_str());
 
@@ -316,7 +316,7 @@ void EGEEHandler::cancelJob(Job *job)
 	DBHandler::put(jobDB);
 }
 
-void EGEEHandler::poll(Job *job) throw (BackendException &)
+void EGEEHandler::poll(Job *job) throw (BackendException *)
 {
 	switch (job->getStatus())
 	{
@@ -349,8 +349,9 @@ void EGEEHandler::getOutputs_real(Job *job)
 	LOG(LOG_WARNING, "EGEE Plugin: failed to get output file list, I assume the job has already been fetched.");
 	try {
 	    cleanJob(job->getGridId());
-	} catch (BackendException &e) {
+	} catch (BackendException *e) {
 	    LOG(LOG_WARNING, "EGEE Plugin: cleaning job \"%s\" failed.", job->getGridId().c_str());
+	    delete e;
 	}
     }
     vector<string> remFiles(URIs.size());
@@ -363,8 +364,9 @@ void EGEEHandler::getOutputs_real(Job *job)
     download_file_globus(remFiles, locFiles);
     try {
 	cleanJob(job->getGridId());
-    } catch (BackendException &e) {
+    } catch (BackendException *e) {
 	LOG(LOG_WARNING, "EGEE Plugin: cleaning job \"%s\" failed.", job->getGridId().c_str());
+	delete e;
     }
 }
 
@@ -622,7 +624,7 @@ void EGEEHandler::delegate_Proxy(const string& delID)
 }
 
 
-void EGEEHandler::throwStrExc(const char *func, const BaseException &e) throw (BackendException &)
+void EGEEHandler::throwStrExc(const char *func, const BaseException &e) throw (BackendException *)
 {
     stringstream msg;
     msg << "Exception occured in EGEEHandler::" << func << ":" << endl;
@@ -634,15 +636,15 @@ void EGEEHandler::throwStrExc(const char *func, const BaseException &e) throw (B
     if (e.FaultCause)
         for (unsigned i = 0; i < (e.FaultCause)->size(); i++)
 	    msg << "  FaultCause: " << (*(e.FaultCause))[i] << endl;
-    throw(BackendException(msg.str()));
+    throw new BackendException(msg.str());
 }
 
 
-void EGEEHandler::throwStrExc(const char *func, const string &str) throw (BackendException &)
+void EGEEHandler::throwStrExc(const char *func, const string &str) throw (BackendException *)
 {
     stringstream msg;
     msg << "Exception occured in EGEEHandler::" << func << ": " << str;
-    throw(BackendException(msg.str()));
+    throw new BackendException(msg.str());
 }
 
 

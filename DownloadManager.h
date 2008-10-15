@@ -25,6 +25,7 @@ protected:
 
 public:
 	DLItem(const string &URL, const string &path);
+	DLItem();
 	~DLItem();
 	bool operator<(const DLItem &b);
 	bool operator<(const GTimeVal &b);

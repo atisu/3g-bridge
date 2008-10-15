@@ -12,6 +12,7 @@
 
 #include <stdlib.h>
 #include <signal.h>
+#include <errno.h>
 
 #include <openssl/crypto.h>
 #include <curl/curl.h>
@@ -46,10 +47,15 @@ static DownloadManager *dlm;
  * Calculate the file system location where an input file should be downloaded to
  */
 
-static string calc_input_path(const string jobid, const string localName)
+static string calc_input_path(const string jobid, const string localName) throw (QMException *)
 {
-	/* XXX */
-	return (string)download_dir + "/" + jobid + "_" + localName;
+	string jobdir = (string)download_dir + "/" + jobid;
+	int ret = mkdir(jobdir.c_str(), 0750);
+	if (ret == -1 && errno != EEXIST)
+		throw new QMException("Failed to create directory '%s': %s",
+			jobdir.c_str(), strerror(errno));
+
+	return jobdir + "/" + localName;
 }
 
 /**********************************************************************
@@ -58,7 +64,6 @@ static string calc_input_path(const string jobid, const string localName)
 
 static string calc_temp_path(const string jobid, const string localName)
 {
-	/* XXX */
 	return (string)partial_dir + "/" + jobid + "_" + localName;
 }
 
@@ -66,10 +71,25 @@ static string calc_temp_path(const string jobid, const string localName)
  * Calculate the location where an output file will be stored
  */
 
-static string calc_output_path(const string jobid, const string localName)
+static string calc_output_path(const string jobid, const string localName) throw (QMException *)
 {
-	/* XXX */
-	return (string)output_dir + "/" + jobid + "_" + localName;
+	string jobdir = (string)output_dir + "/" + jobid;
+	int ret = mkdir(jobdir.c_str(), 0750);
+	if (ret == -1 && errno != EEXIST)
+		throw new QMException("Failed to create directory '%s': %s",
+			jobdir.c_str(), strerror(errno));
+
+	return jobdir + "/" + localName;
+}
+
+/**********************************************************************
+ * Calculate the location where an output file will be stored
+ */
+
+static string calc_output_url(const string path)
+{
+	/* XXX Verify the prefix */
+	return (string)output_url_prefix + "/" + path.substr(strlen(output_dir));
 }
 
 /**********************************************************************
@@ -91,24 +111,23 @@ public:
 	void failed();
 };
 
-DBItem::DBItem(const string &jobId, const string &logicalFile, const string &URL):
-		DLItem(URL, calc_temp_path(jobId, logicalFile))
+DBItem::DBItem(const string &jobId, const string &logicalFile, const string &URL)
 {
+	this->url = URL;
+	this->path = calc_temp_path(jobId, logicalFile);
 }
 
 void DBItem::finished()
 {
-	auto_ptr<Job> job;
-
 	DLItem::finished();
 
 	DBHandler *dbh = DBHandler::get();
 	dbh->deleteDL(jobId, logicalFile);
-	job = dbh->getJob(jobId);
+	auto_ptr<Job> job = dbh->getJob(jobId);
 	DBHandler::put(dbh);
 
 	/* If the job has already failed, just do not bother */
-	if (job->getStatus() != Job::PREPARE)
+	if (!job.get() || job->getStatus() != Job::PREPARE)
 	{
 		failed();
 		return;
@@ -146,15 +165,16 @@ void DBItem::finished()
 
 void DBItem::failed()
 {
-	auto_ptr<Job> job;
-
 	DLItem::failed();
 
 	DBHandler *dbh = DBHandler::get();
 	dbh->deleteDL(jobId, logicalFile);
-	job = dbh->getJob(jobId);
+	auto_ptr<Job> job = dbh->getJob(jobId);
 	dbh->updateJobStat(jobId, Job::ERROR);
 	DBHandler::put(dbh);
+
+	if (!job.get())
+		return;
 
 	/* Abort the download of the other input files */
 	auto_ptr< vector<string> > inputs = job->getInputs();
@@ -229,31 +249,25 @@ int G3BridgeOp__getStatus(struct soap*, G3BridgeType__JobIDList *jobids, struct 
 	for (vector<string>::const_iterator it = jobids->jobid.begin(); it != jobids->jobid.end(); it++)
 	{
 		G3BridgeType__JobStatus status = G3BridgeType__JobStatus__UNKNOWN;
-		auto_ptr<Job> job;
 
-		try
+		auto_ptr<Job> job = dbh->getJob(*it);
+
+		if (job.get()) switch (job->getStatus())
 		{
-			job = dbh->getJob(*it);
-			switch (job->getStatus())
-			{
-				case Job::PREPARE:
-				case Job::INIT:
-					status = G3BridgeType__JobStatus__INIT;
-					break;
-				case Job::RUNNING:
-					status = G3BridgeType__JobStatus__RUNNING;
-					break;
-				case Job::FINISHED:
-					status = G3BridgeType__JobStatus__FINISHED;
-					break;
-				case Job::ERROR:
-				case Job::CANCEL:
-					status = G3BridgeType__JobStatus__ERROR;
-					break;
-			}
-		}
-		catch (...)
-		{
+			case Job::PREPARE:
+			case Job::INIT:
+				status = G3BridgeType__JobStatus__INIT;
+				break;
+			case Job::RUNNING:
+				status = G3BridgeType__JobStatus__RUNNING;
+				break;
+			case Job::FINISHED:
+				status = G3BridgeType__JobStatus__FINISHED;
+				break;
+			case Job::ERROR:
+			case Job::CANCEL:
+				status = G3BridgeType__JobStatus__ERROR;
+				break;
 		}
 
 		statuses.statuses->status.push_back(status);
@@ -269,9 +283,10 @@ int G3BridgeOp__delJob(struct soap*, G3BridgeType__JobIDList *jobids, struct G3B
         DBHandler *dbh = DBHandler::get();
 	for (vector<string>::const_iterator it = jobids->jobid.begin(); it != jobids->jobid.end(); it++)
 	{
-		auto_ptr<Job> job;
+		auto_ptr<Job> job = dbh->getJob(*it);
+		if (!job.get())
+			continue;
 
-		job = dbh->getJob(*it);
 		auto_ptr< vector<string> > files = job->getInputs();
 		for (vector<string>::const_iterator fsit = files->begin(); fsit != files->end(); fsit++)
 		{
@@ -282,6 +297,9 @@ int G3BridgeOp__delJob(struct soap*, G3BridgeType__JobIDList *jobids, struct G3B
 			path = job->getInputPath(*fsit);
 			unlink(path.c_str());
 		}
+
+		string jobdir = (string)download_dir + "/" + *it;
+		rmdir(jobdir.c_str());
 
 		if (job->getStatus() == Job::RUNNING)
 		{
@@ -297,6 +315,9 @@ int G3BridgeOp__delJob(struct soap*, G3BridgeType__JobIDList *jobids, struct G3B
 			unlink(path.c_str());
 		}
 
+		jobdir = (string)output_dir + "/" + *it;
+		rmdir(jobdir.c_str());
+
 		/* Delete the job itself */
 		dbh->deleteJob(*it);
 	}
@@ -305,9 +326,34 @@ int G3BridgeOp__delJob(struct soap*, G3BridgeType__JobIDList *jobids, struct G3B
 }
 
 
-int G3BridgeOp__getOutput(struct soap*, G3BridgeType__JobIDList *jobids, struct G3BridgeOp__getOutputResponse &_param_4)
+int G3BridgeOp__getOutput(struct soap*, G3BridgeType__JobIDList *jobids, struct G3BridgeOp__getOutputResponse &outputs)
 {
-	/* XXX */
+	outputs.outputs = new G3BridgeType__OutputList;
+
+	DBHandler *dbh = DBHandler::get();
+	for (vector<string>::const_iterator it = jobids->jobid.begin(); it != jobids->jobid.end(); it++)
+	{
+
+		G3BridgeType__JobOutput *jout = new G3BridgeType__JobOutput();
+		jout->jobid = *it;
+		outputs.outputs->output.push_back(jout);
+
+		auto_ptr<Job> job = dbh->getJob(*it);
+		if (!job.get())
+			continue;
+
+		auto_ptr< vector<string> > files = job->getOutputs();
+		for (vector<string>::const_iterator fsit = files->begin(); fsit != files->end(); fsit++)
+		{
+			string path = job->getOutputPath(*fsit);
+
+			G3BridgeType__LogicalFile *lf = new G3BridgeType__LogicalFile();
+			lf->logicalName = *fsit;
+			lf->URL = calc_output_url(path);
+			jout->output.push_back(lf);
+		}
+	}
+	DBHandler::put(dbh);
 	return SOAP_OK;
 }
 
@@ -319,7 +365,19 @@ static void soap_service_handler(void *data, void *user_data G_GNUC_UNUSED)
 {
 	struct soap *soap = (struct soap *)data;
 
-	soap_serve(soap);
+	try
+	{
+		soap_serve(soap);
+	}
+	catch (QMException *e)
+	{
+		LOG(LOG_ERR, "Caught exception: %s", e->what());
+		delete e;
+	}
+	catch (...)
+	{
+		LOG(LOG_ERR, "Caught unhandled exception");
+	}
 	soap_destroy(soap);
 	soap_end(soap);
 	soap_free(soap);

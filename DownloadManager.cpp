@@ -122,7 +122,7 @@ DownloadManager::DownloadManager(int num_threads, int max_retries):max_retries(m
 	{
 		GThread *thr = g_thread_create(DownloadManager::run_dl, this, TRUE, &error);
 		if (!thr)
-			throw QMException("Failed to create a new thread: %s", error->message);
+			throw new QMException("Failed to create a new thread: %s", error->message);
 		threads.push_back(thr);
 	}
 
@@ -324,9 +324,16 @@ void *DownloadManager::run_dl(void *data)
 DLItem::DLItem(const string &URL, const string &path):url(URL),path(path)
 {
 	fd = -1;
-	g_get_current_time(&when);
 	retries = 0;
+	g_get_current_time(&when);
+	run_gc();
+}
 
+DLItem::DLItem()
+{
+	fd = -1;
+	retries = 0;
+	g_get_current_time(&when);
 	run_gc();
 }
 
@@ -342,7 +349,7 @@ size_t DLItem::write(void *buf, size_t size)
 	{
 		fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0640);
 		if (fd == -1)
-			throw QMException("Failed to create file %s: %s",
+			throw new QMException("Failed to create file %s: %s",
 				path.c_str(), strerror(errno));
 	}
 	return ::write(fd, buf, size);

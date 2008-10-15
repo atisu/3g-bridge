@@ -82,7 +82,7 @@ bool DBResult::fetch() throw()
 const char *DBResult::get_field(int index)
 {
 	if (index >= field_num)
-		throw QMException("Invalid field index");
+		throw new QMException("Invalid field index");
 	return row[index];
 }
 
@@ -93,7 +93,7 @@ const char *DBResult::get_field(const char *name)
 	for (i = 0; i < field_num && strcmp(fields[i].name, name); i++)
 		/* Nothing */;
 	if (i >= field_num)
-		throw QMException("Unknown field requested: %s ", name);
+		throw new QMException("Unknown field requested: %s ", name);
 	return row[i];
 }
 
@@ -131,9 +131,9 @@ DBHandler::DBHandler(const char *dbname, const char *host, const char *user, con
 {
 	conn = mysql_init(0);
 	if (!conn)
-		throw QMException("Out of memory");
+		throw new QMException("Out of memory");
 	if (!mysql_real_connect(conn, host, user, passwd, dbname, 0, 0, 0))
-		throw QMException("Could not connect to the database: %s", mysql_error(conn));
+		throw new QMException("Could not connect to the database: %s", mysql_error(conn));
 }
 
 
@@ -147,7 +147,7 @@ DBHandler::~DBHandler()
 const char *statToStr(Job::JobStatus stat)
 {
 	if (stat < 0 || stat > (int)(sizeof(status_str) / sizeof(status_str[0])))
-		throw QMException("Unknown job status value %d", (int)stat);
+		throw new QMException("Unknown job status value %d", (int)stat);
 	return status_str[stat];
 }
 
@@ -275,8 +275,9 @@ void DBHandler::pollJobs(GridHandler *handler, Job::JobStatus stat1, Job::JobSta
 		try {
 			handler->poll(job);
 		}
-		catch (BackendException &e) {
-			LOG(LOG_ERR, "Polling job %s: %s", job->getId().c_str(), e.what());
+		catch (BackendException *e) {
+			LOG(LOG_ERR, "Polling job %s: %s", job->getId().c_str(), e->what());
+			delete e;
 		}
 		delete job;
 	}
@@ -380,7 +381,7 @@ void DBHandler::addJob(Job &job)
 }
 
 
-DBHandler *DBHandler::get() throw (QMException &)
+DBHandler *DBHandler::get() throw (QMException *)
 {
 	return db_pool.get();
 }
@@ -449,7 +450,7 @@ void DBHandler::updateDL(const string &jobid, const string &localName, const GTi
  * Class: DBPool
  */
 
-DBHandler *DBPool::get() throw (QMException &)
+DBHandler *DBPool::get() throw (QMException *)
 {
 	DBHandler *dbh;
 
@@ -470,7 +471,7 @@ DBHandler *DBPool::get() throw (QMException &)
 	if (max_connections && used_dbhs.size() >= max_connections)
 	{
 		G_UNLOCK(dbhs);
-		throw QMException("Too many database connections are open");
+		throw new QMException("Too many database connections are open");
 	}
 
 	dbh = new DBHandler(dbname, host, user, passwd);
@@ -508,9 +509,9 @@ void DBPool::init()
 	 * a non-recoverable error so... */
 	dbname = g_key_file_get_string(global_config, GROUP_DATABASE, "name", &error);
 	if (error)
-		throw QMException("Failed to retrieve the database name: %s", error->message);
+		throw new QMException("Failed to retrieve the database name: %s", error->message);
 	if (!dbname || !strlen(dbname))
-		throw QMException("The database name is not specified in the configuration file");
+		throw new QMException("The database name is not specified in the configuration file");
 
 	/* These are not mandatory */
 	host = g_key_file_get_string(global_config, GROUP_DATABASE, "host", NULL);

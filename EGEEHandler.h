@@ -27,7 +27,7 @@ class EGEEHandler : public GridHandler {
 	 * @param config configuration file data
 	 * @param instance name of the plugin instance
 	 */
-	EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException &);
+	EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException *);
 
 	/// Destructor
 	~EGEEHandler();
@@ -36,20 +36,20 @@ class EGEEHandler : public GridHandler {
 	 * Submit jobs. Submits a vector of jobs to EGEE.
 	 * @param jobs jobs to submit
 	 */
-	void submitJobs(JobVector &jobs) throw (BackendException &);
+	void submitJobs(JobVector &jobs) throw (BackendException *);
 
 	/**
 	 * Update status of jobs. Updates status of jobs belonging to the
 	 * plugin instance.
 	 */
-	void updateStatus(void) throw (BackendException &);
+	void updateStatus(void) throw (BackendException *);
 
 	/**
 	 * Handle a given job. DBHandler uses this function to perform
 	 * different operations on a job.
 	 * @param job the job to handle
 	 */
-	void poll(Job *job) throw (BackendException &);
+	void poll(Job *job) throw (BackendException *);
 
 	/**
 	 * Get an instance of the plugin. Creates a new instance of the EGEE
@@ -65,7 +65,7 @@ class EGEEHandler : public GridHandler {
 	 * Update status of jobs.
 	 * @param jobs vector of jobs to update
 	 */
-	void getStatus(JobVector &jobs) throw (BackendException &);
+	void getStatus(JobVector &jobs) throw (BackendException *);
 
 	/// Buffer size for GSIFTP operations
 	static const int GSIFTP_BSIZE = 1024000;
@@ -204,14 +204,14 @@ class EGEEHandler : public GridHandler {
 	 * @param func the function name where the exception occured
 	 * @param e the BaseException to use
 	 */
-	void throwStrExc(const char *func, const BaseException &e) throw(BackendException &);
+	void throwStrExc(const char *func, const BaseException &e) throw(BackendException *);
 
 	/**
 	 * Throw an exception using a message string.
 	 * @param func the function name where the exception occured
 	 * @param str the message to throw
 	 */
-	void throwStrExc(const char *func, const string &str) throw(BackendException &);
+	void throwStrExc(const char *func, const string &str) throw(BackendException *);
 
 	/**
 	 * Renew proxy file. This function is periodically called, and gets

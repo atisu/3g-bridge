@@ -1,11 +1,11 @@
 /*
  * Schema description for CancerGrid job database
  */
-DROP TABLE IF EXISTS cg_job;
 DROP TABLE IF EXISTS cg_inputs;
 DROP TABLE IF EXISTS cg_outputs;
 DROP TABLE IF EXISTS cg_algqueue;
 DROP TABLE IF EXISTS cg_download;
+DROP TABLE IF EXISTS cg_job;
 
 /*
  * Job table
@@ -67,5 +67,5 @@ CREATE TABLE cg_download (
 	next_try	TIMESTAMP	NOT NULL DEFAULT CURRENT_TIMESTAMP,	/* Next download attempt */
 	retries		INT		NOT NULL DEFAULT 0,			/* No. of failed DL attempts */
 	PRIMARY KEY entry (jobid, localname),
-	FOREIGN KEY (id) REFERENCES cg_job(id) ON DELETE CASCADE
+	FOREIGN KEY (jobid) REFERENCES cg_job(id) ON DELETE CASCADE
 ) TYPE=InnoDB;

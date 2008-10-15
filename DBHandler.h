@@ -173,7 +173,7 @@ class DBHandler {
 	 * Get a DBHandler from the DBPool.
 	 * @return pointer to a DBHandler
 	 */
-	static DBHandler *get() throw (QMException &);
+	static DBHandler *get() throw (QMException *);
 
 	/**
 	 * Add an algorithm queue to the database. Initially, the processing
@@ -244,7 +244,7 @@ class DBPool
 	 * Get a DBHandler.
 	 * @return pointer to a DBHandler object
 	 */
-	DBHandler *get() throw (QMException &);
+	DBHandler *get() throw (QMException *);
 
 	/**
 	 * Add a DBHandler.
