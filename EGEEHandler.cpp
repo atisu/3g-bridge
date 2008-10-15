@@ -156,10 +156,10 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 		// Note: files are copied, and not linket, because EGEE
 		// doesn't support submitting inputsandboxes where two
 		// files have the same inode.
-		vector<string> ins = actJ->getInputs();
-    		for (unsigned j = 0; j < ins.size(); j++) {
-			string fspath = actJ->getInputPath(ins[j]).c_str();
-			string oppath = ins[j];
+		auto_ptr< vector<string> > ins = actJ->getInputs();
+    		for (unsigned j = 0; j < ins->size(); j++) {
+			string fspath = actJ->getInputPath((*ins)[j]).c_str();
+			string oppath = (*ins)[j];
 			ifstream inf(fspath.c_str(), ios::binary);
 			ofstream outf((string(jdirname) + "/" + oppath).c_str(), ios::binary);
 			outf << inf.rdbuf();
@@ -170,9 +170,9 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException &)
 		}
 
 		// Now add outputs
-		vector<string> outs = actJ->getOutputs();
-		for (unsigned j = 0; j < outs.size(); j++)
-			jobJDLAd->addAttribute(JDL::OUTPUTSB, outs[j].c_str());
+		auto_ptr<vector<string> > outs = actJ->getOutputs();
+		for (unsigned j = 0; j < outs->size(); j++)
+			jobJDLAd->addAttribute(JDL::OUTPUTSB, (*outs)[j].c_str());
 
 		// The arguments
 		string arg = actJ->getArgs();

@@ -7,6 +7,7 @@
 #include "QMException.h"
 
 #include <string>
+#include <memory>
 
 #include <mysql.h>
 #include <glib.h>
@@ -51,7 +52,7 @@ class DBHandler {
 	 * @param[out] job Job storage for the job read
 	 * @param id job identifier to use
 	 */
-	void getJob(Job &job, const string &id);
+	auto_ptr<Job> getJob(const string &id);
 
 	/**
 	 * Get jobs from the database. The function reads jobs from the database

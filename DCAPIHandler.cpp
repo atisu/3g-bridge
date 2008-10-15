@@ -169,12 +169,12 @@ static void error_jobs(JobVector &jobs)
 
 static bool check_job(const string &basedir, Job *job)
 {
-	vector<string> outputs = job->getOutputs();
+	auto_ptr< vector<string> > outputs = job->getOutputs();
 	bool result = true;
 
 	/* Move/copy the output files to the proper location */
 	string jobdir = basedir + "/" OUTPUT_DIR "/" + job->getId();
-	for (vector<string>::const_iterator it = outputs.begin(); it != outputs.end(); it++)
+	for (vector<string>::const_iterator it = outputs->begin(); it != outputs->end(); it++)
 	{
 		string src = jobdir + '/' + *it;
 		string dst = job->getOutputPath(*it);
@@ -348,8 +348,8 @@ static void emit_job(Job *job, const string &basedir, ofstream &script, const st
 	do_mkdir(output_path);
 
 	/* Link/copy the input files to the proper location */
-	vector<string> inputs = job->getInputs();
-	for (vector<string>::const_iterator it = inputs.begin(); it != inputs.end(); it++)
+	auto_ptr< vector<string> > inputs = job->getInputs();
+	for (vector<string>::const_iterator it = inputs->begin(); it != inputs->end(); it++)
 	{
 		string src = job->getInputPath(*it);
 		string dst = input_path + "/" + *it;

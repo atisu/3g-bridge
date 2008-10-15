@@ -98,17 +98,17 @@ DBItem::DBItem(const string &jobId, const string &logicalFile, const string &URL
 
 void DBItem::finished()
 {
-	Job job;
+	auto_ptr<Job> job;
 
 	DLItem::finished();
 
 	DBHandler *dbh = DBHandler::get();
 	dbh->deleteDL(jobId, logicalFile);
-	dbh->getJob(job, jobId);
+	job = dbh->getJob(jobId);
 	DBHandler::put(dbh);
 
 	/* If the job has already failed, just do not bother */
-	if (job.getStatus() != Job::PREPARE)
+	if (job->getStatus() != Job::PREPARE)
 	{
 		failed();
 		return;
@@ -125,9 +125,9 @@ void DBItem::finished()
 	}
 
 	/* Check if the job is now ready to be submitted */
-	vector<string> inputs = job.getInputs();
+	auto_ptr< vector<string> > inputs = job->getInputs();
 	vector<string>::const_iterator it;
-	for (it = inputs.begin(); it != inputs.end(); it++)
+	for (it = inputs->begin(); it != inputs->end(); it++)
 	{
 		struct stat st;
 		string path;
@@ -137,28 +137,28 @@ void DBItem::finished()
 		if (!ret)
 			break;
 	}
-	if (it == inputs.end())
+	if (it == inputs->end())
 	{
-		job.setStatus(Job::INIT);
+		job->setStatus(Job::INIT);
 		/* XXX Send notification */
 	}
 }
 
 void DBItem::failed()
 {
-	Job job;
+	auto_ptr<Job> job;
 
 	DLItem::failed();
 
 	DBHandler *dbh = DBHandler::get();
 	dbh->deleteDL(jobId, logicalFile);
-	dbh->getJob(job, jobId);
+	job = dbh->getJob(jobId);
 	dbh->updateJobStat(jobId, Job::ERROR);
 	DBHandler::put(dbh);
 
 	/* Abort the download of the other input files */
-	vector<string> inputs = job.getInputs();
-	for (vector<string>::const_iterator it = inputs.begin(); it != inputs.end(); it++)
+	auto_ptr< vector<string> > inputs = job->getInputs();
+	for (vector<string>::const_iterator it = inputs->begin(); it != inputs->end(); it++)
 	{
 		string path = calc_temp_path(jobId, *it);
 		dlm->abort(path);
@@ -229,12 +229,12 @@ int G3BridgeOp__getStatus(struct soap*, G3BridgeType__JobIDList *jobids, struct 
 	for (vector<string>::const_iterator it = jobids->jobid.begin(); it != jobids->jobid.end(); it++)
 	{
 		G3BridgeType__JobStatus status = G3BridgeType__JobStatus__UNKNOWN;
-		Job job;
+		auto_ptr<Job> job;
 
 		try
 		{
-			dbh->getJob(job, *it);
-			switch (job.getStatus())
+			job = dbh->getJob(*it);
+			switch (job->getStatus())
 			{
 				case Job::PREPARE:
 				case Job::INIT:
@@ -269,31 +269,31 @@ int G3BridgeOp__delJob(struct soap*, G3BridgeType__JobIDList *jobids, struct G3B
         DBHandler *dbh = DBHandler::get();
 	for (vector<string>::const_iterator it = jobids->jobid.begin(); it != jobids->jobid.end(); it++)
 	{
-		Job job;
+		auto_ptr<Job> job;
 
-		dbh->getJob(job, *it);
-		vector<string> files = job.getInputs();
-		for (vector<string>::const_iterator fsit = files.begin(); fsit != files.end(); fsit++)
+		job = dbh->getJob(*it);
+		auto_ptr< vector<string> > files = job->getInputs();
+		for (vector<string>::const_iterator fsit = files->begin(); fsit != files->end(); fsit++)
 		{
 			/* Abort the download if it is still in the queue */
 			string path = calc_temp_path(*it, *fsit);
 			dlm->abort(path);
 			/* Delete the input file if it has been already downloaded */
-			path = job.getInputPath(*fsit);
+			path = job->getInputPath(*fsit);
 			unlink(path.c_str());
 		}
 
-		if (job.getStatus() == Job::RUNNING)
+		if (job->getStatus() == Job::RUNNING)
 		{
-			job.setStatus(Job::CANCEL);
+			job->setStatus(Job::CANCEL);
 			continue;
 		}
 
 		/* Delete the (possible) output files */
-		files = job.getOutputs();
-		for (vector<string>::const_iterator fsit = files.begin(); fsit != files.end(); fsit++)
+		files = job->getOutputs();
+		for (vector<string>::const_iterator fsit = files->begin(); fsit != files->end(); fsit++)
 		{
-			string path = job.getOutputPath(*fsit);
+			string path = job->getOutputPath(*fsit);
 			unlink(path.c_str());
 		}
 

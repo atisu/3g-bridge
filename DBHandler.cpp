@@ -222,15 +222,17 @@ void DBHandler::parseJobs(JobVector &jobs)
 }
 
 
-void DBHandler::getJob(Job &job, const string &id)
+auto_ptr<Job> DBHandler::getJob(const string &id)
 {
 	JobVector jobs;
 	if (query("SELECT * FROM cg_job WHERE id = '%s'", id.c_str()))
 	{
 		parseJobs(jobs);
-		job = *(jobs.at(0));
+		Job *job = jobs.at(0);
+		jobs.erase(jobs.begin());
+		return auto_ptr<Job>(job);
 	}
-	
+	return auto_ptr<Job>(0);
 }
 
 
@@ -356,15 +358,15 @@ void DBHandler::addJob(Job &job)
 		job.getId().c_str(), job.getName().c_str(), job.getGrid().c_str(),
 		statToStr(job.getStatus()), job.getArgs().c_str());
 
-	vector<string> inputs = job.getInputs();
-	for (vector<string>::const_iterator it = inputs.begin(); it != inputs.end(); it++)
+	auto_ptr< vector<string> > files = job.getInputs();
+	for (vector<string>::const_iterator it = files->begin(); it != files->end(); it++)
 	{
 		string path = job.getInputPath(*it);
 		success &= query("INSERT INTO cg_inputs (id, localname, path) VALUES ('%s', '%s', '%s')",
 			job.getId().c_str(), it->c_str(), path.c_str());
 	}
-	vector<string> outputs = job.getOutputs();
-	for (vector<string>::const_iterator it = outputs.begin(); it != outputs.end(); it++)
+	files = job.getOutputs();
+	for (vector<string>::const_iterator it = files->begin(); it != files->end(); it++)
 	{
 		string path = job.getOutputPath(*it);
 		success &= query("INSERT INTO cg_outputs (id, localname, path) VALUES ('%s', '%s', '%s')",

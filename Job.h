@@ -5,11 +5,12 @@
 #include "config.h"
 #endif
 
-#include <map>
-#include <string>
-#include <vector>
 #include "AlgQueue.h"
 
+#include <memory>
+#include <string>
+#include <vector>
+#include <map>
 
 using namespace std;
 
@@ -108,7 +109,7 @@ public:
 	 * @see inputs()
 	 * @return vector of localnames
 	 */
-	vector<string> getInputs() const;
+	auto_ptr< vector<string> > getInputs() const;
 
 	/**
 	 * Get the location of a file on the filesystem.
@@ -132,7 +133,7 @@ public:
 	 * @see outputs()
 	 * @return vector of localnames
 	 */
-	vector<string> getOutputs() const;
+	auto_ptr< vector<string> > getOutputs() const;
 
 	/**
 	 * Get the expected location of a file on the filesystem.
