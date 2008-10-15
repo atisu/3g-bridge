@@ -150,7 +150,7 @@ DownloadManager::~DownloadManager()
 
 	/* Wake up all threads so they can exit */
 	g_mutex_lock(queue_lock);
-	g_cond_signal(queue_sig);
+	g_cond_broadcast(queue_sig);
 	g_mutex_unlock(queue_lock);
 
 	LOG(LOG_DEBUG, "Waiting for downloads to finish");
