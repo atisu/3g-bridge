@@ -214,7 +214,7 @@ class DBHandler {
 	 * @param res DBResult belonging to a Job
 	 * @return the Job object representing the given DBResult
 	 */
-	Job *parseJob(DBResult &res);
+	auto_ptr<Job> parseJob(DBResult &res);
 
 	/**
 	 * Parse jobs into a JobVector using results of a query. The function

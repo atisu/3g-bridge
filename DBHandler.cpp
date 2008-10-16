@@ -81,7 +81,7 @@ bool DBResult::fetch() throw()
 
 const char *DBResult::get_field(int index)
 {
-	if (index >= field_num)
+	if (index >= field_num || !row || !row[index])
 		throw new QMException("Invalid field index");
 	return row[index];
 }
@@ -168,7 +168,7 @@ static Job::JobStatus statFromStr(const char *stat)
 }
 
 
-Job *DBHandler::parseJob(DBResult &res)
+auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 {
 	const char *alg = res.get_field("alg");
 	const char *grid = res.get_field("grid");
@@ -178,7 +178,7 @@ Job *DBHandler::parseJob(DBResult &res)
 	const char *stat = res.get_field("status");
 
 	// Create new job descriptor
-	Job *job = new Job(id, alg, grid, args, statFromStr(stat));
+	auto_ptr<Job> job(new Job(id, alg, grid, args, statFromStr(stat)));
 	if (gridid)
 		job->setGridId(gridid);
 
@@ -186,9 +186,9 @@ Job *DBHandler::parseJob(DBResult &res)
 	DBHandler *dbh = get();
 	if (!dbh->query("SELECT localname, path FROM cg_inputs WHERE id = '%s'", id))
 	{
-		delete job;
+		job.reset(0);
 		put(dbh);
-		return 0;
+		return job;
 	}
 
 	DBResult res2(dbh);
@@ -199,14 +199,15 @@ Job *DBHandler::parseJob(DBResult &res)
 	// Get outputs for job from db
 	if (!dbh->query("SELECT localname, path FROM cg_outputs WHERE id = '%s'", id))
 	{
-		delete job;
+		job.reset(0);
 		put(dbh);
-		return 0;
+		return job;
 	}
 
 	res2.use();
 	while (res2.fetch())
 		job->addOutput(res2.get_field(0), res2.get_field(1));
+
 	put(dbh);
 	return job;
 }
@@ -219,17 +220,18 @@ void DBHandler::parseJobs(JobVector &jobs)
 	res.use();
 	while (res.fetch())
 	{
-		Job *job = parseJob(res);
-		if (!job)
+		auto_ptr<Job> job = parseJob(res);
+		if (!job.get())
 			continue;
-		jobs.push_back(job);
+		jobs.push_back(job.get());
+		job.release();
 	}
 }
 
 
 auto_ptr<Job> DBHandler::getJob(const string &id)
 {
-	Job *job = 0;
+	auto_ptr<Job> job(0);
 
 	if (query("SELECT * FROM cg_job WHERE id = '%s'", id.c_str()))
 	{
@@ -239,7 +241,7 @@ auto_ptr<Job> DBHandler::getJob(const string &id)
 		if (res.fetch())
 			job = parseJob(res);
 	}
-	return auto_ptr<Job>(job);
+	return job;
 }
 
 
@@ -278,15 +280,14 @@ void DBHandler::pollJobs(GridHandler *handler, Job::JobStatus stat1, Job::JobSta
 	res.use();
 	while (res.fetch())
 	{
-		Job *job = parseJob(res);
+		auto_ptr<Job> job(parseJob(res));
 		try {
-			handler->poll(job);
+			handler->poll(job.get());
 		}
 		catch (BackendException *e) {
 			LOG(LOG_ERR, "Polling job %s: %s", job->getId().c_str(), e->what());
 			delete e;
 		}
-		delete job;
 	}
 	query("COMMIT");
 }
