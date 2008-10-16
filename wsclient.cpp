@@ -321,8 +321,7 @@ void handle_status(const char *jobid, const char *jidfname, const char *endpoint
 	for (unsigned i = 0; i < jList.jobid.size(); i++)
 	{
 		G3BridgeType__JobStatus st = resp.statuses->status.at(i);
-		if (G3BridgeType__JobStatus__UNKNOWN != st)
-			cout << jList.jobid.at(i) << " " << statToStr[st].str << endl;
+		cout << jList.jobid.at(i) << " " << statToStr[st].str << endl;
 	}
 
 	soap_destroy(soap);
