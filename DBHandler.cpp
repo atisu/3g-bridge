@@ -133,7 +133,12 @@ DBHandler::DBHandler(const char *dbname, const char *host, const char *user, con
 	if (!conn)
 		throw new QMException("Out of memory");
 	if (!mysql_real_connect(conn, host, user, passwd, dbname, 0, 0, 0))
-		throw new QMException("Could not connect to the database: %s", mysql_error(conn));
+	{
+		string error = mysql_error(conn);
+		mysql_close(conn);
+		conn = 0;
+		throw new QMException("Could not connect to the database: %s", error.c_str());
+	}
 }
 
 
@@ -224,15 +229,17 @@ void DBHandler::parseJobs(JobVector &jobs)
 
 auto_ptr<Job> DBHandler::getJob(const string &id)
 {
-	JobVector jobs;
+	Job *job = 0;
+
 	if (query("SELECT * FROM cg_job WHERE id = '%s'", id.c_str()))
 	{
-		parseJobs(jobs);
-		Job *job = jobs.at(0);
-		jobs.erase(jobs.begin());
-		return auto_ptr<Job>(job);
+		DBResult res(this);
+
+		res.store();
+		if (res.fetch())
+			job = parseJob(res);
 	}
-	return auto_ptr<Job>(0);
+	return auto_ptr<Job>(job);
 }
 
 
@@ -380,9 +387,24 @@ void DBHandler::addJob(Job &job)
 		query("ROLLBACK");
 }
 
+static void db_thread_cleanup(void *ptr G_GNUC_UNUSED)
+{
+	mysql_thread_end();
+}
 
 DBHandler *DBHandler::get() throw (QMException *)
 {
+	static GStaticPrivate db_used_key = G_STATIC_PRIVATE_INIT;
+
+	/* If a thread has used MySQL then we must call mysql_thread_end() when
+	 * the thread exits or mysql_library_end() will complain and sleep a
+	 * lot */
+	if (g_thread_supported() && !g_static_private_get(&db_used_key))
+	{
+		mysql_thread_init();
+		g_static_private_set(&db_used_key, (void *)~0, db_thread_cleanup);
+	}
+
 	return db_pool.get();
 }
 
@@ -407,7 +429,7 @@ void DBHandler::getCompleteWUs(vector<string> &ids, const string &grid, Job::Job
 		"WHERE grid = '%s' "
 		"GROUP BY gridid "
 		"HAVING total = matching "
-		"LIMIT 100", 
+		"LIMIT 100",
 		statToStr(stat), grid.c_str());
 
 	DBResult res(this);
@@ -452,7 +474,7 @@ void DBHandler::updateDL(const string &jobid, const string &localName, const GTi
 
 DBHandler *DBPool::get() throw (QMException *)
 {
-	DBHandler *dbh;
+	DBHandler *dbh = 0;
 
 	/* Defer initialization until someone requests a new handle to ensure
 	 * that global_config is initialized */
@@ -474,7 +496,15 @@ DBHandler *DBPool::get() throw (QMException *)
 		throw new QMException("Too many database connections are open");
 	}
 
-	dbh = new DBHandler(dbname, host, user, passwd);
+	try
+	{
+		dbh = new DBHandler(dbname, host, user, passwd);
+	}
+	catch (...)
+	{
+		G_UNLOCK(dbhs);
+		throw;
+	}
 
 out:
 	used_dbhs.push_back(dbh);
@@ -526,6 +556,10 @@ void DBPool::init()
 			LOG(LOG_ERR, "Failed to parse the max DB connection number: %s", error->message);
 		g_error_free(error);
 	}
+
+	/* When using multiple threads this must be called explicitely
+	 * before any threads are launched */
+	mysql_library_init(0, NULL, NULL);
 }
 
 DBPool::~DBPool()

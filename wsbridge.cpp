@@ -283,7 +283,7 @@ int G3BridgeOp__getStatus(struct soap*, G3BridgeType__JobIDList *jobids, struct 
 		G3BridgeType__JobStatus status = G3BridgeType__JobStatus__UNKNOWN;
 
 		auto_ptr<Job> job;
-		
+
 		job = dbh->getJob(*it);
 
 		if (job.get()) switch (job->getStatus())
@@ -435,6 +435,8 @@ static void soap_service_handler(void *data, void *user_data G_GNUC_UNUSED)
 {
 	struct soap *soap = (struct soap *)data;
 
+	LOG(LOG_DEBUG, "Serving SOAP request");
+
 	try
 	{
 		soap_serve(soap);
@@ -448,9 +450,12 @@ static void soap_service_handler(void *data, void *user_data G_GNUC_UNUSED)
 	{
 		LOG(LOG_ERR, "SOAP: Caught unhandled exception");
 	}
+
 	soap_destroy(soap);
 	soap_end(soap);
 	soap_free(soap);
+
+	LOG(LOG_DEBUG, "Finished serving SOAP request");
 }
 
 /**********************************************************************

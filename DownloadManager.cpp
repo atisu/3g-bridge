@@ -22,7 +22,7 @@
 #include <curl/curl.h>
 
 /* For OpenSSL multithread support */
-static GMutex **ssl_mutexes;
+static GStaticMutex *ssl_mutexes;
 
 /* Garbage collector for DLItem */
 static GList *gc_list;
@@ -46,33 +46,26 @@ static void unlock_curl(CURL *handle, curl_lock_data data, void *userptr)
  * OpenSSL thread-related callbacks for glib
  */
 
-static unsigned long ssl_thread_id(void)
+static unsigned long thread_id_ssl(void)
 {
 	return (unsigned long)g_thread_self();
 }
 
-static void ssl_locking(int mode, int n, const char *file G_GNUC_UNUSED, int line G_GNUC_UNUSED)
+static void lock_ssl(int mode, int n, const char *file G_GNUC_UNUSED, int line G_GNUC_UNUSED)
 {
-	if (!ssl_mutexes)
-	{
-		ssl_mutexes = g_new(GMutex *, CRYPTO_num_locks());
-		for (int i = 0; i < CRYPTO_num_locks(); i++)
-			ssl_mutexes[i] = g_mutex_new();
-	}
-
 	if (mode & CRYPTO_LOCK)
-		g_mutex_lock(ssl_mutexes[n]);
+		g_static_mutex_lock(&ssl_mutexes[n]);
 	else
-		g_mutex_unlock(ssl_mutexes[n]);
+		g_static_mutex_unlock(&ssl_mutexes[n]);
 }
 
-static struct CRYPTO_dynlock_value *ssl_dynlock_create(const char *file G_GNUC_UNUSED, int line G_GNUC_UNUSED)
+static struct CRYPTO_dynlock_value *create_ssl_lock(const char *file G_GNUC_UNUSED, int line G_GNUC_UNUSED)
 {
 	void *mutex = (void *)g_mutex_new();
 	return (struct CRYPTO_dynlock_value *)mutex;
 }
 
-static void ssl_dynlock_lock(int mode, struct CRYPTO_dynlock_value *lock, const char *file G_GNUC_UNUSED, int line G_GNUC_UNUSED)
+static void lock_ssl_lock(int mode, struct CRYPTO_dynlock_value *lock, const char *file G_GNUC_UNUSED, int line G_GNUC_UNUSED)
 {
 	GMutex *mutex = (GMutex *)(void *)lock;
 
@@ -82,7 +75,7 @@ static void ssl_dynlock_lock(int mode, struct CRYPTO_dynlock_value *lock, const 
 		g_mutex_unlock(mutex);
 }
 
-static void ssl_dynlock_destroy(struct CRYPTO_dynlock_value *lock, const char *file G_GNUC_UNUSED, int line G_GNUC_UNUSED)
+static void destroy_ssl_lock(struct CRYPTO_dynlock_value *lock, const char *file G_GNUC_UNUSED, int line G_GNUC_UNUSED)
 {
 	g_mutex_free((GMutex *)(void *)lock);
 }
@@ -132,21 +125,24 @@ DownloadManager::DownloadManager(int num_threads, int max_retries):max_retries(m
 	}
 
 	/* Initialize OpenSSL's thread interface */
-	CRYPTO_set_id_callback(ssl_thread_id);
-	CRYPTO_set_locking_callback(ssl_locking);
-	CRYPTO_set_dynlock_create_callback(ssl_dynlock_create);
-	CRYPTO_set_dynlock_lock_callback(ssl_dynlock_lock);
-	CRYPTO_set_dynlock_destroy_callback(ssl_dynlock_destroy);
+	ssl_mutexes = g_new(GStaticMutex, CRYPTO_num_locks());
+	for (int i = 0; i < CRYPTO_num_locks(); i++)
+		g_static_mutex_init(&ssl_mutexes[i]);
+
+	CRYPTO_set_id_callback(thread_id_ssl);
+	CRYPTO_set_locking_callback(lock_ssl);
+	CRYPTO_set_dynlock_create_callback(create_ssl_lock);
+	CRYPTO_set_dynlock_lock_callback(lock_ssl_lock);
+	CRYPTO_set_dynlock_destroy_callback(destroy_ssl_lock);
 
 	/* Initialize libcurl */
 	curl_global_init(CURL_GLOBAL_ALL);
 	shared_curl_data = curl_share_init();
 	shared_curl_lock = g_mutex_new();
+	curl_share_setopt(shared_curl_data, CURLSHOPT_USERDATA, shared_curl_lock);
 	curl_share_setopt(shared_curl_data, CURLSHOPT_LOCKFUNC, lock_curl);
 	curl_share_setopt(shared_curl_data, CURLSHOPT_UNLOCKFUNC, unlock_curl);
-	curl_share_setopt(shared_curl_data, CURLSHOPT_USERDATA, shared_curl_lock);
 	curl_share_setopt(shared_curl_data, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
-
 }
 
 DownloadManager::~DownloadManager()
@@ -176,22 +172,27 @@ DownloadManager::~DownloadManager()
 	g_mutex_free(shared_curl_lock);
 	curl_global_cleanup();
 
-	CRYPTO_set_id_callback(NULL);
-	CRYPTO_set_locking_callback(NULL);
+	/* OpenSSL cleanup. Sigh... */
+	ERR_remove_state(0);
+	ERR_free_strings();
 
 	ENGINE_cleanup();
+	EVP_cleanup();
+
+	CONF_modules_finish();
+	CONF_modules_free();
 	CONF_modules_unload(1);
 
-	ERR_free_strings();
-	EVP_cleanup();
 	CRYPTO_cleanup_all_ex_data();
 
+	CRYPTO_set_id_callback(NULL);
+	CRYPTO_set_locking_callback(NULL);
+	CRYPTO_set_dynlock_create_callback(NULL);
+	CRYPTO_set_dynlock_lock_callback(NULL);
+	CRYPTO_set_dynlock_destroy_callback(NULL);
+
 	if (ssl_mutexes)
-	{
-		for (int i = 0; i < CRYPTO_num_locks(); i++)
-			g_mutex_free(ssl_mutexes[i]);
 		g_free(ssl_mutexes);
-	}
 
 	run_gc();
 }
@@ -377,7 +378,7 @@ void DLItem::finished()
 		close(fd);
 		fd = -1;
 	}
-	
+
 	add_to_gc(this);
 }
 
