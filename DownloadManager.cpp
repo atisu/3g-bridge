@@ -115,15 +115,6 @@ DownloadManager::DownloadManager(int num_threads, int max_retries):max_retries(m
 	queue_lock = g_mutex_new();
 	queue_sig = g_cond_new();
 
-	GError *error = NULL;
-	for (int i = 0; i < num_threads; i++)
-	{
-		GThread *thr = g_thread_create(DownloadManager::run_dl, this, TRUE, &error);
-		if (!thr)
-			throw new QMException("Failed to create a new thread: %s", error->message);
-		threads.push_back(thr);
-	}
-
 	/* Initialize OpenSSL's thread interface */
 	ssl_mutexes = g_new(GStaticMutex, CRYPTO_num_locks());
 	for (int i = 0; i < CRYPTO_num_locks(); i++)
@@ -143,6 +134,17 @@ DownloadManager::DownloadManager(int num_threads, int max_retries):max_retries(m
 	curl_share_setopt(shared_curl_data, CURLSHOPT_LOCKFUNC, lock_curl);
 	curl_share_setopt(shared_curl_data, CURLSHOPT_UNLOCKFUNC, unlock_curl);
 	curl_share_setopt(shared_curl_data, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
+
+	/* Launch the downloader threads */
+	GError *error = NULL;
+	for (int i = 0; i < num_threads; i++)
+	{
+		GThread *thr = g_thread_create(DownloadManager::run_dl, this, TRUE, &error);
+		if (!thr)
+			throw new QMException("Failed to create a new thread: %s", error->message);
+		threads.push_back(thr);
+	}
+
 }
 
 DownloadManager::~DownloadManager()
