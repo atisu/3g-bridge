@@ -183,13 +183,13 @@ static bool check_job(const string &basedir, Job *job)
 			continue;
 		if (errno == ENOENT)
 		{
-			LOG(LOG_ERR, "Job %s: Output file '%s' is missing", job->getId().c_str(), it->c_str());
+			LOG(LOG_ERR, "DC-API: Job %s: Output file '%s' is missing", job->getId().c_str(), it->c_str());
 			result = false;
 			continue;
 		}
 		else if (errno != EXDEV)
 		{
-			LOG(LOG_ERR, "Job %s: Failed to rename output file '%s' to '%s': %s",
+			LOG(LOG_ERR, "DC-API: Job %s: Failed to rename output file '%s' to '%s': %s",
 				job->getId().c_str(), src.c_str(), dst.c_str(), strerror(errno));
 			result = false;
 			continue;
@@ -204,7 +204,7 @@ static bool check_job(const string &basedir, Job *job)
 		}
 		catch (QMException *e)
 		{
-			LOG(LOG_ERR, "Job %s: Failed to move output file '%s' to '%s'",
+			LOG(LOG_ERR, "DC-API: Job %s: Failed to move output file '%s' to '%s'",
 				job->getId().c_str(), src.c_str(), dst.c_str());
 			delete e;
 			result = false;
@@ -263,7 +263,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 		return;
 	}
 
-	LOG(LOG_INFO, "DC-API: Received result for WU %s (app '%s')",
+	LOG(LOG_INFO, "DC-API: WU %s: Result received (app '%s')",
 		id.c_str(), tag.c_str());
 
 	string basedir = create_tmpdir();
@@ -468,11 +468,13 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 			throw new BackendException("WU submission failed");
 
 		char *wu_id = DC_serializeWU(wu);
-		LOG(LOG_INFO, "DC-API: Submitted work unit %s for app '%s' to grid %s (%zd tasks)",
-			wu_id, algname.c_str(), name.c_str(), jobs.size());
+		LOG(LOG_INFO, "DC-API: WU %s: Submitted to grid %s (app '%s', %zd tasks)",
+			wu_id, name.c_str(), algname.c_str(), jobs.size());
 
 		for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
 		{
+			LOG(LOG_INFO, "DC-API: Job %s: Submitted as part of WU %s",
+				(*it)->getId().c_str(), wu_id);
 			(*it)->setGridId(wu_id);
 			(*it)->setStatus(Job::RUNNING);
 		}
@@ -510,7 +512,7 @@ void DCAPIHandler::updateStatus(void) throw (BackendException *)
 		wu = DC_deserializeWU(it->c_str());
 		if (wu)
 		{
-			LOG(LOG_DEBUG, "%s: Cancelling WU %s", name.c_str(), it->c_str());
+			LOG(LOG_DEBUG, "DC-API: WU %s: Cancelling", it->c_str());
 			DC_cancelWU(wu);
 			DC_destroyWU(wu);
 		}
