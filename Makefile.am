@@ -32,7 +32,8 @@ injector_LDADD = -luuid $(GLIB_LIBS) $(MYSQL_LIBS)
 
 EXTRA_DIST = \
 		3GBridge.typemap \
-		3GBridge.wsdl
+		3GBridge.wsdl \
+		bridge.conf.sample
 
 BACKEND_SOURCES =
 BACKEND_LIBS =
