@@ -1,2 +1,1 @@
-G3BridgeOp = "http://www.edges-grid.eu/wsdl/3GBridge.wsdl"
-G3BridgeType = "http://www.edges-grid.eu/wsdl/3GBridge.xsd"
+G3Bridge = "http://www.edges-grid.eu/wsdl/3GBridge.wsdl"

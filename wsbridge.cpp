@@ -103,7 +103,6 @@ private:
 	string logicalFile;
 public:
 	DBItem(const string &jobId, const string &logicalFile, const string &URL);
-	~DBItem();
 
 	const string &getJobId() const { return jobId; };
 
@@ -113,6 +112,7 @@ public:
 
 DBItem::DBItem(const string &jobId, const string &logicalFile, const string &URL)
 {
+	DLItem::DLItem();
 	this->url = URL;
 	this->path = calc_temp_path(jobId, logicalFile);
 }
@@ -191,7 +191,7 @@ void DBItem::failed()
  * Web service routines
  */
 
-int G3BridgeOp__submit(struct soap*, G3BridgeType__JobList *jobs, struct G3BridgeOp__submitResponse &jobids)
+int __G3Bridge__submit(struct soap *soap, G3Bridge__JobList *jobs, struct G3Bridge__JobIDList *result)
 {
 	DBHandler *dbh;
 
@@ -211,8 +211,7 @@ int G3BridgeOp__submit(struct soap*, G3BridgeType__JobList *jobs, struct G3Bridg
 		return SOAP_FATAL_ERROR;
 	}
 
-	jobids.jobids = new G3BridgeType__JobIDList;
-	for (vector<G3BridgeType__Job *>::const_iterator jobit = jobs->job.begin(); jobit != jobs->job.end(); jobit++)
+	for (vector<G3Bridge__Job *>::const_iterator jobit = jobs->job.begin(); jobit != jobs->job.end(); jobit++)
 	{
 		uuid_t uuid;
 		char jobid[37];
@@ -222,12 +221,12 @@ int G3BridgeOp__submit(struct soap*, G3BridgeType__JobList *jobs, struct G3Bridg
 
 		vector< pair<string, string> > inputs;
 
-		G3BridgeType__Job *wsjob = *jobit;
+		G3Bridge__Job *wsjob = *jobit;
 		Job qmjob((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::PREPARE);
 
-		for (vector<G3BridgeType__LogicalFile *>::const_iterator inpit = wsjob->inputs.begin(); inpit != wsjob->inputs.end(); inpit++)
+		for (vector<G3Bridge__LogicalFile *>::const_iterator inpit = wsjob->inputs.begin(); inpit != wsjob->inputs.end(); inpit++)
 		{
-			G3BridgeType__LogicalFile *lfn = *inpit;
+			G3Bridge__LogicalFile *lfn = *inpit;
 
 			string path = calc_input_path(jobid, lfn->logicalName);
 			qmjob.addInput(lfn->logicalName, path);
@@ -246,9 +245,10 @@ int G3BridgeOp__submit(struct soap*, G3BridgeType__JobList *jobs, struct G3Bridg
 		/* The downloads can only be started after the job record is in the DB */
 		for (vector< pair<string,string> >::const_iterator it = inputs.begin(); it != inputs.end(); it++)
 		{
-			DBItem *item = new DBItem(qmjob.getId(), it->first, it->second);
+			auto_ptr<DBItem> item(new DBItem(qmjob.getId(), it->first, it->second));
 			dbh->addDL(qmjob.getId(), it->first, it->second);
-			dlm->add(item);
+			dlm->add(item.get());
+			item.release();
 		}
 	}
 
@@ -256,7 +256,7 @@ int G3BridgeOp__submit(struct soap*, G3BridgeType__JobList *jobs, struct G3Bridg
 	return SOAP_OK;
 }
 
-int G3BridgeOp__getStatus(struct soap*, G3BridgeType__JobIDList *jobids, struct G3BridgeOp__getStatusResponse &statuses)
+int __G3Bridge__getStatus(struct soap *soap, G3Bridge__JobIDList *jobids, struct G3Bridge__StatusList *result)
 {
 	DBHandler *dbh;
 
@@ -276,11 +276,9 @@ int G3BridgeOp__getStatus(struct soap*, G3BridgeType__JobIDList *jobids, struct 
 		return SOAP_FATAL_ERROR;
 	}
 
-	statuses.statuses = new G3BridgeType__StatusList();
-
 	for (vector<string>::const_iterator it = jobids->jobid.begin(); it != jobids->jobid.end(); it++)
 	{
-		G3BridgeType__JobStatus status = G3BridgeType__JobStatus__UNKNOWN;
+		G3Bridge__JobStatus status = G3Bridge__JobStatus__UNKNOWN;
 
 		auto_ptr<Job> job;
 
@@ -290,21 +288,21 @@ int G3BridgeOp__getStatus(struct soap*, G3BridgeType__JobIDList *jobids, struct 
 		{
 			case Job::PREPARE:
 			case Job::INIT:
-				status = G3BridgeType__JobStatus__INIT;
+				status = G3Bridge__JobStatus__INIT;
 				break;
 			case Job::RUNNING:
-				status = G3BridgeType__JobStatus__RUNNING;
+				status = G3Bridge__JobStatus__RUNNING;
 				break;
 			case Job::FINISHED:
-				status = G3BridgeType__JobStatus__FINISHED;
+				status = G3Bridge__JobStatus__FINISHED;
 				break;
 			case Job::ERROR:
 			case Job::CANCEL:
-				status = G3BridgeType__JobStatus__ERROR;
+				status = G3Bridge__JobStatus__ERROR;
 				break;
 		}
 
-		statuses.statuses->status.push_back(status);
+		result->status.push_back(status);
 	}
 
 	DBHandler::put(dbh);
@@ -312,7 +310,7 @@ int G3BridgeOp__getStatus(struct soap*, G3BridgeType__JobIDList *jobids, struct 
 }
 
 
-int G3BridgeOp__delJob(struct soap*, G3BridgeType__JobIDList *jobids, struct G3BridgeOp__delJobResponse &_param_3 G_GNUC_UNUSED)
+int __G3Bridge__delJob(struct soap *soap, G3Bridge__JobIDList *jobids, struct __G3Bridge__delJobResponse &result G_GNUC_UNUSED)
 {
 	DBHandler *dbh;
 
@@ -378,7 +376,7 @@ int G3BridgeOp__delJob(struct soap*, G3BridgeType__JobIDList *jobids, struct G3B
 }
 
 
-int G3BridgeOp__getOutput(struct soap*, G3BridgeType__JobIDList *jobids, struct G3BridgeOp__getOutputResponse &outputs)
+int __G3Bridge__getOutput(struct soap *soap, G3Bridge__JobIDList *jobids, struct G3Bridge__OutputList *result)
 {
 	DBHandler *dbh;
 
@@ -398,14 +396,12 @@ int G3BridgeOp__getOutput(struct soap*, G3BridgeType__JobIDList *jobids, struct 
 		return SOAP_FATAL_ERROR;
 	}
 
-	outputs.outputs = new G3BridgeType__OutputList;
-
 	for (vector<string>::const_iterator it = jobids->jobid.begin(); it != jobids->jobid.end(); it++)
 	{
 
-		G3BridgeType__JobOutput *jout = new G3BridgeType__JobOutput();
+		G3Bridge__JobOutput *jout = soap_new_G3Bridge__JobOutput(soap, -1);
 		jout->jobid = *it;
-		outputs.outputs->output.push_back(jout);
+		result->output.push_back(jout);
 
 		auto_ptr<Job> job = dbh->getJob(*it);
 		if (!job.get())
@@ -416,7 +412,7 @@ int G3BridgeOp__getOutput(struct soap*, G3BridgeType__JobIDList *jobids, struct 
 		{
 			string path = job->getOutputPath(*fsit);
 
-			G3BridgeType__LogicalFile *lf = new G3BridgeType__LogicalFile();
+			G3Bridge__LogicalFile *lf = soap_new_G3Bridge__LogicalFile(soap, -1);
 			lf->logicalName = *fsit;
 			lf->URL = calc_output_url(path);
 			jout->output.push_back(lf);

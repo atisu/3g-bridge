@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <definitions name="G3Bridge"
 		targetNamespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"
-		xmlns:ns="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"
-		xmlns:xsd1="http://www.edges-grid.eu/wsdl/3GBridge.xsd"
+		xmlns:tns="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"
 		xmlns:xsd="http://www.w3.org/2001/XMLSchema"
 		xmlns:SOAP="http://schemas.xmlsoap.org/wsdl/soap/"
 		xmlns="http://schemas.xmlsoap.org/wsdl/">
@@ -13,10 +12,9 @@
 
 	<types>
 		<schema xmlns="http://www.w3.org/2001/XMLSchema"
-				targetNamespace="http://www.edges-grid.eu/wsdl/3GBridge.xsd"
+				targetNamespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"
 				xmlns:xsd="http://www.w3.org/2001/XMLSchema"
-				xmlns:ns="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"
-				xmlns:xsd1="http://www.edges-grid.eu/wsdl/3GBridge.xsd"
+				xmlns:tns="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"
 				elementFormDefault="unqualified"
 				attributeFormDefault="unqualified">
 
@@ -47,7 +45,7 @@
 					<element name="alg" type="xsd:string" minOccurs="1" maxOccurs="1"/>
 					<element name="grid" type="xsd:string" minOccurs="1" maxOccurs="1"/>
 					<element name="args" type="xsd:string" minOccurs="1" maxOccurs="1"/>
-					<element name="inputs" type="xsd1:LogicalFile" minOccurs="1" maxOccurs="unbounded"/>
+					<element name="inputs" type="tns:LogicalFile" minOccurs="1" maxOccurs="unbounded"/>
 					<element name="outputs" type="xsd:string" minOccurs="1" maxOccurs="unbounded"/>
 				</sequence>
 			</complexType>
@@ -55,7 +53,7 @@
 			<complexType name="JobOutput">
 				<sequence>
 					<element name="jobid" type="xsd:string" minOccurs="1" maxOccurs="1"/>
-					<element name="output" type="xsd1:LogicalFile" minOccurs="0" maxOccurs="unbounded"/>
+					<element name="output" type="tns:LogicalFile" minOccurs="0" maxOccurs="unbounded"/>
 				</sequence>
 			</complexType>
 
@@ -67,83 +65,91 @@
 
 			<complexType name="JobList">
 				<sequence>
-					<element name="job" type="xsd1:Job" minOccurs="1" maxOccurs="unbounded"/>
+					<element name="job" type="tns:Job" minOccurs="1" maxOccurs="unbounded"/>
 				</sequence>
 			</complexType>
 
 			<complexType name="StatusList">
 				<sequence>
-					<element name="status" type="xsd1:JobStatus" minOccurs="1" maxOccurs="unbounded"/>
+					<element name="status" type="tns:JobStatus" minOccurs="1" maxOccurs="unbounded"/>
 				</sequence>
 			</complexType>
 
 			<complexType name="OutputList">
 				<sequence>
-					<element name="output" type="xsd1:JobOutput" minOccurs="1" maxOccurs="unbounded"/>
+					<element name="output" type="tns:JobOutput" minOccurs="1" maxOccurs="unbounded"/>
 				</sequence>
 			</complexType>
+
+			<element name="submitRequest" type="tns:JobList"/>
+			<element name="submitResponse" type="tns:JobIDList"/>
+			<element name="getStatusRequest" type="tns:JobIDList"/>
+			<element name="getStatusResponse" type="tns:StatusList"/>
+			<element name="delJobRequest" type="tns:JobIDList"/>
+			<element name="getOutputRequest" type="tns:JobIDList"/>
+			<element name="getOutputResponse" type="tns:OutputList"/>
 
 		</schema>
 	</types>
 
 	<!-- Message types for "submit" -->
 	<message name="submitRequest">
-		<part name="jobs" type="xsd1:JobList"/>
+		<part name="jobs" element="tns:submitRequest"/>
 	</message>
 	<message name="submitResponse">
-		<part name="jobids" type="xsd1:JobIDList"/>
+		<part name="jobids" element="tns:submitResponse"/>
 	</message>
 
-	<!-- Message types for "getStatus" -->
+	<!-- Message elements for "getStatus" -->
 	<message name="getStatusRequest">
-		<part name="jobids" type="xsd1:JobIDList"/>
+		<part name="jobids" element="tns:getStatusRequest"/>
 	</message>
 	<message name="getStatusResponse">
-		<part name="statuses" type="xsd1:StatusList"/>
+		<part name="statuses" element="tns:getStatusResponse"/>
 	</message>
 
-	<!-- Message types for "delJob" -->
+	<!-- Message elements for "delJob" -->
 	<message name="delJobRequest">
-		<part name="jobids" type="xsd1:JobIDList"/>
+		<part name="jobids" element="tns:delJobRequest"/>
 	</message>
 	<message name="delJobResponse">
 	</message>
 
-	<!-- Message types for "getOutput" -->
+	<!-- Message elements for "getOutput" -->
 	<message name="getOutputRequest">
-		<part name="jobids" type="xsd1:JobIDList"/>
+		<part name="jobids" element="tns:getOutputRequest"/>
 	</message>
 	<message name="getOutputResponse">
-		<part name="outputs" type="xsd1:OutputList"/>
+		<part name="outputs" element="tns:getOutputResponse"/>
 	</message>
 
 	<portType name="G3BridgePortType">
 		<operation name="submit">
 			<documentation>Submit jobs to the bridge</documentation>
-			<input message="ns:submitRequest"/>
-			<output message="ns:submitResponse"/>
+			<input message="tns:submitRequest"/>
+			<output message="tns:submitResponse"/>
 		</operation>
 		<operation name="getStatus">
 			<documentation>Query the status of previously submitted jobs</documentation>
-			<input message="ns:getStatusRequest"/>
-			<output message="ns:getStatusResponse"/>
+			<input message="tns:getStatusRequest"/>
+			<output message="tns:getStatusResponse"/>
 		</operation>
 		<operation name="delJob">
 			<documentation>Cancel running jobs or delete the outputs of finished jobs</documentation>
-			<input message="ns:delJobRequest"/>
-			<output message="ns:delJobResponse"/>
+			<input message="tns:delJobRequest"/>
+			<output message="tns:delJobResponse"/>
 		</operation>
 		<operation name="getOutput">
 			<documentation>Get the output URLs for a job</documentation>
-			<input message="ns:getOutputRequest"/>
-			<output message="ns:getOutputResponse"/>
+			<input message="tns:getOutputRequest"/>
+			<output message="tns:getOutputResponse"/>
 		</operation>
 	</portType>
 
-	<binding name="G3BridgeBinding" type="ns:G3BridgePortType">
-		<SOAP:binding style="rpc" transport="http://schemas.xmlsoap.org/soap/http"/>
+	<binding name="G3BridgeBinding" type="tns:G3BridgePortType">
+		<SOAP:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
 		<operation name="submit">
-			<SOAP:operation style="rpc" soapAction=""/>
+			<SOAP:operation style="document" soapAction=""/>
 			<input>
 				<SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
 			</input>
@@ -152,7 +158,7 @@
 			</output>
 		</operation>
 		<operation name="getStatus">
-			<SOAP:operation style="rpc" soapAction=""/>
+			<SOAP:operation style="document" soapAction=""/>
 			<input>
 				<SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
 			</input>
@@ -161,7 +167,7 @@
 			</output>
 		</operation>
 		<operation name="delJob">
-			<SOAP:operation style="rpc" soapAction=""/>
+			<SOAP:operation style="document" soapAction=""/>
 			<input>
 				<SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
 			</input>
@@ -170,7 +176,7 @@
 			</output>
 		</operation>
 		<operation name="getOutput">
-			<SOAP:operation style="rpc" soapAction=""/>
+			<SOAP:operation style="document" soapAction=""/>
 			<input>
 				<SOAP:body use="literal" namespace="http://www.edges-grid.eu/wsdl/3GBridge.wsdl"/>
 			</input>
@@ -182,7 +188,7 @@
 
 	<service name="G3BridgeService">
 		<documentation>3G Bridge submit service definition</documentation>
-		<port name="G3BridgePort" binding="ns:G3BridgeBinding">
+		<port name="G3BridgePort" binding="tns:G3BridgeBinding">
 			<SOAP:address location="http://localhost:8080"/>
 		</port>
 	</service>

@@ -17,9 +17,9 @@ using namespace std;
 
 
 void help_screen(bool doshort = false);
-void parse_inputs(G3BridgeType__Job &job, const char *inputs);
-void parse_outputs(G3BridgeType__Job &job, const char *outputs);
-void handle_add(G3BridgeType__Job &job, const char *endpoint);
+void parse_inputs(G3Bridge__Job &job, const char *inputs);
+void parse_outputs(G3Bridge__Job &job, const char *outputs);
+void handle_add(G3Bridge__Job &job, const char *endpoint);
 void handle_status(const char *jobid, const char *jidfname, const char *endpoint);
 void handle_del(const char *jobid, const char *endpoint);
 void handle_output(const char *jobid, const char *endpoint);
@@ -28,7 +28,7 @@ void handle_output(const char *jobid, const char *endpoint);
 int main(int argc, char **argv)
 {
 	char *mode = NULL, *endpoint = NULL, *jobid = NULL, *jidfname = NULL;
-	G3BridgeType__Job job;
+	G3Bridge__Job job;
 
 	while (1)
 	{
@@ -173,10 +173,10 @@ void split_by_delims(const char *src, const char *delims, vector<string> &res)
 
 /**
  * Parse input files
- * @param[out] job G3BridgeType__Job object to fill in
+ * @param[out] job G3Bridge__Job object to fill in
  * @param inputs inputs string to parse
  */
-void parse_inputs(G3BridgeType__Job &job, const char *inputs)
+void parse_inputs(G3Bridge__Job &job, const char *inputs)
 {
 	vector<string> ins;
 	split_by_delims(inputs, ",", ins);
@@ -189,7 +189,7 @@ void parse_inputs(G3BridgeType__Job &job, const char *inputs)
 			cerr << "Malformed input definition string: " << ins.at(i) << endl;
 			help_screen(true);
 		}
-		G3BridgeType__LogicalFile *lf = new G3BridgeType__LogicalFile;
+		G3Bridge__LogicalFile *lf = new G3Bridge__LogicalFile;
 		lf->logicalName = names.at(0);
 		lf->URL = names.at(1);
 		job.inputs.push_back(lf);
@@ -199,10 +199,10 @@ void parse_inputs(G3BridgeType__Job &job, const char *inputs)
 
 /**
  * Parse output files
- * @param[out] job G3BridgeType__Job object to fill in
+ * @param[out] job G3Bridge__Job object to fill in
  * @param outputs outputs string to parse
  */
-void parse_outputs(G3BridgeType__Job &job, const char *outputs)
+void parse_outputs(G3Bridge__Job &job, const char *outputs)
 {
 	split_by_delims(outputs, ",", job.outputs);
 }
@@ -210,10 +210,10 @@ void parse_outputs(G3BridgeType__Job &job, const char *outputs)
 
 /**
  * Handle submission
- * @param job G3BridgeType__Job object to send to the Service
+ * @param job G3Bridge__Job object to send to the Service
  * @param endpoint Service endpoint to use
  */
-void handle_add(G3BridgeType__Job &job, const char *endpoint)
+void handle_add(G3Bridge__Job &job, const char *endpoint)
 {
 	if ("" == job.alg || "" == job.grid)
 	{
@@ -221,19 +221,19 @@ void handle_add(G3BridgeType__Job &job, const char *endpoint)
 		help_screen(true);
 	}
 
-	struct G3BridgeOp__submitResponse IDs;
-	G3BridgeType__JobList jList;
+	G3Bridge__JobIDList IDs;
+	G3Bridge__JobList jList;
 	jList.job.clear();
 	jList.job.push_back(&job);
 
 	struct soap *soap = soap_new();
 	soap_init(soap);
-	if (SOAP_OK != soap_call_G3BridgeOp__submit(soap, endpoint, NULL, &jList, IDs))
+	if (SOAP_OK != soap_call___G3Bridge__submit(soap, endpoint, NULL, &jList, &IDs))
 	{
 		soap_print_fault(soap, stderr);
 		exit(-1);
 	}
-	cout << "The job ID is: " << IDs.jobids->jobid.at(0) << endl;
+	cout << "The job ID is: " << IDs.jobid.at(0) << endl;
 	soap_destroy(soap);
 	soap_end(soap);
 	soap_done(soap);
@@ -276,17 +276,17 @@ void check_jobid(const char *val, const char *fname = NULL)
  */
 void handle_status(const char *jobid, const char *jidfname, const char *endpoint)
 {
-	G3BridgeType__JobIDList jList;
-	struct G3BridgeOp__getStatusResponse resp;
+	G3Bridge__JobIDList jList;
+	G3Bridge__StatusList resp;
 	struct {
-		G3BridgeType__JobStatus st;
+		G3Bridge__JobStatus st;
 		string str;
 	} statToStr[] = {
-		{G3BridgeType__JobStatus__UNKNOWN,  "Unknown" },
-		{G3BridgeType__JobStatus__INIT,     "Init"    },
-		{G3BridgeType__JobStatus__RUNNING,  "Running" },
-		{G3BridgeType__JobStatus__FINISHED, "Finished"},
-		{G3BridgeType__JobStatus__ERROR,    "Error"   }
+		{G3Bridge__JobStatus__UNKNOWN,  "Unknown" },
+		{G3Bridge__JobStatus__INIT,     "Init"    },
+		{G3Bridge__JobStatus__RUNNING,  "Running" },
+		{G3Bridge__JobStatus__FINISHED, "Finished"},
+		{G3Bridge__JobStatus__ERROR,    "Error"   }
 	};
 
 	check_jobid(jobid, jidfname);
@@ -312,7 +312,7 @@ void handle_status(const char *jobid, const char *jidfname, const char *endpoint
 
 	struct soap *soap = soap_new();
 	soap_init(soap);
-	if (SOAP_OK != soap_call_G3BridgeOp__getStatus(soap, endpoint, NULL, &jList, resp))
+	if (SOAP_OK != soap_call___G3Bridge__getStatus(soap, endpoint, NULL, &jList, &resp))
 	{
 		soap_print_fault(soap, stderr);
 		exit(-1);
@@ -320,7 +320,7 @@ void handle_status(const char *jobid, const char *jidfname, const char *endpoint
 
 	for (unsigned i = 0; i < jList.jobid.size(); i++)
 	{
-		G3BridgeType__JobStatus st = resp.statuses->status.at(i);
+		G3Bridge__JobStatus st = resp.status.at(i);
 		cout << jList.jobid.at(i) << " " << statToStr[st].str << endl;
 	}
 
@@ -337,8 +337,8 @@ void handle_status(const char *jobid, const char *jidfname, const char *endpoint
  */
 void handle_del(const char *jobid, const char *endpoint)
 {
-	G3BridgeType__JobIDList jList;
-	struct G3BridgeOp__delJobResponse resp;
+	G3Bridge__JobIDList jList;
+	struct __G3Bridge__delJobResponse resp;
 
 	check_jobid(jobid);
 	jList.jobid.clear();
@@ -346,7 +346,7 @@ void handle_del(const char *jobid, const char *endpoint)
 
 	struct soap *soap = soap_new();
 	soap_init(soap);
-	if (SOAP_OK != soap_call_G3BridgeOp__delJob(soap, endpoint, NULL, &jList, resp))
+	if (SOAP_OK != soap_call___G3Bridge__delJob(soap, endpoint, NULL, &jList, resp))
 	{
 		soap_print_fault(soap, stderr);
 		exit(-1);
@@ -364,8 +364,8 @@ void handle_del(const char *jobid, const char *endpoint)
  */
 void handle_output(const char *jobid, const char *endpoint)
 {
-	G3BridgeType__JobIDList jList;
-	struct G3BridgeOp__getOutputResponse resp;
+	G3Bridge__JobIDList jList;
+	G3Bridge__OutputList resp;
 
 	check_jobid(jobid);
 	jList.jobid.clear();
@@ -373,17 +373,17 @@ void handle_output(const char *jobid, const char *endpoint)
 
 	struct soap *soap = soap_new();
 	soap_init(soap);
-	if (SOAP_OK != soap_call_G3BridgeOp__getOutput(soap, endpoint, NULL, &jList, resp))
+	if (SOAP_OK != soap_call___G3Bridge__getOutput(soap, endpoint, NULL, &jList, &resp))
 	{
 		soap_print_fault(soap, stderr);
 		exit(-1);
 	}
 
-	G3BridgeType__JobOutput *jout = resp.outputs->output.at(0);
+	G3Bridge__JobOutput *jout = resp.output.at(0);
 	cout << "Output files for job \"" << jout->jobid << "\":" << endl;
 	for (unsigned i = 0; i < jout->output.size(); i++)
 	{
-		G3BridgeType__LogicalFile *lf = jout->output.at(i);
+		G3Bridge__LogicalFile *lf = jout->output.at(i);
 		cout << "    " << lf->logicalName << " - " << lf->URL << endl;
 	}
 
