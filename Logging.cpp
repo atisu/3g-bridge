@@ -8,7 +8,10 @@
 #include <string.h>
 #include <time.h>
 
+#include <glib.h>
+
 static ostream *log_stream;
+G_LOCK_DEFINE_STATIC(log_stream);
 static int log_level;
 static const char *level_str[] =
 {
@@ -52,13 +55,16 @@ void Logging::init(ostream &stream, const char *level)
 }
 
 void Logging::vlog(int lvl, const char *fmt, va_list ap) {
+	char *str;
+
 	if (lvl > log_level)
 		return;
 
+	G_LOCK(log_stream);
 	print_header(lvl);
-	char *str;
 	vasprintf(&str, fmt, ap);
 	*log_stream << str << endl;
+	G_UNLOCK(log_stream);
 	free(str);
 }
 
