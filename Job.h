@@ -1,10 +1,6 @@
 #ifndef JOB_H
 #define JOB_H
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
 #include "AlgQueue.h"
 
 #include <memory>
