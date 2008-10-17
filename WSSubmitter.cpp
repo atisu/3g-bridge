@@ -512,8 +512,6 @@ int main(int argc, char **argv)
 	struct sigaction sa;
 	struct soap soap;
 
-	Logging::init(cout, LOG_INFO);
-
 	context = g_option_context_new("- Web Service interface to the 3G bridge");
 	g_option_context_add_main_entries(context, options, PACKAGE);
         if (!g_option_context_parse(context, &argc, &argv, &error))
@@ -538,12 +536,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	char *level = g_key_file_get_string(global_config, GROUP_DEFAULTS, "log-level", NULL);
-	if (level)
-	{
-		Logging::init(cout, level);
-		g_free(level);
-	}
+	log_init(global_config, argv[0]);
 
 	port = g_key_file_get_integer(global_config, GROUP_WEBSERVICE, "port", &error);
 	if (!port || error)

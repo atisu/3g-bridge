@@ -8,7 +8,6 @@
 #include <sstream>
 #include <iostream>
 
-#include "Logging.h"
 #include "DBHandler.h"
 #include "QMException.h"
 
@@ -92,8 +91,6 @@ int main(int argc, char **argv)
 		break;
 	}
     }
-
-    Logging::init(cout, LOG_DEBUG);
 
     if (argc > optind)
     {

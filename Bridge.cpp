@@ -14,6 +14,8 @@
 #include "EGEEHandler.h"
 #endif
 
+#include <iostream>
+
 #include <stdlib.h>
 
 using namespace std;
@@ -40,8 +42,6 @@ GridHandler *getPluginInstance(GKeyFile *config, const char *plugin, const char 
 int main(int argc, char **argv)
 {
     GError *error;
-
-    Logging::init(cout, LOG_INFO);
 
     if (argc < 2)
     {
@@ -70,12 +70,7 @@ int main(int argc, char **argv)
 	    exit(1);
     }
 
-    char *level = g_key_file_get_string(global_config, GROUP_DEFAULTS, "log-level", NULL);
-    if (level)
-    {
-	    Logging::init(cout, level);
-	    g_free(level);
-    }
+    log_init(global_config, argv[0]);
 
     try {
 	LOG(LOG_DEBUG, "Creating Queue Manager");

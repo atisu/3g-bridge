@@ -26,7 +26,7 @@ injector_SOURCES = \
 		AlgQueue.cpp \
 		DBHandler.cpp \
 		Job.cpp \
-		Logging.cpp \
+		Logging.c \
 		QMException.cpp
 injector_LDADD = -luuid $(GLIB_LIBS) $(MYSQL_LIBS)
 
@@ -71,7 +71,7 @@ bridge_SOURCES = \
 		Bridge.cpp \
 		DBHandler.cpp \
 		Job.cpp \
-		Logging.cpp \
+		Logging.c \
 		QMException.cpp \
 		QueueManager.cpp \
 		$(BACKEND_SOURCES)
@@ -84,7 +84,7 @@ wssubmitter_SOURCES = \
 		AlgQueue.cpp \
 		DBHandler.cpp \
 		DownloadManager.cpp \
-		Logging.cpp \
+		Logging.c \
 		Job.cpp \
 		QMException.cpp \
 		WSSubmitter.cpp \
