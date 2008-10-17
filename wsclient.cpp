@@ -10,7 +10,7 @@
 #include <iostream>
 
 #include "soap/soapH.h"
-#include "soap/G3BridgeBinding.nsmap"
+#include "soap/G3BridgeSubmitter.nsmap"
 
 
 using namespace std;
