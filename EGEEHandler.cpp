@@ -203,7 +203,8 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 
 	// Submit the JDLs
 	string cmd = "glite-wms-job-submit -a -e " + string(wmpendp) + " -o collection.id --collection jdlfiles";
-	if (-1 == system(cmd.c_str()))
+	int rtv = system(cmd.c_str());
+	if (rtv)
 		throwStrExc(__func__, "Job submission using glite-wms-job-submit failed!");
 	prodFiles.push_back(string(tmpdir) + "/collection.id");
 
@@ -227,12 +228,21 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		glite::lb::Job ctJob(cjID);
 		vector<glite::lb::Event> events;
 		events.clear();
-		while (!events.size()) {
+		int tries = 0;
+		while (!events.size() && tries < 3) {
 			try {
+				LOG(LOG_DEBUG, "EGEE Plugin: trying to determine node IDs");
 				events = ctJob.log();
+				tries++;
 			} catch (...) {
-				sleep(5);
+				sleep(20);
+				tries++;
 			}
+		}
+		if (tries == 3 && !events.size())
+		{
+			LOG(LOG_DEBUG, "EGEE Plugin: failed to detemine node IDs for 60 seconds, skipping submission...");
+			break;
 		}
 
 		for (unsigned j = 0; j < events.size(); j++)
@@ -297,7 +307,7 @@ void EGEEHandler::updateJob(Job *job)
 		if (glite::lb::JobStatus::DONE_CODE_OK == stat.getValInt(glite::lb::JobStatus::DONE_CODE))
 		    getOutputs_real(job);
 		else
-		    j = 0;
+		    break;
 	    job->setStatus(statusRelation[j].jobS);
 	}
 }
@@ -362,6 +372,7 @@ void EGEEHandler::getOutputs_real(Job *job)
         locFiles[i] = job->getOutputPath(fbname);
     }
     download_file_globus(remFiles, locFiles);
+    delete_file_globus(remFiles, "");
     try {
 	cleanJob(job->getGridId());
     } catch (BackendException *e) {
