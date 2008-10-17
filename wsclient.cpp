@@ -338,7 +338,7 @@ void handle_status(const char *jobid, const char *jidfname, const char *endpoint
 void handle_del(const char *jobid, const char *endpoint)
 {
 	G3Bridge__JobIDList jList;
-	struct __G3Bridge__delJobResponse resp;
+	struct __G3Bridge__deleteResponse resp;
 
 	check_jobid(jobid);
 	jList.jobid.clear();
@@ -346,7 +346,7 @@ void handle_del(const char *jobid, const char *endpoint)
 
 	struct soap *soap = soap_new();
 	soap_init(soap);
-	if (SOAP_OK != soap_call___G3Bridge__delJob(soap, endpoint, NULL, &jList, resp))
+	if (SOAP_OK != soap_call___G3Bridge__delete(soap, endpoint, NULL, &jList, resp))
 	{
 		soap_print_fault(soap, stderr);
 		exit(-1);

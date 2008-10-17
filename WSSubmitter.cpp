@@ -310,7 +310,7 @@ int __G3Bridge__getStatus(struct soap *soap, G3Bridge__JobIDList *jobids, struct
 }
 
 
-int __G3Bridge__delJob(struct soap *soap, G3Bridge__JobIDList *jobids, struct __G3Bridge__delJobResponse &result G_GNUC_UNUSED)
+int __G3Bridge__delete(struct soap *soap, G3Bridge__JobIDList *jobids, struct __G3Bridge__deleteResponse &result G_GNUC_UNUSED)
 {
 	DBHandler *dbh;
 
@@ -320,13 +320,13 @@ int __G3Bridge__delJob(struct soap *soap, G3Bridge__JobIDList *jobids, struct __
 	}
 	catch (QMException *e)
 	{
-		LOG(LOG_ERR, "delJob: Failed to get a DB handle: %s", e->what());
+		LOG(LOG_ERR, "delete: Failed to get a DB handle: %s", e->what());
 		delete(e);
 		return SOAP_FATAL_ERROR;
 	}
 	catch (...)
 	{
-		LOG(LOG_ERR, "delJob: Failed to get a DB handle: Unknown exception");
+		LOG(LOG_ERR, "delete: Failed to get a DB handle: Unknown exception");
 		return SOAP_FATAL_ERROR;
 	}
 
