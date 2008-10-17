@@ -380,7 +380,7 @@ void handle_output(const char *jobid, const char *endpoint)
 	}
 
 	G3Bridge__JobOutput *jout = resp.output.at(0);
-	cout << "Output files for job \"" << jout->jobid << "\":" << endl;
+	cout << "Output files for job \"" << jobid << "\":" << endl;
 	for (unsigned i = 0; i < jout->output.size(); i++)
 	{
 		G3Bridge__LogicalFile *lf = jout->output.at(i);

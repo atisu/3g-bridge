@@ -51,7 +51,6 @@
 
 			<xsd:complexType name="JobOutput">
 				<xsd:sequence>
-					<xsd:element name="jobid" type="xsd:string" minOccurs="1" maxOccurs="1"/>
 					<xsd:element name="output" type="tns:LogicalFile" minOccurs="0" maxOccurs="unbounded"/>
 				</xsd:sequence>
 			</xsd:complexType>

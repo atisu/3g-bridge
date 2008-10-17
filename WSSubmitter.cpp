@@ -400,7 +400,6 @@ int __G3Bridge__getOutput(struct soap *soap, G3Bridge__JobIDList *jobids, struct
 	{
 
 		G3Bridge__JobOutput *jout = soap_new_G3Bridge__JobOutput(soap, -1);
-		jout->jobid = *it;
 		result->output.push_back(jout);
 
 		auto_ptr<Job> job = dbh->getJob(*it);
