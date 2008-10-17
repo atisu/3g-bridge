@@ -14,6 +14,7 @@
 
 #include <glib.h>
 
+static char *log_file_name;
 static FILE *log_file;
 static int use_syslog;
 
@@ -83,6 +84,7 @@ static void log_cleanup(void)
 	{
 		fclose(log_file);
 		log_file = NULL;
+		g_free(log_file_name);
 	}
 	if (use_syslog)
 	{
@@ -121,10 +123,23 @@ void log_init(GKeyFile *config, const char *argv0)
 		log_file = fopen(path, "a");
 		if (!log_file)
 			logit(LOG_ERR, "Failed to open the log file %s: %s", path, strerror(errno));
+		else
+			log_file_name = g_strdup(path);
 	}
 	g_free(str);
 
 	atexit(log_cleanup);
+}
+
+void log_reopen(void)
+{
+	if (use_syslog || !log_file_name)
+		return;
+
+	if (log_file)
+		fclose(log_file);
+	log_file = fopen(log_file_name, "a");
+	/* We could check for an error but we can not report it... */
 }
 
 void vlogit(int lvl, const char *fmt, va_list ap)

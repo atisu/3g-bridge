@@ -22,13 +22,20 @@
 
 using namespace std;
 
-static volatile bool finish = false;
+static volatile bool finish;
+static volatile bool reload;
 
+/* XXX This should be removed and replaced by pidfile + signal */
 #define STOPFILE_NAME		"stopfile"
 
 static void sigint_handler(int signal __attribute__((__unused__)))
 {
 	finish = true;
+}
+
+static void sighup_handler(int signal __attribute__((__unused__)))
+{
+	reload = true;
 }
 
 /**
@@ -138,8 +145,17 @@ void QueueManager::run()
 	sigaction(SIGTERM, &sa, NULL);
 	sigaction(SIGQUIT, &sa, NULL);
 
+	sa.sa_handler = sighup_handler;
+	sigaction(SIGHUP, &sa, NULL);
+
 	while (!finish) {
 		struct timeval begin, end, elapsed;
+
+		if (reload)
+		{
+			log_reopen();
+			reload = false;
+		}
 
 		/* Measure the time needed to maintain the database */
 		gettimeofday(&begin, NULL);

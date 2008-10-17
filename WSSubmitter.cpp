@@ -34,7 +34,8 @@ static char *partial_dir;
 static char *output_dir;
 static char *output_url_prefix;
 
-static volatile int finish;
+static volatile bool finish;
+static volatile bool reload;
 
 GKeyFile *global_config = NULL;
 
@@ -504,6 +505,11 @@ static void sigint_handler(int signal __attribute__((__unused__)))
 	finish = true;
 }
 
+static void sighup_handler(int signal __attribute__((__unused__)))
+{
+	reload = true;
+}
+
 int main(int argc, char **argv)
 {
 	int port, ws_threads, dl_threads;
@@ -618,6 +624,10 @@ int main(int argc, char **argv)
 	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGTERM, &sa, NULL);
 	sigaction(SIGQUIT, &sa, NULL);
+
+	sa.sa_handler = sighup_handler;
+	sigaction(SIGHUP, &sa, NULL);
+
 	sa.sa_handler = SIG_IGN;
 	sigaction(SIGPIPE, &sa, NULL);
 
@@ -654,6 +664,12 @@ int main(int argc, char **argv)
 
 	while (!finish)
 	{
+		if (reload)
+		{
+			log_reopen();
+			reload = false;
+		}
+
 		SOAP_SOCKET ret = soap_accept(&soap);
 		if (ret == SOAP_INVALID_SOCKET)
 		{
