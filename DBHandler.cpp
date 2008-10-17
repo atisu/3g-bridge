@@ -265,6 +265,16 @@ void DBHandler::getJobs(JobVector &jobs, const string &grid, Job::JobStatus stat
 }
 
 
+void DBHandler::getFinishedJobs(JobVector &jobs, const string &grid, unsigned batch)
+{
+	if (query("SELECT * FROM cg_job "
+			"WHERE grid = '%s' AND (status = 'FINISHED' OR status = 'ERROR') "
+			"ORDER BY creation_time LIMIT %d",
+			grid.c_str(), batch))
+		return parseJobs(jobs);
+}
+
+
 void DBHandler::pollJobs(GridHandler *handler, Job::JobStatus stat1, Job::JobStatus stat2)
 {
 	query("START TRANSACTION");

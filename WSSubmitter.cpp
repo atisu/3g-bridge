@@ -42,6 +42,18 @@ static GThreadPool *soap_pool;
 
 static DownloadManager *dlm;
 
+/* Command-line options */
+static char *config_file;
+static int run_as_daemon;
+
+static GOptionEntry options[] =
+{
+	{ "config",	'c',	0,	G_OPTION_ARG_FILENAME,	&config_file,
+		"Configuration file to use", "FILE" },
+	{ "daemon",	'd',	0,	G_OPTION_ARG_NONE,	&run_as_daemon,
+		"Run as a daemon and fork to the background", NULL },
+	{ NULL }
+};
 
 /**********************************************************************
  * Calculate the file system location where an input file should be downloaded to
@@ -191,7 +203,7 @@ void DBItem::failed()
  * Web service routines
  */
 
-int __G3Bridge__submit(struct soap *soap, G3Bridge__JobList *jobs, struct G3Bridge__JobIDList *result)
+int __G3Bridge__submit(struct soap *soap, G3Bridge__JobList *jobs, G3Bridge__JobIDList *result)
 {
 	DBHandler *dbh;
 
@@ -256,7 +268,7 @@ int __G3Bridge__submit(struct soap *soap, G3Bridge__JobList *jobs, struct G3Brid
 	return SOAP_OK;
 }
 
-int __G3Bridge__getStatus(struct soap *soap, G3Bridge__JobIDList *jobids, struct G3Bridge__StatusList *result)
+int __G3Bridge__getStatus(struct soap *soap, G3Bridge__JobIDList *jobids, G3Bridge__StatusList *result)
 {
 	DBHandler *dbh;
 
@@ -376,7 +388,7 @@ int __G3Bridge__delete(struct soap *soap, G3Bridge__JobIDList *jobids, struct __
 }
 
 
-int __G3Bridge__getOutput(struct soap *soap, G3Bridge__JobIDList *jobids, struct G3Bridge__OutputList *result)
+int __G3Bridge__getOutput(struct soap *soap, G3Bridge__JobIDList *jobids, G3Bridge__OutputList *result)
 {
 	DBHandler *dbh;
 
@@ -417,6 +429,36 @@ int __G3Bridge__getOutput(struct soap *soap, G3Bridge__JobIDList *jobids, struct
 			jout->output.push_back(lf);
 		}
 	}
+
+	DBHandler::put(dbh);
+	return SOAP_OK;
+}
+
+int __G3Bridge__getFinished(struct soap *soap, string grid, G3Bridge__JobIDList *result)
+{
+	DBHandler *dbh;
+
+	try
+	{
+		dbh = DBHandler::get();
+	}
+	catch (QMException *e)
+	{
+		LOG(LOG_ERR, "getFinished: Failed to get a DB handle: %s", e->what());
+		delete(e);
+		return SOAP_FATAL_ERROR;
+	}
+	catch (...)
+	{
+		LOG(LOG_ERR, "getFinished: Failed to get a DB handle: Unknown exception");
+		return SOAP_FATAL_ERROR;
+	}
+
+	JobVector jobs;
+	dbh->getFinishedJobs(jobs, grid, 500);
+
+	for (JobVector::const_iterator it = jobs.begin(); it != jobs.end(); it++)
+		result->jobid.push_back((*it)->getId());
 
 	DBHandler::put(dbh);
 	return SOAP_OK;
@@ -465,20 +507,30 @@ static void sigint_handler(int signal __attribute__((__unused__)))
 int main(int argc, char **argv)
 {
 	int port, ws_threads, dl_threads;
-	struct soap soap;
+	GOptionContext *context;
+	GError *error = NULL;
 	struct sigaction sa;
+	struct soap soap;
 
 	Logging::init(cout, LOG_INFO);
 
-	if (argc != 2)
+	context = g_option_context_new("- Web Service interface to the 3G bridge");
+	g_option_context_add_main_entries(context, options, PACKAGE);
+        if (!g_option_context_parse(context, &argc, &argv, &error))
 	{
-		cerr << "Usage: " << argv[0] << " <configfile>" << endl;
-		exit(-1);
+		LOG(LOG_ERR, "Failed to parse the command line options: %s", error->message);
+		exit(1);
 	}
 
-	GError *error = NULL;
+	if (!config_file)
+	{
+		LOG(LOG_ERR, "The configuration file is not specified");
+		exit(1);
+	}
+	g_option_context_free(context);
+
 	global_config = g_key_file_new();
-	g_key_file_load_from_file(global_config, argv[1], G_KEY_FILE_NONE, &error);
+	g_key_file_load_from_file(global_config, config_file, G_KEY_FILE_NONE, &error);
 	if (error)
 	{
 		LOG(LOG_ERR, "Failed to load the config file: %s", error->message);
@@ -564,6 +616,9 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	if (run_as_daemon)
+		daemon(0, 0);
+
 	/* Set up the signal handlers */
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = sigint_handler;
@@ -631,6 +686,8 @@ int main(int argc, char **argv)
 	g_free(partial_dir);
 	g_free(output_dir);
 	g_free(output_url_prefix);
+
+	g_free(config_file);
 
 	return 0;
 }

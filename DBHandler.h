@@ -100,6 +100,14 @@ class DBHandler {
 	void pollJobs(GridHandler *handler, Job::JobStatus stat1, Job::JobStatus stat2);
 
 	/**
+	 * Queries the database for finished (either successfully or erronously) jobs.
+	 * @param[out] jobs JobVector storage for the jobs read
+	 * @param grid grid name to use
+	 * @param batch maximum number of jobs to read
+	 */
+	void getFinishedJobs(JobVector &jobs, const string &grid, unsigned batch);
+
+	/**
 	 * Select gridids from the database for which all job instances in the
 	 * given grid have the given status.
 	 * @param[out] ids vector of matching grid identifiers
