@@ -43,8 +43,8 @@ fi
 LIBCURL_CHECK_CONFIG([yes], [7.17.0], [],
 	[AC_MSG_ERROR([CURL development files are missing])])
 
-AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@yes@:>@]),
-	[], [with_dcapi=yes])
+AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@no@:>@]),
+	[], [with_dcapi=no])
 if test "$with_dcapi" != no; then
 	SZDG_DCAPI_MASTER
 fi
@@ -84,6 +84,7 @@ if test "$with_gsoap" != no; then
 	fi
 	AC_SUBST([GSOAP_IMPORT])
 fi
+AM_CONDITIONAL([GSOAP], [test "$with_gsoap" != no])
 
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])
