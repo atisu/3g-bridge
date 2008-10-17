@@ -4,7 +4,7 @@ ACLOCAL_AMFLAGS = -I cf
 
 AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@
 
-bin_PROGRAMS = injector bridge wsclient wsbridge
+bin_PROGRAMS = injector bridge wsclient wssubmitter
 
 noinst_HEADERS = \
 		AlgQueue.h \
@@ -55,7 +55,7 @@ TYPEMAP = 3GBridge.typemap
 # gSOAP-related stuff
 SOAP_HEADER = soap/3GBridge.h
 SOAP_CPP_CORE = soap/soapC.cpp
-SOAP_NS = soap/G3BridgeBinding.nsmap
+SOAP_NS = soap/G3BridgeSubmitter.nsmap
 SOAP_H_FILES = soap/soapH.h soap/soapStub.h
 SOAP_CPP_SRC = $(SOAP_H_FILES) $(SOAP_NS) $(SOAP_CPP_CORE)
 
@@ -77,8 +77,8 @@ bridge_SOURCES = \
 		$(BACKEND_SOURCES)
 bridge_LDADD = $(GLIB_LIBS) $(BACKEND_LIBS) $(MYSQL_LIBS)
 
-wsbridge_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
-wsbridge_SOURCES = \
+wssubmitter_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
+wssubmitter_SOURCES = \
 		$(SOAP_HEADER) \
 		$(SOAP_CPP_SRC) \
 		AlgQueue.cpp \
@@ -87,9 +87,9 @@ wsbridge_SOURCES = \
 		Logging.cpp \
 		Job.cpp \
 		QMException.cpp \
-		wsbridge.cpp \
+		WSSubmitter.cpp \
 		soap/soapServer.cpp
-wsbridge_LDADD = $(GLIB_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto -luuid
+wssubmitter_LDADD = $(GLIB_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto -luuid
 
 wsclient_CPPFALGS = $(GSOAP_CFLAGS)
 wsclient_SOURCES = \
