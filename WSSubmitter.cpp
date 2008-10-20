@@ -53,9 +53,6 @@ GKeyFile *global_config = NULL;
 /* Thread pool for serving SOAP requests */
 static GThreadPool *soap_pool;
 
-/* The download manager instance */
-static DownloadManager *dlm;
-
 /* Command line: Location of the config file */
 static char *config_file;
 
@@ -138,6 +135,7 @@ public:
 
 	virtual void finished();
 	virtual void failed();
+	virtual void setRetry(const GTimeVal &when, int retries);
 };
 
 DBItem::DBItem(const string &jobId, const string &logicalFile, const string &URL):jobId(jobId),logicalFile(logicalFile)
@@ -215,8 +213,17 @@ void DBItem::failed()
 	for (vector<string>::const_iterator it = inputs->begin(); it != inputs->end(); it++)
 	{
 		string path = calc_temp_path(jobId, *it);
-		dlm->abort(path);
+		DownloadManager::abort(path);
 	}
+}
+
+void DBItem::setRetry(const GTimeVal &when, int retries)
+{
+	DLItem::setRetry(when, retries);
+
+	DBHandler *dbh = DBHandler::get();
+	dbh->updateDL(jobId, logicalFile, when, retries);
+	DBHandler::put(dbh);
 }
 
 /**********************************************************************
@@ -282,7 +289,7 @@ int __G3Bridge__submit(struct soap *soap, G3Bridge__JobList *jobs, G3Bridge__Job
 		{
 			auto_ptr<DBItem> item(new DBItem(jobid, it->first, it->second));
 			dbh->addDL(jobid, it->first, it->second);
-			dlm->add(item.get());
+			DownloadManager::add(item.get());
 			item.release();
 		}
 	}
@@ -376,7 +383,7 @@ int __G3Bridge__delete(struct soap *soap, G3Bridge__JobIDList *jobids, struct __
 		{
 			/* Abort the download if it is still in the queue */
 			string path = calc_temp_path(*it, *fsit);
-			dlm->abort(path);
+			DownloadManager::abort(path);
 			/* Delete the input file if it has been already downloaded */
 			path = job->getInputPath(*fsit);
 			unlink(path.c_str());
@@ -542,7 +549,7 @@ static void restart_download(const char *jobid, const char *localName,
 {
 	DBItem *item = new DBItem(jobid, localName, url);
 	item->setRetry(*next, retries);
-	dlm->add(item);
+	DownloadManager::add(item);
 }
 
 /**********************************************************************
@@ -675,8 +682,7 @@ int main(int argc, char **argv)
 	g_thread_init(NULL);
 
 	DBHandler::init();
-
-	dlm = new DownloadManager(dl_threads, 10);
+	DownloadManager::init(dl_threads, 10);
 
 	DBHandler *dbh = DBHandler::get();
 	dbh->getAllDLs(restart_download);
@@ -739,8 +745,7 @@ int main(int argc, char **argv)
 
 	g_thread_pool_free(soap_pool, TRUE, TRUE);
 
-	delete dlm;
-
+	DownloadManager::done();
 	DBHandler::done();
 
 	g_key_file_free(global_config);

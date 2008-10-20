@@ -24,6 +24,24 @@
 /* For OpenSSL multithread support */
 static GStaticMutex *ssl_mutexes;
 
+/* For libcurl multithread support */
+static void *shared_curl_data;
+static GMutex *shared_curl_lock;
+
+static volatile int finish;
+
+static vector<GThread *> threads;
+
+static GQueue *queue;
+static GMutex *queue_lock;
+static GCond *queue_sig;
+
+static int num_threads;
+static int max_retries;
+
+static void *run_dl(void *data G_GNUC_UNUSED);
+
+
 /**********************************************************************
  * libcurl thread-related callbacks for glib
  */
@@ -80,9 +98,12 @@ static void destroy_ssl_lock(struct CRYPTO_dynlock_value *lock, const char *file
  * Class DownloadManager
  */
 
-DownloadManager::DownloadManager(int num_threads, int max_retries):max_retries(max_retries)
+void DownloadManager::init(int nthreads, int retries)
 {
-	do_exit = 0;
+	finish = 0;
+
+	num_threads = nthreads;
+	max_retries = retries;
 
 	queue = g_queue_new();
 	queue_lock = g_mutex_new();
@@ -112,7 +133,7 @@ DownloadManager::DownloadManager(int num_threads, int max_retries):max_retries(m
 	GError *error = NULL;
 	for (int i = 0; i < num_threads; i++)
 	{
-		GThread *thr = g_thread_create(DownloadManager::run_dl, this, TRUE, &error);
+		GThread *thr = g_thread_create(run_dl, NULL, TRUE, &error);
 		if (!thr)
 			throw new QMException("Failed to create a new thread: %s", error->message);
 		threads.push_back(thr);
@@ -120,9 +141,9 @@ DownloadManager::DownloadManager(int num_threads, int max_retries):max_retries(m
 
 }
 
-DownloadManager::~DownloadManager()
+void DownloadManager::done()
 {
-	do_exit = 1;
+	finish = 1;
 
 	/* Wake up all threads so they can exit */
 	g_mutex_lock(queue_lock);
@@ -186,17 +207,20 @@ void DownloadManager::add(DLItem *item)
 	g_mutex_unlock(queue_lock);
 }
 
-void DownloadManager::retry(DLItem *item)
+static void retry(DLItem *item)
 {
-	if (item->retries >= max_retries)
+	GTimeVal t;
+
+	if (item->getRetries() >= max_retries)
 	{
 		item->failed();
 		delete item;
 		return;
 	}
 
-	g_get_current_time(&item->when);
-	g_time_val_add(&item->when, ++item->retries * 10000);
+	g_get_current_time(&t);
+	g_time_val_add(&t, (item->getRetries()) + 1 * 10000);
+	item->setRetry(t, item->getRetries() + 1);
 
 	g_mutex_lock(queue_lock);
 	g_queue_insert_sorted(queue, item, sort_by_time, NULL);
@@ -236,7 +260,7 @@ void DownloadManager::abort(const string &path)
 	g_mutex_unlock(queue_lock);
 }
 
-void DownloadManager::check(DLItem *item, long http_response)
+static void check(DLItem *item, long http_response)
 {
 	if (http_response >= 500 && http_response < 599)
 	{
@@ -258,16 +282,15 @@ void DownloadManager::check(DLItem *item, long http_response)
 	delete item;
 }
 
-void *DownloadManager::run_dl(void *data)
+static void *run_dl(void *data G_GNUC_UNUSED)
 {
-	DownloadManager *self = (DownloadManager *)data;
 	CURLcode result;
 	GTimeVal now;
 	char *errbuf;
 	CURL *curl;
 
 	curl = curl_easy_init();
-	curl_easy_setopt(curl, CURLOPT_SHARE, self->shared_curl_data);
+	curl_easy_setopt(curl, CURLOPT_SHARE, shared_curl_data);
 	errbuf = (char *)g_malloc(CURL_ERROR_SIZE);
 	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
@@ -282,25 +305,25 @@ void *DownloadManager::run_dl(void *data)
 
 	LOG(LOG_DEBUG, "Download thread %p started", g_thread_self());
 
-	g_mutex_lock(self->queue_lock);
+	g_mutex_lock(queue_lock);
 
-	while (!self->do_exit)
+	while (!finish)
 	{
 		g_get_current_time(&now);
 
 		/* Check if there is an item we can download */
-		DLItem *item = (DLItem *)g_queue_peek_head(self->queue);
+		DLItem *item = (DLItem *)g_queue_peek_head(queue);
 		if (!item || *item >= now)
 		{
 			if (item)
-				now = item->when;
-			g_cond_timed_wait(self->queue_sig, self->queue_lock, item ? &now : NULL);
+				now = item->getWhen();
+			g_cond_timed_wait(queue_sig, queue_lock, item ? &now : NULL);
 			continue;
 		}
 
 		/* Get the item off the queue and release the queue */
-		g_queue_pop_head(self->queue);
-		g_mutex_unlock(self->queue_lock);
+		g_queue_pop_head(queue);
+		g_mutex_unlock(queue_lock);
 
 		curl_easy_setopt(curl, CURLOPT_URL, item->getUrl().c_str());
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, item);
@@ -308,24 +331,28 @@ void *DownloadManager::run_dl(void *data)
 		LOG(LOG_DEBUG, "Starting to download %s", item->getUrl().c_str());
 
 		result = curl_easy_perform(curl);
+		/* Check for the finish flag first and do not call ->failed() if it is set */
+		if (finish)
+			goto next;
 		if (result)
 		{
 			LOG(LOG_ERR, "Download failed for %s: %s (retry)", item->getUrl().c_str(), errbuf);
-			self->retry(item);
+			retry(item);
 		}
 		else
 		{
 			long http_response;
 
 			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_response);
-			self->check(item, http_response);
+			check(item, http_response);
 		}
 
-		g_mutex_lock(self->queue_lock);
+next:
+		g_mutex_lock(queue_lock);
 	}
 
 	LOG(LOG_DEBUG, "Download thread %p exiting", g_thread_self());
-	g_mutex_unlock(self->queue_lock);
+	g_mutex_unlock(queue_lock);
 
 	curl_easy_cleanup(curl);
 	g_free(errbuf);
@@ -360,6 +387,16 @@ DLItem::~DLItem()
 
 size_t DLItem::write(void *buf, size_t size)
 {
+	/* Abort the download when shutting down */
+	if (finish)
+	{
+		close(fd);
+		fd = -1;
+		unlink(path.c_str());
+		path = "";
+		return 0;
+	}
+
 	if (fd == -1)
 	{
 		fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0640);
