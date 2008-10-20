@@ -19,13 +19,23 @@
 using namespace std;
 
 
-static DBPool db_pool;
-
 /* The order here must match the definition of JobStatus */
 static const char *status_str[] =
 {
 	"PREPARE", "INIT", "RUNNING", "FINISHED", "ERROR", "CANCEL"
 };
+
+static vector<DBHandler *> used_dbhs;
+static vector<DBHandler *> free_dbhs;
+static GMutex *db_lock;
+static GCond *db_signal;
+
+/* Database configuration items */
+static unsigned max_connections;
+static char *dbname;
+static char *host;
+static char *user;
+static char *passwd;
 
 /**********************************************************************
  * Class: DBResult
@@ -93,7 +103,7 @@ const char *DBResult::get_field(const char *name)
 	for (i = 0; i < field_num && strcmp(fields[i].name, name); i++)
 		/* Nothing */;
 	if (i >= field_num)
-		throw new QMException("Unknown field requested: %s ", name);
+		throw new QMException("Unknown field requested: %s", name);
 	return row[i];
 }
 
@@ -148,23 +158,11 @@ DBHandler::~DBHandler()
 }
 
 
-//static const char *statToStr(Job::JobStatus stat)
-const char *statToStr(Job::JobStatus stat)
+static const char *statToStr(Job::JobStatus stat)
 {
 	if (stat < 0 || stat > (int)(sizeof(status_str) / sizeof(status_str[0])))
 		throw new QMException("Unknown job status value %d", (int)stat);
 	return status_str[stat];
-}
-
-
-static Job::JobStatus statFromStr(const char *stat)
-{
-	unsigned i;
-
-	for (i = 0; i < sizeof(status_str) / sizeof(status_str[0]); i++)
-		if (!strcmp(status_str[i], stat))
-			return (Job::JobStatus)i;
-	return Job::INIT;
 }
 
 
@@ -177,8 +175,18 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 	const char *id = res.get_field("id");
 	const char *stat = res.get_field("status");
 
+	unsigned i;
+	for (i = 0; i < sizeof(status_str) / sizeof(status_str[0]); i++)
+		if (!strcmp(status_str[i], stat))
+			break;
+	if (i >= sizeof(status_str) / sizeof(status_str[0]))
+	{
+		LOG(LOG_ERR, "Unknown job status: %s", stat);
+		return auto_ptr<Job>(0);
+	}
+
 	// Create new job descriptor
-	auto_ptr<Job> job(new Job(id, alg, grid, args, statFromStr(stat)));
+	auto_ptr<Job> job(new Job(id, alg, grid, args, (Job::JobStatus)i));
 	if (gridid)
 		job->setGridId(gridid);
 
@@ -416,19 +424,79 @@ DBHandler *DBHandler::get() throw (QMException *)
 		g_static_private_set(&db_used_key, (void *)~0, db_thread_cleanup);
 	}
 
-	return db_pool.get();
+	DBHandler *dbh = 0;
+
+	/* Defer initialization until someone requests a new handle to ensure
+	 * that global_config is initialized */
+	if (!dbname)
+		init();
+
+	if (db_lock)
+		g_mutex_lock(db_lock);
+
+retry:
+	if (!free_dbhs.empty())
+	{
+		dbh = free_dbhs.front();
+		free_dbhs.erase(free_dbhs.begin());
+		goto out;
+	}
+
+	if (max_connections && used_dbhs.size() >= max_connections)
+	{
+		if (db_lock)
+		{
+			g_cond_wait(db_signal, db_lock);
+			goto retry;
+		}
+		throw new QMException("Too many database connections are open");
+	}
+
+	try
+	{
+		dbh = new DBHandler(dbname, host, user, passwd);
+	}
+	catch (...)
+	{
+		if (db_lock)
+			g_mutex_unlock(db_lock);
+		throw;
+	}
+
+out:
+	used_dbhs.push_back(dbh);
+	if (db_lock)
+		g_mutex_unlock(db_lock);
+	return dbh;
 }
 
 
 void DBHandler::put(DBHandler *dbh)
 {
-	db_pool.put(dbh);
+	vector<DBHandler *>::iterator it;
+
+	if (db_lock)
+		g_mutex_lock(db_lock);
+
+	for (it = used_dbhs.begin(); it != used_dbhs.end(); it++)
+		if (*it == dbh)
+			break;
+	if (it == used_dbhs.end())
+		LOG(LOG_ERR, "Tried to put() a dbh that is not on the used list");
+	else
+		used_dbhs.erase(it);
+	free_dbhs.push_back(dbh);
+	if (db_lock)
+	{
+		g_cond_signal(db_signal);
+		g_mutex_unlock(db_lock);
+	}
 }
 
 
 void DBHandler::addAlgQ(const char *grid, const char *alg, unsigned batchsize)
 {
-	query("INSERT INTO cg_algqueue(grid, alg, batchsize, statistics) VALUES('%s', '%s', '%u', '')",
+	query("INSERT INTO cg_algqueue (grid, alg, batchsize, statistics) VALUES('%s', '%s', '%u', '')",
 		grid, alg, batchsize);
 }
 
@@ -450,9 +518,10 @@ void DBHandler::getCompleteWUs(vector<string> &ids, const string &grid, Job::Job
 
 }
 
+
 void DBHandler::addDL(const string &jobid, const string &localName, const string &url)
 {
-	query("INSERT INTO cg_download (jobid, localname, url) VALUES '%s', '%s', '%s'",
+	query("INSERT INTO cg_download (jobid, localname, url) VALUES ('%s', '%s', '%s')",
 		jobid.c_str(), localName.c_str(), url.c_str());
 }
 
@@ -461,6 +530,7 @@ void DBHandler::deleteDL(const string &jobid, const string &localName)
 	query("DELETE FROM cg_download WHERE jobid = '%s' AND localname = '%s'",
 		jobid.c_str(), localName.c_str());
 }
+
 
 void DBHandler::updateDL(const string &jobid, const string &localName, const GTimeVal &next,
 		int retries)
@@ -479,72 +549,35 @@ void DBHandler::updateDL(const string &jobid, const string &localName, const GTi
 		timebuf, retries, jobid.c_str(), localName.c_str());
 }
 
-/**********************************************************************
- * Class: DBPool
- */
 
-DBHandler *DBPool::get() throw (QMException *)
+void DBHandler::getAllDLs(void (*cb)(const char *jobid, const char *localName,
+		const char *url, const GTimeVal *next, int retries))
 {
-	DBHandler *dbh = 0;
+	if (!query("SELECT jobid, localname, url, UNIX_TIMESTAMP(next_try), retries "
+			"FROM cg_download"))
+		return;
 
-	/* Defer initialization until someone requests a new handle to ensure
-	 * that global_config is initialized */
-	if (!dbname)
-		init();
+	GTimeVal next;
+	next.tv_usec = 0;
 
-	G_LOCK(dbhs);
-
-	if (!free_dbhs.empty())
+	DBResult res(this);
+	res.use();
+	while (res.fetch())
 	{
-		dbh = free_dbhs.front();
-		free_dbhs.erase(free_dbhs.begin());
-		goto out;
-	}
+		const char *jobid = res.get_field(0);
+		const char *localName = res.get_field(1);
+		const char *url = res.get_field(2);
+		const char *next_str = res.get_field(3);
+		const char *retries_str = res.get_field(4);
 
-	if (max_connections && used_dbhs.size() >= max_connections)
-	{
-		G_UNLOCK(dbhs);
-		throw new QMException("Too many database connections are open");
+		next.tv_sec = atol(next_str);
+		cb(jobid, localName, url, &next, atoi(retries_str));
 	}
-
-	try
-	{
-		dbh = new DBHandler(dbname, host, user, passwd);
-	}
-	catch (...)
-	{
-		G_UNLOCK(dbhs);
-		throw;
-	}
-
-out:
-	used_dbhs.push_back(dbh);
-	G_UNLOCK(dbhs);
-	return dbh;
 }
 
-void DBPool::put(DBHandler *dbh)
-{
-	vector<DBHandler *>::iterator it;
-
-	G_LOCK(dbhs);
-
-	for (it = used_dbhs.begin(); it != used_dbhs.end(); it++)
-		if (*it == dbh)
-			break;
-	if (it == used_dbhs.end())
-		LOG(LOG_ERR, "Tried to put() a dbh that is not on the used list");
-	else
-		used_dbhs.erase(it);
-	free_dbhs.push_back(dbh);
-	G_UNLOCK(dbhs);
-}
-
-void DBPool::init()
+void DBHandler::init()
 {
 	GError *error = NULL;
-
-	g_static_mutex_init(&g__dbhs_lock);
 
 	/* The database name is mandatory. Here we leak the GError but this is
 	 * a non-recoverable error so... */
@@ -571,9 +604,14 @@ void DBPool::init()
 	/* When using multiple threads this must be called explicitely
 	 * before any threads are launched */
 	mysql_library_init(0, NULL, NULL);
+	if (g_thread_supported())
+	{
+		db_lock = g_mutex_new();
+		db_signal = g_cond_new();
+	}
 }
 
-DBPool::~DBPool()
+void DBHandler::done()
 {
 	/* If used_dbhs is not empty, we have a leak somewhere */
 	if (!used_dbhs.empty())
@@ -590,6 +628,11 @@ DBPool::~DBPool()
 	g_free(host);
 	g_free(user);
 	g_free(passwd);
-	g_static_mutex_free(&g__dbhs_lock);
 	mysql_library_end();
+
+	if (db_lock)
+	{
+		g_mutex_free(db_lock);
+		g_cond_free(db_signal);
+	}
 }

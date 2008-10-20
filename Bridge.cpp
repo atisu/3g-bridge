@@ -2,10 +2,11 @@
 #include <config.h>
 #endif
 
-#include "Logging.h"
-#include "QueueManager.h"
 #include "Bridge.h"
 #include "Conf.h"
+#include "DBHandler.h"
+#include "Logging.h"
+#include "QueueManager.h"
 
 #ifdef HAVE_DCAPI
 #include "DCAPIHandler.h"
@@ -71,6 +72,7 @@ int main(int argc, char **argv)
     }
 
     log_init(global_config, argv[0]);
+    DBHandler::init();
 
     try {
 	LOG(LOG_DEBUG, "Creating Queue Manager");
@@ -89,6 +91,7 @@ int main(int argc, char **argv)
 
     LOG(LOG_NOTICE, "Exiting");
 
+    DBHandler::done();
     g_key_file_free(global_config);
 
     return 0;

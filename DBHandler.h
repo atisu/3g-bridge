@@ -16,11 +16,8 @@
 using namespace std;
 
 
-class DBPool;
 class DBResult;
 
-
-const char *statToStr(Job::JobStatus stat);
 
 /**
  * Database handler class. This class is responsible for providing an interface
@@ -172,13 +169,14 @@ class DBHandler {
 	void updateAlgQStat(const char *gridid, unsigned pSize, unsigned pTime);
 
 	/**
-	 * Add a DBHandler to the DBPool.
-	 * @param dbh the DBHandler to add
+	 * Marks a database handle as unused.
+	 * @param dbh the DBHandler
 	 */
 	static void put(DBHandler *dbh);
 
 	/**
-	 * Get a DBHandler from the DBPool.
+	 * Gets a database handle. The handle must be returned via put() when
+	 * no longer needed.
 	 * @return pointer to a DBHandler
 	 */
 	static DBHandler *get() throw (QMException *);
@@ -192,15 +190,24 @@ class DBHandler {
 	 */
 	void addAlgQ(const char *grid, const char *alg, unsigned batchsize);
 
+	/**
+	 * Initialize the database system. When used in a multi-threaded program,
+	 * this method must be called before any threads are started. */
+	static void init();
+
+	/**
+	 * Free resources held by the database system. Must be called after all
+	 * threads have exited. */
+	static void done();
+
 	void addDL(const string &jobid, const string &localName, const string &url);
 	void deleteDL(const string &jobid, const string &localName);
 	void updateDL(const string &jobid, const string &localName, const GTimeVal &next,
 		int retries);
+	void getAllDLs(void (*cb)(const char *jobid, const char *localName,
+			const char *url, const GTimeVal *next, int retries));
 
     protected:
-	/// DBPool friend class.
-	friend class DBPool;
-
 	/// DBResult friend class.
 	friend class DBResult;
 
@@ -231,65 +238,6 @@ class DBHandler {
 	 * @param[out] jobs the JobVector to place parsed jobs in
 	 */
 	void parseJobs(JobVector &jobs);
-};
-
-
-/**
- * Database pool class. This class can be used as a storage of DBHandler
- * objects.
- */
-class DBPool
-{
-    public:
-	/// Destructor.
-	~DBPool();
-
-    protected:
-	/// DBHandler friend class.
-	friend class DBHandler;
-
-	/**
-	 * Get a DBHandler.
-	 * @return pointer to a DBHandler object
-	 */
-	DBHandler *get() throw (QMException *);
-
-	/**
-	 * Add a DBHandler.
-	 * @param dbh pointer to the DBHandler object to add
-	 */
-	void put(DBHandler *dbh);
-
-    private:
-	/**
-	 * Initialize the DBPool. Reads database connection informations from
-	 * global_config.
-	 */
-	void init(void);
-
-	/// Maximum number of connections to the database
-	unsigned max_connections;
-
-	/// Name of the database to connecto to
-	char *dbname;
-
-	/// Hostname of the database to use
-	char *host;
-
-	/// Username to use to connecto to the database
-	char *user;
-
-	/// Password to use to connecto to the database
-	char *passwd;
-
-	/// Vector of used DBHandler objects
-	vector<DBHandler *> used_dbhs;
-
-	/// Vector of free DBHandler objects
-	vector<DBHandler *> free_dbhs;
-
-	/// Lock for thread safeness
-	GStaticMutex g__dbhs_lock;
 };
 
 
