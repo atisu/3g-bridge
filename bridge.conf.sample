@@ -32,8 +32,31 @@ password =
 max-connections = 4
 
 #######################################################################
+# 3G bridge parameters
+[bridge]
+
+# Where to send bridge logs. Possible values:
+#	stdout			write to the standard output
+#	syslog:<facility>	use syslog with the specified facility
+#	[file:]/some/file	write to the speficied file
+log-target =
+
+# Location of the PID file
+pid-file =
+
+
+#######################################################################
 # Web service settings
-[webservice]
+[wssubmitter]
+
+# Where to send bridge logs. Possible values:
+#	stdout			write to the standard output
+#	syslog:<facility>	use syslog with the specified facility
+#	[file:]/some/file	write to the speficied file
+log-target =
+
+# Location of the PID file
+pid-file =
 
 # Listening port
 port =

@@ -2,7 +2,6 @@
 #include <config.h>
 #endif
 
-#include "Bridge.h"
 #include "Conf.h"
 #include "DBHandler.h"
 #include "Job.h"

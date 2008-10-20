@@ -2,11 +2,16 @@
 #include <config.h>
 #endif
 
-#include "Bridge.h"
 #include "Conf.h"
 #include "DBHandler.h"
-#include "QueueManager.h"
 #include "Util.h"
+
+#ifdef HAVE_DCAPI
+#include "DCAPIHandler.h"
+#endif
+#ifdef HAVE_EGEE
+#include "EGEEHandler.h"
+#endif
 
 #include <map>
 #include <list>
@@ -22,11 +27,57 @@
 
 using namespace std;
 
+/**********************************************************************
+ * Type definitions
+ */
+
+typedef GridHandler *(*plugin_constructor)(GKeyFile *config, const char *instance);
+
+/**********************************************************************
+ * Global variables
+ */
+
+/* If 'true', exit was requested by a signal */
 static volatile bool finish;
+
+/* If 'true', the log file should be re-opened */
 static volatile bool reload;
 
-/* XXX This should be removed and replaced by pidfile + signal */
-#define STOPFILE_NAME		"stopfile"
+/* The global configuration */
+GKeyFile *global_config = NULL;
+
+static GHashTable *plugins;
+
+/* Command line: Location of the config file */
+static char *config_file;
+
+/* Command line: If true, run as a daemon in the background */
+static int run_as_daemon;
+
+/* Table of the command-line options */
+static GOptionEntry options[] =
+{
+	{ "config",	'c',	0,	G_OPTION_ARG_FILENAME,	&config_file,
+		"Configuration file to use", "FILE" },
+	{ "daemon",	'd',	0,	G_OPTION_ARG_NONE,	&run_as_daemon,
+		"Run as a daemon and fork to the background", NULL },
+	{ NULL }
+};
+
+/* List of all configured grid handlers */
+static vector<GridHandler *> gridHandlers;
+
+
+/**********************************************************************
+ * Prototypes
+ */
+
+static unsigned selectSize(AlgQueue *algQ);
+static unsigned selectSizeAdv(AlgQueue *algQ);
+
+/**********************************************************************
+ * Misc. helper functions
+ */
 
 static void sigint_handler(int signal __attribute__((__unused__)))
 {
@@ -38,52 +89,28 @@ static void sighup_handler(int signal __attribute__((__unused__)))
 	reload = true;
 }
 
-/**
- * Constructor. Initialize selected grid plugin, and database connection.
- */
-QueueManager::QueueManager(GKeyFile *config)
+static void registerPlugin(const char *name, plugin_constructor ctor)
 {
-	char **sections, *handler;
-	unsigned i;
-
-	sections = g_key_file_get_groups(config, NULL);
-	for (i = 0; sections && sections[i]; i++)
-	{
-		/* Skip sections that are not grid definitions */
-		if (!strcmp(sections[i], GROUP_DEFAULTS) ||
-				!strcmp(sections[i], GROUP_DATABASE) ||
-				!strcmp(sections[i], GROUP_BRIDGE) ||
-				!strcmp(sections[i], GROUP_WSSUBMITTER))
-			continue;
-
-		handler = g_key_file_get_string(config, sections[i], "handler", NULL);
-		if (!handler)
-			throw QMException("Handler definition is missing in %s", sections[i]);
-
-		GridHandler *plugin = getPluginInstance(config, handler, sections[i]);
-		gridHandlers.push_back(plugin);
-		g_free(handler);
-	}
-	g_strfreev(sections);
+	if (!plugins)
+		plugins = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, NULL);
+	g_hash_table_insert(plugins, (void *)name, (void *)ctor);
 }
 
-
-/**
- * Destructor. Frees up memory.
- */
-QueueManager::~QueueManager()
+static GridHandler *getPluginInstance(GKeyFile *config, const char *plugin, const char *instance)
 {
-	while (!gridHandlers.empty())
-	{
-		GridHandler *plugin = gridHandlers.front();
-		gridHandlers.erase(gridHandlers.begin());
-		delete plugin;
-	}
-	AlgQueue::cleanUp();
+	if (!plugins)
+		throw new QMException("Unknown grid plugin %s requested", plugin);
+	plugin_constructor ctor = (plugin_constructor)g_hash_table_lookup(plugins, plugin);
+	if (!ctor)
+		throw new QMException("Unknown grid plugin %s requested", plugin);
+	return ctor(config, instance);
 }
 
+/**********************************************************************
+ * Perform required actions for a grid handler
+ */
 
-bool QueueManager::runHandler(GridHandler *handler)
+static bool runHandler(GridHandler *handler)
 {
 	bool work_done = false;
 	JobVector jobs;
@@ -133,70 +160,53 @@ bool QueueManager::runHandler(GridHandler *handler)
 }
 
 /**
- * Main loop. Periodically queries database for new, sent, finished and
- * aborted jobs. Handler funcitons are called for the different job vectors.
+ * Main loop. Called periodically. Queries the database for new, sent, finished
+ * and aborted jobs. Handler funcitons are called for the different job
+ * vectors.
  */
-void QueueManager::run()
+static void do_mainloop()
 {
-	struct sigaction sa;
+	struct timeval begin, end, elapsed;
 
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = sigint_handler;
-	sigaction(SIGINT, &sa, NULL);
-	sigaction(SIGTERM, &sa, NULL);
-	sigaction(SIGQUIT, &sa, NULL);
+	/* Measure the time needed to maintain the database */
+	gettimeofday(&begin, NULL);
 
-	sa.sa_handler = sighup_handler;
-	sigaction(SIGHUP, &sa, NULL);
+	/* Call the runHandler() methods repeatedly until all of them says
+	 * there is no more work to do */
+	bool work_done;
+	do
+	{
+		work_done = false;
+		for (vector<GridHandler *>::const_iterator it = gridHandlers.begin(); it != gridHandlers.end(); it++)
+			work_done |= runHandler(*it);
+	} while (work_done && !finish);
 
-	while (!finish) {
-		struct timeval begin, end, elapsed;
+	if (finish)
+		return;
 
-		if (reload)
-		{
-			log_reopen();
-			reload = false;
-		}
+	gettimeofday(&end, NULL);
+	timersub(&end, &begin, &elapsed);
 
-		/* Measure the time needed to maintain the database */
-		gettimeofday(&begin, NULL);
+	/* Sleep for 5x the time needed to run the body of this loop,
+	 * but no more than 5 minutes and no less than 1 sec */
+	elapsed.tv_sec *= 5;
+	elapsed.tv_usec *= 5;
+	elapsed.tv_sec += elapsed.tv_usec / 1000000;
+	elapsed.tv_usec = elapsed.tv_usec % 1000000;
 
-		/* Call the runHandler() methods repeatedly until all of them says
-		 * there is no more work to do */
-		bool work_done;
-		do
-		{
-			work_done = false;
-			for (vector<GridHandler *>::const_iterator it = gridHandlers.begin(); it != gridHandlers.end(); it++)
-				work_done |= runHandler(*it);
-
-			if (!access(STOPFILE_NAME, R_OK))
-				break;
-		} while (work_done);
-
-		if (!access(STOPFILE_NAME, R_OK))
-			break;
-
-		gettimeofday(&end, NULL);
-		timersub(&end, &begin, &elapsed);
-
-		/* Sleep for 5x the time needed to run the body of this loop,
-		 * but no more than 5 minutes and no less than 1 sec */
-		elapsed.tv_sec *= 5;
-		elapsed.tv_usec *= 5;
-		elapsed.tv_sec += elapsed.tv_usec / 1000000;
-		elapsed.tv_usec = elapsed.tv_usec % 1000000;
-
-		if (elapsed.tv_sec > 300)
-			elapsed.tv_sec = 300;
-		else if (elapsed.tv_sec < 1)
-			elapsed.tv_sec = 1;
-		if (elapsed.tv_sec > 5)
-			LOG(LOG_DEBUG, "Sleeping for %d seconds", (int)elapsed.tv_sec);
-		sleep(elapsed.tv_sec);
-	}
+	if (elapsed.tv_sec > 300)
+		elapsed.tv_sec = 300;
+	else if (elapsed.tv_sec < 1)
+		elapsed.tv_sec = 1;
+	if (elapsed.tv_sec > 5)
+		LOG(LOG_DEBUG, "Sleeping for %d seconds", (int)elapsed.tv_sec);
+	sleep(elapsed.tv_sec);
 }
 
+
+/**********************************************************************
+ * Batch size calculation routines
+ */
 
 /**
  * Determine package size. For CancerGrid, "optimal" package sizes are
@@ -206,7 +216,8 @@ void QueueManager::run()
  *                 needed, as the decision depends only on this
  * @return Determined package size
  */
-unsigned QueueManager::selectSize(AlgQueue *algQ)
+#if 0
+static unsigned selectSize(AlgQueue *algQ)
 {
 	unsigned maxPSize = algQ->getPackSize();
 	double tATT = 0, tVB = 0;
@@ -248,6 +259,7 @@ unsigned QueueManager::selectSize(AlgQueue *algQ)
 
 	return 1;
 }
+#endif
 
 
 /**
@@ -260,7 +272,7 @@ unsigned QueueManager::selectSize(AlgQueue *algQ)
  *                 needed, as the decision depends only on this
  * @return Determined package size
  */
-unsigned QueueManager::selectSizeAdv(AlgQueue *algQ)
+static unsigned selectSizeAdv(AlgQueue *algQ)
 {
 	unsigned maxPSize = algQ->getPackSize();
 	double tATT = 0;
@@ -286,4 +298,137 @@ unsigned QueueManager::selectSizeAdv(AlgQueue *algQ)
                     return i+1;
 
 	return 1;
+}
+
+static void init_grid_handlers(void)
+{
+	char **sections, *handler;
+	unsigned i;
+
+#ifdef HAVE_DCAPI
+	registerPlugin("DC-API", DCAPIHandler::getInstance);
+#endif
+#ifdef HAVE_EGEE
+	registerPlugin("EGEE", EGEEHandler::getInstance);
+#endif
+
+	sections = g_key_file_get_groups(global_config, NULL);
+	for (i = 0; sections && sections[i]; i++)
+	{
+		/* Skip sections that are not grid definitions */
+		if (!strcmp(sections[i], GROUP_DEFAULTS) ||
+				!strcmp(sections[i], GROUP_DATABASE) ||
+				!strcmp(sections[i], GROUP_BRIDGE) ||
+				!strcmp(sections[i], GROUP_WSSUBMITTER))
+			continue;
+
+		handler = g_key_file_get_string(global_config, sections[i], "handler", NULL);
+		if (!handler)
+			throw new QMException("Handler definition is missing in %s", sections[i]);
+
+		GridHandler *plugin = getPluginInstance(global_config, handler, sections[i]);
+		gridHandlers.push_back(plugin);
+		LOG(LOG_DEBUG, "Initialized grid %s using %s", sections[i], handler);
+		g_free(handler);
+	}
+	g_strfreev(sections);
+
+	if (!gridHandlers.size())
+	{
+		LOG(LOG_NOTICE, "No grid handlers are defined in the config. file, exiting");
+		exit(0);
+	}
+}
+
+/**********************************************************************
+ * The main program
+ */
+
+int main(int argc, char **argv)
+{
+	GOptionContext *context;
+	struct sigaction sa;
+	GError *error = NULL;
+
+	/* Parse the command line */
+	context = g_option_context_new("- queue manager for the 3G Bridge");
+	g_option_context_add_main_entries(context, options, PACKAGE);
+        if (!g_option_context_parse(context, &argc, &argv, &error))
+	{
+		LOG(LOG_ERR, "Failed to parse the command line options: %s", error->message);
+		exit(1);
+	}
+
+	if (!config_file)
+	{
+		LOG(LOG_ERR, "The configuration file is not specified");
+		exit(1);
+	}
+	g_option_context_free(context);
+
+	global_config = g_key_file_new();
+	g_key_file_load_from_file(global_config, config_file, G_KEY_FILE_NONE, &error);
+	if (error)
+	{
+		LOG(LOG_ERR, "Failed to load the config file: %s", error->message);
+		exit(1);
+	}
+
+	log_init(global_config, argv[0]);
+
+	if (pid_file_create(global_config, GROUP_WSSUBMITTER))
+		exit(1);
+
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = sigint_handler;
+	sigaction(SIGINT, &sa, NULL);
+	sigaction(SIGTERM, &sa, NULL);
+	sigaction(SIGQUIT, &sa, NULL);
+
+	sa.sa_handler = sighup_handler;
+	sigaction(SIGHUP, &sa, NULL);
+
+	DBHandler::init();
+
+	try {
+		init_grid_handlers();
+
+		LOG(LOG_DEBUG, "Reading algorithm datas");
+		AlgQueue::load();
+	}
+	catch (QMException *error) {
+		LOG(LOG_ERR, "Caught an unhandled exception: %s", error->what());
+		delete error;
+		return -1;
+	}
+
+	if (run_as_daemon)
+		daemon(0, 0);
+	pid_file_update();
+
+	while (!finish)
+	{
+		if (reload)
+		{
+			log_reopen();
+			reload = false;
+		}
+
+		do_mainloop();
+	}
+
+	LOG(LOG_NOTICE, "Exiting");
+
+	while (!gridHandlers.empty())
+	{
+		GridHandler *plugin = gridHandlers.front();
+		gridHandlers.erase(gridHandlers.begin());
+		delete plugin;
+	}
+
+	AlgQueue::cleanUp();
+	DBHandler::done();
+	g_key_file_free(global_config);
+
+	return 0;
 }

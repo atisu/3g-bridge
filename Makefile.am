@@ -9,7 +9,6 @@ bin_PROGRAMS = injector bridge wsclient wssubmitter
 noinst_HEADERS = \
 		AlgQueue.h \
 		BackendException.h \
-		Bridge.h \
 		Conf.h \
 		DBHandler.h \
 		DCAPIHandler.h \
@@ -18,7 +17,6 @@ noinst_HEADERS = \
 		GridHandler.h \
 		Job.h \
 		QMException.h \
-		QueueManager.h \
 		Util.h
 
 injector_SOURCES = \
@@ -71,7 +69,6 @@ $(SOAP_CPP_SRC) : $(SOAP_HEADER)
 bridge_SOURCES = \
 		AlgQueue.cpp \
 		BackendException.cpp \
-		Bridge.cpp \
 		DBHandler.cpp \
 		Job.cpp \
 		QMException.cpp \
