@@ -46,9 +46,9 @@ service-threads = 3
 download-threads = 5
 
 # Where to put the downloaded input files
-download-dir =
+input-dir =
 
-# Where to put temporary files
+# Where to put temporary files. Must be on the same file system as input-dir
 partial-dir =
 
 # Directory for output files. When creating URLs for output files,

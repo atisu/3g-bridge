@@ -39,7 +39,7 @@ void Job::addOutput(const string &localname, const string &fsyspath)
 auto_ptr< vector<string> > Job::getInputs() const
 {
 	map<string, string>::const_iterator it;
-	auto_ptr< vector<string> > rval;
+	auto_ptr< vector<string> > rval(new vector<string>);
 	for (it = inputs.begin(); it != inputs.end(); it++)
 		rval->push_back(it->first);
 	return rval;
@@ -49,7 +49,7 @@ auto_ptr< vector<string> > Job::getInputs() const
 auto_ptr< vector<string> > Job::getOutputs() const
 {
 	map<string, string>::const_iterator it;
-	auto_ptr< vector<string> > rval;
+	auto_ptr< vector<string> > rval(new vector<string>);
 	for (it = outputs.begin(); it != outputs.end(); it++)
 		rval->push_back(it->first);
 	return rval;

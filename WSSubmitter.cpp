@@ -29,7 +29,7 @@ using namespace std;
  * Global variables
  */
 
-static char *download_dir;
+static char *input_dir;
 static char *partial_dir;
 static char *output_dir;
 static char *output_url_prefix;
@@ -62,7 +62,7 @@ static GOptionEntry options[] =
 
 static string calc_input_path(const string jobid, const string localName) throw (QMException *)
 {
-	string jobdir = (string)download_dir + "/" + jobid;
+	string jobdir = (string)input_dir + "/" + jobid;
 	int ret = mkdir(jobdir.c_str(), 0750);
 	if (ret == -1 && errno != EEXIST)
 		throw new QMException("Failed to create directory '%s': %s",
@@ -116,14 +116,15 @@ private:
 	string logicalFile;
 public:
 	DBItem(const string &jobId, const string &logicalFile, const string &URL);
+	virtual ~DBItem() {};
 
 	const string &getJobId() const { return jobId; };
 
-	void finished();
-	void failed();
+	virtual void finished();
+	virtual void failed();
 };
 
-DBItem::DBItem(const string &jobId, const string &logicalFile, const string &URL)
+DBItem::DBItem(const string &jobId, const string &logicalFile, const string &URL):jobId(jobId),logicalFile(logicalFile)
 {
 	DLItem::DLItem();
 	this->url = URL;
@@ -150,29 +151,29 @@ void DBItem::finished()
 	int ret = rename(path.c_str(), final_path.c_str());
 	if (ret)
 	{
-		LOG(LOG_ERR, "Failed to rename '%s' to '%s': %s",
-			path.c_str(), final_path.c_str(), strerror(errno));
+		LOG(LOG_ERR, "Job %s: Failed to rename '%s' to '%s': %s",
+			jobId.c_str(), path.c_str(), final_path.c_str(), strerror(errno));
 		failed();
 		return;
 	}
 
 	/* Check if the job is now ready to be submitted */
 	auto_ptr< vector<string> > inputs = job->getInputs();
-	vector<string>::const_iterator it;
-	for (it = inputs->begin(); it != inputs->end(); it++)
+	bool job_ready = true;
+	for (vector<string>::const_iterator it = inputs->begin(); job_ready && it != inputs->end(); it++)
 	{
 		struct stat st;
 		string path;
 
 		path = calc_input_path(jobId, *it);
 		ret = stat(path.c_str(), &st);
-		if (!ret)
-			break;
+		if (ret)
+			job_ready = false;
 	}
-	if (it == inputs->end())
+	if (job_ready)
 	{
 		job->setStatus(Job::INIT);
-		/* XXX Send notification */
+		LOG(LOG_INFO, "Job %s: Preparation complete", jobId.c_str());
 	}
 }
 
@@ -183,11 +184,16 @@ void DBItem::failed()
 	DBHandler *dbh = DBHandler::get();
 	dbh->deleteDL(jobId, logicalFile);
 	auto_ptr<Job> job = dbh->getJob(jobId);
-	dbh->updateJobStat(jobId, Job::ERROR);
 	DBHandler::put(dbh);
 
 	if (!job.get())
 		return;
+
+	if (job->getStatus() != Job::ERROR)
+	{
+		job->setStatus(Job::ERROR);
+		LOG(LOG_NOTICE, "Job %s: Aborted due to errors", jobId.c_str());
+	}
 
 	/* Abort the download of the other input files */
 	auto_ptr< vector<string> > inputs = job->getInputs();
@@ -254,12 +260,15 @@ int __G3Bridge__submit(struct soap *soap, G3Bridge__JobList *jobs, G3Bridge__Job
 		}
 
 		dbh->addJob(qmjob);
+		LOG(LOG_INFO, "Job %s: Accepted", jobid);
+
+		result->jobid.push_back(jobid);
 
 		/* The downloads can only be started after the job record is in the DB */
 		for (vector< pair<string,string> >::const_iterator it = inputs.begin(); it != inputs.end(); it++)
 		{
-			auto_ptr<DBItem> item(new DBItem(qmjob.getId(), it->first, it->second));
-			dbh->addDL(qmjob.getId(), it->first, it->second);
+			auto_ptr<DBItem> item(new DBItem(jobid, it->first, it->second));
+			dbh->addDL(jobid, it->first, it->second);
 			dlm->add(item.get());
 			item.release();
 		}
@@ -293,10 +302,7 @@ int __G3Bridge__getStatus(struct soap *soap, G3Bridge__JobIDList *jobids, G3Brid
 	{
 		G3Bridge__JobStatus status = G3Bridge__JobStatus__UNKNOWN;
 
-		auto_ptr<Job> job;
-
-		job = dbh->getJob(*it);
-
+		auto_ptr<Job> job = dbh->getJob(*it);
 		if (job.get()) switch (job->getStatus())
 		{
 			case Job::PREPARE:
@@ -347,7 +353,10 @@ int __G3Bridge__delete(struct soap *soap, G3Bridge__JobIDList *jobids, struct __
 	{
 		auto_ptr<Job> job = dbh->getJob(*it);
 		if (!job.get())
+		{
+			LOG(LOG_NOTICE, "delete: Unknown job ID %s", it->c_str());
 			continue;
+		}
 
 		auto_ptr< vector<string> > files = job->getInputs();
 		for (vector<string>::const_iterator fsit = files->begin(); fsit != files->end(); fsit++)
@@ -360,12 +369,13 @@ int __G3Bridge__delete(struct soap *soap, G3Bridge__JobIDList *jobids, struct __
 			unlink(path.c_str());
 		}
 
-		string jobdir = (string)download_dir + "/" + *it;
+		string jobdir = (string)input_dir + "/" + *it;
 		rmdir(jobdir.c_str());
 
 		if (job->getStatus() == Job::RUNNING)
 		{
 			job->setStatus(Job::CANCEL);
+			LOG(LOG_NOTICE, "Job %s: Cancelled", it->c_str());
 			continue;
 		}
 
@@ -382,6 +392,7 @@ int __G3Bridge__delete(struct soap *soap, G3Bridge__JobIDList *jobids, struct __
 
 		/* Delete the job itself */
 		dbh->deleteJob(*it);
+		LOG(LOG_NOTICE, "Job %s: Deleted", it->c_str());
 	}
 
 	DBHandler::put(dbh);
@@ -417,7 +428,10 @@ int __G3Bridge__getOutput(struct soap *soap, G3Bridge__JobIDList *jobids, G3Brid
 
 		auto_ptr<Job> job = dbh->getJob(*it);
 		if (!job.get())
+		{
+			LOG(LOG_NOTICE, "getOutput: Unknown job ID %s", it->c_str());
 			continue;
+		}
 
 		auto_ptr< vector<string> > files = job->getOutputs();
 		for (vector<string>::const_iterator fsit = files->begin(); fsit != files->end(); fsit++)
@@ -510,6 +524,14 @@ static void sighup_handler(int signal __attribute__((__unused__)))
 	reload = true;
 }
 
+static void restart_download(const char *jobid, const char *localName,
+	const char *url, const GTimeVal *next, int retries)
+{
+	DBItem *item = new DBItem(jobid, localName, url);
+	item->setRetry(*next, retries);
+	dlm->add(item);
+}
+
 int main(int argc, char **argv)
 {
 	int port, ws_threads, dl_threads;
@@ -583,10 +605,10 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
-	download_dir = g_key_file_get_string(global_config, GROUP_WEBSERVICE, "download-dir", &error);
-	if (!download_dir || error)
+	input_dir = g_key_file_get_string(global_config, GROUP_WEBSERVICE, "input-dir", &error);
+	if (!input_dir || error)
 	{
-		LOG(LOG_ERR, "Failed to get the download directory: %s", error->message);
+		LOG(LOG_ERR, "Failed to get the input directory: %s", error->message);
 		g_error_free(error);
 		exit(1);
 	}
@@ -615,9 +637,6 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	if (run_as_daemon)
-		daemon(0, 0);
-
 	/* Set up the signal handlers */
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = sigint_handler;
@@ -634,9 +653,13 @@ int main(int argc, char **argv)
 	/* Initialize glib's thread system */
 	g_thread_init(NULL);
 
+	DBHandler::init();
+
 	dlm = new DownloadManager(dl_threads, 10);
 
-	/* XXX Load the pending downloads from the database */
+	DBHandler *dbh = DBHandler::get();
+	dbh->getAllDLs(restart_download);
+	DBHandler::put(dbh);
 
 	soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE | SOAP_IO_CHUNK);
 	soap.send_timeout = 60;
@@ -650,8 +673,9 @@ int main(int argc, char **argv)
 	SOAP_SOCKET ss = soap_bind(&soap, NULL, port, 100);
 	if (!soap_valid_socket(ss))
 	{
-		/* XXX Use LOG() */
-		soap_print_fault(&soap, stderr);
+		char buf[256];
+		soap_sprint_fault(&soap, buf, sizeof(buf));
+		LOG(LOG_ERR, "SOAP initialization: %s", buf);
 		exit(-1);
 	}
 
@@ -661,6 +685,9 @@ int main(int argc, char **argv)
 		LOG(LOG_ERR, "Failed to launch the WS threads");
 		exit(1);
 	}
+
+	if (run_as_daemon)
+		daemon(0, 0);
 
 	while (!finish)
 	{
@@ -689,9 +716,13 @@ int main(int argc, char **argv)
 	soap_done(&soap);
 
 	g_thread_pool_free(soap_pool, TRUE, TRUE);
+
 	delete dlm;
+
+	DBHandler::done();
+
 	g_key_file_free(global_config);
-	g_free(download_dir);
+	g_free(input_dir);
 	g_free(partial_dir);
 	g_free(output_dir);
 	g_free(output_url_prefix);

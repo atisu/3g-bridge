@@ -24,10 +24,6 @@
 /* For OpenSSL multithread support */
 static GStaticMutex *ssl_mutexes;
 
-/* Garbage collector for DLItem */
-static GList *gc_list;
-static GStaticMutex gc_lock = G_STATIC_MUTEX_INIT;
-
 /**********************************************************************
  * libcurl thread-related callbacks for glib
  */
@@ -78,29 +74,6 @@ static void lock_ssl_lock(int mode, struct CRYPTO_dynlock_value *lock, const cha
 static void destroy_ssl_lock(struct CRYPTO_dynlock_value *lock, const char *file G_GNUC_UNUSED, int line G_GNUC_UNUSED)
 {
 	g_mutex_free((GMutex *)(void *)lock);
-}
-
-/**********************************************************************
- * Garbage collector for class DLItem
- */
-
-static void add_to_gc(DLItem *item)
-{
-	g_static_mutex_lock(&gc_lock);
-	gc_list = g_list_prepend(gc_list, item);
-	g_static_mutex_unlock(&gc_lock);
-}
-
-static void run_gc(void)
-{
-	g_static_mutex_lock(&gc_lock);
-	while (gc_list)
-	{
-		DLItem *item = (DLItem *)gc_list->data;
-		gc_list = g_list_delete_link(gc_list, gc_list);
-		delete item;
-	}
-	g_static_mutex_unlock(&gc_lock);
 }
 
 /**********************************************************************
@@ -195,8 +168,6 @@ DownloadManager::~DownloadManager()
 
 	if (ssl_mutexes)
 		g_free(ssl_mutexes);
-
-	run_gc();
 }
 
 static int sort_by_time(const void *a, const void *b, void *c G_GNUC_UNUSED)
@@ -220,6 +191,7 @@ void DownloadManager::retry(DLItem *item)
 	if (item->retries >= max_retries)
 	{
 		item->failed();
+		delete item;
 		return;
 	}
 
@@ -259,8 +231,31 @@ void DownloadManager::abort(const string &path)
 		DLItem *item = (DLItem *)link->data;
 		g_queue_delete_link(queue, link);
 		item->failed();
+		delete item;
 	}
 	g_mutex_unlock(queue_lock);
+}
+
+void DownloadManager::check(DLItem *item, long http_response)
+{
+	if (http_response >= 500 && http_response < 599)
+	{
+		LOG(LOG_DEBUG, "Download failed for %s, error code %ld (retry)",
+			item->getUrl().c_str(), http_response);
+		retry(item);
+		return;
+	}
+	if (http_response >= 400 && http_response < 499)
+	{
+		LOG(LOG_DEBUG, "Download failed for %s, error code %ld",
+			item->getUrl().c_str(), http_response);
+		item->failed();
+		delete item;
+		return;
+	}
+
+	item->finished();
+	delete item;
 }
 
 void *DownloadManager::run_dl(void *data)
@@ -277,6 +272,7 @@ void *DownloadManager::run_dl(void *data)
 	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
 	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, (long)TRUE);
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, (long)TRUE);
 	curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 10);
 
 	/* XXX Add support for CURLOPT_SEEKFUNCTION to resume interrupted downloads */
@@ -307,21 +303,24 @@ void *DownloadManager::run_dl(void *data)
 		g_mutex_unlock(self->queue_lock);
 
 		curl_easy_setopt(curl, CURLOPT_URL, item->getUrl().c_str());
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, data);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, item);
 
 		LOG(LOG_DEBUG, "Starting to download %s", item->getUrl().c_str());
 
 		result = curl_easy_perform(curl);
 		if (result)
 		{
-			LOG(LOG_ERR, "Download failed for %s: %s", item->getUrl().c_str(), errbuf);
+			LOG(LOG_ERR, "Download failed for %s: %s (retry)", item->getUrl().c_str(), errbuf);
 			self->retry(item);
 		}
 		else
 		{
-			LOG(LOG_DEBUG, "Finished downloading %s", item->getUrl().c_str());
-			item->finished();
+			long http_response;
+
+			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_response);
+			self->check(item, http_response);
 		}
+
 		g_mutex_lock(self->queue_lock);
 	}
 
@@ -344,7 +343,6 @@ DLItem::DLItem(const string &URL, const string &path):url(URL),path(path)
 	fd = -1;
 	retries = 0;
 	g_get_current_time(&when);
-	run_gc();
 }
 
 DLItem::DLItem()
@@ -352,7 +350,6 @@ DLItem::DLItem()
 	fd = -1;
 	retries = 0;
 	g_get_current_time(&when);
-	run_gc();
 }
 
 DLItem::~DLItem()
@@ -375,17 +372,17 @@ size_t DLItem::write(void *buf, size_t size)
 
 void DLItem::finished()
 {
+	LOG(LOG_DEBUG, "Finished downloading %s", url.c_str());
 	if (fd != -1)
 	{
 		close(fd);
 		fd = -1;
 	}
-
-	add_to_gc(this);
 }
 
 void DLItem::failed()
 {
+	LOG(LOG_DEBUG, "Aborted downloading %s", url.c_str());
 	if (fd != -1)
 	{
 		close(fd);
@@ -393,8 +390,6 @@ void DLItem::failed()
 	}
 	if (path.length())
 		unlink(path.c_str());
-
-	add_to_gc(this);
 }
 
 bool DLItem::operator<(const DLItem &b)

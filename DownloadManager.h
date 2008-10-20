@@ -26,7 +26,7 @@ protected:
 public:
 	DLItem(const string &URL, const string &path);
 	DLItem();
-	~DLItem();
+	virtual ~DLItem();
 	bool operator<(const DLItem &b);
 	bool operator<(const GTimeVal &b);
 	bool operator>=(const GTimeVal &b);
@@ -36,8 +36,8 @@ public:
 
 	void setRetry(const GTimeVal &when, int retries);
 	size_t write(void *buf, size_t size);
-	void finished();
-	void failed();
+	virtual void finished();
+	virtual void failed();
 };
 
 class DownloadManager
@@ -60,6 +60,7 @@ private:
 	static void *run_dl(void *obj);
 
 	void retry(DLItem *item);
+	void check(DLItem *item, long http_response);
 
 public:
 	DownloadManager(int num_threads, int max_retries);
