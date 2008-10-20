@@ -12,107 +12,194 @@
 #include "soap/soapH.h"
 #include "soap/G3BridgeSubmitter.nsmap"
 
+#include <glib.h>
 
 using namespace std;
 
+/**********************************************************************
+ * Data type definitions
+ */
 
-void help_screen(bool doshort = false);
-void parse_inputs(G3Bridge__Job &job, const char *inputs);
-void parse_outputs(G3Bridge__Job &job, const char *outputs);
-void handle_add(G3Bridge__Job &job, const char *endpoint);
-void handle_status(const char *jobid, const char *jidfname, const char *endpoint);
-void handle_del(const char *jobid, const char *endpoint);
-void handle_output(const char *jobid, const char *endpoint);
+typedef enum { ADD, DELETE, STATUS, OUTPUT, FINISHED } op_mode;
 
+
+/**********************************************************************
+ * Prototypes
+ */
+
+static int add_jobid(const char *name, const char *value, void *ptr, GError **error);
+static void handle_add(void);
+static void handle_status(void);
+static void handle_delete(void);
+static void handle_output(void);
+static void handle_finished(void);
+
+
+/**********************************************************************
+ * Global variables
+ */
+
+static char *mode;
+static char *endpoint;
+static char *name;
+static char *grid;
+static char *args;
+static char **inputs;
+static char **outputs;
+static G3Bridge__JobIDList jobIDs;
+static char *jidfile;
+
+
+static GOptionEntry options[] =
+{
+	{ "endpoint",		'e',	0,	G_OPTION_ARG_STRING,		&endpoint,
+		"Service endpoint", "URL" },
+	{ "mode",		'm',	0,	G_OPTION_ARG_STRING,		&mode,
+		"Operation mode", "(add|status|delete|output|finished)" },
+	{ NULL }
+};
+
+static GOptionEntry add_options[] =
+{
+	{ "name",		'n',	0,	G_OPTION_ARG_STRING,		&name,
+		"Name of the algorithm to execute", "NAME" },
+	{ "grid",		'g',	0,	G_OPTION_ARG_STRING,		&grid,
+		"Grid where to submit the job to", "NAME" },
+	{ "args",		'a',	0,	G_OPTION_ARG_STRING,		&args,
+		"Command-line arguments for the job", "ARGS" },
+	{ "in",			'i',	0,	G_OPTION_ARG_STRING_ARRAY,	&inputs,
+		"Input file specification", "NAME=URL" },
+	{ "out",		'o',	0,	G_OPTION_ARG_STRING_ARRAY,	&outputs,
+		"Output file names", "NAME" },
+	{ NULL }
+};
+
+static GOptionEntry other_options[] =
+{
+	{ "jid",		'j',	0,	G_OPTION_ARG_CALLBACK,		(void *)&add_jobid,
+		"Job identifier", "UUID" },
+	{ "jidfile",		'f',	0,	G_OPTION_ARG_FILENAME,		&jidfile,
+		"Input file holding the job identifiers. '-' can be used to read the "
+		"job IDs from STDIN", "FILE" },
+	{ NULL }
+};
+
+/**********************************************************************
+ * Main program
+ */
 
 int main(int argc, char **argv)
 {
-	char *mode = NULL, *endpoint = NULL, *jobid = NULL, *jidfname = NULL;
-	G3Bridge__Job job;
+	GOptionContext *context;
+	GOptionGroup *group;
+	GError *error = NULL;
 
-	while (1)
+	context = g_option_context_new("- Simple client for the 3G Submitter service");
+	g_option_context_add_main_entries(context, options, PACKAGE);
+	group = g_option_group_new("add", "Job submission options:",
+		"Options for submitting a new job", NULL, NULL);
+	g_option_group_add_entries(group, add_options);
+	g_option_context_add_group(context, group);
+	group = g_option_group_new("other", "Query/manipulation options:",
+		"Options for dealing with submitted jobs", NULL, NULL);
+	g_option_group_add_entries(group, other_options);
+	g_option_context_add_group(context, group);
+
+        if (!g_option_context_parse(context, &argc, &argv, &error))
 	{
-		int c, d;
-		int option_index = 0;
-		static struct option long_options[] =
-		{
-			{"mode", 1, &c, 'm'},
-			{"name", 1, &c, 'n'},
-			{"grid", 1, &c, 'g'},
-			{"args", 1, &c, 'a'},
-			{"ins", 1, &c, 'i'},
-			{"outs", 1, &c, 'o'},
-			{"jobid", 1, &c, 'j'},
-			{"jidfile", 1, &c, 'f'},
-			{"endpoint", 1, &c, 'e'},
-			{"help", 0, &c, 'h'}
-		};
-		d = getopt_long(argc, argv, "m:n:g:a:i:o:j:f:e:h", long_options, &option_index);
-		if (-1 == d)
-			break;
-		if (d)
-			c = d;
-		switch (c)
-		{
-		case 'm':
-			mode = strdup(optarg);
-			break;
-		case 'n':
-			job.alg = optarg;
-			break;
-		case 'g':
-			job.grid = optarg;
-			break;
-		case 'a':
-			job.args = optarg;
-			break;
-		case 'i':
-			parse_inputs(job, optarg);
-			break;
-		case 'o':
-			parse_outputs(job, optarg);
-			break;
-		case 'j':
-			jobid = strdup(optarg);
-			break;
-		case 'f':
-			jidfname = strdup(optarg);
-			break;
-		case 'e':
-			endpoint = strdup(optarg);
-			break;
-		case 'h':
-		default:
-			help_screen();
-			exit(0);
-			break;
-		}
+		cerr << "Error: " << error->message << endl;
+		exit(1);
 	}
 
 	if (!mode)
 	{
 		cerr << "Error: no mode selected!" << endl;
-		help_screen(true);
+		exit(1);
 	}
 
 	if (!endpoint)
 	{
 		cerr << "Error: no endpoint URL specified!" << endl;
-		help_screen(true);
+		exit(1);
 	}
 
-	if (!strcmp(mode, "add"))
-		handle_add(job, endpoint);
-	else if (!strcmp(mode, "status"))
-		handle_status(jobid, jidfname, endpoint);
-	else if (!strcmp(mode, "del"))
-		handle_del(jobid, endpoint);
-	else if (!strcmp(mode, "output"))
-		handle_output(jobid, endpoint);
+	op_mode m;
+	if (!strncmp(mode, "add", strlen(mode)))
+		m = ADD;
+	else if (!strncmp(mode, "status", strlen(mode)))
+		m = STATUS;
+	else if (!strncmp(mode, "delete", strlen(mode)))
+		m = DELETE;
+	else if (!strncmp(mode, "output", strlen(mode)))
+		m = OUTPUT;
+	else if (!strncmp(mode, "finished", strlen(mode)))
+		m = FINISHED;
 	else
 	{
-		cerr << "Error: invalid mode specified: \"" << mode << "\"!" << endl;
-		help_screen(true);
+		cerr << "Error: invalid mode specified!" << endl;
+		exit(1);
+	}
+
+	switch (m)
+	{
+		case ADD:
+			handle_add();
+			return 0;
+		case FINISHED:
+			handle_finished();
+			return 0;
+		default:
+			break;
+	}
+
+	/* For 'status', 'delete' and 'outputs', read the list of job IDs first */
+	if (jidfile)
+	{
+		char buf[64], *p;
+		FILE *f;
+
+		if (!strcmp(jidfile, "-"))
+			f = stdin;
+		else
+		{
+			f = fopen(jidfile, "r");
+			if (!f)
+			{
+				fprintf(stderr, "Failed to open %s: %s\n",
+					jidfile, strerror(errno));
+				exit(1);
+			}
+		}
+
+		while (fgets(buf, sizeof(buf), f))
+		{
+			p = strchr(buf, '\n');
+			if (p)
+				*p = '\0';
+			p = buf;
+			if (!buf[0] || buf[0] == '#')
+				continue;
+
+			jobIDs.jobid.push_back(buf);
+		}
+
+		if (f != stdin)
+			fclose(f);
+	}
+
+	switch (m)
+	{
+		case OUTPUT:
+			handle_output();
+			break;
+		case STATUS:
+			handle_status();
+			break;
+		case DELETE:
+			handle_delete();
+			break;
+		default:
+			break;
 	}
 
 	return(0);
@@ -120,114 +207,66 @@ int main(int argc, char **argv)
 
 
 /**
- * Print usage instructions
- * @param doshort print how to invoke help when true and exit, print full usage
- *                otherwise
+ * Job ID addition callback function
  */
-void help_screen(bool doshort)
+static int add_jobid(const char *name, const char *value, void *ptr, GError **error)
 {
-	if (doshort)
-	{
-		cerr << "Use -h or --help for usage instructions." << endl;
-		exit(-1);
-	}
-	cout << endl;
-	cout << "Command line switches to wsclient:" << endl;
-	cout << "    -m|--mode [add|status|del|output]  Operation mode (*)" << endl;
-	cout << "    -e|--endpoint [URL]                Endpoint of service (*)" << endl;
-	cout << "    -h|--help                          Print this help" << endl;
-	cout << "  'add' mode switches:" << endl;
-	cout << "    -n|--name [algorithm name]         Name of the algorithm (*)" << endl;
-	cout << "    -g|--grid [grid name]              Destination grid (*)" << endl;
-	cout << "    -a|--args [arguments]              Comma-separated list of args" << endl;
-	cout << "    -i|--ins  [in1=URL1,...]           List of input files" << endl;
-	cout << "    -o|--outs [out1,...]               List of output files" << endl;
-	cout << "  'status', 'del' and 'output' mode switches:" << endl;
-	cout << "    -j|--jid [Job identifier]          Job's identifier to use (*)" << endl;
-	cout << "  'status':" << endl;
-	cout << "    -f|--jidfile [Job identifier file] Job identifier file to use (#)" << endl;
-	cout << endl;
-	cout << "  *: argument is mandatory" << endl;
-	cout << "  #: mandatory when '-j' isn't set" << endl;
-}
-
-
-/**
- * Split string.
- * @param src string to split
- * @param delims delimiters to use
- * @param[out] res vector to store splitted values
- */
-void split_by_delims(const char *src, const char *delims, vector<string> &res)
-{
-	char *tsrc = strdup(src);
-	char *str1 = strtok(tsrc, delims);
-	while (str1)
-	{
-		res.push_back(string(str1));
-		str1 = strtok(NULL, delims);
-	}
-	free(tsrc);
-}
-
-
-/**
- * Parse input files
- * @param[out] job G3Bridge__Job object to fill in
- * @param inputs inputs string to parse
- */
-void parse_inputs(G3Bridge__Job &job, const char *inputs)
-{
-	vector<string> ins;
-	split_by_delims(inputs, ",", ins);
-	for (unsigned i = 0; i < ins.size(); i++)
-	{
-		vector<string> names;
-		split_by_delims(ins.at(i).c_str(), "=", names);
-		if (names.size() % 2 || !names.size())
-		{
-			cerr << "Malformed input definition string: " << ins.at(i) << endl;
-			help_screen(true);
-		}
-		G3Bridge__LogicalFile *lf = new G3Bridge__LogicalFile;
-		lf->logicalName = names.at(0);
-		lf->URL = names.at(1);
-		job.inputs.push_back(lf);
-	}
-}
-
-
-/**
- * Parse output files
- * @param[out] job G3Bridge__Job object to fill in
- * @param outputs outputs string to parse
- */
-void parse_outputs(G3Bridge__Job &job, const char *outputs)
-{
-	split_by_delims(outputs, ",", job.outputs);
+	jobIDs.jobid.push_back(value);
+	return TRUE;
 }
 
 
 /**
  * Handle submission
- * @param job G3Bridge__Job object to send to the Service
- * @param endpoint Service endpoint to use
  */
-void handle_add(G3Bridge__Job &job, const char *endpoint)
+static void handle_add(void)
 {
-	if ("" == job.alg || "" == job.grid)
+	G3Bridge__Job job;
+
+	if (!name || !grid)
 	{
 		cerr << "Job addition problem: either name or grid undefined!" << endl;
-		help_screen(true);
+		exit(1);
 	}
+
+	job.alg = name;
+	job.grid = grid;
+
+	struct soap *soap = soap_new();
+	soap_init(soap);
+
+	for (unsigned i = 0; inputs && inputs[i]; i++)
+	{
+		char *p;
+
+		p = strchr(inputs[i], '=');
+		if (!p)
+		{
+			cerr << "Malformed input definition string: " << inputs[i] << endl;
+			exit(1);
+		}
+
+		*p++ = '\0';
+		if (!strlen(p))
+		{
+			cerr << "Input URL is missing for " << inputs[i] << endl;
+			exit(1);
+		}
+
+		G3Bridge__LogicalFile *lf = soap_new_G3Bridge__LogicalFile(soap, -1);
+		lf->logicalName = inputs[i];
+		lf->URL = p;
+		job.inputs.push_back(lf);
+	}
+
+	for (unsigned i = 0; outputs && outputs[i]; i++)
+		job.outputs.push_back(outputs[i]);
 
 	G3Bridge__JobIDList IDs;
 	G3Bridge__JobList jList;
 	jList.job.clear();
 	jList.job.push_back(&job);
 
-	struct soap *soap = soap_new();
-	soap_init(soap);
 	if (SOAP_OK != soap_call___G3Bridge__submit(soap, endpoint, NULL, &jList, &IDs))
 	{
 		soap_print_fault(soap, stderr);
@@ -241,42 +280,10 @@ void handle_add(G3Bridge__Job &job, const char *endpoint)
 
 
 /**
- * Check if job identifier is not empty of if yes, the provided job id file is
- * valid. Exits when there is a problem
- * @param val string to check
- * @param fname file existence to check
- */
-void check_jobid(const char *val, const char *fname = NULL)
-{
-	if (val && strlen(val))
-		return;
-
-	if (fname)
-	{
-		ifstream jidfile(fname);
-		if (jidfile)
-		{
-			jidfile.close();
-			return;
-		}
-	}
-
-	if (!fname)
-		cerr << "Error: job identifier isn't set!" << endl;
-	else
-		cerr << "Error: neither job identifier and job identifier file are set!" << endl;
-	help_screen(true);
-}
-
-
-/**
  * Handle status query
- * @param jobid job identifier we would like to use
- * @param endpoint Service endpoint to use
  */
-void handle_status(const char *jobid, const char *jidfname, const char *endpoint)
+static void handle_status(void)
 {
-	G3Bridge__JobIDList jList;
 	G3Bridge__StatusList resp;
 	struct {
 		G3Bridge__JobStatus st;
@@ -289,39 +296,18 @@ void handle_status(const char *jobid, const char *jidfname, const char *endpoint
 		{G3Bridge__JobStatus__ERROR,    "Error"   }
 	};
 
-	check_jobid(jobid, jidfname);
-
-	jList.jobid.clear();
-	if (jobid)
-		jList.jobid.push_back(string(jobid));
-	if (jidfname)
-	{
-		ifstream idfile(jidfname);
-		if (idfile)
-		{
-			string idread;
-			idfile >> idread;
-			while (!idfile.eof())
-			{
-				jList.jobid.push_back(idread);
-				idfile >> idread;
-			}
-			idfile.close();
-		}
-	}
-
 	struct soap *soap = soap_new();
 	soap_init(soap);
-	if (SOAP_OK != soap_call___G3Bridge__getStatus(soap, endpoint, NULL, &jList, &resp))
+	if (SOAP_OK != soap_call___G3Bridge__getStatus(soap, endpoint, NULL, &jobIDs, &resp))
 	{
 		soap_print_fault(soap, stderr);
 		exit(-1);
 	}
 
-	for (unsigned i = 0; i < jList.jobid.size(); i++)
+	for (unsigned i = 0; i < jobIDs.jobid.size(); i++)
 	{
 		G3Bridge__JobStatus st = resp.status.at(i);
-		cout << jList.jobid.at(i) << " " << statToStr[st].str << endl;
+		cout << jobIDs.jobid.at(i) << " " << statToStr[st].str << endl;
 	}
 
 	soap_destroy(soap);
@@ -332,21 +318,14 @@ void handle_status(const char *jobid, const char *jidfname, const char *endpoint
 
 /**
  * Handle job delete
- * @param jobid job identifier we would like to use
- * @param endpoint Service endpoint to use
  */
-void handle_del(const char *jobid, const char *endpoint)
+static void handle_delete(void)
 {
-	G3Bridge__JobIDList jList;
 	struct __G3Bridge__deleteResponse resp;
-
-	check_jobid(jobid);
-	jList.jobid.clear();
-	jList.jobid.push_back(string(jobid));
 
 	struct soap *soap = soap_new();
 	soap_init(soap);
-	if (SOAP_OK != soap_call___G3Bridge__delete(soap, endpoint, NULL, &jList, resp))
+	if (SOAP_OK != soap_call___G3Bridge__delete(soap, endpoint, NULL, &jobIDs, resp))
 	{
 		soap_print_fault(soap, stderr);
 		exit(-1);
@@ -359,33 +338,58 @@ void handle_del(const char *jobid, const char *endpoint)
 
 /**
  * Handle job output query
- * @param jobid job identifier we would like to use
- * @param endpoint Service endpoint to use
  */
-void handle_output(const char *jobid, const char *endpoint)
+static void handle_output(void)
 {
-	G3Bridge__JobIDList jList;
 	G3Bridge__OutputList resp;
-
-	check_jobid(jobid);
-	jList.jobid.clear();
-	jList.jobid.push_back(string(jobid));
 
 	struct soap *soap = soap_new();
 	soap_init(soap);
-	if (SOAP_OK != soap_call___G3Bridge__getOutput(soap, endpoint, NULL, &jList, &resp))
+	if (SOAP_OK != soap_call___G3Bridge__getOutput(soap, endpoint, NULL, &jobIDs, &resp))
 	{
 		soap_print_fault(soap, stderr);
 		exit(-1);
 	}
 
-	G3Bridge__JobOutput *jout = resp.output.at(0);
-	cout << "Output files for job \"" << jobid << "\":" << endl;
-	for (unsigned i = 0; i < jout->output.size(); i++)
+	for (unsigned i = 0; i < jobIDs.jobid.size(); i++)
 	{
-		G3Bridge__LogicalFile *lf = jout->output.at(i);
-		cout << "    " << lf->logicalName << " - " << lf->URL << endl;
+		G3Bridge__JobOutput *jout = resp.output.at(i);
+		cout << "# Output files for job \"" << jobIDs.jobid.at(i) << "\":" << endl;
+		for (unsigned j = 0; j < jout->output.size(); j++)
+		{
+			G3Bridge__LogicalFile *lf = jout->output.at(j);
+			cout << lf->logicalName << "\t" << lf->URL << endl;
+		}
 	}
+
+	soap_destroy(soap);
+	soap_end(soap);
+	soap_done(soap);
+}
+
+/**
+ * Query the list of finished jobs
+ */
+static void handle_finished(void)
+{
+	G3Bridge__JobIDList resp;
+
+	if (!grid)
+	{
+		cerr << "Error: the grid name is not specified!" << endl;
+		exit(1);
+	}
+
+	struct soap *soap = soap_new();
+	soap_init(soap);
+	if (SOAP_OK != soap_call___G3Bridge__getFinished(soap, endpoint, NULL, grid, &resp))
+	{
+		soap_print_fault(soap, stderr);
+		exit(-1);
+	}
+
+	for (unsigned i = 0; i < resp.jobid.size(); i++)
+		cout << resp.jobid.at(i) << endl;
 
 	soap_destroy(soap);
 	soap_end(soap);

@@ -63,8 +63,8 @@ SOAP_CPP_SRC = $(SOAP_H_FILES) $(SOAP_NS) $(SOAP_CPP_CORE)
 $(SOAP_HEADER): $(WSDL) $(TYPEMAP)
 	$(WSDL2H) -o$(SOAP_HEADER) -t$(TYPEMAP) $(WSDL)
 
-$(SOAP_CPP_SRC) : $(SOAP_HEADER)
-	$(SOAPCPP2) -dsoap -I$(GSOAP_IMPORT) $<
+$(SOAP_CPP_SRC): $(SOAP_HEADER)
+	$(SOAPCPP2) -x -w -dsoap -I$(GSOAP_IMPORT) $<
 
 bridge_SOURCES = \
 		AlgQueue.cpp \
@@ -96,7 +96,7 @@ wsclient_SOURCES = \
 		$(SOAP_CPP_SRC) \
 		soap/soapClient.cpp \
 		wsclient.cpp
-wsclient_LDADD = $(GSOAP_LIBS)
+wsclient_LDADD = $(GLIB_LIBS) $(GSOAP_LIBS)
 endif
 
 master.xml: master.xml.in
