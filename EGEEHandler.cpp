@@ -2,11 +2,11 @@
 #include <config.h>
 #endif
 
-#include "Job.h"
-#include "Logging.h"
-#include "GridHandler.h"
-#include "EGEEHandler.h"
 #include "DBHandler.h"
+#include "EGEEHandler.h"
+#include "GridHandler.h"
+#include "Job.h"
+#include "Util.h"
 
 #include <string>
 #include <vector>

@@ -3,8 +3,8 @@
 #endif
 
 #include "DownloadManager.h"
-#include "Logging.h"
 #include "QMException.h"
+#include "Util.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>

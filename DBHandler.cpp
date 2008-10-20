@@ -2,19 +2,18 @@
 #include <config.h>
 #endif
 
-#include "Job.h"
-#include "DBHandler.h"
+#include "Bridge.h"
 #include "Conf.h"
+#include "DBHandler.h"
+#include "Job.h"
+#include "QMException.h"
+#include "Util.h"
 
 #include <string>
 
 #include <stdlib.h>
 #include <string.h>
 #include <mysql.h>
-
-#include "Bridge.h"
-#include "Logging.h"
-#include "QMException.h"
 
 using namespace std;
 

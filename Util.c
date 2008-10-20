@@ -4,11 +4,13 @@
 #endif
 
 #include "Conf.h"
-#include "Logging.h"
+#include "Util.h"
 
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -47,6 +49,9 @@ static const char *facility_str[] =
 	[LOG_LOCAL6] = "local6",
 	[LOG_LOCAL7] = "local7"
 };
+
+static int pid_fd = -1;
+static char *pid_name;
 
 static void set_level(const char *level)
 {
@@ -93,16 +98,20 @@ static void log_cleanup(void)
 	}
 }
 
-void log_init(GKeyFile *config, const char *argv0)
+void log_init(GKeyFile *config, const char *section)
 {
 	char *str;
 	
-	str = g_key_file_get_string(config, GROUP_DEFAULTS, "log-level", NULL);
+	str = g_key_file_get_string(config, section, "log-level", NULL);
+	if (!str)
+		str = g_key_file_get_string(config, GROUP_DEFAULTS, "log-level", NULL);
 	if (str)
 		set_level(str);
 	g_free(str);
 
-	str = g_key_file_get_string(config, GROUP_DEFAULTS, "log-target", NULL);
+	str = g_key_file_get_string(config, section, "log-target", NULL);
+	if (!str)
+		str = g_key_file_get_string(config, GROUP_DEFAULTS, "log-target", NULL);
 	if (!str || !g_strcasecmp(str, "stdout"))
 		log_file = stdout;
 	else if (!g_strncasecmp(str, "syslog", 6))
@@ -110,7 +119,7 @@ void log_init(GKeyFile *config, const char *argv0)
 		use_syslog = TRUE;
 		if (str[6] == ':')
 			set_facility(str + 7);
-		openlog(argv0, LOG_PID, log_facility);
+		openlog(section, LOG_PID, log_facility);
 	}
 	else if (!g_strncasecmp(str, "file:", 5) || str[0] == '/')
 	{
@@ -180,4 +189,70 @@ void logit(int lvl, const char *fmt, ...)
 	va_start(ap, fmt);
 	vlogit(lvl, fmt, ap);
 	va_end(ap);
+}
+
+static void pid_file_remove(void)
+{
+	if (pid_fd != -1)
+	{
+		close(pid_fd);
+		pid_fd = -1;
+	}
+	if (pid_name)
+	{
+		unlink(pid_name);
+		g_free(pid_name);
+		pid_name = NULL;
+	}
+}
+
+int pid_file_create(GKeyFile *config, const char *section)
+{
+	struct flock lck;
+	int fd, ret;
+	char *str;
+	
+	str = g_key_file_get_string(config, section, "pid-file", NULL);
+	if (!str)
+		str = g_strdup_printf("%s/%s.pid", RUNDIR, section);
+
+	fd = open(str, O_RDWR | O_CREAT, 0644);
+	if (fd == -1)
+	{
+		fprintf(stderr, "Failed to create the PID file %s: %s\n", str, strerror(errno));
+		g_free(str);
+		return -1;
+	}
+
+	memset(&lck, 0, sizeof(lck));
+	lck.l_type = F_WRLCK;
+	lck.l_whence = SEEK_SET;
+
+	ret = fcntl(fd, F_SETLK, &lck);
+	if (ret)
+	{
+		if (errno == EAGAIN || errno == EACCES)
+			fprintf(stderr, "Another instance of the daemon is already running\n");
+		else
+			fprintf(stderr, "Failed to lock the PID file %s: %s", str, strerror(errno));
+		g_free(str);
+		close(fd);
+		return -1;
+	}
+
+	pid_fd = fd;
+	pid_name = str;
+
+	atexit(pid_file_remove);
+	return 0;
+}
+
+void pid_file_update(void)
+{
+	char buf[32];
+
+	snprintf(buf, sizeof(buf), "%ld\n", (long)getpid());
+	lseek(pid_fd, 0, SEEK_SET);
+	write(pid_fd, buf, strlen(buf));
+	ftruncate(pid_fd, strlen(buf));
 }

@@ -2,10 +2,10 @@
 #include <config.h>
 #endif
 
-#include "Job.h"
 #include "DCAPIHandler.h"
 #include "DBHandler.h"
-#include "Logging.h"
+#include "Job.h"
+#include "Util.h"
 
 #include <dc.h>
 

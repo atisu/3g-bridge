@@ -8,6 +8,7 @@
 /* Special groups in the configuration file */
 #define GROUP_DATABASE		"database"
 #define GROUP_DEFAULTS		"defaults"
-#define GROUP_WEBSERVICE	"webservice"
+#define GROUP_BRIDGE		"bridge"
+#define GROUP_WSSUBMITTER	"wssubmitter"
 
 #endif /* CONF_H */

@@ -6,7 +6,7 @@
 #include "DBHandler.h"
 #include "DownloadManager.h"
 #include "Job.h"
-#include "Logging.h"
+#include "Util.h"
 
 #include <string>
 
@@ -102,7 +102,7 @@ static string calc_output_path(const string jobid, const string localName) throw
 static string calc_output_url(const string path)
 {
 	/* XXX Verify the prefix */
-	return (string)output_url_prefix + "/" + path.substr(strlen(output_dir));
+	return (string)output_url_prefix + "/" + path.substr(strlen(output_dir) + 1);
 }
 
 /**********************************************************************
@@ -147,7 +147,7 @@ void DBItem::finished()
 		return;
 	}
 
-	string final_path = calc_input_path(jobId, logicalFile);
+	string final_path = job->getInputPath(logicalFile);
 	int ret = rename(path.c_str(), final_path.c_str());
 	if (ret)
 	{
@@ -163,9 +163,8 @@ void DBItem::finished()
 	for (vector<string>::const_iterator it = inputs->begin(); job_ready && it != inputs->end(); it++)
 	{
 		struct stat st;
-		string path;
 
-		path = calc_input_path(jobId, *it);
+		string path = job->getInputPath(*it);
 		ret = stat(path.c_str(), &st);
 		if (ret)
 			job_ready = false;
@@ -202,8 +201,6 @@ void DBItem::failed()
 		string path = calc_temp_path(jobId, *it);
 		dlm->abort(path);
 	}
-
-	/* XXX Send notification */
 }
 
 /**********************************************************************
@@ -564,9 +561,9 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	log_init(global_config, argv[0]);
+	log_init(global_config, GROUP_WSSUBMITTER);
 
-	port = g_key_file_get_integer(global_config, GROUP_WEBSERVICE, "port", &error);
+	port = g_key_file_get_integer(global_config, GROUP_WSSUBMITTER, "port", &error);
 	if (!port || error)
 	{
 		LOG(LOG_ERR, "Failed to retrieve the listener port: %s", error->message);
@@ -579,7 +576,7 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
-	dl_threads = g_key_file_get_integer(global_config, GROUP_WEBSERVICE, "download-threads", &error);
+	dl_threads = g_key_file_get_integer(global_config, GROUP_WSSUBMITTER, "download-threads", &error);
 	if (!dl_threads || error)
 	{
 		LOG(LOG_ERR, "Failed to parse the number of download threads: %s", error->message);
@@ -592,7 +589,7 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
-	ws_threads = g_key_file_get_integer(global_config, GROUP_WEBSERVICE, "service-threads", &error);
+	ws_threads = g_key_file_get_integer(global_config, GROUP_WSSUBMITTER, "service-threads", &error);
 	if (!ws_threads || error)
 	{
 		LOG(LOG_ERR, "Failed to parse the number of service threads: %s", error->message);
@@ -605,7 +602,7 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
-	input_dir = g_key_file_get_string(global_config, GROUP_WEBSERVICE, "input-dir", &error);
+	input_dir = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "input-dir", &error);
 	if (!input_dir || error)
 	{
 		LOG(LOG_ERR, "Failed to get the input directory: %s", error->message);
@@ -613,7 +610,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	partial_dir = g_key_file_get_string(global_config, GROUP_WEBSERVICE, "partial-dir", &error);
+	partial_dir = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "partial-dir", &error);
 	if (!partial_dir || error)
 	{
 		LOG(LOG_ERR, "Failed to get the partial directory: %s", error->message);
@@ -621,7 +618,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	output_dir = g_key_file_get_string(global_config, GROUP_WEBSERVICE, "output-dir", &error);
+	output_dir = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "output-dir", &error);
 	if (!output_dir || error)
 	{
 		LOG(LOG_ERR, "Failed to get the output base directory: %s", error->message);
@@ -629,13 +626,16 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	output_url_prefix = g_key_file_get_string(global_config, GROUP_WEBSERVICE, "output-url-prefix", &error);
+	output_url_prefix = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "output-url-prefix", &error);
 	if (!output_url_prefix || error)
 	{
 		LOG(LOG_ERR, "Failed to get the output URL prefix: %s", error->message);
 		g_error_free(error);
 		exit(1);
 	}
+
+	if (pid_file_create(global_config, GROUP_WSSUBMITTER))
+		exit(1);
 
 	/* Set up the signal handlers */
 	memset(&sa, 0, sizeof(sa));
@@ -688,6 +688,7 @@ int main(int argc, char **argv)
 
 	if (run_as_daemon)
 		daemon(0, 0);
+	pid_file_update();
 
 	while (!finish)
 	{

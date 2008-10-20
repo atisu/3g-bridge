@@ -2,9 +2,9 @@
 #include <config.h>
 #endif
 
-#include "DBHandler.h"
 #include "AlgQueue.h"
-#include "Logging.h"
+#include "DBHandler.h"
+#include "Util.h"
 
 #include <string>
 #include <iostream>

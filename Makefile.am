@@ -2,7 +2,7 @@ MAINTAINERCLEANFILES = Makefile.in
 
 ACLOCAL_AMFLAGS = -I cf
 
-AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@
+AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@ -DRUNDIR='"${localstatedir}/run"'
 
 bin_PROGRAMS = injector bridge wsclient wssubmitter
 
@@ -17,17 +17,17 @@ noinst_HEADERS = \
 		EGEEHandler.h \
 		GridHandler.h \
 		Job.h \
-		Logging.h \
 		QMException.h \
-		QueueManager.h
+		QueueManager.h \
+		Util.h
 
 injector_SOURCES = \
 		injector.cpp \
 		AlgQueue.cpp \
 		DBHandler.cpp \
 		Job.cpp \
-		Logging.c \
-		QMException.cpp
+		QMException.cpp \
+		Util.c
 injector_LDADD = -luuid $(GLIB_LIBS) $(MYSQL_LIBS)
 
 EXTRA_DIST = \
@@ -74,9 +74,9 @@ bridge_SOURCES = \
 		Bridge.cpp \
 		DBHandler.cpp \
 		Job.cpp \
-		Logging.c \
 		QMException.cpp \
 		QueueManager.cpp \
+		Util.c \
 		$(BACKEND_SOURCES)
 bridge_LDADD = $(GLIB_LIBS) $(BACKEND_LIBS) $(MYSQL_LIBS)
 
@@ -87,9 +87,9 @@ wssubmitter_SOURCES = \
 		AlgQueue.cpp \
 		DBHandler.cpp \
 		DownloadManager.cpp \
-		Logging.c \
 		Job.cpp \
 		QMException.cpp \
+		Util.c \
 		WSSubmitter.cpp \
 		soap/soapServer.cpp
 wssubmitter_LDADD = $(GLIB_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto -luuid

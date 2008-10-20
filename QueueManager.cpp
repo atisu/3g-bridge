@@ -3,10 +3,10 @@
 #endif
 
 #include "Bridge.h"
-#include "Logging.h"
-#include "QueueManager.h"
-#include "DBHandler.h"
 #include "Conf.h"
+#include "DBHandler.h"
+#include "QueueManager.h"
+#include "Util.h"
 
 #include <map>
 #include <list>
@@ -52,7 +52,8 @@ QueueManager::QueueManager(GKeyFile *config)
 		/* Skip sections that are not grid definitions */
 		if (!strcmp(sections[i], GROUP_DEFAULTS) ||
 				!strcmp(sections[i], GROUP_DATABASE) ||
-				!strcmp(sections[i], GROUP_WEBSERVICE))
+				!strcmp(sections[i], GROUP_BRIDGE) ||
+				!strcmp(sections[i], GROUP_WSSUBMITTER))
 			continue;
 
 		handler = g_key_file_get_string(config, sections[i], "handler", NULL);
