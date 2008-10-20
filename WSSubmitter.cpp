@@ -29,24 +29,40 @@ using namespace std;
  * Global variables
  */
 
+/* Configuration: Where to download job input files */
 static char *input_dir;
+
+/* Configuration: Where to put partial downloaded files */
 static char *partial_dir;
+
+/* Configuration: Where to put output files of finished jobs */
 static char *output_dir;
+
+/* Configuration: URL prefix to substitute in place of output_dir to make valid download URLs */
 static char *output_url_prefix;
 
+/* If 'true', exit was requested by a signal */
 static volatile bool finish;
+
+/* If 'true', the log file should be re-opened */
 static volatile bool reload;
 
+/* The global configuration */
 GKeyFile *global_config = NULL;
 
+/* Thread pool for serving SOAP requests */
 static GThreadPool *soap_pool;
 
+/* The download manager instance */
 static DownloadManager *dlm;
 
-/* Command-line options */
+/* Command line: Location of the config file */
 static char *config_file;
+
+/* Command line: If true, run as a daemon in the background */
 static int run_as_daemon;
 
+/* Table of the command-line options */
 static GOptionEntry options[] =
 {
 	{ "config",	'c',	0,	G_OPTION_ARG_FILENAME,	&config_file,
@@ -508,7 +524,7 @@ static void soap_service_handler(void *data, void *user_data G_GNUC_UNUSED)
 }
 
 /**********************************************************************
- * The main program
+ * Misc. helper functions
  */
 
 static void sigint_handler(int signal __attribute__((__unused__)))
@@ -529,6 +545,10 @@ static void restart_download(const char *jobid, const char *localName,
 	dlm->add(item);
 }
 
+/**********************************************************************
+ * The main program
+ */
+
 int main(int argc, char **argv)
 {
 	int port, ws_threads, dl_threads;
@@ -537,6 +557,7 @@ int main(int argc, char **argv)
 	struct sigaction sa;
 	struct soap soap;
 
+	/* Parse the command line */
 	context = g_option_context_new("- Web Service interface to the 3G bridge");
 	g_option_context_add_main_entries(context, options, PACKAGE);
         if (!g_option_context_parse(context, &argc, &argv, &error))
