@@ -48,7 +48,7 @@ static char **inputs;
 static char **outputs;
 static G3Bridge__JobIDList jobIDs;
 static char *jidfile;
-
+static int repeat;
 
 static GOptionEntry options[] =
 {
@@ -71,6 +71,8 @@ static GOptionEntry add_options[] =
 		"Input file specification", "NAME=URL" },
 	{ "out",		'o',	0,	G_OPTION_ARG_STRING_ARRAY,	&outputs,
 		"Output file names", "NAME" },
+	{ "repeat",		0,	0,	G_OPTION_ARG_INT,		&repeat,
+		"Repeat the operation this many times", "NUM" },
 	{ NULL }
 };
 
@@ -264,15 +266,22 @@ static void handle_add(void)
 
 	G3Bridge__JobIDList IDs;
 	G3Bridge__JobList jList;
-	jList.job.clear();
-	jList.job.push_back(&job);
+
+	if (repeat < 1)
+		repeat = 1;
+
+	for (int i = 0; i < repeat; i++)
+		jList.job.push_back(&job);
 
 	if (SOAP_OK != soap_call___G3Bridge__submit(soap, endpoint, NULL, &jList, &IDs))
 	{
 		soap_print_fault(soap, stderr);
 		exit(-1);
 	}
-	cout << "The job ID is: " << IDs.jobid.at(0) << endl;
+
+	for (unsigned i = 0; i < IDs.jobid.size(); i++)
+		cout << IDs.jobid.at(i) << endl;
+
 	soap_destroy(soap);
 	soap_end(soap);
 	soap_done(soap);
