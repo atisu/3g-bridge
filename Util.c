@@ -133,7 +133,10 @@ void log_init(GKeyFile *config, const char *section)
 		if (!log_file)
 			logit(LOG_ERR, "Failed to open the log file %s: %s", path, strerror(errno));
 		else
+		{
+			setvbuf(log_file, NULL, _IOLBF, 1024);
 			log_file_name = g_strdup(path);
+		}
 	}
 	g_free(str);
 
