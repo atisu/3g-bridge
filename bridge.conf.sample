@@ -29,7 +29,10 @@ user =
 password =
 
 # Max. number of database connections that can be opened simultaneously
-max-connections = 4
+# WARNING: setting this too low may cause deadlock.
+# - For the queue manager, set it to at least 4
+# - For the WS submitter, set it to at least 1.5 * (download-threads + service-threads)
+max-connections = 20
 
 #######################################################################
 # 3G bridge parameters
