@@ -202,10 +202,10 @@ class DBHandler {
 
 	void addDL(const string &jobid, const string &localName, const string &url);
 	void deleteDL(const string &jobid, const string &localName);
-	void updateDL(const string &jobid, const string &localName, const GTimeVal &next,
+	void updateDL(const string &jobid, const string &localName, const struct timeval &next,
 		int retries);
 	void getAllDLs(void (*cb)(const char *jobid, const char *localName,
-			const char *url, const GTimeVal *next, int retries));
+			const char *url, const struct timeval *next, int retries));
 
     protected:
 	/// DBResult friend class.

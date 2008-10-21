@@ -531,7 +531,7 @@ void DBHandler::deleteDL(const string &jobid, const string &localName)
 }
 
 
-void DBHandler::updateDL(const string &jobid, const string &localName, const GTimeVal &next,
+void DBHandler::updateDL(const string &jobid, const string &localName, const struct timeval &next,
 		int retries)
 {
 	char timebuf[20];
@@ -550,13 +550,13 @@ void DBHandler::updateDL(const string &jobid, const string &localName, const GTi
 
 
 void DBHandler::getAllDLs(void (*cb)(const char *jobid, const char *localName,
-		const char *url, const GTimeVal *next, int retries))
+		const char *url, const struct timeval *next, int retries))
 {
 	if (!query("SELECT jobid, localname, url, UNIX_TIMESTAMP(next_try), retries "
 			"FROM cg_download"))
 		return;
 
-	GTimeVal next;
+	struct timeval next;
 	next.tv_usec = 0;
 
 	DBResult res(this);

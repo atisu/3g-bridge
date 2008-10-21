@@ -17,7 +17,7 @@ private:
 protected:
 	string url;
 	string path;
-	GTimeVal when;
+	struct timeval when;
 	int retries;
 
 public:
@@ -25,16 +25,16 @@ public:
 	DLItem();
 	virtual ~DLItem();
 	bool operator<(const DLItem &b);
-	bool operator<(const GTimeVal &b);
-	bool operator>=(const GTimeVal &b);
+	bool operator<(const struct timeval &b);
+	bool operator>=(const struct timeval &b);
 
 	const string &getUrl() const { return url; };
 	const string &getPath() const { return path; };
 
 	int getRetries() const { return retries; };
-	const GTimeVal getWhen() const { return when; };
+	const struct timeval getWhen() const { return when; };
 
-	virtual void setRetry(const GTimeVal &when, int retries);
+	virtual void setRetry(const struct timeval &when, int retries);
 	size_t write(void *buf, size_t size);
 	virtual void finished();
 	virtual void failed();

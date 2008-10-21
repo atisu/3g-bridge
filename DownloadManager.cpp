@@ -209,7 +209,7 @@ void DownloadManager::add(DLItem *item)
 
 static void retry(DLItem *item)
 {
-	GTimeVal t;
+	struct timeval t;
 
 	if (item->getRetries() >= max_retries)
 	{
@@ -218,8 +218,8 @@ static void retry(DLItem *item)
 		return;
 	}
 
-	g_get_current_time(&t);
-	g_time_val_add(&t, (item->getRetries()) + 1 * 10000);
+	gettimeofday(&t, NULL);
+	t.tv_sec += (item->getRetries()) + 1 * 10;
 	item->setRetry(t, item->getRetries() + 1);
 
 	g_mutex_lock(queue_lock);
@@ -284,8 +284,8 @@ static void check(DLItem *item, long http_response)
 
 static void *run_dl(void *data G_GNUC_UNUSED)
 {
+	struct timeval now;
 	CURLcode result;
-	GTimeVal now;
 	char *errbuf;
 	CURL *curl;
 
@@ -309,15 +309,21 @@ static void *run_dl(void *data G_GNUC_UNUSED)
 
 	while (!finish)
 	{
-		g_get_current_time(&now);
+		gettimeofday(&now, NULL);
 
 		/* Check if there is an item we can download */
 		DLItem *item = (DLItem *)g_queue_peek_head(queue);
 		if (!item || *item >= now)
 		{
+			GTimeVal gnow;
+
 			if (item)
+			{
 				now = item->getWhen();
-			g_cond_timed_wait(queue_sig, queue_lock, item ? &now : NULL);
+				gnow.tv_sec = now.tv_sec;
+				gnow.tv_usec = now.tv_usec;
+			}
+			g_cond_timed_wait(queue_sig, queue_lock, item ? &gnow : NULL);
 			continue;
 		}
 
@@ -369,14 +375,14 @@ DLItem::DLItem(const string &URL, const string &path):url(URL),path(path)
 {
 	fd = -1;
 	retries = 0;
-	g_get_current_time(&when);
+	memset(&when, 0, sizeof(when));
 }
 
 DLItem::DLItem()
 {
 	fd = -1;
 	retries = 0;
-	g_get_current_time(&when);
+	memset(&when, 0, sizeof(when));
 }
 
 DLItem::~DLItem()
@@ -435,19 +441,19 @@ bool DLItem::operator<(const DLItem &b)
 		(when.tv_sec == b.when.tv_sec && when.tv_usec < b.when.tv_usec);
 }
 
-bool DLItem::operator<(const GTimeVal &b)
+bool DLItem::operator<(const struct timeval &b)
 {
 	return when.tv_sec < b.tv_sec ||
 		(when.tv_sec == b.tv_sec && when.tv_usec < b.tv_usec);
 }
 
-bool DLItem::operator>=(const GTimeVal &b)
+bool DLItem::operator>=(const struct timeval &b)
 {
 	return when.tv_sec > b.tv_sec ||
 		(when.tv_sec == b.tv_sec && when.tv_usec >= b.tv_usec);
 }
 
-void DLItem::setRetry(const GTimeVal &when, int retries)
+void DLItem::setRetry(const struct timeval &when, int retries)
 {
 	this->when = when;
 	this->retries = retries;

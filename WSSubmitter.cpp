@@ -70,42 +70,37 @@ static GOptionEntry options[] =
 };
 
 /**********************************************************************
- * Calculate the file system location where an input file should be downloaded to
+ * Calculate file locations
  */
 
-static string calc_input_path(const string jobid, const string localName) throw (QMException *)
+static string make_hashed_dir(const string &base, const string &jobid)
 {
-	string jobdir = (string)input_dir + "/" + jobid;
-	int ret = mkdir(jobdir.c_str(), 0750);
+	string dir = base + '/' + jobid.at(0) + jobid.at(1);
+	int ret = mkdir(dir.c_str(), 0750);
 	if (ret == -1 && errno != EEXIST)
 		throw new QMException("Failed to create directory '%s': %s",
-			jobdir.c_str(), strerror(errno));
-
-	return jobdir + "/" + localName;
+			dir.c_str(), strerror(errno));
+	dir += '/' + jobid;
+	ret = mkdir(dir.c_str(), 0750);
+	if (ret == -1 && errno != EEXIST)
+		throw new QMException("Failed to create directory '%s': %s",
+			dir.c_str(), strerror(errno));
+	return dir;
 }
 
-/**********************************************************************
- * Calculate the file system location where an input file should be downloaded to
- */
+static string calc_input_path(const string &jobid, const string &localName)
+{
+	return make_hashed_dir(input_dir, jobid) + '/' + localName;
+}
 
-static string calc_temp_path(const string jobid, const string localName)
+static string calc_temp_path(const string &jobid, const string &localName)
 {
 	return (string)partial_dir + "/" + jobid + "_" + localName;
 }
 
-/**********************************************************************
- * Calculate the location where an output file will be stored
- */
-
-static string calc_output_path(const string jobid, const string localName) throw (QMException *)
+static string calc_output_path(const string &jobid, const string &localName)
 {
-	string jobdir = (string)output_dir + "/" + jobid;
-	int ret = mkdir(jobdir.c_str(), 0750);
-	if (ret == -1 && errno != EEXIST)
-		throw new QMException("Failed to create directory '%s': %s",
-			jobdir.c_str(), strerror(errno));
-
-	return jobdir + "/" + localName;
+	return make_hashed_dir(output_dir, jobid) + '/' + localName;
 }
 
 /**********************************************************************
@@ -135,7 +130,7 @@ public:
 
 	virtual void finished();
 	virtual void failed();
-	virtual void setRetry(const GTimeVal &when, int retries);
+	virtual void setRetry(const struct timeval &when, int retries);
 };
 
 DBItem::DBItem(const string &jobId, const string &logicalFile, const string &URL):jobId(jobId),logicalFile(logicalFile)
@@ -217,7 +212,7 @@ void DBItem::failed()
 	}
 }
 
-void DBItem::setRetry(const GTimeVal &when, int retries)
+void DBItem::setRetry(const struct timeval &when, int retries)
 {
 	DLItem::setRetry(when, retries);
 
@@ -545,7 +540,7 @@ static void sighup_handler(int signal __attribute__((__unused__)))
 }
 
 static void restart_download(const char *jobid, const char *localName,
-	const char *url, const GTimeVal *next, int retries)
+	const char *url, const struct timeval *next, int retries)
 {
 	DBItem *item = new DBItem(jobid, localName, url);
 	item->setRetry(*next, retries);
@@ -681,6 +676,10 @@ int main(int argc, char **argv)
 	/* Initialize glib's thread system */
 	g_thread_init(NULL);
 
+	if (run_as_daemon)
+		daemon(0, 0);
+	pid_file_update();
+
 	DBHandler::init();
 	DownloadManager::init(dl_threads, 10);
 
@@ -712,10 +711,6 @@ int main(int argc, char **argv)
 		LOG(LOG_ERR, "Failed to launch the WS threads");
 		exit(1);
 	}
-
-	if (run_as_daemon)
-		daemon(0, 0);
-	pid_file_update();
 
 	while (!finish)
 	{
