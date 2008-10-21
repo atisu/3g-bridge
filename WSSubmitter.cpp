@@ -73,18 +73,24 @@ static GOptionEntry options[] =
  * Calculate file locations
  */
 
-static string make_hashed_dir(const string &base, const string &jobid)
+static string make_hashed_dir(const string &base, const string &jobid, bool create = true)
 {
 	string dir = base + '/' + jobid.at(0) + jobid.at(1);
-	int ret = mkdir(dir.c_str(), 0750);
-	if (ret == -1 && errno != EEXIST)
-		throw new QMException("Failed to create directory '%s': %s",
-			dir.c_str(), strerror(errno));
+	if (create)
+	{
+		int ret = mkdir(dir.c_str(), 0750);
+		if (ret == -1 && errno != EEXIST)
+			throw new QMException("Failed to create directory '%s': %s",
+				dir.c_str(), strerror(errno));
+	}
 	dir += '/' + jobid;
-	ret = mkdir(dir.c_str(), 0750);
-	if (ret == -1 && errno != EEXIST)
-		throw new QMException("Failed to create directory '%s': %s",
-			dir.c_str(), strerror(errno));
+	if (create)
+	{
+		int ret = mkdir(dir.c_str(), 0750);
+		if (ret == -1 && errno != EEXIST)
+			throw new QMException("Failed to create directory '%s': %s",
+				dir.c_str(), strerror(errno));
+	}
 	return dir;
 }
 
@@ -384,7 +390,7 @@ int __G3Bridge__delete(struct soap *soap, G3Bridge__JobIDList *jobids, struct __
 			unlink(path.c_str());
 		}
 
-		string jobdir = (string)input_dir + "/" + *it;
+		string jobdir = make_hashed_dir(input_dir, *it, false);
 		rmdir(jobdir.c_str());
 
 		if (job->getStatus() == Job::RUNNING)
@@ -402,7 +408,7 @@ int __G3Bridge__delete(struct soap *soap, G3Bridge__JobIDList *jobids, struct __
 			unlink(path.c_str());
 		}
 
-		jobdir = (string)output_dir + "/" + *it;
+		jobdir = make_hashed_dir(output_dir, *it, false);
 		rmdir(jobdir.c_str());
 
 		/* Delete the job itself */
