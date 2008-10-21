@@ -573,13 +573,13 @@ int main(int argc, char **argv)
 		LOG(LOG_ERR, "Failed to parse the command line options: %s", error->message);
 		exit(1);
 	}
+	g_option_context_free(context);
 
 	if (!config_file)
 	{
 		LOG(LOG_ERR, "The configuration file is not specified");
 		exit(1);
 	}
-	g_option_context_free(context);
 
 	global_config = g_key_file_new();
 	g_key_file_load_from_file(global_config, config_file, G_KEY_FILE_NONE, &error);

@@ -440,7 +440,7 @@ void EGEEHandler::handle_data_write(void *user_args, globus_ftp_client_handle_t 
 	    if (ferror(fd) != SUCCESS) {
 		cout << "Read error in function handle_data_write; errno = " << errno << endl;
 		return;
-	    } 
+	    }
 	    globus_ftp_client_register_write(handle, buffer, rc, global_offset, feof(fd) != SUCCESS, handle_data_write, (void *)fd);
 	    global_offset += rc;
 	}
@@ -465,7 +465,7 @@ void EGEEHandler::handle_data_read(void *user_args, globus_ftp_client_handle_t *
 	    if (ferror(fd) != SUCCESS) {
 		cout << "Read error in function handle_data_read; errno = " << errno << endl;
 		return;
-	    } 
+	    }
 	    globus_ftp_client_register_read(ftp_handle, buffer, GSIFTP_BSIZE, handle_data_read, (void *)fd);
 	}
     }

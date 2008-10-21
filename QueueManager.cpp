@@ -118,7 +118,7 @@ static bool runHandler(GridHandler *handler)
 	if (handler->schGroupByNames())
 	{
 		vector<AlgQueue *> algs;
-		
+
 		AlgQueue::getAlgs(algs, handler->getName());
 		for (vector<AlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
 		{
@@ -241,7 +241,7 @@ static unsigned selectSize(AlgQueue *algQ)
 			vBorder[i] = 1;
 		tVB = maxPSize;
 	}
-	
+
 
         pBorder[0] = vBorder[0] / tVB;
         vpBorder[0] = 0;

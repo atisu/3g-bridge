@@ -46,7 +46,7 @@ AlgQueue::AlgQueue(const string &grid, const string &name, const unsigned maxPac
 		strstr >> pStats[i].numPackages;
 		strstr >> pStats[i].totalProcessTime;
 		pStats[i].avgTT = pStats[i].numPackages ? (double)pStats[i].totalProcessTime / ((i + 1) * pStats[i].numPackages) : 0;
-	}	
+	}
 	for (; i < mPSize; i++)
 	{
 		pStats[i].numPackages = 0;
