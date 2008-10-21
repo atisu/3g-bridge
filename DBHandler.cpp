@@ -444,6 +444,7 @@ retry:
 	{
 		if (db_lock)
 		{
+			LOG(LOG_DEBUG, "Sleeping while waiting for a DB connection");
 			g_cond_wait(db_signal, db_lock);
 			goto retry;
 		}
