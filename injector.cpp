@@ -21,7 +21,7 @@
 extern char *optarg;
 extern int optind, opterr, optopt;
 
-GKeyFile *global_config = NULL;
+static GKeyFile *global_config = NULL;
 
 using namespace std;
 
@@ -139,6 +139,8 @@ int main(int argc, char **argv)
     char sid[37];
     uuid_generate(jid);
     uuid_unparse(jid, sid);
+
+    DBHandler::init(global_config);
 
     Job job(sid, algName, grid, cmdLine, Job::INIT);
 

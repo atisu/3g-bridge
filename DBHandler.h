@@ -191,9 +191,9 @@ class DBHandler {
 	void addAlgQ(const char *grid, const char *alg, unsigned batchsize);
 
 	/**
-	 * Initialize the database system. When used in a multi-threaded program,
-	 * this method must be called before any threads are started. */
-	static void init();
+	 * Initialize the database system. This method must be called before
+	 * any threads that use the database system are started. */
+	static void init(GKeyFile *config);
 
 	/**
 	 * Free resources held by the database system. Must be called after all

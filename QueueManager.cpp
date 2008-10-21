@@ -44,7 +44,7 @@ static volatile bool finish;
 static volatile bool reload;
 
 /* The global configuration */
-GKeyFile *global_config = NULL;
+static GKeyFile *global_config = NULL;
 
 static GHashTable *plugins;
 
@@ -388,7 +388,7 @@ int main(int argc, char **argv)
 	sa.sa_handler = sighup_handler;
 	sigaction(SIGHUP, &sa, NULL);
 
-	DBHandler::init();
+	DBHandler::init(global_config);
 
 	try {
 		init_grid_handlers();

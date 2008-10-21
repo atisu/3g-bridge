@@ -12,7 +12,6 @@
 #define GROUP_DEFAULTS		"defaults"
 #define GROUP_BRIDGE		"bridge"
 #define GROUP_WSSUBMITTER	"wssubmitter"
-
-extern GKeyFile *global_config;
+#define GROUP_WSWATCH		"wswatch"
 
 #endif /* CONF_H */

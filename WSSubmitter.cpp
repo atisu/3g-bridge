@@ -48,7 +48,7 @@ static volatile bool finish;
 static volatile bool reload;
 
 /* The global configuration */
-GKeyFile *global_config = NULL;
+static GKeyFile *global_config = NULL;
 
 /* Thread pool for serving SOAP requests */
 static GThreadPool *soap_pool;
@@ -686,7 +686,7 @@ int main(int argc, char **argv)
 		daemon(0, 0);
 	pid_file_update();
 
-	DBHandler::init();
+	DBHandler::init(global_config);
 	DownloadManager::init(dl_threads, 10);
 
 	DBHandler *dbh = DBHandler::get();

@@ -424,10 +424,8 @@ DBHandler *DBHandler::get() throw (QMException *)
 
 	DBHandler *dbh = 0;
 
-	/* Defer initialization until someone requests a new handle to ensure
-	 * that global_config is initialized */
 	if (!dbname)
-		init();
+		throw new QMException("The database system has not been initialized");
 
 	if (db_lock)
 		g_mutex_lock(db_lock);
@@ -574,25 +572,25 @@ void DBHandler::getAllDLs(void (*cb)(const char *jobid, const char *localName,
 	}
 }
 
-void DBHandler::init()
+void DBHandler::init(GKeyFile *config)
 {
 	GError *error = NULL;
 
 	/* The database name is mandatory. Here we leak the GError but this is
 	 * a non-recoverable error so... */
-	dbname = g_key_file_get_string(global_config, GROUP_DATABASE, "name", &error);
+	dbname = g_key_file_get_string(config, GROUP_DATABASE, "name", &error);
 	if (error)
 		throw new QMException("Failed to retrieve the database name: %s", error->message);
 	if (!dbname || !strlen(dbname))
 		throw new QMException("The database name is not specified in the configuration file");
 
 	/* These are not mandatory */
-	host = g_key_file_get_string(global_config, GROUP_DATABASE, "host", NULL);
-	user = g_key_file_get_string(global_config, GROUP_DATABASE, "user", NULL);
-	passwd = g_key_file_get_string(global_config, GROUP_DATABASE, "password", NULL);
+	host = g_key_file_get_string(config, GROUP_DATABASE, "host", NULL);
+	user = g_key_file_get_string(config, GROUP_DATABASE, "user", NULL);
+	passwd = g_key_file_get_string(config, GROUP_DATABASE, "password", NULL);
 
 	/* max-connections is not mandatory, but if it is present it must be valid */
-	max_connections = g_key_file_get_integer(global_config, GROUP_DATABASE, "max-connections", &error);
+	max_connections = g_key_file_get_integer(config, GROUP_DATABASE, "max-connections", &error);
 	if (error)
 	{
 		if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND)
