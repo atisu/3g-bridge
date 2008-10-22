@@ -4,7 +4,13 @@ ACLOCAL_AMFLAGS = -I cf
 
 AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@ -DRUNDIR='"${localstatedir}/run"'
 
-bin_PROGRAMS = injector bridge wsclient wssubmitter
+bin_PROGRAMS = injector
+sbin_PROGRAMS = bridge
+
+if GSOAP
+bin_PROGRAMS += wsclient
+sbin_PROGRAMS += wssubmitter
+endif
 
 noinst_HEADERS = \
 		AlgQueue.h \
@@ -53,7 +59,6 @@ WSDL = 3GBridge.wsdl
 TYPEMAP = 3GBridge.typemap
 
 # gSOAP-related stuff
-if GSOAP
 SOAP_HEADER = soap/3GBridge.h
 SOAP_CPP_CORE = soap/soapC.cpp
 SOAP_NS = soap/G3BridgeSubmitter.nsmap
@@ -97,7 +102,6 @@ wsclient_SOURCES = \
 		soap/soapClient.cpp \
 		wsclient.cpp
 wsclient_LDADD = $(GLIB_LIBS) $(GSOAP_LIBS)
-endif
 
 master.xml: master.xml.in
 	$(SED) -e "s,@PACKAGE_VERSION\@,$(PACKAGE_VERSION)," \
