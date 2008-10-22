@@ -7,15 +7,6 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-QMException::QMException(const char *fmt, va_list ap)
-{
-	char *msg;
-
-	vasprintf(&msg, fmt, ap);
-	msg_text = msg;
-	free(msg);
-}
-
 QMException::QMException(const char *fmt, ...)
 {
 	va_list ap;

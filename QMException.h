@@ -22,13 +22,6 @@ public:
 	QMException(const std::string &reason):msg_text(reason) {};
 
 	/**
-	 * Create a new exception using variable argument list
-	 * @param fmt format string
-	 * @param ap variable argument list
-	 */
-	QMException(const char *fmt, va_list ap);
-
-	/**
 	 * Create a new exception using printf-like format
 	 * @param fmt format string
 	 * @param ... fmt arguments
