@@ -21,6 +21,17 @@
 
 #include <curl/curl.h>
 
+/**********************************************************************
+ * Prototypes
+ */
+
+static void *run_dl(void *data G_GNUC_UNUSED);
+
+
+/**********************************************************************
+ * Global variables
+ */
+
 /* For OpenSSL multithread support */
 static GStaticMutex *ssl_mutexes;
 
@@ -39,10 +50,8 @@ static GList *running;
 static GMutex *queue_lock;
 static GCond *queue_sig;
 
-static int num_threads;
+/* Configuration: max. number of download retries */
 static int max_retries;
-
-static void *run_dl(void *data G_GNUC_UNUSED);
 
 
 /**********************************************************************
@@ -105,7 +114,7 @@ void DownloadManager::init(GKeyFile *config, const char *section)
 {
 	GError *error = NULL;
 
-	num_threads = g_key_file_get_integer(config, section, "download-threads", &error);
+	int num_threads = g_key_file_get_integer(config, section, "download-threads", &error);
 	if (error)
 	{
 		if (error->code == G_KEY_FILE_ERROR_KEY_NOT_FOUND)
@@ -248,7 +257,7 @@ static void retry(DLItem *item)
 	}
 
 	gettimeofday(&t, NULL);
-	t.tv_sec += (item->getRetries()) + 1 * 10;
+	t.tv_sec += (item->getRetries() + 1) * 60;
 	item->setRetry(t, item->getRetries() + 1);
 
 	g_mutex_lock(queue_lock);
