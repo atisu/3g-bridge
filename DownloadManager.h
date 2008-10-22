@@ -13,6 +13,8 @@ class DLItem
 {
 private:
 	int fd;
+	char *tmp_path;
+	bool aborted;
 
 protected:
 	string url;
@@ -21,8 +23,7 @@ protected:
 	int retries;
 
 public:
-	DLItem(const string &URL, const string &path);
-	DLItem();
+	DLItem(const string &url, const string &path);
 	virtual ~DLItem();
 	bool operator<(const DLItem &b);
 	bool operator<(const struct timeval &b);
@@ -38,11 +39,14 @@ public:
 	size_t write(void *buf, size_t size);
 	virtual void finished();
 	virtual void failed();
+
+	void abort(void) { aborted = true; };
+	bool isAborted(void) const { return aborted; };
 };
 
 namespace DownloadManager
 {
-	void init(int num_threads, int max_retries);
+	void init(GKeyFile *config, const char *section);
 	void done(void);
 
 	void add(DLItem *item);

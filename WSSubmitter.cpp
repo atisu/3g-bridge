@@ -6,6 +6,7 @@
 #include "DBHandler.h"
 #include "DownloadManager.h"
 #include "Job.h"
+#include "QMException.h"
 #include "Util.h"
 
 #include <string>
@@ -31,9 +32,6 @@ using namespace std;
 
 /* Configuration: Where to download job input files */
 static char *input_dir;
-
-/* Configuration: Where to put partial downloaded files */
-static char *partial_dir;
 
 /* Configuration: Where to put output files of finished jobs */
 static char *output_dir;
@@ -99,11 +97,6 @@ static string calc_input_path(const string &jobid, const string &localName)
 	return make_hashed_dir(input_dir, jobid) + '/' + localName;
 }
 
-static string calc_temp_path(const string &jobid, const string &localName)
-{
-	return (string)partial_dir + "/" + jobid + "_" + localName;
-}
-
 static string calc_output_path(const string &jobid, const string &localName)
 {
 	return make_hashed_dir(output_dir, jobid) + '/' + localName;
@@ -139,16 +132,26 @@ public:
 	virtual void setRetry(const struct timeval &when, int retries);
 };
 
-DBItem::DBItem(const string &jobId, const string &logicalFile, const string &URL):jobId(jobId),logicalFile(logicalFile)
+DBItem::DBItem(const string &jobId, const string &logicalFile, const string &url):
+		DLItem(url, calc_input_path(jobId, logicalFile)),
+		jobId(jobId),
+		logicalFile(logicalFile)
 {
-	DLItem::DLItem();
-	this->url = URL;
-	this->path = calc_temp_path(jobId, logicalFile);
 }
 
 void DBItem::finished()
 {
-	DLItem::finished();
+	try
+	{
+		DLItem::finished();
+	}
+	catch (QMException *e)
+	{
+		LOG(LOG_ERR, "Job %s: %s", jobId.c_str(), e->what());
+		delete e;
+		failed();
+		return;
+	}
 
 	DBHandler *dbh = DBHandler::get();
 	dbh->deleteDL(jobId, logicalFile);
@@ -162,16 +165,6 @@ void DBItem::finished()
 		return;
 	}
 
-	string final_path = job->getInputPath(logicalFile);
-	int ret = rename(path.c_str(), final_path.c_str());
-	if (ret)
-	{
-		LOG(LOG_ERR, "Job %s: Failed to rename '%s' to '%s': %s",
-			jobId.c_str(), path.c_str(), final_path.c_str(), strerror(errno));
-		failed();
-		return;
-	}
-
 	/* Check if the job is now ready to be submitted */
 	auto_ptr< vector<string> > inputs = job->getInputs();
 	bool job_ready = true;
@@ -180,8 +173,7 @@ void DBItem::finished()
 		struct stat st;
 
 		string path = job->getInputPath(*it);
-		ret = stat(path.c_str(), &st);
-		if (ret)
+		if (stat(path.c_str(), &st))
 			job_ready = false;
 	}
 	if (job_ready)
@@ -212,10 +204,7 @@ void DBItem::failed()
 	/* Abort the download of the other input files */
 	auto_ptr< vector<string> > inputs = job->getInputs();
 	for (vector<string>::const_iterator it = inputs->begin(); it != inputs->end(); it++)
-	{
-		string path = calc_temp_path(jobId, *it);
-		DownloadManager::abort(path);
-	}
+		DownloadManager::abort(job->getInputPath(*it));
 }
 
 void DBItem::setRetry(const struct timeval &when, int retries)
@@ -379,28 +368,14 @@ int __G3Bridge__delete(struct soap *soap, G3Bridge__JobIDList *jobids, struct __
 			continue;
 		}
 
+		/* Delete the input/output files */
 		auto_ptr< vector<string> > files = job->getInputs();
 		for (vector<string>::const_iterator fsit = files->begin(); fsit != files->end(); fsit++)
 		{
-			/* Abort the download if it is still in the queue */
-			string path = calc_temp_path(*it, *fsit);
+			string path = job->getInputPath(*fsit);
 			DownloadManager::abort(path);
-			/* Delete the input file if it has been already downloaded */
-			path = job->getInputPath(*fsit);
 			unlink(path.c_str());
 		}
-
-		string jobdir = make_hashed_dir(input_dir, *it, false);
-		rmdir(jobdir.c_str());
-
-		if (job->getStatus() == Job::RUNNING)
-		{
-			job->setStatus(Job::CANCEL);
-			LOG(LOG_NOTICE, "Job %s: Cancelled", it->c_str());
-			continue;
-		}
-
-		/* Delete the (possible) output files */
 		files = job->getOutputs();
 		for (vector<string>::const_iterator fsit = files->begin(); fsit != files->end(); fsit++)
 		{
@@ -408,12 +383,22 @@ int __G3Bridge__delete(struct soap *soap, G3Bridge__JobIDList *jobids, struct __
 			unlink(path.c_str());
 		}
 
+		/* Delete the input/output directories */
+		string jobdir = make_hashed_dir(input_dir, *it, false);
+		rmdir(jobdir.c_str());
 		jobdir = make_hashed_dir(output_dir, *it, false);
 		rmdir(jobdir.c_str());
 
-		/* Delete the job itself */
-		dbh->deleteJob(*it);
-		LOG(LOG_NOTICE, "Job %s: Deleted", it->c_str());
+		if (job->getStatus() == Job::RUNNING)
+		{
+			job->setStatus(Job::CANCEL);
+			LOG(LOG_NOTICE, "Job %s: Cancelled", it->c_str());
+		}
+		else
+		{
+			dbh->deleteJob(*it);
+			LOG(LOG_NOTICE, "Job %s: Deleted", it->c_str());
+		}
 	}
 
 	DBHandler::put(dbh);
@@ -559,8 +544,8 @@ static void restart_download(const char *jobid, const char *localName,
 
 int main(int argc, char **argv)
 {
-	int port, ws_threads, dl_threads;
 	GOptionContext *context;
+	int port, ws_threads;
 	GError *error = NULL;
 	struct sigaction sa;
 	struct soap soap;
@@ -605,19 +590,6 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 
-	dl_threads = g_key_file_get_integer(global_config, GROUP_WSSUBMITTER, "download-threads", &error);
-	if (!dl_threads || error)
-	{
-		LOG(LOG_ERR, "Failed to parse the number of download threads: %s", error->message);
-		g_error_free(error);
-		exit(1);
-	}
-	if (dl_threads <= 0 || dl_threads > 1000)
-	{
-		LOG(LOG_ERR, "Invalid thread number (%d) specified", dl_threads);
-		exit(-1);
-	}
-
 	ws_threads = g_key_file_get_integer(global_config, GROUP_WSSUBMITTER, "service-threads", &error);
 	if (!ws_threads || error)
 	{
@@ -635,14 +607,6 @@ int main(int argc, char **argv)
 	if (!input_dir || error)
 	{
 		LOG(LOG_ERR, "Failed to get the input directory: %s", error->message);
-		g_error_free(error);
-		exit(1);
-	}
-
-	partial_dir = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "partial-dir", &error);
-	if (!partial_dir || error)
-	{
-		LOG(LOG_ERR, "Failed to get the partial directory: %s", error->message);
 		g_error_free(error);
 		exit(1);
 	}
@@ -686,12 +650,21 @@ int main(int argc, char **argv)
 		daemon(0, 0);
 	pid_file_update();
 
-	DBHandler::init(global_config);
-	DownloadManager::init(dl_threads, 10);
+	try
+	{
+		DBHandler::init(global_config);
+		DownloadManager::init(global_config, GROUP_WSSUBMITTER);
 
-	DBHandler *dbh = DBHandler::get();
-	dbh->getAllDLs(restart_download);
-	DBHandler::put(dbh);
+		DBHandler *dbh = DBHandler::get();
+		dbh->getAllDLs(restart_download);
+		DBHandler::put(dbh);
+	}
+	catch (QMException *e)
+	{
+		LOG(LOG_ERR, "Fatal: %s", e->what());
+		delete e;
+		exit(1);
+	}
 
 	soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE | SOAP_IO_CHUNK);
 	soap.send_timeout = 60;
@@ -751,7 +724,6 @@ int main(int argc, char **argv)
 
 	g_key_file_free(global_config);
 	g_free(input_dir);
-	g_free(partial_dir);
 	g_free(output_dir);
 	g_free(output_url_prefix);
 

@@ -32,7 +32,10 @@ static volatile int finish;
 
 static vector<GThread *> threads;
 
+/* Both of these lists are protected by queue_lock */
 static GQueue *queue;
+static GList *running;
+
 static GMutex *queue_lock;
 static GCond *queue_sig;
 
@@ -98,12 +101,39 @@ static void destroy_ssl_lock(struct CRYPTO_dynlock_value *lock, const char *file
  * Class DownloadManager
  */
 
-void DownloadManager::init(int nthreads, int retries)
+void DownloadManager::init(GKeyFile *config, const char *section)
 {
-	finish = 0;
+	GError *error = NULL;
 
-	num_threads = nthreads;
-	max_retries = retries;
+	num_threads = g_key_file_get_integer(config, section, "download-threads", &error);
+	if (error)
+	{
+		if (error->code == G_KEY_FILE_ERROR_KEY_NOT_FOUND)
+		{
+			num_threads = 4;
+			g_error_free(error);
+			error = NULL;
+		}
+		else
+			throw new QMException("Failed to parse the number of download threads: %s", error->message);
+	}
+	if (num_threads <= 0 || num_threads > 1000)
+		throw new QMException("Invalid thread number (%d) specified", num_threads);
+
+	max_retries = g_key_file_get_integer(config, section, "download-retries", &error);
+	if (error)
+	{
+		if (error->code == G_KEY_FILE_ERROR_KEY_NOT_FOUND)
+		{
+			max_retries = 10;
+			g_error_free(error);
+			error = NULL;
+		}
+		else
+			throw new QMException("Failed to parse the number of retries: %s", error->message);
+	}
+	if (max_retries <= 0 || max_retries > 100)
+		throw new QMException("Invalid retry number (%d) specified", max_retries);
 
 	queue = g_queue_new();
 	queue_lock = g_mutex_new();
@@ -130,7 +160,6 @@ void DownloadManager::init(int nthreads, int retries)
 	curl_share_setopt(shared_curl_data, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
 
 	/* Launch the downloader threads */
-	GError *error = NULL;
 	for (int i = 0; i < num_threads; i++)
 	{
 		GThread *thr = g_thread_create(run_dl, NULL, TRUE, &error);
@@ -232,10 +261,7 @@ static size_t write_callback(void *buf, size_t size, size_t items, void *data)
 {
 	DLItem *item = (DLItem *)data;
 
-	/* XXX Add support for pause/abort */
-
-	item->write(buf, size * items);
-	return size * items;
+	return item->write(buf, size * items);
 }
 
 static int find_path(const void *a, const void *b)
@@ -248,16 +274,32 @@ static int find_path(const void *a, const void *b)
 
 void DownloadManager::abort(const string &path)
 {
+	DLItem *item = NULL;
+	GList *link;
+
 	g_mutex_lock(queue_lock);
-	GList *link = g_queue_find_custom(queue, &path, find_path);
+
+	link = g_list_find_custom(running, &path, find_path);
 	if (link)
+		((DLItem *)link->data)->abort();
+	else
 	{
-		DLItem *item = (DLItem *)link->data;
-		g_queue_delete_link(queue, link);
+		link = g_queue_find_custom(queue, &path, find_path);
+		if (link)
+		{
+			item = (DLItem *)link->data;
+			g_queue_delete_link(queue, link);
+		}
+	}
+
+	g_mutex_unlock(queue_lock);
+
+	/* ->failed() may want to abort other files so call it outside the lock */
+	if (item)
+	{
 		item->failed();
 		delete item;
 	}
-	g_mutex_unlock(queue_lock);
 }
 
 static void check(DLItem *item, long http_response)
@@ -328,6 +370,7 @@ static void *run_dl(void *data G_GNUC_UNUSED)
 		}
 
 		/* Get the item off the queue and release the queue */
+		running = g_list_prepend(running, item);
 		g_queue_pop_head(queue);
 		g_mutex_unlock(queue_lock);
 
@@ -337,13 +380,26 @@ static void *run_dl(void *data G_GNUC_UNUSED)
 		LOG(LOG_DEBUG, "Starting to download %s", item->getUrl().c_str());
 
 		result = curl_easy_perform(curl);
+
+		g_mutex_lock(queue_lock);
+		running = g_list_remove(running, item);
+		g_mutex_unlock(queue_lock);
+
 		/* Check for the finish flag first and do not call ->failed() if it is set */
 		if (finish)
 			goto next;
 		if (result)
 		{
-			LOG(LOG_ERR, "Download failed for %s: %s (retry)", item->getUrl().c_str(), errbuf);
-			retry(item);
+			if (item->isAborted())
+			{
+				item->failed();
+				delete item;
+			}
+			else
+			{
+				LOG(LOG_ERR, "Download failed for %s: %s (retry)", item->getUrl().c_str(), errbuf);
+				retry(item);
+			}
 		}
 		else
 		{
@@ -371,44 +427,49 @@ next:
  * Class DLItem
  */
 
-DLItem::DLItem(const string &URL, const string &path):url(URL),path(path)
+DLItem::DLItem(const string &url, const string &path):url(url),path(path)
 {
 	fd = -1;
 	retries = 0;
 	memset(&when, 0, sizeof(when));
-}
-
-DLItem::DLItem()
-{
-	fd = -1;
-	retries = 0;
-	memset(&when, 0, sizeof(when));
+	tmp_path = NULL;
+	aborted = false;
 }
 
 DLItem::~DLItem()
 {
 	if (fd != -1)
 		close(fd);
+	if (tmp_path)
+	{
+		unlink(tmp_path);
+		g_free(tmp_path);
+	}
 }
 
 size_t DLItem::write(void *buf, size_t size)
 {
 	/* Abort the download when shutting down */
-	if (finish)
-	{
-		close(fd);
-		fd = -1;
-		unlink(path.c_str());
-		path = "";
+	if (aborted || finish)
 		return 0;
-	}
 
 	if (fd == -1)
 	{
-		fd = open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0640);
+		char buf[PATH_MAX];
+
+		string dir;
+
+		size_t dirlen = path.find_last_of('/');
+		if (dirlen == string::npos)
+			snprintf(buf, sizeof(buf), ".%s_XXXXXX", path.c_str());
+		else
+			snprintf(buf, sizeof(buf), "%.*s.%s_XXXXXX", (int)dirlen + 1,
+				path.c_str(), path.c_str() + dirlen + 1);
+		fd = mkstemp(buf);
 		if (fd == -1)
-			throw new QMException("Failed to create file %s: %s",
-				path.c_str(), strerror(errno));
+			throw new QMException("Failed to create a temporary file: %s",
+				strerror(errno));
+		tmp_path = g_strdup(buf);
 	}
 	return ::write(fd, buf, size);
 }
@@ -420,6 +481,14 @@ void DLItem::finished()
 	{
 		close(fd);
 		fd = -1;
+	}
+	if (rename(tmp_path, path.c_str()))
+		throw new QMException("Failed to rename %s to %s: %s",
+			tmp_path, path.c_str(), strerror(errno));
+	else
+	{
+		g_free(tmp_path);
+		tmp_path = NULL;
 	}
 }
 

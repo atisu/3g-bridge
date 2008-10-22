@@ -74,9 +74,6 @@ download-threads = 5
 # Where to put the downloaded input files
 input-dir =
 
-# Where to put temporary files. Must be on the same file system as input-dir
-partial-dir =
-
 # Directory for output files. When creating URLs for output files,
 # output-dir is replaced with output-url-prefix
 output-dir =
