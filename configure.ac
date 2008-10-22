@@ -40,7 +40,7 @@ if test "$no_glib" = yes; then
 	AC_MSG_ERROR([glib libraries were not found])
 fi
 
-LIBCURL_CHECK_CONFIG([yes], [7.17.0], [],
+LIBCURL_CHECK_CONFIG([yes], [7.15.0], [],
 	[AC_MSG_ERROR([CURL development files are missing])])
 
 AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@no@:>@]),
