@@ -6,6 +6,7 @@
 #include "Conf.h"
 #include "Util.h"
 
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -16,9 +17,11 @@
 
 #include <glib.h>
 
+typedef enum { SYSLOG, LOGFILE, STDOUT } mode;
+
 static char *log_file_name;
 static FILE *log_file;
-static int use_syslog;
+static mode log_mode = SYSLOG;
 
 static int log_level = LOG_INFO;
 static int log_facility = LOG_DAEMON;
@@ -35,7 +38,7 @@ static const char *level_str[] =
 	[LOG_DEBUG] = "DEBUG"
 };
 
-/* We do not want to allow just any facility, only a few one */
+/* We do not want to allow just any facility, only a few */
 static const char *facility_str[] =
 {
 	[LOG_DAEMON] = "daemon",
@@ -85,17 +88,22 @@ static void set_facility(const char *facility)
 
 static void log_cleanup(void)
 {
-	if (log_file && log_file != stdout)
+	switch (log_mode)
 	{
-		fclose(log_file);
-		log_file = NULL;
-		g_free(log_file_name);
+		case LOGFILE:
+			if (log_file)
+				fclose(log_file);
+			log_file = NULL;
+			g_free(log_file_name);
+			break;
+		case SYSLOG:
+			closelog();
+			break;
+		default:
+			break;
 	}
-	if (use_syslog)
-	{
-		closelog();
-		use_syslog = FALSE;
-	}
+
+	log_mode = STDOUT;
 }
 
 void log_init(GKeyFile *config, const char *section)
@@ -112,11 +120,14 @@ void log_init(GKeyFile *config, const char *section)
 	str = g_key_file_get_string(config, section, "log-target", NULL);
 	if (!str)
 		str = g_key_file_get_string(config, GROUP_DEFAULTS, "log-target", NULL);
-	if (!str || !g_strcasecmp(str, "stdout"))
-		log_file = stdout;
+	if (!str)
+		goto out;
+
+	if (!g_strcasecmp(str, "stdout"))
+		log_mode = STDOUT;
 	else if (!g_strncasecmp(str, "syslog", 6))
 	{
-		use_syslog = TRUE;
+		log_mode = SYSLOG;
 		if (str[6] == ':')
 			set_facility(str + 7);
 		openlog(section, LOG_PID, log_facility);
@@ -125,6 +136,7 @@ void log_init(GKeyFile *config, const char *section)
 	{
 		char *path = str;
 
+		log_mode = LOGFILE;
 		/* Handle the "file:/foo/bar" syntax */
 		if (*path != '/')
 			path += 5;
@@ -140,12 +152,19 @@ void log_init(GKeyFile *config, const char *section)
 	}
 	g_free(str);
 
+out:
 	atexit(log_cleanup);
+}
+
+void log_init_debug(void)
+{
+	log_mode = STDOUT;
+	log_level = LOG_DEBUG;
 }
 
 void log_reopen(void)
 {
-	if (use_syslog || !log_file_name)
+	if (log_mode != LOGFILE)
 		return;
 
 	if (log_file)
@@ -156,33 +175,34 @@ void log_reopen(void)
 
 void vlogit(int lvl, const char *fmt, va_list ap)
 {
+	const char *lvl_str = "UNKNOWN";
+	char timebuf[37], *msg;
+	struct tm tm;
+	time_t now;
+
 	if (lvl > log_level)
 		return;
 
-	if (use_syslog)
-		vsyslog(lvl, fmt, ap);
-	else
+	if (log_mode == SYSLOG)
 	{
-		const char *lvl_str = "UNKNOWN";
-		char timebuf[37], *msg;
-		struct tm tm;
-		time_t now;
-
-		now = time(NULL);
-		localtime_r(&now, &tm);
-
-		strftime(timebuf, sizeof(timebuf), "%F %T", &tm);
-
-		if (lvl >= 0 && lvl < (int)(sizeof(level_str) / sizeof(level_str[0])))
-			lvl_str = level_str[lvl];
-
-		vasprintf(&msg, fmt, ap);
-		if (!log_file)
-			fprintf(stdout, "%s %s: %s\n", timebuf, lvl_str, msg);
-		else
-			fprintf(log_file, "%s %s: %s\n", timebuf, lvl_str, msg);
-		free(msg);
+		vsyslog(lvl, fmt, ap);
+		return;
 	}
+
+	now = time(NULL);
+	localtime_r(&now, &tm);
+
+	strftime(timebuf, sizeof(timebuf), "%F %T", &tm);
+
+	if (lvl >= 0 && lvl < (int)(sizeof(level_str) / sizeof(level_str[0])))
+		lvl_str = level_str[lvl];
+
+	vasprintf(&msg, fmt, ap);
+	if (log_mode == STDOUT)
+		fprintf(stdout, "%s %s: %s\n", timebuf, lvl_str, msg);
+	else if (log_file)
+		fprintf(log_file, "%s %s: %s\n", timebuf, lvl_str, msg);
+	free(msg);
 }
 
 void logit(int lvl, const char *fmt, ...)
@@ -276,7 +296,7 @@ int pid_file_kill(GKeyFile *config, const char *section)
 {
 	char *str, buf[16], *p;
 	struct flock lck;
-	int fd, ret;
+	int fd, ret, i;
 	pid_t pid;
 
 	str = g_key_file_get_string(config, section, "pid-file", NULL);
@@ -331,13 +351,13 @@ int pid_file_kill(GKeyFile *config, const char *section)
 	}
 
 	close(fd);
-	g_free(str);
 
 	buf[ret] = '\0';
 	pid = strtol(buf, &p, 10);
 	if (p && *p && *p != '\n')
 	{
 		LOG(LOG_ERR, "Garbage in the pid file");
+		g_free(str);
 		return FALSE;
 	}
 
@@ -345,9 +365,23 @@ int pid_file_kill(GKeyFile *config, const char *section)
 	if (ret)
 	{
 		LOG(LOG_ERR, "Failed to kill pid %ld: %s", (long)pid, strerror(errno));
+		g_free(str);
 		return FALSE;
 	}
 
 	LOG(LOG_DEBUG, "Signal sent");
-	return TRUE;
+
+	for (i = 0; i < 20; i++)
+	{
+		if (access(str, R_OK))
+		{
+			g_free(str);
+			return TRUE;
+		}
+		usleep(100000);
+	}
+
+	LOG(LOG_ERR, "Timeout waiting for the daemon to exit");
+	g_free(str);
+	return FALSE;
 }

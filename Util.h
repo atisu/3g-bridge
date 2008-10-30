@@ -18,6 +18,11 @@ extern "C" {
 void log_init(GKeyFile *config, const char *section);
 
 /**
+ * Initialize the logging system in debug mode.
+ */
+void log_init_debug(void);
+
+/**
  * Re-open the log file if needed.
  */
 void log_reopen(void);

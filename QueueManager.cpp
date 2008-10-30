@@ -52,19 +52,24 @@ static GHashTable *plugins;
 static char *config_file;
 
 /* Command line: If true, run as a daemon in the background */
-static int run_as_daemon;
+static int run_as_daemon = 1;
 
 /* Command line: If true, kill a running daemon */
 static int kill_daemon;
 
+/* Command line: Force debug mode */
+static int debug_mode;
+
 /* Table of the command-line options */
 static GOptionEntry options[] =
 {
-	{ "config",	'c',	0,	G_OPTION_ARG_FILENAME,	&config_file,
+	{ "config",	'c',	0,			G_OPTION_ARG_FILENAME,	&config_file,
 		"Configuration file to use", "FILE" },
-	{ "daemon",	'd',	0,	G_OPTION_ARG_NONE,	&run_as_daemon,
+	{ "nofork",	'f',	G_OPTION_FLAG_REVERSE,	G_OPTION_ARG_NONE,	&run_as_daemon,
 		"Run as a daemon and fork to the background", NULL },
-	{ "kill",	'k',	0,	G_OPTION_ARG_NONE,	&kill_daemon,
+	{ "debug",	'd',	0,			G_OPTION_ARG_NONE,	&debug_mode,
+		"Debug mode: don't fork, log to stdout", NULL },
+	{ "kill",	'k',	0,			G_OPTION_ARG_NONE,	&kill_daemon,
 		"Kill the running daemon", NULL },
 	{ NULL }
 };
@@ -382,7 +387,13 @@ int main(int argc, char **argv)
 	if (kill_daemon)
 		exit(pid_file_kill(global_config, GROUP_BRIDGE));
 
-	log_init(global_config, GROUP_BRIDGE);
+	if (debug_mode)
+	{
+		log_init_debug();
+		run_as_daemon = 0;
+	}
+	else
+		log_init(global_config, GROUP_BRIDGE);
 
 	if (run_as_daemon && pid_file_create(global_config, GROUP_BRIDGE))
 		exit(1);
