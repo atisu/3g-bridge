@@ -40,9 +40,6 @@ if test "$no_glib" = yes; then
 	AC_MSG_ERROR([glib libraries were not found])
 fi
 
-LIBCURL_CHECK_CONFIG([yes], [7.15.0], [],
-	[AC_MSG_ERROR([CURL development files are missing])])
-
 AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@no@:>@]),
 	[], [with_dcapi=no])
 if test "$with_dcapi" != no; then
@@ -64,16 +61,16 @@ if test "$with_egee" != no; then
 fi
 AM_CONDITIONAL([HAVE_EGEE], [test "$with_egee" != no])
 
+AC_ARG_VAR([PKG_CONFIG_PATH], [Path where pkg-config looks for .pc files])
 AC_ARG_WITH([gsoap], AS_HELP_STRING([--with-gsoap], [Use gSOAP in @<:@/usr@:>@]),
 	[], [with_gsoap=/usr])
 if test "$with_gsoap" != no; then
-	# This is an ugly hack and should not be part of configure.ac
-	if test "$with_gsoap" != "/usr"; then
-		export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$with_gsoap/lib/pkgconfig"
-	fi
 	PKG_CHECK_MODULES([GSOAP], [gsoap++], [], [with_gsoap=no])
 fi
 if test "$with_gsoap" != no; then
+	LIBCURL_CHECK_CONFIG([yes], [7.15.0], [],
+		[AC_MSG_ERROR([CURL development files are missing])])
+
 	if test "$with_gsoap" = "/usr"; then
 		GSOAP_IMPORT="/usr/include/gsoap"
 	else
