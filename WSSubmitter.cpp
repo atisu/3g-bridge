@@ -11,6 +11,7 @@
 
 #include <string>
 
+#include <sysexits.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <errno.h>
@@ -566,14 +567,14 @@ int main(int argc, char **argv)
         if (!g_option_context_parse(context, &argc, &argv, &error))
 	{
 		LOG(LOG_ERR, "Failed to parse the command line options: %s", error->message);
-		exit(1);
+		exit(EX_USAGE);
 	}
 	g_option_context_free(context);
 
 	if (!config_file)
 	{
 		LOG(LOG_ERR, "The configuration file is not specified");
-		exit(1);
+		exit(EX_USAGE);
 	}
 
 	global_config = g_key_file_new();
@@ -582,7 +583,7 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Failed to load the config file: %s", error->message);
 		g_error_free(error);
-		exit(1);
+		exit(EX_NOINPUT);
 	}
 
 	if (kill_daemon)
@@ -601,12 +602,12 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Failed to retrieve the listener port: %s", error->message);
 		g_error_free(error);
-		exit(1);
+		exit(EX_DATAERR);
 	}
 	if (port <= 0 || port > 65535)
 	{
 		LOG(LOG_ERR, "Invalid port number (%d) specified", port);
-		exit(-1);
+		exit(EX_DATAERR);
 	}
 
 	ws_threads = g_key_file_get_integer(global_config, GROUP_WSSUBMITTER, "service-threads", &error);
@@ -614,12 +615,12 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Failed to parse the number of service threads: %s", error->message);
 		g_error_free(error);
-		exit(1);
+		exit(EX_DATAERR);
 	}
 	if (ws_threads <= 0 || ws_threads > 1000)
 	{
 		LOG(LOG_ERR, "Invalid thread number (%d) specified", ws_threads);
-		exit(-1);
+		exit(EX_DATAERR);
 	}
 
 	input_dir = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "input-dir", &error);
@@ -627,7 +628,7 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Failed to get the input directory: %s", error->message);
 		g_error_free(error);
-		exit(1);
+		exit(EX_DATAERR);
 	}
 
 	output_dir = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "output-dir", &error);
@@ -635,7 +636,7 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Failed to get the output base directory: %s", error->message);
 		g_error_free(error);
-		exit(1);
+		exit(EX_DATAERR);
 	}
 
 	output_url_prefix = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "output-url-prefix", &error);
@@ -643,11 +644,11 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Failed to get the output URL prefix: %s", error->message);
 		g_error_free(error);
-		exit(1);
+		exit(EX_DATAERR);
 	}
 
 	if (run_as_daemon && pid_file_create(global_config, GROUP_WSSUBMITTER))
-		exit(1);
+		exit(EX_OSERR);
 
 	/* Set up the signal handlers */
 	memset(&sa, 0, sizeof(sa));
@@ -684,7 +685,7 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Fatal: %s", e->what());
 		delete e;
-		exit(1);
+		exit(EX_SOFTWARE);
 	}
 
 	soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE | SOAP_IO_CHUNK);
@@ -702,14 +703,14 @@ int main(int argc, char **argv)
 		char buf[256];
 		soap_sprint_fault(&soap, buf, sizeof(buf));
 		LOG(LOG_ERR, "SOAP initialization: %s", buf);
-		exit(-1);
+		exit(EX_UNAVAILABLE);
 	}
 
 	soap_pool = g_thread_pool_new(soap_service_handler, NULL, ws_threads, TRUE, NULL);
 	if (!soap_pool)
 	{
 		LOG(LOG_ERR, "Failed to launch the WS threads");
-		exit(1);
+		exit(EX_UNAVAILABLE);
 	}
 
 	while (!finish)
@@ -726,7 +727,8 @@ int main(int argc, char **argv)
 			if (!soap.errnum)
 				continue;
 			soap_print_fault(&soap, stderr);
-			exit(-1);
+			/* XXX Should we really exit here? */
+			exit(EX_UNAVAILABLE);
 		}
 		struct soap *handler = soap_copy(&soap);
 		g_thread_pool_push(soap_pool, handler, NULL);
@@ -750,5 +752,5 @@ int main(int argc, char **argv)
 
 	g_free(config_file);
 
-	return 0;
+	return EX_OK;
 }

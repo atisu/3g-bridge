@@ -6,6 +6,7 @@
 #include "Conf.h"
 #include "Util.h"
 
+#include <sysexits.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -309,12 +310,12 @@ int pid_file_kill(GKeyFile *config, const char *section)
 		if (errno == ENOENT)
 		{
 			LOG(LOG_DEBUG, "No pid file, the daemon is not running");
-			ret = TRUE;
+			ret = EX_OK;
 		}
 		else
 		{
 			LOG(LOG_ERR, "Failed to open the pid file %s: %s", str, strerror(errno));
-			ret = FALSE;
+			ret = EX_IOERR;
 		}
 		g_free(str);
 		return ret;
@@ -331,14 +332,14 @@ int pid_file_kill(GKeyFile *config, const char *section)
 		unlink(str);
 		g_free(str);
 		close(fd);
-		return TRUE;
+		return EX_OK;
 	}
 	if (errno != EACCES && errno != EAGAIN)
 	{
 		LOG(LOG_ERR, "Failed to lock the pid file %s: %s", str, strerror(errno));
 		g_free(str);
 		close(fd);
-		return FALSE;
+		return EX_OSERR;
 	}
 
 	ret = read(fd, buf, sizeof(buf) - 1);
@@ -347,7 +348,7 @@ int pid_file_kill(GKeyFile *config, const char *section)
 		LOG(LOG_ERR, "Failed to read the pid file %s: %s", str, strerror(errno));
 		g_free(str);
 		close(fd);
-		return FALSE;
+		return EX_OSERR;
 	}
 
 	close(fd);
@@ -358,7 +359,7 @@ int pid_file_kill(GKeyFile *config, const char *section)
 	{
 		LOG(LOG_ERR, "Garbage in the pid file");
 		g_free(str);
-		return FALSE;
+		return EX_DATAERR;
 	}
 
 	ret = kill(pid, SIGTERM);
@@ -376,12 +377,12 @@ int pid_file_kill(GKeyFile *config, const char *section)
 		if (access(str, R_OK))
 		{
 			g_free(str);
-			return TRUE;
+			return EX_OK;
 		}
 		usleep(100000);
 	}
 
 	LOG(LOG_ERR, "Timeout waiting for the daemon to exit");
 	g_free(str);
-	return FALSE;
+	return EX_UNAVAILABLE;
 }

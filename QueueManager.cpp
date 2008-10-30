@@ -21,6 +21,7 @@
 
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sysexits.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -346,7 +347,7 @@ static void init_grid_handlers(void)
 	if (!gridHandlers.size())
 	{
 		LOG(LOG_NOTICE, "No grid handlers are defined in the config. file, exiting");
-		exit(0);
+		exit(EX_OK);
 	}
 }
 
@@ -366,13 +367,13 @@ int main(int argc, char **argv)
         if (!g_option_context_parse(context, &argc, &argv, &error))
 	{
 		LOG(LOG_ERR, "Failed to parse the command line options: %s", error->message);
-		exit(1);
+		exit(EX_USAGE);
 	}
 
 	if (!config_file)
 	{
 		LOG(LOG_ERR, "The configuration file is not specified");
-		exit(1);
+		exit(EX_USAGE);
 	}
 	g_option_context_free(context);
 
@@ -381,7 +382,7 @@ int main(int argc, char **argv)
 	if (error)
 	{
 		LOG(LOG_ERR, "Failed to load the config file: %s", error->message);
-		exit(1);
+		exit(EX_NOINPUT);
 	}
 
 	if (kill_daemon)
@@ -396,7 +397,7 @@ int main(int argc, char **argv)
 		log_init(global_config, GROUP_BRIDGE);
 
 	if (run_as_daemon && pid_file_create(global_config, GROUP_BRIDGE))
-		exit(1);
+		exit(EX_OSERR);
 
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = sigint_handler;
@@ -416,9 +417,9 @@ int main(int argc, char **argv)
 		AlgQueue::load();
 	}
 	catch (QMException *error) {
-		LOG(LOG_ERR, "Caught an unhandled exception: %s", error->what());
+		LOG(LOG_ERR, "Fatal: %s", error->what());
 		delete error;
-		return -1;
+		exit(EX_SOFTWARE);
 	}
 
 	if (run_as_daemon)
@@ -451,5 +452,5 @@ int main(int argc, char **argv)
 	DBHandler::done();
 	g_key_file_free(global_config);
 
-	return 0;
+	return EX_OK;
 }
