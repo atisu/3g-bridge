@@ -2,6 +2,7 @@
 #include <config.h>
 #endif
 
+#include <sysexits.h>
 #include <getopt.h>
 #include <string.h>
 
@@ -110,19 +111,19 @@ int main(int argc, char **argv)
         if (!g_option_context_parse(context, &argc, &argv, &error))
 	{
 		cerr << "Error: " << error->message << endl;
-		exit(1);
+		exit(EX_USAGE);
 	}
 
 	if (!mode)
 	{
 		cerr << "Error: no mode selected!" << endl;
-		exit(1);
+		exit(EX_USAGE);
 	}
 
 	if (!endpoint)
 	{
 		cerr << "Error: no endpoint URL specified!" << endl;
-		exit(1);
+		exit(EX_USAGE);
 	}
 
 	op_mode m;
@@ -139,7 +140,7 @@ int main(int argc, char **argv)
 	else
 	{
 		cerr << "Error: invalid mode specified!" << endl;
-		exit(1);
+		exit(EX_USAGE);
 	}
 
 	switch (m)
@@ -169,7 +170,7 @@ int main(int argc, char **argv)
 			{
 				fprintf(stderr, "Failed to open %s: %s\n",
 					jidfile, strerror(errno));
-				exit(1);
+				exit(EX_NOINPUT);
 			}
 		}
 
@@ -228,7 +229,7 @@ static void handle_add(void)
 	if (!name || !grid)
 	{
 		cerr << "Job addition problem: either name or grid undefined!" << endl;
-		exit(1);
+		exit(EX_USAGE);
 	}
 
 	job.alg = name;
@@ -245,14 +246,14 @@ static void handle_add(void)
 		if (!p)
 		{
 			cerr << "Malformed input definition string: " << inputs[i] << endl;
-			exit(1);
+			exit(EX_USAGE);
 		}
 
 		*p++ = '\0';
 		if (!strlen(p))
 		{
 			cerr << "Input URL is missing for " << inputs[i] << endl;
-			exit(1);
+			exit(EX_USAGE);
 		}
 
 		G3Bridge__LogicalFile *lf = soap_new_G3Bridge__LogicalFile(soap, -1);
@@ -276,7 +277,7 @@ static void handle_add(void)
 	if (SOAP_OK != soap_call___G3Bridge__submit(soap, endpoint, NULL, &jList, &IDs))
 	{
 		soap_print_fault(soap, stderr);
-		exit(-1);
+		exit(EX_PROTOCOL);
 	}
 
 	for (unsigned i = 0; i < IDs.jobid.size(); i++)
@@ -310,7 +311,7 @@ static void handle_status(void)
 	if (SOAP_OK != soap_call___G3Bridge__getStatus(soap, endpoint, NULL, &jobIDs, &resp))
 	{
 		soap_print_fault(soap, stderr);
-		exit(-1);
+		exit(EX_UNAVAILABLE);
 	}
 
 	for (unsigned i = 0; i < jobIDs.jobid.size(); i++)
@@ -337,7 +338,7 @@ static void handle_delete(void)
 	if (SOAP_OK != soap_call___G3Bridge__delete(soap, endpoint, NULL, &jobIDs, resp))
 	{
 		soap_print_fault(soap, stderr);
-		exit(-1);
+		exit(EX_UNAVAILABLE);
 	}
 	soap_destroy(soap);
 	soap_end(soap);
@@ -357,7 +358,7 @@ static void handle_output(void)
 	if (SOAP_OK != soap_call___G3Bridge__getOutput(soap, endpoint, NULL, &jobIDs, &resp))
 	{
 		soap_print_fault(soap, stderr);
-		exit(-1);
+		exit(EX_UNAVAILABLE);
 	}
 
 	for (unsigned i = 0; i < jobIDs.jobid.size(); i++)
@@ -386,7 +387,7 @@ static void handle_finished(void)
 	if (!grid)
 	{
 		cerr << "Error: the grid name is not specified!" << endl;
-		exit(1);
+		exit(EX_USAGE);
 	}
 
 	struct soap *soap = soap_new();
@@ -394,7 +395,7 @@ static void handle_finished(void)
 	if (SOAP_OK != soap_call___G3Bridge__getFinished(soap, endpoint, NULL, grid, &resp))
 	{
 		soap_print_fault(soap, stderr);
-		exit(-1);
+		exit(EX_UNAVAILABLE);
 	}
 
 	for (unsigned i = 0; i < resp.jobid.size(); i++)

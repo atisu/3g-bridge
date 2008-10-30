@@ -8,6 +8,7 @@
 #include <iostream>
 
 #include <uuid/uuid.h>
+#include <sysexits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -53,14 +54,14 @@ int main(int argc, char **argv)
         if (!g_option_context_parse(context, &argc, &argv, &error))
 	{
 		cerr <<  "Failed to parse the command line:" << error->message << endl;
-		exit(1);
+		exit(EX_USAGE);
 	}
 	g_option_context_free(context);
 
 	if (!config_file)
 	{
 		cerr << "The configuration file is not specified" << endl;
-		exit(1);
+		exit(EX_USAGE);
 	}
 
 	global_config = g_key_file_new();
@@ -69,29 +70,29 @@ int main(int argc, char **argv)
 	if (error)
 	{
 		cerr << "Failed to load the config file: " << error->message << endl;
-		exit(1);
+		exit(EX_NOINPUT);
 	}
 
 	// Check for mandatory options
 	if (!name)
 	{
 		cerr << "The algorithm name is missing" << endl;
-		exit(1);
+		exit(EX_USAGE);
 	}
 	if (!grid)
 	{
 		cerr << "The destination grid name is missing" << endl;
-		exit(1);
+		exit(EX_USAGE);
 	}
 	if (!inputs || !inputs[0])
 	{
 		cerr << "There are no input files specified" << endl;
-		exit(1);
+		exit(EX_USAGE);
 	}
 	if (!outputs || !outputs[0])
 	{
 		cerr << "There are no output files specified" << endl;
-		exit(1);
+		exit(EX_USAGE);
 	}
 
 	// Generate an identifier for our job
@@ -110,7 +111,7 @@ int main(int argc, char **argv)
 		if (!p)
 		{
 			cerr << "Invalid input specification: " << inputs[i] << endl;
-			exit(1);
+			exit(EX_USAGE);
 		}
 		*p++ = '\0';
 		job.addInput(inputs[i], p);
@@ -122,7 +123,7 @@ int main(int argc, char **argv)
 		if (!p)
 		{
 			cerr << "Invalid output specification: " << outputs[i] << endl;
-			exit(1);
+			exit(EX_USAGE);
 		}
 		*p++ = '\0';
 		job.addOutput(outputs[i], p);
@@ -135,7 +136,7 @@ int main(int argc, char **argv)
 	}
 	catch (QMException *e) {
 		cerr << "Error: " << e->what() << endl;
-		exit(1);
+		exit(EX_SOFTWARE);
 	}
 
 	return 0;
