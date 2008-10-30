@@ -69,7 +69,7 @@ static GOptionEntry options[] =
 	{ "config",	'c',	0,			G_OPTION_ARG_FILENAME,	&config_file,
 		"Configuration file to use", "FILE" },
 	{ "nofork",	'f',	G_OPTION_FLAG_REVERSE,	G_OPTION_ARG_NONE,	&run_as_daemon,
-		"Run as a daemon and fork to the background", NULL },
+		"Don't detach from the terminal and run in the foreground", NULL },
 	{ "debug",	'd',	0,			G_OPTION_ARG_NONE,	&debug_mode,
 		"Debug mode: don't fork, log to stdout", NULL },
 	{ "kill",	'k',	0,			G_OPTION_ARG_NONE,	&kill_daemon,
@@ -561,7 +561,7 @@ int main(int argc, char **argv)
 	struct soap soap;
 
 	/* Parse the command line */
-	context = g_option_context_new("- Web Service interface to the 3G bridge");
+	context = g_option_context_new("- Web Service interface to the 3G Bridge");
 	g_option_context_add_main_entries(context, options, PACKAGE);
         if (!g_option_context_parse(context, &argc, &argv, &error))
 	{

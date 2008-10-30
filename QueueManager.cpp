@@ -66,7 +66,7 @@ static GOptionEntry options[] =
 	{ "config",	'c',	0,			G_OPTION_ARG_FILENAME,	&config_file,
 		"Configuration file to use", "FILE" },
 	{ "nofork",	'f',	G_OPTION_FLAG_REVERSE,	G_OPTION_ARG_NONE,	&run_as_daemon,
-		"Run as a daemon and fork to the background", NULL },
+		"Don't detach from the terminal and run in the foreground", NULL },
 	{ "debug",	'd',	0,			G_OPTION_ARG_NONE,	&debug_mode,
 		"Debug mode: don't fork, log to stdout", NULL },
 	{ "kill",	'k',	0,			G_OPTION_ARG_NONE,	&kill_daemon,
