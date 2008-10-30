@@ -315,7 +315,7 @@ void EGEEHandler::updateJob(Job *job)
 
 void EGEEHandler::cancelJob(Job *job)
 {
-	LOG(LOG_DEBUG, "About to cancel and remove job \"" + job->getId() + "\".");
+	LOG(LOG_DEBUG, "About to cancel and remove job \"%s\".", job->getId().c_str());
 	try {
 		jobCancel(job->getGridId(), cfg);
 	} catch (BaseException e) {
