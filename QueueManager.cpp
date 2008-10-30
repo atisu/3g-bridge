@@ -54,6 +54,9 @@ static char *config_file;
 /* Command line: If true, run as a daemon in the background */
 static int run_as_daemon;
 
+/* Command line: If true, kill a running daemon */
+static int kill_daemon;
+
 /* Table of the command-line options */
 static GOptionEntry options[] =
 {
@@ -61,6 +64,8 @@ static GOptionEntry options[] =
 		"Configuration file to use", "FILE" },
 	{ "daemon",	'd',	0,	G_OPTION_ARG_NONE,	&run_as_daemon,
 		"Run as a daemon and fork to the background", NULL },
+	{ "kill",	'k',	0,	G_OPTION_ARG_NONE,	&kill_daemon,
+		"Kill the running daemon", NULL },
 	{ NULL }
 };
 
@@ -374,9 +379,12 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	log_init(global_config, argv[0]);
+	if (kill_daemon)
+		exit(pid_file_kill(global_config, GROUP_BRIDGE));
 
-	if (run_as_daemon && pid_file_create(global_config, GROUP_WSSUBMITTER))
+	log_init(global_config, GROUP_BRIDGE);
+
+	if (run_as_daemon && pid_file_create(global_config, GROUP_BRIDGE))
 		exit(1);
 
 	memset(&sa, 0, sizeof(sa));

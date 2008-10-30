@@ -50,6 +50,11 @@ int pid_file_create(GKeyFile *config, const char *section);
  */
 void pid_file_update(void);
 
+/**
+ * Kill a running daemon.
+ */
+int pid_file_kill(GKeyFile *config, const char *section);
+
 #ifdef __cplusplus
 }
 #endif

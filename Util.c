@@ -212,8 +212,8 @@ static void pid_file_remove(void)
 int pid_file_create(GKeyFile *config, const char *section)
 {
 	struct flock lck;
-	int fd, ret;
 	char *str;
+	int fd;
 	
 	str = g_key_file_get_string(config, section, "pid-file", NULL);
 	if (!str)
@@ -231,8 +231,7 @@ int pid_file_create(GKeyFile *config, const char *section)
 	lck.l_type = F_WRLCK;
 	lck.l_whence = SEEK_SET;
 
-	ret = fcntl(fd, F_SETLK, &lck);
-	if (ret)
+	if (fcntl(fd, F_SETLK, &lck))
 	{
 		if (errno == EAGAIN || errno == EACCES)
 			fprintf(stderr, "Another instance of the daemon is already running\n");
@@ -252,10 +251,103 @@ int pid_file_create(GKeyFile *config, const char *section)
 
 void pid_file_update(void)
 {
+	struct flock lck;
 	char buf[32];
+
+	memset(&lck, 0, sizeof(lck));
+	lck.l_type = F_WRLCK;
+	lck.l_whence = SEEK_SET;
+
+	/* fcntl locks are not inherited though fork() so we have to lock
+	 * the pid file again. Yes, this is racy. */
+	if (fcntl(pid_fd, F_SETLKW, &lck))
+	{
+		fprintf(stderr, "Failed to lock the PID file %s: %s", pid_name, strerror(errno));
+		return;
+	}
 
 	snprintf(buf, sizeof(buf), "%ld\n", (long)getpid());
 	lseek(pid_fd, 0, SEEK_SET);
 	write(pid_fd, buf, strlen(buf));
 	ftruncate(pid_fd, strlen(buf));
+}
+
+int pid_file_kill(GKeyFile *config, const char *section)
+{
+	char *str, buf[16], *p;
+	struct flock lck;
+	int fd, ret;
+	pid_t pid;
+
+	str = g_key_file_get_string(config, section, "pid-file", NULL);
+	if (!str)
+		str = g_strdup_printf("%s/%s.pid", RUNDIR, section);
+
+	fd = open(str, O_RDWR);
+	if (fd == -1)
+	{
+		if (errno == ENOENT)
+		{
+			LOG(LOG_DEBUG, "No pid file, the daemon is not running");
+			ret = TRUE;
+		}
+		else
+		{
+			LOG(LOG_ERR, "Failed to open the pid file %s: %s", str, strerror(errno));
+			ret = FALSE;
+		}
+		g_free(str);
+		return ret;
+	}
+
+	memset(&lck, 0, sizeof(lck));
+	lck.l_type = F_WRLCK;
+	lck.l_whence = SEEK_SET;
+
+	ret = fcntl(fd, F_SETLK, &lck);
+	if (!ret)
+	{
+		LOG(LOG_INFO, "Stale pid file, removing");
+		unlink(str);
+		g_free(str);
+		close(fd);
+		return TRUE;
+	}
+	if (errno != EACCES && errno != EAGAIN)
+	{
+		LOG(LOG_ERR, "Failed to lock the pid file %s: %s", str, strerror(errno));
+		g_free(str);
+		close(fd);
+		return FALSE;
+	}
+
+	ret = read(fd, buf, sizeof(buf) - 1);
+	if (ret == -1)
+	{
+		LOG(LOG_ERR, "Failed to read the pid file %s: %s", str, strerror(errno));
+		g_free(str);
+		close(fd);
+		return FALSE;
+	}
+
+	close(fd);
+	g_free(str);
+
+	buf[ret] = '\0';
+	pid = strtol(buf, &p, 10);
+	if (p && *p && *p != '\n')
+	{
+		LOG(LOG_ERR, "Garbage in the pid file");
+		return FALSE;
+	}
+
+	ret = kill(pid, SIGTERM);
+	if (ret)
+	{
+		LOG(LOG_ERR, "Failed to kill pid %ld: %s", (long)pid, strerror(errno));
+		return FALSE;
+	}
+
+	LOG(LOG_DEBUG, "Signal sent");
+	return TRUE;
 }
