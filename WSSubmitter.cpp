@@ -627,7 +627,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	if (pid_file_create(global_config, GROUP_WSSUBMITTER))
+	if (run_as_daemon && pid_file_create(global_config, GROUP_WSSUBMITTER))
 		exit(1);
 
 	/* Set up the signal handlers */
@@ -647,8 +647,10 @@ int main(int argc, char **argv)
 	g_thread_init(NULL);
 
 	if (run_as_daemon)
+	{
 		daemon(0, 0);
-	pid_file_update();
+		pid_file_update();
+	}
 
 	try
 	{

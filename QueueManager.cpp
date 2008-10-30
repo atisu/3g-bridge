@@ -376,7 +376,7 @@ int main(int argc, char **argv)
 
 	log_init(global_config, argv[0]);
 
-	if (pid_file_create(global_config, GROUP_WSSUBMITTER))
+	if (run_as_daemon && pid_file_create(global_config, GROUP_WSSUBMITTER))
 		exit(1);
 
 	memset(&sa, 0, sizeof(sa));
@@ -403,8 +403,10 @@ int main(int argc, char **argv)
 	}
 
 	if (run_as_daemon)
+	{
 		daemon(0, 0);
-	pid_file_update();
+		pid_file_update();
+	}
 
 	while (!finish)
 	{
