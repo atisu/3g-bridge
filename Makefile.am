@@ -2,7 +2,7 @@ MAINTAINERCLEANFILES = Makefile.in
 
 ACLOCAL_AMFLAGS = -I cf
 
-AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@ -DRUNDIR='"${localstatedir}/run"'
+AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@ -DRUNDIR='"${localstatedir}/run"' @GSOAP_CFLAGS@
 
 bin_PROGRAMS = injector
 sbin_PROGRAMS = bridge

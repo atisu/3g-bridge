@@ -69,20 +69,21 @@ AC_ARG_WITH([gsoap], AS_HELP_STRING([--with-gsoap], [Use gSOAP in @<:@/usr@:>@])
 if test "$with_gsoap" != no; then
 	# This is an ugly hack and should not be part of configure.ac
 	if test "$with_gsoap" != "/usr"; then
-		PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$with_gsoap/lib/pkgconfig"
+		export PKG_CONFIG_PATH="$PKG_CONFIG_PATH:$with_gsoap/lib/pkgconfig"
 	fi
 	PKG_CHECK_MODULES([GSOAP], [gsoap++], [], [with_gsoap=no])
 fi
 if test "$with_gsoap" != no; then
-	AC_PATH_PROG([SOAPCPP2], [soapcpp2])
-	AC_PATH_PROG([WSDL2H], [wsdl2h])
-
 	if test "$with_gsoap" = "/usr"; then
 		GSOAP_IMPORT="/usr/include/gsoap"
 	else
 		GSOAP_IMPORT="$with_gsoap/share/gsoap/import"
 	fi
+	AC_PATH_PROG([SOAPCPP2], [soapcpp2], [], "$with_gsoap/bin")
+	AC_PATH_PROG([WSDL2H], [wsdl2h], [], "$with_gsoap/bin")
+	GSOAP_CFLAGS="-I$with_gsoap/include"
 	AC_SUBST([GSOAP_IMPORT])
+	AC_SUBST([GSOAP_CFLAGS])
 fi
 AM_CONDITIONAL([GSOAP], [test "$with_gsoap" != no])
 
