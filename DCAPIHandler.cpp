@@ -295,9 +295,18 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	}
 	catch (BackendException *e)
 	{
-		remove_tmpdir(basedir.c_str());
-		DC_destroyWU(wu);
-		throw;
+		LOG(LOG_ERR, "DC-API: WU %s: Error: %s", id.c_str(), e->what());
+		delete e;
+
+		for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
+			(*it)->setStatus(Job::ERROR);
+	}
+	catch (...)
+	{
+		LOG(LOG_ERR, "DC-API: WU %s: Caught unhandled exception", id.c_str());
+
+		for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
+			(*it)->setStatus(Job::ERROR);
 	}
 
 	remove_tmpdir(basedir.c_str());
