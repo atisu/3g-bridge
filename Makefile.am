@@ -1,5 +1,3 @@
-MAINTAINERCLEANFILES = Makefile.in
-
 ACLOCAL_AMFLAGS = -I cf
 
 AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@ -DRUNDIR='"${localstatedir}/run"' @GSOAP_CFLAGS@
@@ -33,13 +31,6 @@ injector_SOURCES = \
 		QMException.cpp \
 		Util.c
 injector_LDADD = -luuid $(GLIB_LIBS) $(MYSQL_LIBS)
-
-EXTRA_DIST = \
-		3GBridge.typemap \
-		3GBridge.wsdl \
-		bridge.conf.sample \
-		db/schema.sql \
-		doc/*
 
 BACKEND_SOURCES =
 BACKEND_LIBS =
@@ -107,9 +98,24 @@ master.xml: master.xml.in
 	$(SED) -e "s,@PACKAGE_VERSION\@,$(PACKAGE_VERSION)," \
 		$< > $@
 
-package: queuemanager.tar.gz
-
 CLEANFILES = master.xml queuemanager.tar.gz soap/*
+MAINTAINERCLEANFILES = Makefile.in
+
+EXTRA_DIST = \
+		3GBridge.typemap \
+		3GBridge.wsdl \
+		doc/*
+
+nobase_dist_doc_DATA = db/schema.sql \
+		       examples/batch_pack \
+		       examples/batch_unpack \
+		       master.xml
+
+pkgconfdir = $(sysconfdir)/@PACKAGE@
+dist_pkgconf_DATA = bridge.conf.sample \
+		    dc-api.conf
+
+package: queuemanager.tar.gz
 
 package_contents = \
 		   bridge \

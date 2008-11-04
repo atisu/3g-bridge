@@ -5,7 +5,7 @@ AC_INIT([3G Bridge], [0.5], [zfarkas@sztaki.hu])
 AC_CONFIG_AUX_DIR([scripts])
 AC_CONFIG_MACRO_DIR([cf])
 
-AM_INIT_AUTOMAKE([1.9 foreign])
+AM_INIT_AUTOMAKE([1.9 foreign no-dist-gzip dist-bzip2])
 
 AC_PROG_CC
 AC_PROG_CXX
