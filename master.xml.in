@@ -21,6 +21,7 @@
 	<daemon>
 		<binary>bridge</binary>
 		<arguments>
+			<arg>-f</arg>
 			<arg>-c</arg>
 			<arg>${workdir}/bridge.conf</arg>
 		</arguments>
