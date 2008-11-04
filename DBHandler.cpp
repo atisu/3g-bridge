@@ -89,7 +89,7 @@ bool DBResult::fetch() throw()
 
 const char *DBResult::get_field(int index)
 {
-	if (index >= field_num || !row || !row[index])
+	if (index >= field_num || !row)
 		throw new QMException("Invalid field index");
 	return row[index];
 }
