@@ -104,6 +104,7 @@ MAINTAINERCLEANFILES = Makefile.in
 EXTRA_DIST = \
 		3GBridge.typemap \
 		3GBridge.wsdl \
+		master.xml.in \
 		doc/*
 
 nobase_dist_doc_DATA = db/schema.sql \
