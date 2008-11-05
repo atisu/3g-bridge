@@ -405,7 +405,9 @@ int main(int argc, char **argv)
 	sigaction(SIGTERM, &sa, NULL);
 	sigaction(SIGQUIT, &sa, NULL);
 
-	sa.sa_handler = sighup_handler;
+	/* BOINC sends SIGHUP when it wants to kill the process */
+	if (run_as_daemon)
+		sa.sa_handler = sighup_handler;
 	sigaction(SIGHUP, &sa, NULL);
 
 	DBHandler::init(global_config);
