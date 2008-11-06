@@ -67,10 +67,10 @@ void DBResult::use() throw()
 
 	field_num = mysql_field_count(dbh->conn);
 	res = mysql_use_result(dbh->conn);
-	if (field_num && !res)
-		LOG(LOG_ERR, "Failed to fetch results: %s", mysql_error(dbh->conn));
-	else
+	if (res)
 		fields = mysql_fetch_fields(res);
+	else if (field_num)
+		LOG(LOG_ERR, "Failed to fetch results: %s", mysql_error(dbh->conn));
 }
 
 bool DBResult::fetch() throw()
@@ -283,7 +283,8 @@ void DBHandler::getFinishedJobs(JobVector &jobs, const string &grid, unsigned ba
 
 void DBHandler::pollJobs(GridHandler *handler, Job::JobStatus stat1, Job::JobStatus stat2)
 {
-	query("START TRANSACTION");
+	if (!query("START TRANSACTION"))
+		return;
 	if (!query("SELECT * FROM cg_job WHERE grid = '%s' "
 			"AND (status = '%s' OR status = '%s')",
 			handler->getName(), statToStr(stat1), statToStr(stat2)))
@@ -377,7 +378,9 @@ void DBHandler::deleteBatch(const string &gridId)
 void DBHandler::addJob(Job &job)
 {
 	bool success = true;
-	query("START TRANSACTION");
+
+	if (!query("START TRANSACTION"))
+		return;
 
 	success &= query("INSERT INTO cg_job (id, alg, grid, status, args) VALUES ('%s', '%s', '%s', '%s', '%s')",
 		job.getId().c_str(), job.getName().c_str(), job.getGrid().c_str(),
@@ -500,13 +503,14 @@ void DBHandler::addAlgQ(const char *grid, const char *alg, unsigned batchsize)
 
 void DBHandler::getCompleteWUs(vector<string> &ids, const string &grid, Job::JobStatus stat)
 {
-	query("SELECT gridid, COUNT(*) AS total, COUNT(NULLIF(FALSE, status = '%s')) AS matching "
-		"FROM cg_job "
-		"WHERE grid = '%s' "
-		"GROUP BY gridid "
-		"HAVING total = matching "
-		"LIMIT 100",
-		statToStr(stat), grid.c_str());
+	if (!query("SELECT gridid, COUNT(*) AS total, COUNT(NULLIF(FALSE, status = '%s')) AS matching "
+			"FROM cg_job "
+			"WHERE grid = '%s' "
+			"GROUP BY gridid "
+			"HAVING total = matching "
+			"LIMIT 100",
+			statToStr(stat), grid.c_str()))
+		return;
 
 	DBResult res(this);
 	res.use();
