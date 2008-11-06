@@ -105,6 +105,7 @@ EXTRA_DIST = \
 		3GBridge.typemap \
 		3GBridge.wsdl \
 		master.xml.in \
+		etc/3g-bridge.* \
 		doc/*
 
 nobase_dist_doc_DATA = db/schema.sql \
@@ -113,8 +114,8 @@ nobase_dist_doc_DATA = db/schema.sql \
 		       master.xml
 
 pkgconfdir = $(sysconfdir)/@PACKAGE@
-dist_pkgconf_DATA = bridge.conf.sample \
-		    dc-api.conf
+nobase_dist_pkgconf_DATA = etc/bridge.conf.sample \
+			   etc/dc-api.conf
 
 package: queuemanager.tar.gz
 

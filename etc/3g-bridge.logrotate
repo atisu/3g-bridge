@@ -1,0 +1,9 @@
+/var/log/3g-bridge/bridge.log /var/log/3g-bridge/wssubmitter.log {
+    compress
+    missingok
+    notifempty
+    sharedscripts
+    postrotate               
+        /etc/init.d/3g-bridge condrestart >/dev/null 2>&1 || true
+    endscript
+}
