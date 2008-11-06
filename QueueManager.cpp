@@ -438,7 +438,19 @@ int main(int argc, char **argv)
 			reload = false;
 		}
 
-		do_mainloop();
+		try {
+			do_mainloop();
+		}
+		catch (QMException *e)
+		{
+			LOG(LOG_CRIT, "Fatal: %s", e->what());
+			finish = true;
+		}
+		catch (...)
+		{
+			LOG(LOG_CRIT, "Fatal: Unknown exception caught");
+			finish = true;
+		}
 	}
 
 	LOG(LOG_NOTICE, "Exiting");
