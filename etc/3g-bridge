@@ -1,0 +1,97 @@
+#!/bin/bash
+#
+# 3g-bridge     This shell script takes care of starting and stopping
+#               3g-bridge. This is a RedHat style init script.
+#
+# chkconfig: 2345 90 10
+# description: 3g-bridge connects various grid infrastructures
+# processname: bridge
+# config: /etc/3g-bridge/bridge.conf
+# pidfile: /var/run/bridge.pid
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+[ -f /usr/sbin/bridge ] || exit 0
+[ -f /etc/3g-bridge/bridge.conf ] || exit 0
+
+RETVAL=0
+prog="3g-bridge"
+user=bridge
+pidfile=/var/run/bridge.pid
+
+start() {
+	# Start daemons.
+
+	echo -n $"Starting $prog: "
+	if ! test -f "$pidfile" ; then
+	    touch "$pidfile"
+	    chown $user "$pidfile"
+	    if [ -x /usr/sbin/selinuxenabled ] && /usr/sbin/selinuxenabled; then
+		/sbin/restorecon "$pidfile"
+	    fi
+	fi
+	daemon --user $user /usr/sbin/bridge -c /etc/3g-bridge/bridge.conf
+	RETVAL=$?
+        echo
+        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/bridge
+	return $RETVAL
+}
+
+reload() {
+	# Stop daemons.
+    	echo -n $"reloading $prog: "
+	if pidfileofproc /usr/sbin/bridge; then
+		killproc bridge -HUP
+	else
+		failure $"Reloading $prog"
+	fi
+		RETVAL=$?
+	echo
+	return $RETVAL
+}
+
+stop() {
+	# Stop daemons.
+	echo -n $"Shutting down $prog: "
+	killproc bridge
+	RETVAL=$?
+	echo
+	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/bridge
+	return $RETVAL
+}
+
+# See how we were called.
+case "$1" in
+  start)
+	start
+	;;
+  stop)
+	stop
+	;;
+  reload)
+	reload
+	RETVAL=$?
+	;;
+  restart)
+	stop
+	start
+	RETVAL=$?
+	;;
+  condrestart)
+	if [ -f /var/lock/subsys/bridge ]; then
+	    stop
+	    start
+	    RETVAL=$?
+	fi
+	;;
+  status)
+	status bridge
+	RETVAL=$?
+	;;
+  *)
+	echo $"Usage: $0 {start|stop|restart|condrestart|status}"
+	exit 1
+esac
+
+exit $RETVAL

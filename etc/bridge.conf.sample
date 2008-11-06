@@ -10,28 +10,23 @@
 # Generic settings
 [defaults]
 
+# Log level: EMERG, ALERT, CRIT, ERROR, WARNING, NOTICE, INFO, DEBUG
 log-level = DEBUG
 
 #######################################################################
-# Database access parameters
+# Database access parameters (host, database name, user, password)
 [database]
 
-# Name of the database
-name =
-
-# Host name of the database
-host =
-
-# Database user
-user =
-
-# Database password
-password =
+host = localhost
+name = bridge
+user = bridge
+password = changeit!
 
 # Max. number of database connections that can be opened simultaneously
 # WARNING: setting this too low may cause deadlock.
 # - For the queue manager, set it to at least 4
-# - For the WS submitter, set it to at least 1.5 * (download-threads + service-threads)
+# - For the WS submitter, set it to at least
+#   1.5 * (download-threads + service-threads)
 max-connections = 20
 
 #######################################################################
@@ -42,10 +37,10 @@ max-connections = 20
 #	stdout			write to the standard output
 #	syslog:<facility>	use syslog with the specified facility
 #	[file:]/some/file	write to the speficied file
-log-target =
+log-target = /var/log/3g-bridge/bridge.log
 
 # Location of the PID file
-pid-file =
+pid-file = /var/run/bridge.pid
 
 
 #######################################################################
@@ -56,16 +51,16 @@ pid-file =
 #	stdout			write to the standard output
 #	syslog:<facility>	use syslog with the specified facility
 #	[file:]/some/file	write to the speficied file
-log-target =
+log-target = /var/log/3g-bridge/wssubmitter.log
 
 # Location of the PID file
-pid-file =
+pid-file = /var/run/wssubmitter.pid
 
 # Listening port
 port =
 
-# Number of web service threads. Must be smaller than the number of database connections
-# otherwise deadlocks may occur
+# Number of web service threads. Must be smaller than the number of database
+# connections otherwise deadlocks may occur
 service-threads = 3
 
 # Number of parallel downloads
@@ -89,12 +84,12 @@ dc-api-config = dc-api.conf
 
 ##############
 # Sample grid using the EGEE plugin
-[SEE-GRID]
+[EGEE]
 
 handler = EGEE
-voname = seegrid
-wmproxy-endpoint = ...
-myproxy_host = ...
-myproxy_port = ...
-myproxy_user = ...
-myproxy_pass = ...
+voname = desktopgrid.vo.edges-grid.eu
+wmproxy-endpoint = https://wms.grid.edges-grid.eu:7443/glite_wms_wmproxy_server
+myproxy_host = myproxy.host
+myproxy_port = 7512
+myproxy_user = bridge
+myproxy_pass = changeit!
