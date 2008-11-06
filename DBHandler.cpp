@@ -114,16 +114,20 @@ bool DBHandler::query(const char *fmt, ...)
 	va_list ap;
 	char *qstr;
 
+	if (!conn)
+		connect();
+	if (mysql_ping(conn))
+	{
+		LOG(LOG_ERR, "Database connection error: %s", mysql_error(conn));
+		mysql_close(conn);
+		conn = 0;
+		return false;
+	}
+
 	va_start(ap, fmt);
 	vasprintf(&qstr, fmt, ap);
 	va_end(ap);
 
-	if (mysql_ping(conn))
-	{
-		LOG(LOG_ERR, "Database connection error: %s", mysql_error(conn));
-		free(qstr);
-		return false;
-	}
 	if (mysql_query(conn, qstr))
 	{
 		LOG(LOG_ERR, "Query [%s] has failed: %s", qstr, mysql_error(conn));
@@ -135,7 +139,7 @@ bool DBHandler::query(const char *fmt, ...)
 }
 
 
-DBHandler::DBHandler(const char *dbname, const char *host, const char *user, const char *passwd)
+void DBHandler::connect()
 {
 	conn = mysql_init(0);
 	if (!conn)
@@ -147,6 +151,11 @@ DBHandler::DBHandler(const char *dbname, const char *host, const char *user, con
 		conn = 0;
 		throw new QMException("Could not connect to the database: %s", error.c_str());
 	}
+}
+
+DBHandler::DBHandler()
+{
+	connect();
 }
 
 
@@ -454,7 +463,7 @@ retry:
 
 	try
 	{
-		dbh = new DBHandler(dbname, host, user, passwd);
+		dbh = new DBHandler();
 	}
 	catch (...)
 	{

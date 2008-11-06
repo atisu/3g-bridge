@@ -213,12 +213,8 @@ class DBHandler {
 
 	/**
 	 * DBHandler constructor.
-	 * @param dbname name of the database to connect to
-	 * @param host hostname of the database to access
-	 * @param user username to access the database
-	 * @param passwd password to use for connection
 	 */
-	DBHandler(const char *dbname, const char *host, const char *user, const char *passwd);
+	DBHandler();
 
 	/// MySQL connection
 	MYSQL *conn;
@@ -238,6 +234,11 @@ class DBHandler {
 	 * @param[out] jobs the JobVector to place parsed jobs in
 	 */
 	void parseJobs(JobVector &jobs);
+
+	/**
+	 * Connect to the database.
+	 */
+	void connect(void);
 };
 
 
