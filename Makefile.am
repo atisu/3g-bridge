@@ -108,14 +108,14 @@ EXTRA_DIST = \
 		etc/3g-bridge.* \
 		doc/*
 
-nobase_dist_doc_DATA = db/schema.sql \
-		       examples/batch_pack \
-		       examples/batch_unpack \
-		       master.xml
+dist_doc_DATA = db/schema.sql \
+		examples/batch_pack \
+		examples/batch_unpack \
+		master.xml
 
 pkgconfdir = $(sysconfdir)/@PACKAGE@
-nobase_dist_pkgconf_DATA = etc/bridge.conf.sample \
-			   etc/dc-api.conf
+dist_sysconf_DATA = etc/bridge.conf.sample \
+		    etc/dc-api.conf
 
 package: queuemanager.tar.gz
 
