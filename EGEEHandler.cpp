@@ -124,15 +124,13 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 	LOG(LOG_INFO, "EGEE Plugin (%s): about to submit %zd jobs.", name.c_str(), jobs.size());
 
 	createCFG();
-	vector<string> prodFiles;
-	vector<string> prodDirs;
-	char tmpl[256];
-	sprintf(tmpl, "submitdir.XXXXXX");
-	char *tmpdir = mkdtemp(tmpl);
-	if (!tmpdir)
-		throw new BackendException("Failed to create temporary directory!");
-	chdir(tmpdir);
-	prodDirs.push_back(string(tmpdir));
+	char tmpl[PATH_MAX];
+	snprintf(tmpl, sizeof(tmpl), "%s/submitdir.XXXXXX", tmpdir.c_str());
+	char *ttmpdir = mkdtemp(tmpl);
+	if (!ttmpdir)
+		throw new BackendException("Failed to create temporary directory for submission!");
+	char *oldcwd = getcwd(NULL, 0);
+	chdir(ttmpdir);
 
 	mkdir("jdlfiles", 0700);
 	unsigned i = 0;
@@ -140,7 +138,6 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		char jdirname[32];
 		sprintf(jdirname, "%d", i);
 		mkdir(jdirname, 0700);
-		prodDirs.push_back(string(tmpdir) + "/" + string(jdirname));
 		Job *actJ = *it;
 
 		// Get JDL template
@@ -166,7 +163,6 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 			inf.close();
 			outf.close();
 			jobJDLAd->addAttribute(JDL::INPUTSB, (string(jdirname) + "/" + oppath).c_str());
-			prodFiles.push_back(string(tmpdir) + "/" + string(jdirname) + "/" + oppath);
 		}
 
 		// Now add outputs
@@ -196,7 +192,6 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		ofstream jobJDL(jdlFname.str().c_str());
 		jobJDL << jobJDLAd->toString() << endl;
 		jobJDL.close();
-		prodFiles.push_back(string(tmpdir) + "/" + jdlFname.str());
 
 		delete jobJDLAd;
 	}
@@ -206,7 +201,6 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 	int rtv = system(cmd.c_str());
 	if (rtv)
 		throwStrExc(__func__, "Job submission using glite-wms-job-submit failed!");
-	prodFiles.push_back(string(tmpdir) + "/collection.id");
 
 	// Find out collection's ID
         ifstream collIDf("collection.id");
@@ -260,7 +254,8 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 			}
 	}
 
-	chdir("..");
+	chdir(oldcwd);
+	free(oldcwd);
 	cmd = "rm -rf " + string(tmpl);
 	system(cmd.c_str());
 	LOG(LOG_INFO, "EGEE Plugin: job submission finished.");
