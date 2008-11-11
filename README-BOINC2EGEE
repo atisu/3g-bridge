@@ -1,0 +1,83 @@
+3G Bridge implementing BOINC -> EGEE bridging
+=============================================
+
+
+1. Requirements
+---------------
+The BOINC -> EGEE bridge requires a machine meeting the following
+specifications:
+  o one CPU
+  o at least 512M RAM recommended
+  o at least 1G of free HDD space recommended
+  o Scientific Linux 4.5 operating system
+  o gLite User Interface installed and configured on the machine
+  o MySQL server installed on the machine
+
+
+2. How to use
+-------------
+In order to set up a BOINC -> EGEE bridge, you have to execute the following
+steps:
+
+  1. It is recommended to create a new user account that will run the bridge
+      $ adduser bridge
+
+  2. Provide access to this user to a new database on the MySQL server
+      mysql> create database bridge;
+      mysql> grant all privileges on bridge.* to bridge identified by '3g';
+
+  3. Create tables in the database:
+      $ mysql -u bridge -p bridge < cfg/db/schema.sql
+  4. Update database access informations in cfg/bridge.conf
+
+  5. Set up an EGEE plugin instance for the BOINC source in cfg/bridge.conf.
+     You have to set up the following properties:
+      o a name for the plugin instance surrounded by '[' and ']'
+      o the plugin's type by setting 'handler = EGEE'
+      o the VO name to use: 'voname = gilda'
+      o the WMProxy endpoint for the VO
+      o MyProxy informations
+     You should also create a queue for the new plugin instance in the Job
+     Database:
+      mysql> insert into cg_algqueue(grid, alg, batchsize) values('boincgrid', '', 10);
+     In the above command, we create a queue for the 'boincgrid' plugin
+     instance that supports submitting at most 10 jobs in a collection.
+
+  6. Now create a new empty directory for the BOINC jobwrapper client. Copy
+     the provided example 3g.cfg and jobwrapper_client.xml file from the cfg
+     directory into this new directory. Next, modify attribute values in the
+     configuration files according to your settings (e.g. location of the 3G
+     Bridge config file, number of workunit/CPU slots to use, location of the
+     jobwrapper-3g binary, EGEE plugin instance to use).
+
+  7. Start the boinc_jobwrapper_client in this new directory, and attach to
+     the requested BOINC project:
+      $ .../bin/boinc_jobwrapper_client --no_gui_rpc --attach_project <URL> <KEY>
+     The BOINC jobwrapper client begins fetching workunits from the BOINC
+     server and places them into the 3G Bridge Job Database.
+
+  8. Start the bridge:
+      $ .../bin/bridge .../cfg/bridge.conf 2>&1 > bridge.log
+
+In order to add a new BOINC -> EGEE path to the already running bridge, the
+following steps must be executed:
+
+  1. Step '5.-7.' from above. Note: if you plan to use an already existing EGEE
+     plugin instance for executing the new BOINC server's jobs in EGEE, step
+     '5.' can be skipped.
+
+  2. Stop the bridge by creating an empty file called 'stopfile' in the
+     directory where the bridge has been started:
+      $ touch stopfile
+
+  3. Start the bridge: step '8.' from above.
+
+In order to stop the bridge, create an empty file called 'stopfile' in the
+directory where the bridge has been started:
+  $ touch stopfile
+
+
+3. Remarks
+----------
+It is recommended to start the different components either as a background
+process or in a screen terminal.

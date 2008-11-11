@@ -109,6 +109,7 @@ EXTRA_DIST = \
 		doc/*
 
 nobase_dist_doc_DATA = \
+			README-BOINC2EGEE \
 			db/schema.sql \
 			examples/batch_pack \
 			examples/batch_unpack \
