@@ -4,6 +4,8 @@ AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@ -DRUNDIR='"${localstatedir}/run"' @
 
 bin_PROGRAMS = injector
 sbin_PROGRAMS = bridge
+pkglibexecdir = $(libexecdir)/@PACKAGE@
+pkglibexec_PROGRAMS = jobwrapper
 
 if GSOAP
 bin_PROGRAMS += wsclient
@@ -31,6 +33,13 @@ injector_SOURCES = \
 		QMException.cpp \
 		Util.c
 injector_LDADD = -luuid $(GLIB_LIBS) $(MYSQL_LIBS)
+
+jobwrapper_SOURCES = \
+		jobwrapper.cpp \
+		Util.c
+jobwrapper_CPPFLAGS = $(BOINC_CPPFLAGS) $(AM_CPPFLAGS)
+jobwrapper_LDFLAGS = $(BOINC_LDFLAGS) $(AM_LDFLAGS)
+jobwrapper_LDADD = -luuid -lboinc_api -lboinc $(GLIB_LIBS) $(MYSQL_LIBS)
 
 BACKEND_SOURCES =
 BACKEND_LIBS =

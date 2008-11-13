@@ -84,6 +84,15 @@ if test "$with_gsoap" != no; then
 fi
 AM_CONDITIONAL([GSOAP], [test "$with_gsoap" != no])
 
+AC_ARG_WITH([boinc], AS_HELP_STRING([--with-boinc], [Use BOINC in @<:@/usr@:>@]),
+	[], [with_boinc=/usr])
+if test "${with_boinc}" != no; then
+    BOINC_CPPFLAGS="-I${with_boinc}/include/BOINC"
+    BOINC_LDFLAGS="-L${with_boinc}/lib"
+    AC_SUBST(BOINC_CPPFLAGS)
+    AC_SUBST(BOINC_LDFLAGS)
+fi
+
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
