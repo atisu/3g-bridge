@@ -117,13 +117,14 @@ EXTRA_DIST = \
 		etc/3g-bridge.* \
 		doc/*
 
+dist_doc_DATA = \
+		doc/README-BOINC2EGEE \
+		doc/jobwrapper_client.xml \
+		master.xml
 nobase_dist_doc_DATA = \
-			README-BOINC2EGEE \
-			doc/jobwrapper_client.xml \
-			db/schema.sql \
-			examples/batch_pack \
-			examples/batch_unpack \
-			master.xml
+		db/schema.sql \
+		examples/batch_pack \
+		examples/batch_unpack
 
 pkgconfdir = $(sysconfdir)/@PACKAGE@
 dist_pkgconf_DATA = etc/bridge.conf.sample \
@@ -132,12 +133,12 @@ dist_pkgconf_DATA = etc/bridge.conf.sample \
 package: queuemanager.tar.gz
 
 package_contents = \
-		   bridge \
-		   bridge.conf.sample \
-		   dc-api.conf \
-		   master.xml \
-		   examples/batch_pack \
-		   examples/batch_unpack
+		bridge \
+		bridge.conf.sample \
+		dc-api.conf \
+		master.xml \
+		examples/batch_pack \
+		examples/batch_unpack
 
 queuemanager.tar.gz: $(package_contents)
 	mkdir package-tmp
