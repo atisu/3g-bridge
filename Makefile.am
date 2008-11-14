@@ -119,6 +119,7 @@ EXTRA_DIST = \
 
 nobase_dist_doc_DATA = \
 			README-BOINC2EGEE \
+			doc/jobwrapper_client.xml \
 			db/schema.sql \
 			examples/batch_pack \
 			examples/batch_unpack \

@@ -93,3 +93,10 @@ myproxy_host = myproxy.host
 myproxy_port = 7512
 myproxy_user = bridge
 myproxy_pass = changeit!
+
+##############
+# Sample jobsource using jobwrapper
+[jobwrapper]
+
+grid = EGEE
+log-target = /var/log/3g-bridge/jobwrapper.log
