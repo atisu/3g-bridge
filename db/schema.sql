@@ -3,9 +3,9 @@
  */
 DROP TABLE IF EXISTS cg_inputs;
 DROP TABLE IF EXISTS cg_outputs;
+DROP TABLE IF EXISTS cg_download;
 DROP TABLE IF EXISTS cg_job;
 DROP TABLE IF EXISTS cg_algqueue;
-DROP TABLE IF EXISTS cg_download;
 
 /*
  * Algorithm queue table
