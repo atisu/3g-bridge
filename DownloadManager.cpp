@@ -488,6 +488,8 @@ void DLItem::finished()
 	LOG(LOG_DEBUG, "Finished downloading %s", url.c_str());
 	if (fd != -1)
 	{
+		/* Make the file world-readable */
+		fchmod(fd, 0644);
 		close(fd);
 		fd = -1;
 	}
