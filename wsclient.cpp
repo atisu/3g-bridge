@@ -234,6 +234,7 @@ static void handle_add(void)
 
 	job.alg = name;
 	job.grid = grid;
+	job.args = args;
 
 	struct soap *soap = soap_new();
 	soap_init(soap);
