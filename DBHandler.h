@@ -114,6 +114,14 @@ class DBHandler {
 	void getCompleteWUs(vector<string> &ids, const string &grid, Job::JobStatus stat);
 
 	/**
+	 * Select gridids from the database for which all have the given status.
+	 * @param[out] ids vector of matching grid identifiers
+	 * @param grid grid to look at
+	 * @param stat job status to look at
+	 */
+	void getCompleteWUsSingle(vector<string> &ids, const string &grid, Job::JobStatus stat);
+
+	/**
 	 * Update a job's grid identifier.
 	 * @param ID the job's identifier
 	 * @param gridID the grid identifier to set

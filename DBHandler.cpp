@@ -529,6 +529,22 @@ void DBHandler::getCompleteWUs(vector<string> &ids, const string &grid, Job::Job
 }
 
 
+void DBHandler::getCompleteWUsSingle(vector<string> &ids, const string &grid, Job::JobStatus stat)
+{
+	if (!query("SELECT gridid "
+			"FROM cg_job "
+			"WHERE grid = '%s' AND status = '%s' "
+			"LIMIT 100",
+			grid.c_str(), statToStr(stat)))
+		return;
+
+	DBResult res(this);
+	res.use();
+	while (res.fetch())
+		ids.push_back(res.get_field(0));
+}
+
+
 void DBHandler::addDL(const string &jobid, const string &localName, const string &url)
 {
 	query("INSERT INTO cg_download (jobid, localname, url) VALUES ('%s', '%s', '%s')",

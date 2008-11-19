@@ -18,6 +18,7 @@ noinst_HEADERS = \
 		Conf.h \
 		DBHandler.h \
 		DCAPIHandler.h \
+		DCAPIHandlerSingle.h \
 		DownloadManager.h \
 		EGEEHandler.h \
 		GridHandler.h \
@@ -45,7 +46,7 @@ BACKEND_SOURCES =
 BACKEND_LIBS =
 
 if HAVE_DCAPI
-BACKEND_SOURCES += DCAPIHandler.cpp
+BACKEND_SOURCES += DCAPIHandler.cpp DCAPIHandlerSingle.cpp
 BACKEND_LIBS += $(DCAPI_MASTER_LIBS)
 endif
 

@@ -8,6 +8,7 @@
 
 #ifdef HAVE_DCAPI
 #include "DCAPIHandler.h"
+#include "DCAPIHandlerSingle.h"
 #endif
 #ifdef HAVE_EGEE
 #include "EGEEHandler.h"
@@ -318,6 +319,7 @@ static void init_grid_handlers(void)
 
 #ifdef HAVE_DCAPI
 	registerPlugin("DC-API", DCAPIHandler::getInstance);
+	registerPlugin("DC-API-SINGLE", DCAPIHandlerSingle::getInstance);
 #endif
 #ifdef HAVE_EGEE
 	registerPlugin("EGEE", EGEEHandler::getInstance);
