@@ -125,7 +125,10 @@ void log_init(GKeyFile *config, const char *section)
 		goto out;
 
 	if (!g_strcasecmp(str, "stdout"))
+	{
 		log_mode = STDOUT;
+		setvbuf(stdout, NULL, _IOLBF, 1024);
+	}
 	else if (!g_strncasecmp(str, "syslog", 6))
 	{
 		log_mode = SYSLOG;
