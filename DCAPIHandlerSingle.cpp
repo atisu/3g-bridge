@@ -23,13 +23,6 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#define SCRIPT_NAME		"script"
-#define INPUT_DIR		"inputs"
-#define INPUT_NAME		"inputs.pack"
-#define OUTPUT_DIR		"outputs"
-#define OUTPUT_NAME		"outputs.pack"
-#define OUTPUT_PATTERN		"outputs/*"
-
 
 using namespace std;
 
@@ -86,15 +79,6 @@ static void result_callback_single(DC_Workunit *wu, DC_Result *result)
 			free(tmp);
 			return;
 		}
-		if (unlink(tmp))
-		{
-			LOG(LOG_ERR, "DC-API-SINGLE: WU %s: Failed to remove output file %s",
-				wuid.c_str(), tmp);
-			job->setStatus(Job::ERROR);
-			DC_destroyWU(wu);
-			free(tmp);
-			return;
-		}
 		free(tmp);
 	}
 
@@ -129,90 +113,81 @@ DCAPIHandlerSingle::~DCAPIHandlerSingle()
 }
 
 
+static bool submit_job(Job *job)
+{
+	GError *error = 0;
+	char **argv;
+	int argc;
+
+	if (!g_shell_parse_argv(job->getArgs().c_str(), &argc, &argv, &error))
+	{
+		LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to parse the arguments: %s",
+			job->getId().c_str(), error->message);
+		g_error_free(error);
+		return false;
+	}
+
+	const char *algName = job->getAlgQueue()->getName().c_str();
+	DC_Workunit *wu = DC_createWU(algName, (const char **)argv, 0, job->getId().c_str());
+	g_strfreev(argv);
+	if (!wu)
+	{
+		LOG(LOG_ERR, "DC-API-SINGLE: Job %s: DC_createWU() failed", job->getId().c_str());
+		return false;
+	}
+
+	auto_ptr< vector<string> > inputs = job->getInputs();
+	for (vector<string>::iterator it = inputs->begin(); it != inputs->end(); it++)
+	{
+		if (DC_addWUInput(wu, (*it).c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE))
+		{
+			LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to add input file \"%s\"",
+				job->getId().c_str(), job->getInputPath(*it).c_str());
+			DC_destroyWU(wu);
+			return false;
+		}
+		LOG(LOG_DEBUG, "DC-API-SINGLE: Input file \"%s\" added to WU of job \"%s\" as \"%s\"",
+			job->getInputPath(*it).c_str(), job->getId().c_str(), (*it).c_str());
+	}
+
+	auto_ptr< vector<string> > outputs = job->getOutputs();
+	for (vector<string>::iterator it = outputs->begin(); it != outputs->end(); it++)
+	{
+		if (DC_addWUOutput(wu, (*it).c_str()))
+		{
+			LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to add output file \"%s\"",
+				job->getId().c_str(), (*it).c_str());
+			DC_destroyWU(wu);
+			return false;
+		}
+		LOG(LOG_DEBUG, "DC-API-SINGLE: Output file \"%s\" added to WU of job \"%s\"",
+			(*it).c_str(), job->getId().c_str());
+	}
+
+	if (DC_submitWU(wu))
+	{
+		LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to submit", job->getId().c_str());
+		DC_destroyWU(wu);
+		return false;
+	}
+
+	char *wu_id = DC_serializeWU(wu);
+	job->setGridId(wu_id);
+	job->setStatus(Job::RUNNING);
+
+	LOG(LOG_INFO, "DC-API: WU %s: Submitted to grid %s (app '%s', job %s)",
+		wu_id, job->getGrid().c_str(), algName, job->getId().c_str());
+
+	free(wu_id);
+	return true;
+}
+
 void DCAPIHandlerSingle::submitJobs(JobVector &jobs) throw (BackendException *)
 {
-	JobVector::iterator i = jobs.begin();
-	if (i == jobs.end())
-		return;
-
-	for (; i != jobs.end(); i++)
+	for (JobVector::iterator i = jobs.begin(); i != jobs.end(); i++)
 	{
-		Job *job = *i;
-		DC_Workunit *wu = 0;
-		const char *algName = job->getAlgQueue()->getName().c_str();
-		const char **cargs = NULL;
-
-		vector<string> vargs;
-		string args = job->getArgs();
-    		size_t fpos = args.find_first_not_of(' ');
-	        while (string::npos != fpos)
-		{
-			size_t npos = args.find_first_of(' ', fpos);
-			vargs.push_back(args.substr(fpos, npos-fpos));
-			fpos = args.find_first_not_of(' ', npos);
-		}
-
-		if (vargs.size())
-		{
-			int j = 0;
-			cargs = new const char *[vargs.size()+1];
-			for (vector<string>::iterator it = vargs.begin(); it != vargs.end(); it++, j++)
-				cargs[j] = (*it).c_str();
-			cargs[j] = NULL;
-		}
-
-		wu = DC_createWU(algName, cargs, 0, job->getId().c_str());
-		if (!wu)
-		{
-			LOG(LOG_ERR, "DC-API-SINGLE: DC_createWU() failed for job \"%s\"", job->getId().c_str());
-			delete[] cargs;
-			continue;
-		}
-		delete[] cargs;
-
-		auto_ptr< vector<string> > inputs = job->getInputs();
-		for (vector<string>::iterator it = inputs->begin(); it != inputs->end(); it++)
-		{
-			int err = DC_addWUInput(wu, (*it).c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE);
-			if (err)
-			{
-				LOG(LOG_ERR, "DC-API-SINGLE: Failed to add input file \"%s\" to WU of job \"%s\"",
-					job->getInputPath(*it).c_str(), job->getId().c_str());
-				DC_destroyWU(wu);
-				continue;
-			}
-			LOG(LOG_DEBUG, "DC-API-SINGLE: Input file \"%s\" added to WU of job \"%s\" as \"%s\"",
-				job->getInputPath(*it).c_str(), job->getId().c_str(), (*it).c_str());
-		}
-
-		auto_ptr< vector<string> > outputs = job->getOutputs();
-		for (vector<string>::iterator it = outputs->begin(); it != outputs->end(); it++)
-		{
-			int err = DC_addWUOutput(wu, (*it).c_str());
-			if (err)
-			{
-				LOG(LOG_ERR, "DC-API-SINGLE: Failed to add output file \"%s\" to WU of job \"%s\"",
-					(*it).c_str(), job->getId().c_str());
-				DC_destroyWU(wu);
-				continue;
-			}
-			LOG(LOG_DEBUG, "DC-API-SINGLE: Output file \"%s\" added to WU of job \"%s\"",
-				(*it).c_str(), job->getId().c_str());
-		}
-
-		if (DC_submitWU(wu))
-		{
-			LOG(LOG_ERR, "DC-API-SINGLE: Failed to submit WU of job \"%s\"", job->getId().c_str());
-			DC_destroyWU(wu);
-		}
-
-		char *wu_id = DC_serializeWU(wu);
-		LOG(LOG_INFO, "DC-API: WU %s: Submitted to grid %s (app '%s')",
-			wu_id, job->getGrid().c_str(), algName);
-
-		job->setGridId(wu_id);
-		job->setStatus(Job::RUNNING);
-		free(wu_id);
+		if (!submit_job(*i))
+			(*i)->setStatus(Job::ERROR);
 	}
 }
 
