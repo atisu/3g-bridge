@@ -180,7 +180,10 @@ static bool check_job(const string &basedir, Job *job)
 		string dst = job->getOutputPath(*it);
 
 		if (!rename(src.c_str(), dst.c_str()))
+		{
+			LOG(LOG_DEBUG, "DC-API: Job %s: Output file '%s' is OK", job->getId().c_str(), it->c_str());
 			continue;
+		}
 		if (errno == ENOENT)
 		{
 			LOG(LOG_ERR, "DC-API: Job %s: Output file '%s' is missing", job->getId().c_str(), it->c_str());
@@ -201,6 +204,7 @@ static bool check_job(const string &basedir, Job *job)
 		try
 		{
 			invoke_cmd("/bin/mv", mv_args);
+			LOG(LOG_DEBUG, "DC-API: Job %s: Output file '%s' is OK", job->getId().c_str(), it->c_str());
 		}
 		catch (QMException *e)
 		{
