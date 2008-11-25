@@ -169,8 +169,7 @@ void DBItem::finished()
 	auto_ptr<Job> job = dbh->getJob(jobId);
 	DBHandler::put(dbh);
 
-	/* If the job has already failed, just do not bother */
-	if (!job.get() || job->getStatus() != Job::PREPARE)
+	if (!job.get())
 	{
 		failed();
 		return;

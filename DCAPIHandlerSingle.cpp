@@ -116,15 +116,18 @@ DCAPIHandlerSingle::~DCAPIHandlerSingle()
 static bool submit_job(Job *job)
 {
 	GError *error = 0;
-	char **argv;
+	char **argv = {NULL};
 	int argc;
 
 	if (!g_shell_parse_argv(job->getArgs().c_str(), &argc, &argv, &error))
 	{
-		LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to parse the arguments: %s",
-			job->getId().c_str(), error->message);
-		g_error_free(error);
-		return false;
+		if (G_SHELL_ERROR_EMPTY_STRING != error->code)
+		{
+			LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to parse the arguments: %s",
+				job->getId().c_str(), error->message);
+			g_error_free(error);
+			return false;
+		}
 	}
 
 	const char *algName = job->getAlgQueue()->getName().c_str();
