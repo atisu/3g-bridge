@@ -68,7 +68,7 @@ if test "$with_gsoap" != no; then
 	PKG_CHECK_MODULES([GSOAP], [gsoap++], [], [with_gsoap=no])
 fi
 if test "$with_gsoap" != no; then
-	LIBCURL_CHECK_CONFIG([yes], [7.15.0], [],
+	LIBCURL_CHECK_CONFIG([yes], [7.12.0], [],
 		[AC_MSG_ERROR([CURL development files are missing])])
 
 	if test "$with_gsoap" = "/usr"; then
