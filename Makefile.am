@@ -125,21 +125,20 @@ dist_doc_DATA = \
 nobase_dist_doc_DATA = \
 		db/schema.sql \
 		examples/batch_pack \
-		examples/batch_unpack
+		examples/batch_unpack \
+		examples/dc-api.conf
 
-pkgconfdir = $(sysconfdir)/@PACKAGE@
-dist_pkgconf_DATA = etc/3g-bridge.conf \
-		    etc/dc-api.conf
+dist_sysconf_DATA = etc/3g-bridge.conf
 
 package: queuemanager.tar.gz
 
 package_contents = \
 		3g-bridge \
 		etc/3g-bridge.conf \
-		etc/dc-api.conf \
 		master.xml \
 		examples/batch_pack \
 		examples/batch_unpack
+		examples/dc-api.conf \
 
 queuemanager.tar.gz: $(package_contents)
 	mkdir package-tmp

@@ -6,18 +6,18 @@
 # chkconfig: 2345 90 10
 # description: 3g-bridge connects various grid infrastructures
 # processname: bridge
-# config: /etc/3g-bridge/3g-bridge.conf
+# config: /etc/3g-bridge.conf
 # pidfile: /var/run/3g-bridge.pid
 
 # Source function library.
 . /etc/rc.d/init.d/functions
 
 [ -f /usr/sbin/3g-bridge ] || exit 0
-[ -f /etc/3g-bridge/3g-bridge.conf ] || exit 0
+[ -f /etc/3g-bridge.conf ] || exit 0
 
 RETVAL=0
-prog="3g-bridge"
-user=bridge
+prog=3g-bridge
+user=3g-bridge
 pidfile=/var/run/3g-bridge.pid
 
 start() {
@@ -31,7 +31,7 @@ start() {
 		/sbin/restorecon "$pidfile"
 	    fi
 	fi
-	daemon --user $user /usr/sbin/3g-bridge -c /etc/3g-bridge/3g-bridge.conf
+	daemon --user $user /usr/sbin/3g-bridge -c /etc/3g-bridge.conf
 	RETVAL=$?
         echo
         [ $RETVAL -eq 0 ] && touch /var/lock/subsys/3g-bridge
@@ -42,7 +42,7 @@ reload() {
 	# Stop daemons.
     	echo -n $"reloading $prog: "
 	if pidfileofproc /usr/sbin/3g-bridge; then
-		killproc bridge -HUP
+		killproc "$prog" -HUP
 	else
 		failure $"Reloading $prog"
 	fi
@@ -54,7 +54,7 @@ reload() {
 stop() {
 	# Stop daemons.
 	echo -n $"Shutting down $prog: "
-	killproc bridge
+	killproc "$prog"
 	RETVAL=$?
 	echo
 	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/3g-bridge
@@ -86,7 +86,7 @@ case "$1" in
 	fi
 	;;
   status)
-	status bridge
+	status "$prog"
 	RETVAL=$?
 	;;
   *)

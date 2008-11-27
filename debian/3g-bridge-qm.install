@@ -1,8 +1,8 @@
 debian/tmp/usr/sbin/3g-bridge
 debian/tmp/usr/bin/injector
+debian/tmp/etc/3g-bridge.conf
 db/schema.sql				usr/share/3g-bridge
 examples/batch_pack			usr/share/3g-bridge
 examples/batch_unpack			usr/share/3g-bridge
+examples/dc-api.conf			usr/share/3g-bridge
 debian/master.xml			usr/share/3g-bridge
-etc/3g-bridge.conf			etc
-etc/dc-api.conf				usr/share/3g-bridge
