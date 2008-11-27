@@ -1,3 +1,9 @@
+3g-bridge (0.9-1) unstable; urgency=low
+
+  * New Debian package.
+
+ -- Gombás Gábor <gombasg@boinc-dev.cgrid>  Thu, 27 Nov 2008 14:06:17 +0100
+
 3g-bridge (0.5-1) unstable; urgency=low
 
   * Initial release.

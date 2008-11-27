@@ -1,0 +1,60 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          3g-bridge
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# X-Start-Before:    
+# X-Stop-After:      
+# Default-Start:     2 3 4 5
+# Default-Stop:      1
+# Short-Description: Start the 3G-Bridge
+# Description:       Launches the 3G-Bridge
+### END INIT INFO
+
+DAEMON=/usr/sbin/3g-bridge
+
+test -x $DAEMON || exit 0
+
+CONFFILE="/etc/3g-bridge.conf"
+START_AT_BOOT="no"
+OPTIONS=""
+
+test -f /etc/default/3g-bridge && . /etc/default/3g-bridge
+
+case "$START_AT_BOOT" in
+	1|y*|Y*) ;;
+	*) exit 0
+esac
+
+. /lib/lsb/init-functions
+
+PIDFILE=`awk '/^\[/ { if (in_bridge) in_bridge = 0 } /^\[bridge\]/ { in_bridge = 1 }  /^pid-file/ { if (in_bridge) print $3 }' "$CONFFILE"`
+if [ -z "$PIDFILE" ]; then
+	log_action_msg "The config file does not define the pid file location"
+	exit 1
+fi
+
+case "$1" in
+	start)
+		log_daemon_msg "Starting 3G-Bridge Queue Manager" "3g-bridge"
+		start-stop-daemon --start --quiet --pidfile "$PIDFILE" --exec "$DAEMON" -- --config "$CONFFILE" "$OPTIONS"
+		log_end_msg $?
+		;;
+	stop)
+		log_daemon_msg "Stopping 3G-Bridge Queue Manager" "3g-bridge"
+		$DAEMON --config "$CONFFILE" --kill
+		log_end_msg $?
+		;;
+	restart|force-reload)
+		log_daemon_msg "Restarting 3G-Bridge Queue Manager" "3g-bridge"
+		$DAEMON --config "$CONFFILE" --kill
+		start-stop-daemon --start --quiet --pidfile "$PIDFILE" --exec "$DAEMON" -- --config "$CONFFILE" "$OPTIONS"
+		log_end_msg $?
+		;;
+	*)
+		log_action_msg "Usage: $0 (start|stop|restart|force-reload)"
+		exit 2
+		;;
+esac
+
+exit 0

@@ -110,7 +110,7 @@ binary-arch: build install
 	dh_installdocs -a
 	dh_installdebconf -a
 	dh_installexamples -a
-#	dh_installinit -a
+	dh_installinit -a
 #	dh_installman -a
 	$(DH_STRIP) -a
 	dh_link -a

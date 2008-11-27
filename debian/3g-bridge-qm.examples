@@ -1,5 +1,4 @@
 examples/body
 examples/head
 examples/tail
-etc/3g-bridge.init
 etc/3g-bridge.logrotate
