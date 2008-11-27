@@ -97,7 +97,7 @@ void init_config(void)
 
 	// First get bridgecfg and cfgsection from jobwrapper_client.xml
 	if (NULL == (f = fopen(JOBWRAPPER_CLIENT_XML, "r"))) {
-		LOG(LOG_ERR, "Jobwrapper: Cannot open %s/%s", cwd, JOBWRAPPER_CLIENT_XML);
+		LOG(LOG_ERR, "Cannot open %s/%s", cwd, JOBWRAPPER_CLIENT_XML);
 		exit(-1);
 	}
 	mf.init_file(f);
@@ -107,14 +107,14 @@ void init_config(void)
 	}
 	fclose(f);
 	if (bridgecfg[0] == '\0' || cfgsection[0] == '\0') {
-		LOG(LOG_ERR, "Jobwrapper: Could not get <bridge_conf> and <conf_section> from %s/%s", cwd, JOBWRAPPER_CLIENT_XML);
+		LOG(LOG_ERR, "Could not get <bridge_conf> and <conf_section> from %s/%s", cwd, JOBWRAPPER_CLIENT_XML);
 		exit(-1);
 	}
 
 	// Now read 3G bridge stuff
 	kf = g_key_file_new();
 	if (!g_key_file_load_from_file(kf, bridgecfg, G_KEY_FILE_NONE, &error)) {
-		LOG(LOG_ERR, "Jobwrapper: Failed to load the config file: %s\n", error->message);
+		LOG(LOG_ERR, "Failed to load the config file %s: %s\n", bridgecfg, error->message);
 		g_error_free(error);
 		exit(-1);
 	}
@@ -501,7 +501,7 @@ int main(int argc, char **argv)
 
 	cwd = getcwd(NULL, 0);
 	if (!cwd) {
-		LOG(LOG_ERR, "Jobwrapper: Failed to determine working directory!");
+		LOG(LOG_ERR, "Failed to determine working directory!");
 		exit(-1);
 	}
 	init_config();
