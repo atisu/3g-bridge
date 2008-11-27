@@ -373,7 +373,12 @@ static void emit_job(Job *job, const string &basedir, ofstream &script, const st
 		{
 			const char *cp_args[] = { "cp", "-p", src.c_str(), dst.c_str(), 0 };
 			invoke_cmd("cp", cp_args);
+			LOG(LOG_DEBUG, "DC-API: Job %s: Input %s copied to %s",
+				job->getId().c_str(), it->c_str(), dst.c_str());
 		}
+		else
+			LOG(LOG_DEBUG, "DC-API: Job %s: Input %s linked to %s",
+				job->getId().c_str(), it->c_str(), dst.c_str());
 	}
 
 	string tmpl = substitute(job_template, "input_dir", input_dir);
