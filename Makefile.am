@@ -137,8 +137,8 @@ package_contents = \
 		etc/3g-bridge.conf \
 		master.xml \
 		examples/batch_pack \
-		examples/batch_unpack
-		examples/dc-api.conf \
+		examples/batch_unpack \
+		examples/dc-api.conf
 
 queuemanager.tar.gz: $(package_contents)
 	mkdir package-tmp
