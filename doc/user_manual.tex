@@ -20,9 +20,9 @@
 The purpose of the 3G bridge application is to create a connection between a job source and a grid backend. The supported grid backends are BOINC and EGEE. The 3G bridge communicates with the job source via a MySQL database. The job source renders job descriptors in the MySQL database. The 3G bridge processes the job descriptors by creating job packages suitable for the underlying grid backend. These job packages are submitted by the 3G bridge into the grid backend. The grid backend processes the job packages and notifies the 3G bridge of any returning results. The 3G bridge settles the outputs of the returning results on the path predefined by the job source and sets the state of the job to finished. The job source polls the database for any finished jobs and gathers the outputs for them.
 
 \section{Execution}
-The 3G bridge is meant to be run as a daemon process. The sole, but mandatory argument taken by the 3G bridge is the name of the configuration file. The configuration file should be named {\tt bridge.conf} and should be placed in the same directory in which the 3G bridge resides. The command below executes the 3G bridge as a daemon process and directing the log messages into the file {\tt bridge.log}.
+The 3G bridge is meant to be run as a daemon process. The sole, but mandatory argument taken by the 3G bridge is the name of the configuration file. The configuration file should be named {\tt 3g-bridge.conf} and should be placed in the same directory in which the 3G bridge resides. The command below executes the 3G bridge as a daemon process.
 \begin{verbatim}
-nohup ./bridge bridge.conf 2>&1 > bridge.log &
+nohup 3g-bridge -c 3g-bridge.conf
 \end{verbatim}
 Upon successful execution the 3G bridge can access the database and can initialize the grid backend. After initialization, the 3G bridge will poll the database for jobs to be processed in a varying interval between 1 second and 5 minutes.
 

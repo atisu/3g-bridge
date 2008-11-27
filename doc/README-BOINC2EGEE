@@ -36,9 +36,9 @@ steps:
 
   4. Configure the bridge:
   
-  4a. Update database access informations in .../bridge.conf
+  4a. Update database access informations in .../3g-bridge.conf
 
-  4b. Set up an EGEE plugin instance as the target in .../bridge.conf.
+  4b. Set up an EGEE plugin instance as the target in .../3g-bridge.conf.
       You have to set up the following properties:
        o name of the plugin instance surrounded by '[' and ']': '[boincgrid]'
        o the plugin's type: 'handler = EGEE'
@@ -46,7 +46,7 @@ steps:
        o the WMProxy endpoint for the VO
        o MyProxy setings for retrieving proxies
 
-  4c. Set up the BOINC job source in .../bridge.conf.
+  4c. Set up the BOINC job source in .../3g-bridge.conf.
       You have to set up the following properties:
       o a name for the job source surrounded by '[' and ']': '[jobwrapper]'
       o the target plugin instance to use: 'grid = boincgrid'
@@ -59,7 +59,7 @@ steps:
      according to your settings:
      o location of the 3G Bridge config file: <jobwrapper_binary> tag
      o number of workunit/CPU slots to use: <cpu> tag
-     o location of the bridge configuration file: <bidge_conf> tag
+     o location of the bridge configuration file: <bridge_conf> tag
      o configuration section for this job source: <conf_section> tag
      An example jobwrapper_client.xml file is provided in the doc directory.
 
@@ -70,7 +70,7 @@ steps:
      server and places them into the 3G Bridge Job Database.
 
   7. Start the bridge:
-      $ .../bridge -c .../bridge.conf
+      $ .../3g-bridge -c .../3g-bridge.conf
 
 In order to add a new BOINC -> EGEE path to the already running bridge, the
 following steps must be executed:
@@ -80,7 +80,7 @@ following steps must be executed:
      server, step '4b.' can be skipped.
 
   2. Stop the bridge, the following command stops a bridge running as a daemon
-      $ .../bridge -c .../bridge.conf -k
+      $ .../3g-bridge -c .../3g-bridge.conf -k
 
   3. Start the bridge as in step '7.' from above.
 

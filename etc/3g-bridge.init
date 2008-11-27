@@ -6,19 +6,19 @@
 # chkconfig: 2345 90 10
 # description: 3g-bridge connects various grid infrastructures
 # processname: bridge
-# config: /etc/3g-bridge/bridge.conf
-# pidfile: /var/run/bridge.pid
+# config: /etc/3g-bridge/3g-bridge.conf
+# pidfile: /var/run/3g-bridge.pid
 
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-[ -f /usr/sbin/bridge ] || exit 0
+[ -f /usr/sbin/3g-bridge ] || exit 0
 [ -f /etc/3g-bridge/3g-bridge.conf ] || exit 0
 
 RETVAL=0
 prog="3g-bridge"
 user=bridge
-pidfile=/var/run/bridge.pid
+pidfile=/var/run/3g-bridge.pid
 
 start() {
 	# Start daemons.
@@ -31,17 +31,17 @@ start() {
 		/sbin/restorecon "$pidfile"
 	    fi
 	fi
-	daemon --user $user /usr/sbin/bridge -c /etc/3g-bridge/3g-bridge.conf
+	daemon --user $user /usr/sbin/3g-bridge -c /etc/3g-bridge/3g-bridge.conf
 	RETVAL=$?
         echo
-        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/bridge
+        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/3g-bridge
 	return $RETVAL
 }
 
 reload() {
 	# Stop daemons.
     	echo -n $"reloading $prog: "
-	if pidfileofproc /usr/sbin/bridge; then
+	if pidfileofproc /usr/sbin/3g-bridge; then
 		killproc bridge -HUP
 	else
 		failure $"Reloading $prog"
@@ -57,7 +57,7 @@ stop() {
 	killproc bridge
 	RETVAL=$?
 	echo
-	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/bridge
+	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/3g-bridge
 	return $RETVAL
 }
 
@@ -79,7 +79,7 @@ case "$1" in
 	RETVAL=$?
 	;;
   condrestart)
-	if [ -f /var/lock/subsys/bridge ]; then
+	if [ -f /var/lock/subsys/3g-bridge ]; then
 	    stop
 	    start
 	    RETVAL=$?
