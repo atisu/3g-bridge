@@ -1,3 +1,0 @@
-#!/bin/sh
-
-nohup ./bridge 2>&1 > Manager.log &
