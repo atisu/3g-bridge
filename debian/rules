@@ -43,6 +43,7 @@ config.status: configure
 		--infodir=\$${prefix}/share/info \
 		--sysconfdir=/etc/mercury \
 		--localstatedir=/var \
+		--with-dcapi \
 		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)"
 
 build: config.status build-stamp

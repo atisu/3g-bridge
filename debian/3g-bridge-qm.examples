@@ -1,3 +1,7 @@
 examples/body
 examples/head
 examples/tail
+etc/dc-api.conf
+etc/bridge.conf
+etc/3g-bridge.init
+etc/3g-bridge.logrotate

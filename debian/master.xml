@@ -12,14 +12,14 @@
 
 	<!-- Data files used by the master -->
 	<files>
-		<file>/usr/share/3g-bridge/bridge.conf</file>
+		<file>/usr/share/3g-bridge/examples/bridge.conf</file>
 		<file>/usr/share/3g-bridge/batch_pack</file>
 		<file>/usr/share/3g-bridge/batch_unpack</file>
 	</files>
 
 	<!-- Master daemon definition -->
 	<daemon>
-		<binary>/usr/bin/bridge</binary>
+		<binary>/usr/lib/3g-bridge/bridge</binary>
 		<arguments>
 			<arg>${workdir}/bridge.conf</arg>
 		</arguments>
@@ -27,5 +27,5 @@
 
 	<!-- The application manager script will substitute the correct
 	     values for us -->
-	<dcapi-conf>/usr/share/3g-bridge/dc-api.conf</dcapi-conf>
+	<dcapi-conf>/usr/share/3g-bridge/examples/dc-api.conf</dcapi-conf>
 </master>
