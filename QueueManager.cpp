@@ -328,17 +328,10 @@ static void init_grid_handlers(void)
 	sections = g_key_file_get_groups(global_config, NULL);
 	for (i = 0; sections && sections[i]; i++)
 	{
-		/* Skip sections that are not grid definitions */
-		if (!strcmp(sections[i], GROUP_DEFAULTS) ||
-				!strcmp(sections[i], GROUP_DATABASE) ||
-				!strcmp(sections[i], GROUP_BRIDGE) ||
-				!strcmp(sections[i], GROUP_WSSUBMITTER))
-			continue;
-
 		handler = g_key_file_get_string(global_config, sections[i], "handler", NULL);
+		/* Skip sections that are not grid definitions */
 		if (!handler)
-			throw new QMException("Handler definition is missing in %s", sections[i]);
-
+			continue;
 		GridHandler *plugin = getPluginInstance(global_config, handler, sections[i]);
 		gridHandlers.push_back(plugin);
 		LOG(LOG_DEBUG, "Initialized grid %s using %s", sections[i], handler);
