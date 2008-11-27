@@ -13,7 +13,7 @@
 . /etc/rc.d/init.d/functions
 
 [ -f /usr/sbin/bridge ] || exit 0
-[ -f /etc/3g-bridge/bridge.conf ] || exit 0
+[ -f /etc/3g-bridge/3g-bridge.conf ] || exit 0
 
 RETVAL=0
 prog="3g-bridge"
@@ -31,7 +31,7 @@ start() {
 		/sbin/restorecon "$pidfile"
 	    fi
 	fi
-	daemon --user $user /usr/sbin/bridge -c /etc/3g-bridge/bridge.conf
+	daemon --user $user /usr/sbin/bridge -c /etc/3g-bridge/3g-bridge.conf
 	RETVAL=$?
         echo
         [ $RETVAL -eq 0 ] && touch /var/lock/subsys/bridge

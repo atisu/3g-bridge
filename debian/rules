@@ -43,6 +43,7 @@ config.status: configure
 		--infodir=\$${prefix}/share/info \
 		--sysconfdir=/etc/mercury \
 		--localstatedir=/var \
+		--libexecdir=/usr/lib/3g-bridge \
 		--with-dcapi \
 		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)"
 

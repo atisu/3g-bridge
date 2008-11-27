@@ -19,7 +19,7 @@
 
 	<!-- Master daemon definition -->
 	<daemon>
-		<binary>bridge</binary>
+		<binary>3g-bridge</binary>
 		<arguments>
 			<arg>-f</arg>
 			<arg>-c</arg>

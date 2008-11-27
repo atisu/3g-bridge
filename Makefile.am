@@ -3,7 +3,7 @@ ACLOCAL_AMFLAGS = -I cf
 AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@ -DRUNDIR='"${localstatedir}/run"' @GSOAP_CFLAGS@
 
 bin_PROGRAMS = injector
-sbin_PROGRAMS = bridge
+sbin_PROGRAMS = 3g-bridge
 pkglibexecdir = $(libexecdir)/@PACKAGE@
 pkglibexec_PROGRAMS = jobwrapper
 
@@ -72,7 +72,7 @@ $(SOAP_HEADER): $(WSDL) $(TYPEMAP)
 $(SOAP_CPP_SRC): $(SOAP_HEADER)
 	$(SOAPCPP2) -x -w -dsoap -I$(GSOAP_IMPORT) $<
 
-bridge_SOURCES = \
+3g_bridge_SOURCES = \
 		AlgQueue.cpp \
 		BackendException.cpp \
 		DBHandler.cpp \
@@ -81,7 +81,7 @@ bridge_SOURCES = \
 		QueueManager.cpp \
 		Util.c \
 		$(BACKEND_SOURCES)
-bridge_LDADD = $(GLIB_LIBS) $(BACKEND_LIBS) $(MYSQL_LIBS)
+3g_bridge_LDADD = $(GLIB_LIBS) $(BACKEND_LIBS) $(MYSQL_LIBS)
 
 wssubmitter_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
 wssubmitter_SOURCES = \
@@ -128,15 +128,15 @@ nobase_dist_doc_DATA = \
 		examples/batch_unpack
 
 pkgconfdir = $(sysconfdir)/@PACKAGE@
-dist_pkgconf_DATA = etc/bridge.conf \
+dist_pkgconf_DATA = etc/3g-bridge.conf \
 		    etc/dc-api.conf
 
 package: queuemanager.tar.gz
 
 package_contents = \
-		bridge \
-		bridge.conf \
-		dc-api.conf \
+		3g-bridge \
+		etc/3g-bridge.conf \
+		etc/dc-api.conf \
 		master.xml \
 		examples/batch_pack \
 		examples/batch_unpack
