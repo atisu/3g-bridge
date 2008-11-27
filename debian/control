@@ -3,7 +3,7 @@ Section: net
 Priority: extra
 Maintainer: Gábor Gombás <gombasg@sztaki.hu>
 Standards-Version: 3.7.2
-Build-Depends: libmysqlclient15-dev | libmysqlclient-dev, pkg-config, libglib2.0-dev (>= 2.6.0), libdcapi-boinc-dev, debhelper (>= 5), automake1.9 | automaken (>= 1.9), autoconf (>= 2.53)
+Build-Depends: libmysqlclient15-dev | libmysqlclient-dev, pkg-config, libglib2.0-dev (>= 2.6.0), libdcapi-boinc-dev, debhelper (>= 5), automake1.9 | automaken (>= 1.9), autoconf (>= 2.53), libcurl3-openssl-dev | libcurl-openssl-dev
 
 Package: 3g-bridge-qm
 Section: net
