@@ -12,7 +12,7 @@
 
 	<!-- Data files used by the master -->
 	<files>
-		<file>bridge.conf.sample</file>
+		<file>bridge.conf</file>
 		<file>batch_pack</file>
 		<file>batch_unpack</file>
 	</files>

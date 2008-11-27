@@ -128,14 +128,14 @@ nobase_dist_doc_DATA = \
 		examples/batch_unpack
 
 pkgconfdir = $(sysconfdir)/@PACKAGE@
-dist_pkgconf_DATA = etc/bridge.conf.sample \
+dist_pkgconf_DATA = etc/bridge.conf \
 		    etc/dc-api.conf
 
 package: queuemanager.tar.gz
 
 package_contents = \
 		bridge \
-		bridge.conf.sample \
+		bridge.conf \
 		dc-api.conf \
 		master.xml \
 		examples/batch_pack \
