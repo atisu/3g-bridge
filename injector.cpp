@@ -139,5 +139,7 @@ int main(int argc, char **argv)
 		exit(EX_SOFTWARE);
 	}
 
+	cout << job.getId() << endl;
+
 	return 0;
 }
