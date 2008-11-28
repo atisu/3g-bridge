@@ -65,20 +65,20 @@ static char *wrap_template =
 "\n"
 "TID=%s\n"
 "SLOT=%s\n"
-"EXE=%s\n"
+"EXE=\"%s\"\n"
 "ARGS=\"%s\"\n"
-"OLDWD=`pwd`\n"
+"OLDWD=\"`pwd`\"\n"
 "rm -rf /tmp/$TID; mkdir -p /tmp/$TID\n"
 "tar zxf $TID.tgz -C /tmp/$TID\n"
 "rm -f $TID.tgz\n"
 "cd /tmp/$TID/slots/$SLOT\n"
-"../../$EXE $ARGS\n"
+"\"../../$EXE\" $ARGS\n"
 "RETCODE=$?\n"
 "cd ../..\n"
 "cat slots/$SLOT/$TID.outs | while read outfile; do\n"
-"    tar uf $OLDWD/$TID.out.tar $outfile\n"
+"    tar uf $OLDWD/$TID.out.tar \"$outfile\"\n"
 "done\n"
-"cd $OLDWD; rm -rf /tmp/$TID\n"
+"cd \"$OLDWD\"; rm -rf /tmp/$TID\n"
 "gzip -9 $TID.out.tar\n"
 "mv $TID.out.tar.gz $TID.out.tgz\n"
 "exit $RETCODE\n";
@@ -367,9 +367,9 @@ string add_to_3g_db(char *slotStr)
 
 	string infiles = "";
         for (int i = 0; i < input_files_num; i++)
-	        infiles += string(input_files_real_name[i]) + " ";
+	        infiles += "\"" + string(input_files_real_name[i]) + "\" ";
 			for (int i = 0; i < app_files_num; i++)
-		        	infiles += string(app_files_real_name[i]) + " ";
+		        	infiles += "\"" + string(app_files_real_name[i]) + "\" ";
 
         stringstream tcomm;
 	tcomm << "tar zcf " << sID << ".tgz -C ../.. slots/" << slotStr << " " << infiles;
