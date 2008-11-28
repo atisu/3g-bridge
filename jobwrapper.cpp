@@ -419,7 +419,7 @@ string add_to_3g_db(char *slotStr)
 	}
 	free(query);
 
-	asprintf(&query, "UPDATE cg_job SET status=\"INIT\" where id=\"%s\"" sID);
+	asprintf(&query, "UPDATE cg_job SET status=\"INIT\" where id=\"%s\"", sID);
 	if (mysql_query(conn, query))
 	{
 		LOG(LOG_ERR, "Error: failed to add job entry to database: %s", mysql_error(conn));
