@@ -380,7 +380,7 @@ string add_to_3g_db(char *slotStr)
 
 	char *query;
 	asprintf(&query, "INSERT INTO cg_job(id, alg, grid, status, args) VALUES (\"%s\",\"%s\",\"%s\",\"%s\",\"%s\")",
-		sID, wrapFname, grid, "INIT", arguments);
+		sID, wrapFname, grid, "PREPARE", arguments);
 	if (mysql_query(conn, query))
 	{
 		LOG(LOG_ERR, "Error: failed to add job entry to database: %s", mysql_error(conn));
@@ -411,6 +411,15 @@ string add_to_3g_db(char *slotStr)
 
 	asprintf(&query, "INSERT INTO cg_outputs VALUES(\"%s\", \"%s.out.tgz\", \"%s/%s.out.tgz\")",
 		sID, sID, cwd, sID);
+	if (mysql_query(conn, query))
+	{
+		LOG(LOG_ERR, "Error: failed to add job entry to database: %s", mysql_error(conn));
+		free(query);
+		return "";
+	}
+	free(query);
+
+	asprintf(&query, "UPDATE cg_job SET status=\"INIT\" where id=\"%s\"" sID);
 	if (mysql_query(conn, query))
 	{
 		LOG(LOG_ERR, "Error: failed to add job entry to database: %s", mysql_error(conn));
