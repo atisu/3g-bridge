@@ -116,7 +116,7 @@ DCAPIHandlerSingle::~DCAPIHandlerSingle()
 static bool submit_job(Job *job)
 {
 	GError *error = 0;
-	char **argv = {NULL};
+	char **argv = NULL;
 	int argc;
 
 	if (!g_shell_parse_argv(job->getArgs().c_str(), &argc, &argv, &error))
