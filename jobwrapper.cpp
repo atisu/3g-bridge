@@ -442,7 +442,7 @@ string getstat_3g(string jobID)
 	MYSQL_RES *res;
 	MYSQL_ROW row;
 
-	LOG(LOG_INFO, "About to update status of job \"%s\".", jobID.c_str());
+	LOG(LOG_DEBUG, "About to update status of job \"%s\".", jobID.c_str());
 	asprintf(&query, "SELECT status FROM cg_job WHERE id=\"%s\"", jobID.c_str());
 	if (mysql_query(conn, query))
 	{
@@ -562,7 +562,7 @@ int main(int argc, char **argv)
 
 	status = getstat_3g(jobID);
 	while ("FINISHED" != status && "ERROR" != status) {
-		LOG(LOG_INFO, "Status of job \"%s\" is \"%s\".", jobID.c_str(), status.c_str());
+		LOG(LOG_DEBUG, "Status of job \"%s\" is \"%s\".", jobID.c_str(), status.c_str());
 		boinc_sleep(300);
 		status = getstat_3g(jobID);
 	}
