@@ -256,7 +256,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 			if ((*it)->getGridId() == childNodeName) {
 				(*it)->setGridId(childIDs[i]);
 				(*it)->setStatus(Job::RUNNING);
-				LOG(LOG_INFO, "EGEE Plugin (%s): submitted job \"%s\" (grid identifier is \"%s\").", name.c_str(), job->getId().c_str(), job->getGridId().c_str());
+				LOG(LOG_INFO, "EGEE Plugin (%s): submitted job \"%s\" (grid identifier is \"%s\").", name.c_str(), (*it)->getId().c_str(), (*it)->getGridId().c_str());
 				break;
 			}
 	}
