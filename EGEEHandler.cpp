@@ -37,7 +37,7 @@ globus_cond_t EGEEHandler::cond;
 globus_bool_t EGEEHandler::done;
 bool EGEEHandler::globus_err;
 int EGEEHandler::global_offset;
-static char *tmppath;
+static const char *tmppath;
 
 
 EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException *)
