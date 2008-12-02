@@ -37,6 +37,7 @@ globus_cond_t EGEEHandler::cond;
 globus_bool_t EGEEHandler::done;
 bool EGEEHandler::globus_err;
 int EGEEHandler::global_offset;
+static char *tmppath;
 
 
 EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException *)
@@ -68,9 +69,14 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 
 	cfg = 0;
 
-	snprintf(buf, sizeof(buf), "/tmp/.egee_%s_XXXXXX", instance);
+	if (!tmppath) {
+		char *tmp = getenv("TMPDIR");
+		tmppath = (tmp ? tmp : "/tmp");
+	}
+		
+	snprintf(buf, sizeof(buf), "%s/.egee_%s_XXXXXX", tmppath, instance);
 	if (!mkdtemp(buf))
-		throw new BackendException("EGEE: failed to create temp. directory");
+		throw new BackendException("EGEE: failed to create temp. directory \"%s\"", buf);
 	tmpdir = buf;
 
 	groupByNames = false;
@@ -235,7 +241,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		}
 		if (tries == 3 && !events.size())
 		{
-			LOG(LOG_DEBUG, "EGEE Plugin: failed to detemine node IDs for 60 seconds, skipping submission...");
+			LOG(LOG_WARNING, "EGEE Plugin: failed to detemine node IDs for 60 seconds, skipping submission...");
 			break;
 		}
 
@@ -250,6 +256,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 			if ((*it)->getGridId() == childNodeName) {
 				(*it)->setGridId(childIDs[i]);
 				(*it)->setStatus(Job::RUNNING);
+				LOG(LOG_INFO, "EGEE Plugin (%s): submitted job \"%s\" (grid identifier is \"%s\").", name.c_str(), job->getId().c_str(), job->getGridId().c_str());
 				break;
 			}
 	}
@@ -344,7 +351,7 @@ void EGEEHandler::getOutputs_real(Job *job)
 
     createCFG();
 
-    LOG(LOG_DEBUG, "EGEE Plugin: getting output of job \"%s\".", job->getGridId().c_str());
+    LOG(LOG_INFO, "EGEE Plugin: getting output of job \"%s\".", job->getGridId().c_str());
     char wd[2048];
     getcwd(wd, 2048);
     vector<pair<string, long> > URIs;
@@ -610,7 +617,7 @@ void EGEEHandler::delete_file_globus(const vector<string> &fileNames, const stri
 void EGEEHandler::cleanJob(const string &jobID)
 {
     int i = 0;
-    LOG(LOG_DEBUG, "EGEE Plugin: cleaning job \"%s\".", jobID.c_str());
+    LOG(LOG_INFO, "EGEE Plugin: cleaning job \"%s\".", jobID.c_str());
     while (i < 3) {
 	try {
 	    jobPurge(jobID, cfg);
