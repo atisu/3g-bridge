@@ -60,9 +60,12 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 	myproxy_user = g_key_file_get_string(config, instance, "myproxy_user", NULL);
 	if (!myproxy_user)
 		throw new BackendException("EGEE: no MyProxy user for %s", instance);
-	myproxy_pass = g_key_file_get_string(config, instance, "myproxy_pass", NULL);
-	if (!myproxy_pass)
-		throw new BackendException("EGEE: no MyProxy password for %s", instance);
+	myproxy_authcert = g_key_file_get_string(config, instance, "myproxy_authcert", NULL);
+	if (!myproxy_authcert)
+		throw new BackendException("EGEE: no MyProxy authcert for %s", instance);
+	myproxy_authkey = g_key_file_get_string(config, instance, "myproxy_authkey", NULL);
+	if (!myproxy_authkey)
+		throw new BackendException("EGEE: no MyProxy authkey for %s", instance);
 	myproxy_port = g_key_file_get_string(config, instance, "myproxy_port", NULL);
 	if (!myproxy_port)
 		myproxy_port = "7512";
@@ -113,7 +116,8 @@ EGEEHandler::~EGEEHandler()
 	g_free(wmpendp);
 	g_free(myproxy_host);
 	g_free(myproxy_user);
-	g_free(myproxy_pass);
+	g_free(myproxy_authcert);
+	g_free(myproxy_authkey);
 	g_free(myproxy_port);
 	delete cfg;
 
@@ -203,7 +207,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 	}
 
 	// Submit the JDLs
-	string cmd = "glite-wms-job-submit -a -e " + string(wmpendp) + " -o collection.id --collection jdlfiles";
+	string cmd = "glite-wms-job-submit -a -e '" + string(wmpendp) + "' -o collection.id --collection jdlfiles";
 	int rtv = system(cmd.c_str());
 	if (rtv)
 		throwStrExc(__func__, "Job submission using glite-wms-job-submit failed!");
@@ -263,7 +267,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 
 	chdir(oldcwd);
 	free(oldcwd);
-	cmd = "rm -rf " + string(tmpl);
+	cmd = "rm -rf '" + string(tmpl) + "'";
 	system(cmd.c_str());
 	LOG(LOG_INFO, "EGEE Plugin: job submission finished.");
 }
@@ -673,13 +677,15 @@ void EGEEHandler::renew_proxy()
 		return;
 	}
 
-	string cmd = "echo \"" + string(myproxy_pass) + "\" | myproxy-logon -s " + string(myproxy_host) + " -p " + string(myproxy_port) + " -l " + string(myproxy_user) + " -S -t 24 -o " + proxyf + " &> /dev/null";
+	string cmd = "X509_USER_CERT='" + string(myproxy_authcert) + "' X509_USER_KEY='" + string(myproxy_authkey)
+		+ "' myproxy-logon -s '" + string(myproxy_host) + "' -p '" + string(myproxy_port)
+		+ "' -l '" + string(myproxy_user) + "' -n -t 24 -o '" + proxyf + "' >/dev/null 2>&1";
 	int rv = system(cmd.c_str());
 	if (rv)
 		throwStrExc(__func__, "Proxy initialization failed!");
-	setenv("X509_USER_PROXY", proxyf.c_str(), 1);
 
-	cmd = "voms-proxy-init -voms " + string(voname) + " -noregen -out " + vproxyf + " -valid 23:00 &> /dev/null";
+	cmd = "X509_USER_PROXY='" + proxyf + "' voms-proxy-init -voms '" + string(voname)
+		+ "' -noregen -out '" + vproxyf + "' -valid 23:00 >/dev/null 2>&1";
 	rv = system(cmd.c_str());
 	if (-1 == rv)
 		throwStrExc(__func__, "Adding VOMS extensions failed!");

@@ -100,11 +100,14 @@ class EGEEHandler : public GridHandler {
 	/// Port of MyProxy
 	char *myproxy_port;
 
-	/// Username for MyProxy
+	/// User whose credentials are retrieved from MyProxy
 	char *myproxy_user;
 
-	/// Password for MyProxy
-	char *myproxy_pass;
+	/// Certificate for MyProxy authentication
+	char *myproxy_authcert;
+
+	/// Key for MyProxy authentication
+	char *myproxy_authkey;
 
 	/// ConfigContext for EGEE operations
 	ConfigContext *cfg;
@@ -217,7 +220,7 @@ class EGEEHandler : public GridHandler {
 	 * Renew proxy file. This function is periodically called, and gets
 	 * a new proxy every time the existing proxy's lifetime is below 18
 	 * hours using the MyProxy informations provided in the configuration
-	 * file
+	 * file. (In MyProxy terms this is really a retrieval not renewal.)
 	 */
 	void renew_proxy();
 
