@@ -677,6 +677,7 @@ void EGEEHandler::renew_proxy()
 		return;
 	}
 
+	LOG(LOG_DEBUG, "EGEE Plugin: About to renew proxy \"%s\".", proxyf.c_str());
 	string cmd = "X509_USER_CERT='" + string(myproxy_authcert) + "' X509_USER_KEY='" + string(myproxy_authkey)
 		+ "' myproxy-logon -s '" + string(myproxy_host) + "' -p '" + string(myproxy_port)
 		+ "' -l '" + string(myproxy_user) + "' -n -t 24 -o '" + proxyf + "' >/dev/null 2>&1";
@@ -691,6 +692,7 @@ void EGEEHandler::renew_proxy()
 		throwStrExc(__func__, "Adding VOMS extensions failed!");
 	unlink(proxyf.c_str());
 	setenv("X509_USER_PROXY", vproxyf.c_str(), 1);
+	LOG(LOG_DEBUG, "EGEE Plugin: proxy renewal finished.");
 }
 
 
