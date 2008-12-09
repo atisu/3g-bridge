@@ -1,0 +1,17 @@
+This package was debianized by
+Gábor Gombás <gombasg@sztaki.hu> on Tue, 10 Jun 2008 13:00:06 +0200
+
+Copyright (C) 2008 MTA SZTAKI LPDS
+
+Released under the terms of the GPLv2 or later, see
+/usr/share/common-licenses/GPL-2.
+
+"In addition, as a special exception, MTA SZTAKI gives you permission to
+link the code of its release of the 3G Bridge with the OpenSSL project's
+"OpenSSL" library (or with modified versions of it that use the same
+license as the "OpenSSL" library), and distribute the linked
+executables. You must obey the GNU General Public License in all
+respects for all of the code used other than "OpenSSL". If you modify
+this file, you may extend this exception to your version of the file,
+but you are not obligated to do so. If you do not wish to do so, delete
+this exception statement from your version."

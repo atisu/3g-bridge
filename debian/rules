@@ -41,7 +41,7 @@ config.status: configure
 		--prefix=/usr \
 		--mandir=\$${prefix}/share/man \
 		--infodir=\$${prefix}/share/info \
-		--sysconfdir=/etc/mercury \
+		--sysconfdir=/etc \
 		--localstatedir=/var \
 		--libexecdir=/usr/lib/3g-bridge \
 		--with-dcapi \
