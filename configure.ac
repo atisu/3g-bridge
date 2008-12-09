@@ -26,7 +26,7 @@ dnl Check for 3rd party software
 dnl ===================================================================
 
 AC_PATH_PROG([MYSQL_CONFIG], [mysql_config], [none])
-if test $MYSQL_CONFIG = none; then
+if test "$MYSQL_CONFIG" = none; then
 	AC_MSG_ERROR([MySQL development environment is not installed])
 fi
 

@@ -31,6 +31,7 @@ CREATE TABLE cg_job (
 	creation_time	TIMESTAMP	NULL DEFAULT CURRENT_TIMESTAMP,	/* Creation time of job descriptor */
 	PRIMARY KEY (id),
 	INDEX (grid, alg),
+	INDEX (grid),
 	FOREIGN KEY (grid) REFERENCES cg_algqueue(grid) ON DELETE RESTRICT
 ) TYPE=InnoDB;
 
