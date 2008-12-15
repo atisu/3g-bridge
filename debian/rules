@@ -24,13 +24,6 @@ else
 	CXXFLAGS = -O2 -g
 endif
 
-ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
-	INSTALL_PROGRAM += -s
-	DH_STRIP = dh_strip
-else
-	DH_STRIP = :
-endif
-
 configure: configure.ac
 	autoreconf -i
 
@@ -112,14 +105,14 @@ binary-arch: build install
 	dh_installexamples -a
 	dh_installinit -a
 #	dh_installman -a
-	$(DH_STRIP) -a
 	dh_link -a
 	dh_compress -a
 	dh_fixperms -a
+	dh_strip -a --dbg-package=3g-bridge-dbg
 	dh_makeshlibs -a
 	dh_shlibdeps -a
-	dh_gencontrol -a
 	dh_installdeb -a
+	dh_gencontrol -a
 	dh_md5sums -a
 	dh_builddeb -a
 

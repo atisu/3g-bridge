@@ -12,3 +12,11 @@ Architecture: any
 Depends: ${shlibs:Depends}
 Description: A bridge connecting various grid infrastructures
  This package contains the queue manager component.
+
+Package: 3g-bridge-dbg
+Section: net
+Priority: extra
+Architecture: any
+Depends: 3g-bridge-qm (= ${Source-Version})
+Description: 3G Bridge debug symbols
+ This package contains the debugging symbols for the 3G Bridge.
