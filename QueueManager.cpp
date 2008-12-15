@@ -56,6 +56,13 @@
 using namespace std;
 
 /**********************************************************************
+ * Constants
+ */
+
+#define DEFAULT_SLEEP_INTERVAL	5
+#define DEFAULT_UPDATE_INTERVAL	10
+
+/**********************************************************************
  * Type definitions
  */
 
@@ -75,6 +82,12 @@ static volatile bool reload;
 static GKeyFile *global_config = NULL;
 
 static GHashTable *plugins;
+
+/* Config: time to sleep when polling for new jobs */
+static int sleep_interval;
+
+/* Config: min. time between calling the update method of plugins */
+static int update_interval;
 
 /* Command line: Location of the config file */
 static char *config_file;
@@ -150,7 +163,9 @@ static GridHandler *getPluginInstance(GKeyFile *config, const char *plugin, cons
 
 static bool runHandler(GridHandler *handler)
 {
+	static struct timeval last_update;
 	bool work_done = false;
+	struct timeval now, elapsed;
 	JobVector jobs;
 
 	if (handler->schGroupByNames())
@@ -192,7 +207,13 @@ static bool runHandler(GridHandler *handler)
 		}
 	}
 
-	handler->updateStatus();
+	gettimeofday(&now, NULL);
+	timersub(&now, &last_update, &elapsed);
+	if (elapsed.tv_sec >= update_interval)
+	{
+		handler->updateStatus();
+		last_update = now;
+	}
 
 	return work_done;
 }
@@ -217,7 +238,7 @@ static void do_mainloop()
 	if (finish || reload || work_done)
 		return;
 
-	sleep(10);
+	sleep(sleep_interval);
 }
 
 
@@ -387,6 +408,26 @@ int main(int argc, char **argv)
 
 	if (kill_daemon)
 		exit(pid_file_kill(global_config, GROUP_BRIDGE));
+
+	sleep_interval = g_key_file_get_integer(global_config, GROUP_BRIDGE,
+		"sleep-interval", &error);
+	if (error)
+	{
+		g_error_free(error);
+		sleep_interval = DEFAULT_SLEEP_INTERVAL;
+	}
+	if (sleep_interval < 1)
+		sleep_interval = DEFAULT_SLEEP_INTERVAL;
+
+	update_interval = g_key_file_get_integer(global_config, GROUP_BRIDGE,
+		"update-interval", &error);
+	if (error)
+	{
+		g_error_free(error);
+		update_interval = DEFAULT_UPDATE_INTERVAL;
+	}
+	if (update_interval < 1)
+		update_interval = DEFAULT_UPDATE_INTERVAL;
 
 	if (debug_mode)
 	{
