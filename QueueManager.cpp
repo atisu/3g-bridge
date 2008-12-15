@@ -414,6 +414,7 @@ int main(int argc, char **argv)
 	if (error)
 	{
 		g_error_free(error);
+		error = NULL;
 		sleep_interval = DEFAULT_SLEEP_INTERVAL;
 	}
 	if (sleep_interval < 1)
@@ -424,6 +425,7 @@ int main(int argc, char **argv)
 	if (error)
 	{
 		g_error_free(error);
+		error = NULL;
 		update_interval = DEFAULT_UPDATE_INTERVAL;
 	}
 	if (update_interval < 1)
