@@ -204,11 +204,6 @@ static bool runHandler(GridHandler *handler)
  */
 static void do_mainloop()
 {
-	struct timeval begin, end, elapsed;
-
-	/* Measure the time needed to maintain the database */
-	gettimeofday(&begin, NULL);
-
 	/* Call the runHandler() methods repeatedly until all of them says
 	 * there is no more work to do */
 	bool work_done;
@@ -219,26 +214,10 @@ static void do_mainloop()
 			work_done |= runHandler(*it);
 	} while (work_done && !finish);
 
-	if (finish)
+	if (finish || reload || work_done)
 		return;
 
-	gettimeofday(&end, NULL);
-	timersub(&end, &begin, &elapsed);
-
-	/* Sleep for 5x the time needed to run the body of this loop,
-	 * but no more than 5 minutes and no less than 1 sec */
-	elapsed.tv_sec *= 5;
-	elapsed.tv_usec *= 5;
-	elapsed.tv_sec += elapsed.tv_usec / 1000000;
-	elapsed.tv_usec = elapsed.tv_usec % 1000000;
-
-	if (elapsed.tv_sec > 300)
-		elapsed.tv_sec = 300;
-	else if (elapsed.tv_sec < 1)
-		elapsed.tv_sec = 1;
-	if (elapsed.tv_sec > 5)
-		LOG(LOG_DEBUG, "Sleeping for %d seconds", (int)elapsed.tv_sec);
-	sleep(elapsed.tv_sec);
+	sleep(10);
 }
 
 

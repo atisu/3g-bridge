@@ -1,3 +1,9 @@
+3g-bridge (0.9-6) unstable; urgency=low
+
+  *  Rip out the adaptive sleep in the main loop.
+
+ -- Gábor Gombás <gombasg@sztaki.hu>  Mon, 15 Dec 2008 18:22:24 +0100
+
 3g-bridge (0.9-5) unstable; urgency=low
 
   * Add the 3g-bridge-dbg package.
