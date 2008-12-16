@@ -113,24 +113,24 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 }
 
 
-void EGEEHandler::createCFG()
+void EGEEHandler::createCFG() throw(BackendException *)
 {
 	renew_proxy();
 
 	if (cfg)
 		delete cfg;
 
-	try {
+	try
+	{
     		cfg = new ConfigContext("", wmpendp, "");
-	} catch (BaseException e) {
-		throwStrExc(__func__, e);
-		cfg = 0;
+	}
+	catch (BaseException &e)
+	{
+		throw new BackendException(getEGEEErrMsg(e));
 	}
 
 	if (!cfg)
-		throwStrExc(__func__, "Failed to create ConfigContext!");
-
-	//delegate_Proxy("whatever");
+		throw new BackendException("Failed to create ConfigContext for unknown reason");
 }
 
 
@@ -154,35 +154,62 @@ EGEEHandler::~EGEEHandler()
 
 void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 {
+	char wdir[PATH_MAX];
+	char jdldir[PATH_MAX];
+	char jobdir[PATH_MAX];
+
 	if (!jobs.size())
 		return;
 
 	LOG(LOG_INFO, "EGEE Plugin (%s): about to submit %zd jobs.", name.c_str(), jobs.size());
 
-	createCFG();
-	char tmpl[PATH_MAX];
-	snprintf(tmpl, sizeof(tmpl), "%s/submitdir.XXXXXX", tmpdir.c_str());
-	char *ttmpdir = mkdtemp(tmpl);
+	try
+	{
+		createCFG();
+	}
+	catch (BackendException *e)
+	{
+		LOG(LOG_ERR, "EGEE Plugin (%s): failed to create ConfigContext (%s), so %zd jobs remain unsent.",
+			name.c_str(), e->what(), jobs.size());
+		delete e;
+		return;
+	}
+	snprintf(wdir, sizeof(wdir), "%s/submitdir.XXXXXX", tmpdir.c_str());
+	char *ttmpdir = mkdtemp(wdir);
 	if (!ttmpdir)
-		throw new BackendException("Failed to create temporary directory for submission!");
-	char *oldcwd = getcwd(NULL, 0);
-	chdir(ttmpdir);
+	{
+		LOG(LOG_ERR, "EGEE Plugin (%s): failed to create temporary directory for submission",
+			name.c_str());
+		return;
+	}
 
-	mkdir("jdlfiles", 0700);
+	sprintf(jdldir, "%s/jdlfiles", wdir);
+	sprintf(jobdir, "%s/jobfiles", wdir);
+	mkdir(jdldir, 0700);
+	mkdir(jobdir, 0700);
 	unsigned i = 0;
-	for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++, i++) {
-		char jdirname[32];
-		sprintf(jdirname, "%d", i);
+	for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++, i++)
+	{
+		char jdirname[PATH_MAX];
+		sprintf(jdirname, "%s/%d", jobdir, i);
 		mkdir(jdirname, 0700);
 		Job *actJ = *it;
 
-		// Get JDL template
 		string jobJDLStr;
-		try {
-			jobJDLStr = getJobTemplate(JOBTYPE_NORMAL, actJ->getName(), "", "other.GlueCEStateStatus == \"Production\"", "- other.GlueCEStateEstimatedResponseTime", cfg);
-		} catch (BaseException e) {
-		    throwStrExc(__func__, e);
+		try
+		{
+			jobJDLStr = getJobTemplate(JOBTYPE_NORMAL, actJ->getName(), "",
+				"other.GlueCEStateStatus == \"Production\"",
+				"- other.GlueCEStateEstimatedResponseTime", cfg);
 		}
+		catch (BaseException &e)
+		{
+			LOG(LOG_WARNING, "EGEE Plugin (%s): failed to get job JDL template, EGEE exception follows:",
+				name.c_str());
+			LOG(LOG_WARNING, getEGEEErrMsg(e).c_str());
+			continue;
+		}
+
 		Ad *jobJDLAd = new Ad(jobJDLStr);
 
 		// Copy input files, and add them to the JDL.
@@ -224,7 +251,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		// Now create the JDL file
 		actJ->setGridId(nodename.str());
 		stringstream jdlFname;
-		jdlFname << "jdlfiles/" << setfill('0') << setw(4) << i << ".jdl";
+		jdlFname << jdldir << "/" << setfill('0') << setw(4) << i << ".jdl";
 		ofstream jobJDL(jdlFname.str().c_str());
 		jobJDL << jobJDLAd->toString() << endl;
 		jobJDL.close();
@@ -233,19 +260,29 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 	}
 
 	// Submit the JDLs
-	string cmd = "glite-wms-job-submit -a -e '" + string(wmpendp) + "' -o collection.id --collection jdlfiles";
+	string cmd = "glite-wms-job-submit -a -e '" + string(wmpendp) + "' -o '" + string(wdir) + "/collection.id' --collection '" + string(jdldir) + "'";
+	LOG(LOG_DEBUG, cmd.c_str());
 	int rtv = system(cmd.c_str());
 	if (rtv)
-		throwStrExc(__func__, "Job submission using glite-wms-job-submit failed!");
+	{
+		LOG(LOG_ERR, "EGEE Plugin (%s): job submission failed!", name.c_str());
+		cmd = "rm -rf '" + string(wdir) + "'";
+		system(cmd.c_str());
+		return;
+	}
 
 	// Find out collection's ID
-        ifstream collIDf("collection.id");
+        ifstream collIDf(string(string(wdir) + "/collection.id").c_str());
 	string collID;
-	do {
+	do
+	{
 		collIDf >> collID;
 	} while ("https://" != collID.substr(0, 8));
 
-	LOG(LOG_DEBUG, "EGEE Plugin: collection subitted, now detemining node IDs.");
+	cmd = "rm -rf '" + string(wdir) + "'";
+	system(cmd.c_str());
+
+	LOG(LOG_DEBUG, "EGEE Plugin (%s): collection subitted, now detemining node IDs.", name.c_str());
 
 	// Find out job's ID
 	JobId jID(collID);
@@ -261,7 +298,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		int tries = 0;
 		while (!events.size() && tries < 3) {
 			try {
-				LOG(LOG_DEBUG, "EGEE Plugin: trying to determine node IDs");
+				LOG(LOG_DEBUG, "EGEE Plugin (%s): trying to determine node IDs", name.c_str());
 				events = ctJob.log();
 				tries++;
 			} catch (...) {
@@ -271,7 +308,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		}
 		if (tries == 3 && !events.size())
 		{
-			LOG(LOG_WARNING, "EGEE Plugin: failed to detemine node IDs for 60 seconds, skipping submission...");
+			LOG(LOG_WARNING, "EGEE Plugin (%s): failed to detemine node IDs for 60 seconds, skipping submission...", name.c_str());
 			break;
 		}
 
@@ -290,12 +327,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 				break;
 			}
 	}
-
-	chdir(oldcwd);
-	free(oldcwd);
-	cmd = "rm -rf '" + string(tmpl) + "'";
-	system(cmd.c_str());
-	LOG(LOG_INFO, "EGEE Plugin: job submission finished.");
+	LOG(LOG_INFO, "EGEE Plugin (%s): job submission finished.", name.c_str());
 }
 
 
@@ -303,44 +335,72 @@ void EGEEHandler::updateStatus(void) throw (BackendException *)
 {
 	LOG(LOG_DEBUG, "EGEE Plugin (%s): about to update status of jobs.", name.c_str());
 
-	createCFG();
+	try
+	{
+		createCFG();
+	}
+	catch (BackendException *e)
+	{
+		LOG(LOG_ERR, "EGEE Plugin (%s): failed to create ConfigContext (%s), skipping job status update.",
+			name.c_str(), e->what());
+		delete e;
+		return;
+	}
 
 	DBHandler *jobDB = DBHandler::get();
 	jobDB->pollJobs(this, Job::RUNNING, Job::CANCEL);
 	DBHandler::put(jobDB);
 
-	LOG(LOG_DEBUG, "EGEE Plugin: status update finished.");
+	LOG(LOG_DEBUG, "EGEE Plugin (%s): status update finished.", name.c_str());
 }
 
 
 void EGEEHandler::updateJob(Job *job)
 {
-    const struct { string EGEEs; Job::JobStatus jobS; } statusRelation[] = {
-	{"Submitted", Job::RUNNING},
-	{"Waiting", Job::RUNNING},
-	{"Ready", Job::RUNNING},
-	{"Scheduled", Job::RUNNING},
-	{"Running", Job::RUNNING},
-	{"Done", Job::FINISHED},
-	{"Cleared", Job::ERROR},
-	{"Cancelled", Job::ERROR},
-	{"Aborted", Job::ERROR},
-	{"", Job::INIT}
-    };
+	const struct { string EGEEs; Job::JobStatus jobS; } statusRelation[] = {
+		{"Submitted", Job::RUNNING},
+		{"Waiting", Job::RUNNING},
+		{"Ready", Job::RUNNING},
+		{"Scheduled", Job::RUNNING},
+		{"Running", Job::RUNNING},
+		{"Done", Job::FINISHED},
+		{"Cleared", Job::ERROR},
+		{"Cancelled", Job::ERROR},
+		{"Aborted", Job::ERROR},
+		{"", Job::INIT}
+        };
 
-    JobId jID(job->getGridId());
-    glite::lb::Job tJob(jID);
-    glite::lb::JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
-    string statStr = stat.name();
-    LOG(LOG_DEBUG, "EGEE Plugin (%s): updating status of job \"%s\" (unique identifier is \"%s\").", name.c_str(), job->getGridId().c_str(), job->getId().c_str());
-    for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
-	if (statusRelation[j].EGEEs == statStr) {
-	    if (Job::FINISHED == statusRelation[j].jobS)
-		if (glite::lb::JobStatus::DONE_CODE_OK == stat.getValInt(glite::lb::JobStatus::DONE_CODE))
-		    getOutputs_real(job);
-		else
-		    break;
-	    job->setStatus(statusRelation[j].jobS);
+	string statStr;
+	glite::lb::JobStatus stat;
+	try
+	{
+		JobId jID(job->getGridId());
+		glite::lb::Job tJob(jID);
+	        stat = tJob.status(tJob.STAT_CLASSADS);
+	        statStr = stat.name();
+	}
+	catch (BaseException &e)
+	{
+		LOG(LOG_WARNING, "EGEE Plugin (%s): failed to update status of job \"%s\", EGEE exception follows:",
+			name.c_str(), job->getGridId().c_str());
+		LOG(LOG_WARNING, getEGEEErrMsg(e).c_str());
+		return;
+	}
+
+	LOG(LOG_DEBUG, "EGEE Plugin (%s): updating status of job \"%s\" (unique identifier is \"%s\").", name.c_str(), job->getGridId().c_str(), job->getId().c_str());
+	for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
+	{
+		if (statusRelation[j].EGEEs == statStr)
+		{
+			if (Job::FINISHED == statusRelation[j].jobS)
+			{
+				if (glite::lb::JobStatus::DONE_CODE_OK == stat.getValInt(glite::lb::JobStatus::DONE_CODE))
+					getOutputs_real(job);
+				else
+					break;
+				job->setStatus(statusRelation[j].jobS);
+			}
+		}
 	}
 }
 
@@ -348,15 +408,22 @@ void EGEEHandler::updateJob(Job *job)
 void EGEEHandler::cancelJob(Job *job)
 {
 	LOG(LOG_DEBUG, "About to cancel and remove job \"%s\".", job->getId().c_str());
-	try {
+	try
+	{
 		jobCancel(job->getGridId(), cfg);
-	} catch (BaseException e) {
+	}
+	catch (BaseException &e)
+	{
+		LOG(LOG_WARNING, "EGEE Plugin (%s): failed to cancel job \"%s\", EGEE exception follows:",
+			name.c_str(), job->getGridId().c_str());
+		LOG(LOG_WARNING, getEGEEErrMsg(e).c_str());
 	}
 
 	DBHandler *jobDB = DBHandler::get();
 	jobDB->deleteJob(job->getId());
 	DBHandler::put(jobDB);
 }
+
 
 void EGEEHandler::poll(Job *job) throw (BackendException *)
 {
@@ -376,41 +443,52 @@ void EGEEHandler::poll(Job *job) throw (BackendException *)
 
 void EGEEHandler::getOutputs_real(Job *job)
 {
-    if (!job)
-	return;
+	if (!job)
+		return;
 
-    createCFG();
-
-    LOG(LOG_INFO, "EGEE Plugin: getting output of job \"%s\".", job->getGridId().c_str());
-    char wd[2048];
-    getcwd(wd, 2048);
-    vector<pair<string, long> > URIs;
-    try {
-	URIs = getOutputFileList(job->getGridId(), cfg);
-    } catch (BaseException e) {
-	LOG(LOG_WARNING, "EGEE Plugin: failed to get output file list, I assume the job has already been fetched.");
-	try {
-	    cleanJob(job->getGridId());
-	} catch (BackendException *e) {
-	    LOG(LOG_WARNING, "EGEE Plugin: cleaning job \"%s\" failed.", job->getGridId().c_str());
-	    delete e;
+	try
+	{
+		createCFG();
 	}
-    }
-    vector<string> remFiles(URIs.size());
-    vector<string> locFiles(URIs.size());
-    for (unsigned int i = 0; i < URIs.size(); i++) {
-        remFiles[i] = URIs[i].first;
-        string fbname = remFiles[i].substr(remFiles[i].rfind("/")+1);
-        locFiles[i] = job->getOutputPath(fbname);
-    }
-    download_file_globus(remFiles, locFiles);
-    delete_file_globus(remFiles, "");
-    try {
-	cleanJob(job->getGridId());
-    } catch (BackendException *e) {
-	LOG(LOG_WARNING, "EGEE Plugin: cleaning job \"%s\" failed.", job->getGridId().c_str());
-	delete e;
-    }
+	catch (BackendException *e)
+	{
+		LOG(LOG_ERR, "EGEE Plugin (%s): failed to create ConfigContext (%s), skipping job result download.",
+			name.c_str(), e->what());
+		delete e;
+		return;
+	}
+
+	LOG(LOG_INFO, "EGEE Plugin (%s): getting output of job \"%s\".",
+		name.c_str(), job->getGridId().c_str());
+
+	vector<pair<string, long> > URIs;
+	try
+	{
+		URIs = getOutputFileList(job->getGridId(), cfg);
+    		vector<string> remFiles(URIs.size());
+	        vector<string> locFiles(URIs.size());
+	        for (unsigned int i = 0; i < URIs.size(); i++)
+		{
+    			remFiles[i] = URIs[i].first;
+    			string fbname = remFiles[i].substr(remFiles[i].rfind("/")+1);
+	    		locFiles[i] = job->getOutputPath(fbname);
+		}
+    		download_file_globus(remFiles, locFiles);
+    		delete_file_globus(remFiles, "");
+		cleanJob(job->getGridId());
+	}
+	catch (BaseException &e)
+	{
+		LOG(LOG_WARNING, "EGEE Plugin (%s): failed to get output file list, I assume the job has already been fetched, but EGEE exception is here for your convenience: ",
+			name.c_str());
+		LOG(LOG_WARNING, getEGEEErrMsg(e).c_str());
+	}
+	catch (BackendException *e)
+	{
+		LOG(LOG_WARNING, "EGEE Plugin (%s): cleaning job \"%s\" failed.",
+			name.c_str(), job->getGridId().c_str());
+		delete e;
+	}
 }
 
 
@@ -646,17 +724,22 @@ void EGEEHandler::delete_file_globus(const vector<string> &fileNames, const stri
 
 void EGEEHandler::cleanJob(const string &jobID)
 {
-    int i = 0;
-    LOG(LOG_INFO, "EGEE Plugin: cleaning job \"%s\".", jobID.c_str());
-    while (i < 3) {
-	try {
-	    jobPurge(jobID, cfg);
-	    i = 10;
-	} catch (BaseException e) {
-	    if (++i == 3)
-		throwStrExc(__func__, e);
+	int i = 0;
+	LOG(LOG_INFO, "EGEE Plugin (%s): cleaning job \"%s\".", name.c_str(), jobID.c_str());
+	while (i < 3)
+	{
+		try
+		{
+			jobPurge(jobID, cfg);
+			i = 10;
+		}
+		catch (BaseException &e)
+		{
+			i++;
+			LOG(LOG_WARNING, "EGEE Plugin (%s): job clean attempt %d failed, EGEE exception follows:", name.c_str(), i);
+			LOG(LOG_WARNING, getEGEEErrMsg(e).c_str());
+		}
 	}
-    }
 }
 
 
@@ -664,6 +747,22 @@ void EGEEHandler::delegate_Proxy(const string& delID)
 {
     string proxy = grstGetProxyReq(delID, cfg);
     grstPutProxy(delID, proxy, cfg);
+}
+
+
+string EGEEHandler::getEGEEErrMsg(const BaseException &e)
+{
+    stringstream msg;
+    msg << "EGEE exception caught:" << endl;
+    if (e.ErrorCode)
+        msg << "  Error code: " << *(e.ErrorCode) << endl;
+    if (e.Description)
+        msg << "  Description: " << *(e.Description) << endl;
+    msg << "  Method name: " << e.methodName << endl;
+    if (e.FaultCause)
+        for (unsigned i = 0; i < (e.FaultCause)->size(); i++)
+	    msg << "   FaultCause: " << (*(e.FaultCause))[i] << endl;
+    return msg.str();
 }
 
 
@@ -691,7 +790,7 @@ void EGEEHandler::throwStrExc(const char *func, const string &str) throw (Backen
 }
 
 
-void EGEEHandler::renew_proxy()
+void EGEEHandler::renew_proxy() throw(BackendException *)
 {
 	time_t lifetime;
 	string proxyf = tmpdir + "/proxy";
@@ -703,22 +802,24 @@ void EGEEHandler::renew_proxy()
 		return;
 	}
 
-	LOG(LOG_DEBUG, "EGEE Plugin: About to renew proxy \"%s\".", proxyf.c_str());
+	LOG(LOG_DEBUG, "EGEE Plugin (%s): about to renew proxy.",
+		name.c_str());
 	string cmd = "X509_USER_CERT='" + string(myproxy_authcert) + "' X509_USER_KEY='" + string(myproxy_authkey)
 		+ "' myproxy-logon -s '" + string(myproxy_host) + "' -p '" + string(myproxy_port)
 		+ "' -l '" + string(myproxy_user) + "' -n -t 24 -o '" + proxyf + "' >/dev/null 2>&1";
 	int rv = system(cmd.c_str());
 	if (rv)
-		throwStrExc(__func__, "Proxy initialization failed!");
+		throw new BackendException("Proxy initialization failed");
 
 	cmd = "X509_USER_PROXY='" + proxyf + "' voms-proxy-init -voms '" + string(voname)
 		+ "' -noregen -out '" + vproxyf + "' -valid 23:00 >/dev/null 2>&1";
 	rv = system(cmd.c_str());
 	if (-1 == rv)
-		throwStrExc(__func__, "Adding VOMS extensions failed!");
+		throw new BackendException("Adding VOMS extensions to proxy failed!");
+
 	unlink(proxyf.c_str());
 	setenv("X509_USER_PROXY", vproxyf.c_str(), 1);
-	LOG(LOG_DEBUG, "EGEE Plugin: proxy renewal finished.");
+	LOG(LOG_DEBUG, "EGEE Plugin (%s): proxy renewal finished.", name.c_str());
 }
 
 

@@ -236,6 +236,13 @@ class EGEEHandler : public GridHandler {
 	void throwStrExc(const char *func, const BaseException &e) throw(BackendException *);
 
 	/**
+	 * Get EGEE exception message string.
+	 * @param e the BaseException to use
+	 * @return string representation of EGEE exception
+	 */
+	string getEGEEErrMsg(const BaseException &e);
+
+	/**
 	 * Throw an exception using a message string.
 	 * @param func the function name where the exception occured
 	 * @param str the message to throw
@@ -248,7 +255,7 @@ class EGEEHandler : public GridHandler {
 	 * hours using the MyProxy informations provided in the configuration
 	 * file. (In MyProxy terms this is really a retrieval not renewal.)
 	 */
-	void renew_proxy();
+	void renew_proxy() throw(BackendException *);
 
 	/**
 	 * Get output of a job. The function downloads output files produced by
@@ -261,7 +268,7 @@ class EGEEHandler : public GridHandler {
 	/**
 	 * Create an EGEE ConfigContext used by WMS/L&B operations.
 	 */
-	void createCFG();
+	void createCFG() throw(BackendException *);
 
 	/**
 	 * Get proxy informations. The function reads a proxy file, and returns
