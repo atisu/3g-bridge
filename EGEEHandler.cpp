@@ -47,6 +47,7 @@
 #include <glite/jdl/JDLAttributes.h>
 #include <glite/wms/wmproxyapi/wmproxy_api.h>
 #include <glite/wmsutils/jobid/JobId.h>
+#include <glite/wmsutils/exception/Exception.h>
 #include <globus_ftp_client.h>
 #include <globus_gsi_credential.h>
 
@@ -384,6 +385,13 @@ void EGEEHandler::updateJob(Job *job)
 		LOG(LOG_WARNING, "EGEE Plugin (%s): failed to update status of job \"%s\", EGEE exception follows:",
 			name.c_str(), job->getGridId().c_str());
 		LOG(LOG_WARNING, getEGEEErrMsg(e).c_str());
+		return;
+	}
+	catch (glite::wmsutils::exception::Exception &e)
+	{
+		LOG(LOG_WARNING, "EGEE Plugin (%s): failed to update status of job \"%s\", EGEE exception follows:",
+			name.c_str(), job->getGridId().c_str());
+		LOG(LOG_WARNING, e.dbgMessage().c_str());
 		return;
 	}
 
