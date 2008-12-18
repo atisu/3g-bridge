@@ -163,9 +163,7 @@ static GridHandler *getPluginInstance(GKeyFile *config, const char *plugin, cons
 
 static bool runHandler(GridHandler *handler)
 {
-	static struct timeval last_update;
 	bool work_done = false;
-	struct timeval now, elapsed;
 	JobVector jobs;
 
 	if (handler->schGroupByNames())
@@ -207,13 +205,7 @@ static bool runHandler(GridHandler *handler)
 		}
 	}
 
-	gettimeofday(&now, NULL);
-	timersub(&now, &last_update, &elapsed);
-	if (elapsed.tv_sec >= update_interval)
-	{
-		handler->updateStatus();
-		last_update = now;
-	}
+	handler->checkUpdate(update_interval);
 
 	return work_done;
 }

@@ -32,6 +32,7 @@
 
 #include <glib.h>
 
+#include <sys/time.h>
 #include <vector>
 
 using namespace std;
@@ -43,7 +44,7 @@ using namespace std;
 class GridHandler {
 public:
 	/// Initialize GridHandler.
-	GridHandler() {	groupByNames = false; }
+	GridHandler();
 
 	/**
 	 * Constructor using config file and instance name
@@ -51,7 +52,7 @@ public:
 	 * @param instance the name of the instance
 	 * @see name
 	 */
-        GridHandler(GKeyFile *config, const char *instance);
+	GridHandler(GKeyFile *config, const char *instance);
 
 	/// Destructor
 	virtual ~GridHandler() {}
@@ -61,7 +62,7 @@ public:
 	 * @see name
 	 * @return instance name
 	 */
-        const char *getName(void) const { return name.c_str(); }
+	const char *getName(void) const { return name.c_str(); }
 
 	/**
 	 * Indicates wether the plugin groups jobs by algorithm names or not.
@@ -74,17 +75,19 @@ public:
 	 * Submit jobs in the argument.
 	 * @param jobs JobVector of jobs to be submitted
 	 */
-        virtual void submitJobs(JobVector &jobs) throw (BackendException *) = 0;
+	virtual void submitJobs(JobVector &jobs) throw (BackendException *) = 0;
 
 	/// Update the status of previously submitted jobs in the database.
-        virtual void updateStatus(void) throw (BackendException *) = 0;
+	virtual void updateStatus(void) throw (BackendException *) = 0;
 
-        /**
-         * Poll the status of a submitted job. This is used as a callback for
-         * DBHandler::pollJobs().
+	/**
+	 * Poll the status of a submitted job. This is used as a callback for
+	 * DBHandler::pollJobs().
 	 * @param job the job to poll
-         */
-        virtual void poll(Job *job) throw (BackendException *) = 0;
+	 */
+	virtual void poll(Job *job) throw (BackendException *) = 0;
+
+	void checkUpdate(int interval) throw (BackendException *);
 
 protected:
 	/**
@@ -93,10 +96,13 @@ protected:
 	 * for plugins that are able to create one grid job out of a number
 	 * of jobs in the database (e.g. DC-API).
 	 */
-        bool groupByNames;
+	bool groupByNames;
 
 	/// Instance name of the GridHandler plugin
-        string name;
+	string name;
+
+private:
+	struct timeval last_update;
 };
 
 #endif /* GRIDHANDLER_H */

@@ -76,6 +76,7 @@ $(SOAP_CPP_SRC): $(SOAP_HEADER)
 		AlgQueue.cpp \
 		BackendException.cpp \
 		DBHandler.cpp \
+		GridHandler.cpp \
 		Job.cpp \
 		QMException.cpp \
 		QueueManager.cpp \
