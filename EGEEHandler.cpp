@@ -264,7 +264,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 
 	if (!i)
 	{
-		LOG(LOG_INFO, "EGEE Plugin (%s): due to the previous errors, there are not jobs to submit.", name.c_str());
+		LOG(LOG_INFO, "EGEE Plugin (%s): due to the previous errors, there are no jobs to submit.", name.c_str());
 		string cmd = "rm -rf '" + string(wdir) + "'";
 		system(cmd.c_str());
 		return;
