@@ -189,7 +189,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 	mkdir(jdldir, 0700);
 	mkdir(jobdir, 0700);
 	unsigned i = 0;
-	for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++, i++)
+	for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
 	{
 		char jdirname[PATH_MAX];
 		sprintf(jdirname, "%s/%d", jobdir, i);
@@ -221,6 +221,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     		for (unsigned j = 0; j < ins->size(); j++) {
 			string fspath = actJ->getInputPath((*ins)[j]).c_str();
 			string oppath = (*ins)[j];
+			LOG(LOG_DEBUG, "Copy %s to %s", fspath.c_str(), (string(jdirname) + "/" + oppath).c_str());
 			ifstream inf(fspath.c_str(), ios::binary);
 			ofstream outf((string(jdirname) + "/" + oppath).c_str(), ios::binary);
 			outf << inf.rdbuf();
@@ -258,6 +259,15 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		jobJDL.close();
 
 		delete jobJDLAd;
+		i++;
+	}
+
+	if (!i)
+	{
+		LOG(LOG_INFO, "EGEE Plugin (%s): due to the previous errors, there are not jobs to submit.", name.c_str());
+		string cmd = "rm -rf '" + string(wdir) + "'";
+		system(cmd.c_str());
+		return;
 	}
 
 	// Submit the JDLs
