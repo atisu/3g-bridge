@@ -371,28 +371,43 @@ void EGEEHandler::updateJob(Job *job)
 		{"", Job::INIT}
         };
 
+	int tries = 0;
 	string statStr;
 	glite::lb::JobStatus stat;
-	try
+	while (tries < 3)
 	{
-		JobId jID(job->getGridId());
-		glite::lb::Job tJob(jID);
-	        stat = tJob.status(tJob.STAT_CLASSADS);
-	        statStr = stat.name();
-	}
-	catch (BaseException &e)
-	{
-		LOG(LOG_WARNING, "EGEE Plugin (%s): failed to update status of job \"%s\", EGEE exception follows:",
-			name.c_str(), job->getGridId().c_str());
-		LOG(LOG_WARNING, getEGEEErrMsg(e).c_str());
-		return;
-	}
-	catch (glite::wmsutils::exception::Exception &e)
-	{
-		LOG(LOG_WARNING, "EGEE Plugin (%s): failed to update status of job \"%s\", EGEE exception follows:",
-			name.c_str(), job->getGridId().c_str());
-		LOG(LOG_WARNING, e.dbgMessage().c_str());
-		return;
+		try
+		{
+			JobId jID(job->getGridId());
+			glite::lb::Job tJob(jID);
+		        stat = tJob.status(tJob.STAT_CLASSADS);
+	    		statStr = stat.name();
+			tries = 3;
+		}
+		catch (BaseException &e)
+		{
+			LOG(LOG_WARNING, "EGEE Plugin (%s): failed to update status of job \"%s\" (attempt %d), EGEE exception follows:",
+				name.c_str(), job->getGridId().c_str(), ++tries);
+			LOG(LOG_WARNING, getEGEEErrMsg(e).c_str());
+			if (tries >= 3)
+			{
+				job->setStatus(Job::ERROR)
+				return;
+			}
+			sleep(5);
+		}
+		catch (glite::wmsutils::exception::Exception &e)
+		{
+			LOG(LOG_WARNING, "EGEE Plugin (%s): failed to update status of job \"%s\" (attempt %d), EGEE exception follows:",
+				name.c_str(), job->getGridId().c_str(), ++tries);
+			LOG(LOG_WARNING, e.dbgMessage().c_str());
+			if (tries >= 3)
+			{
+				job->setStatus(Job::ERROR)
+				return;
+			}
+			sleep(5);
+		}
 	}
 
 	LOG(LOG_DEBUG, "EGEE Plugin (%s): updating status of job \"%s\" (unique identifier is \"%s\").", name.c_str(), job->getGridId().c_str(), job->getId().c_str());
@@ -406,8 +421,8 @@ void EGEEHandler::updateJob(Job *job)
 					getOutputs_real(job);
 				else
 					break;
-				job->setStatus(statusRelation[j].jobS);
 			}
+			job->setStatus(statusRelation[j].jobS);
 		}
 	}
 }
