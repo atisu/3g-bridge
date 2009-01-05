@@ -391,7 +391,7 @@ void EGEEHandler::updateJob(Job *job)
 			LOG(LOG_WARNING, getEGEEErrMsg(e).c_str());
 			if (tries >= 3)
 			{
-				job->setStatus(Job::ERROR)
+				job->setStatus(Job::ERROR);
 				return;
 			}
 			sleep(5);
@@ -403,7 +403,7 @@ void EGEEHandler::updateJob(Job *job)
 			LOG(LOG_WARNING, e.dbgMessage().c_str());
 			if (tries >= 3)
 			{
-				job->setStatus(Job::ERROR)
+				job->setStatus(Job::ERROR);
 				return;
 			}
 			sleep(5);
