@@ -221,7 +221,6 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     		for (unsigned j = 0; j < ins->size(); j++) {
 			string fspath = actJ->getInputPath((*ins)[j]).c_str();
 			string oppath = (*ins)[j];
-			LOG(LOG_DEBUG, "Copy %s to %s", fspath.c_str(), (string(jdirname) + "/" + oppath).c_str());
 			ifstream inf(fspath.c_str(), ios::binary);
 			ofstream outf((string(jdirname) + "/" + oppath).c_str(), ios::binary);
 			outf << inf.rdbuf();
@@ -296,9 +295,27 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 	LOG(LOG_DEBUG, "EGEE Plugin (%s): collection subitted, now detemining node IDs.", name.c_str());
 
 	// Find out job's ID
-	JobId jID(collID);
-	glite::lb::Job tJob(jID);
-	glite::lb::JobStatus stat = tJob.status(tJob.STAT_CLASSADS|tJob.STAT_CHILDREN|tJob.STAT_CHILDSTAT);
+	glite::lb::JobStatus stat;
+	try
+	{
+		JobId jID(collID);
+		glite::lb::Job tJob(jID);
+		stat = tJob.status(tJob.STAT_CLASSADS|tJob.STAT_CHILDREN|tJob.STAT_CHILDSTAT);
+	}
+	catch (BaseException &e)
+	{
+		LOG(LOG_WARNING, "EGEE Plugin (%s): failed to get child nodes of collection \"%s\", EGEE exception follows:",
+			name.c_str(), collID.c_str());
+		LOG(LOG_WARNING, getEGEEErrMsg(e).c_str());
+		return;
+	}
+	catch (glite::wmsutils::exception::Exception &e)
+	{
+		LOG(LOG_WARNING, "EGEE Plugin (%s): failed to get child nodes of collection \"%s\", EGEE exception follows:",
+			name.c_str(), collID.c_str());
+		LOG(LOG_WARNING, e.dbgMessage().c_str());
+		return;
+	}
 	vector<string> childIDs = stat.getValStringList(stat.CHILDREN);
 	for (unsigned i = 0; i < childIDs.size(); i++) {
 		string childNodeName = "UNKNOWN";
