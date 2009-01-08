@@ -847,7 +847,8 @@ void EGEEHandler::renew_proxy() throw(BackendException *)
 	string vproxyf = tmpdir + "/proxy.voms";
 
 	getProxyInfo(vproxyf.c_str(), &lifetime);
-	if (lifetime > 18*60*60) {
+	// Do not update proxy if it is valid for at least 6 hrs
+	if (lifetime > 6*60*60) {
 		setenv("X509_USER_PROXY", vproxyf.c_str(), 1);
 		return;
 	}
