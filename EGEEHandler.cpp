@@ -170,9 +170,11 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 	}
 	catch (BackendException *e)
 	{
-		LOG(LOG_ERR, "EGEE Plugin (%s): failed to create ConfigContext (%s), so %zd jobs remain unsent.",
+		LOG(LOG_ERR, "EGEE Plugin (%s): failed to create ConfigContext (%s), so %zd jobs are marked as failed.",
 			name.c_str(), e->what(), jobs.size());
 		delete e;
+		for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
+			(*it)->setStatus(Job::ERROR);
 		return;
 	}
 	snprintf(wdir, sizeof(wdir), "%s/submitdir.XXXXXX", tmpdir.c_str());
