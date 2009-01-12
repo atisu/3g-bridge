@@ -332,8 +332,8 @@ static unsigned selectSizeAdv(AlgQueue *algQ)
 
 static void init_grid_handlers(void)
 {
-	char **sections, *handler;
-	unsigned i;
+	char **sections;
+	unsigned int i;
 
 #ifdef HAVE_DCAPI
 	registerPlugin("DC-API", DCAPIHandler::getInstance);
@@ -346,9 +346,20 @@ static void init_grid_handlers(void)
 	sections = g_key_file_get_groups(global_config, NULL);
 	for (i = 0; sections && sections[i]; i++)
 	{
+		char *handler;
+		gboolean enabled;
+		GError *err = NULL;
+
 		handler = g_key_file_get_string(global_config, sections[i], "handler", NULL);
-		/* Skip sections that are not grid definitions */
-		if (!handler)
+		enabled = g_key_file_get_boolean(global_config, sections[i], "enable", &err);
+		if (err) /* It's enabled by default */
+			enabled = TRUE;
+		g_clear_error(&err);
+		/* Skip sections that are not grid definitions or disabled */
+		if (!handler ||
+		    !enabled ||
+		    g_key_file_get_boolean(global_config, sections[i], "disable", NULL)
+		   )
 			continue;
 		GridHandler *plugin = getPluginInstance(global_config, handler, sections[i]);
 		gridHandlers.push_back(plugin);
