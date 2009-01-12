@@ -244,6 +244,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		// Set some other attributes
 		jobJDLAd->setAttribute(JDL::RETRYCOUNT, 10);
 		jobJDLAd->setAttribute(JDL::SHALLOWRETRYCOUNT, 10);
+		jobJDLAd->setAttribute(JDL::MYPROXY, myproxy_host);
 
 		// Set the node name. We use this information to match the
 		// EGEE IDs to jobs
@@ -439,7 +440,8 @@ void EGEEHandler::updateJob(Job *job)
 		}
 	}
 
-	LOG(LOG_DEBUG, "EGEE Plugin (%s): updating status of job \"%s\" (unique identifier is \"%s\").", name.c_str(), job->getGridId().c_str(), job->getId().c_str());
+	LOG(LOG_DEBUG, "EGEE Plugin (%s): updating status of job \"%s\" (unique identifier is \"%s\", EGEE status is \"%s\").",
+		name.c_str(), job->getGridId().c_str(), job->getId().c_str(), statStr.c_str());
 	for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
 	{
 		if (statusRelation[j].EGEEs == statStr)
