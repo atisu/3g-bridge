@@ -303,6 +303,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 	{
 		JobId jID(collID);
 		glite::lb::Job tJob(jID);
+		tJob.setParam(EDG_WLL_PARAM_X509_PROXY, tmpdir + "/proxy.voms");
 		stat = tJob.status(tJob.STAT_CLASSADS|tJob.STAT_CHILDREN|tJob.STAT_CHILDSTAT);
 	}
 	catch (BaseException &e)
@@ -324,6 +325,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		string childNodeName = "UNKNOWN";
 		JobId cjID(childIDs[i]);
 		glite::lb::Job ctJob(cjID);
+		ctJob.setParam(EDG_WLL_PARAM_X509_PROXY, tmpdir + "/proxy.voms");
 		vector<glite::lb::Event> events;
 		events.clear();
 		int tries = 0;
