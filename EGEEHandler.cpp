@@ -402,16 +402,18 @@ void EGEEHandler::updateJob(Job *job)
         };
 
 	int tries = 0;
-	string statStr;
-	glite::lb::JobStatus stat;
+	string statStr = "";
+	int statCode = 0;
 	while (tries < 3)
 	{
 		try
 		{
 			JobId jID(job->getGridId());
 			glite::lb::Job tJob(jID);
-		        stat = tJob.status(tJob.STAT_CLASSADS);
+			tJob.setParam(EDG_WLL_PARAM_X509_PROXY, tmpdir + "/proxy.voms");
+		        glite::lb::JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
 	    		statStr = stat.name();
+			statCode = stat.getValInt(glite::lb::JobStatus::DONE_CODE);
 			tries = 3;
 		}
 		catch (BaseException &e)
@@ -448,7 +450,7 @@ void EGEEHandler::updateJob(Job *job)
 		{
 			if (Job::FINISHED == statusRelation[j].jobS)
 			{
-				if (glite::lb::JobStatus::DONE_CODE_OK == stat.getValInt(glite::lb::JobStatus::DONE_CODE))
+				if (glite::lb::JobStatus::DONE_CODE_OK == statCode)
 					getOutputs_real(job);
 				else
 					break;
