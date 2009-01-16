@@ -415,6 +415,8 @@ string add_to_3g_db(char *slotStr)
 	if (mysql_query(conn, query))
 	{
 		LOG(LOG_ERR, "Error: failed to add job entry to database: %s", mysql_error(conn));
+		LOG(LOG_ERR, "       the above error probably is caused by a missing cg_algqueue entry in");
+		LOG(LOG_ERR, "       the database. Please check if you have defined the \'%s\' algorithm queue!", grid);
 		free(query);
 		return "";
 	}
