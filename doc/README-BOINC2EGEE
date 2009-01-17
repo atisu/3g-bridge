@@ -20,64 +20,87 @@ In order to set up a BOINC -> EGEE bridge, you have to execute the following
 steps:
 
   1. It is recommended to create a new user account that will run the bridge
-      $ adduser bridge
+     $ adduser 3g-bridge
+     (Installing from an rpm package does this at installation so you
+     can skip this step if using a packaged version.)
 
-  2. Provide access to this user to a new database on the MySQL server
-      mysql> create database bridge;
-      mysql> grant all privileges on bridge.*
-             to bridge identified by 'some_password';
+  2. Create a database for the bridge on the MySQL server
+     mysql> create database bridge;
+     mysql> grant all privileges on bridge.*
+            to bridge identified by 'some_password';
+     (In this example the both the database and the user to access it
+     are called bridge.)
 
-  3. Create necessary tables in the database and create a queue:
-      $ mysql -u bridge -p bridge < doc/db/schema.sql
-      mysql> insert into cg_algqueue(grid, alg, batchsize) \
-             values('boincgrid', '', 10);
-      Here, we create a queue for the plugin instance named 'boincgrid'
-      that supports submitting at most 10 jobs in a collection.
+  3. Create the necessary tables in the database:
+     $ mysql -u bridge -p bridge < doc/db/schema.sql
 
   4. Configure the bridge:
   
-  4a. Update database access informations in .../3g-bridge.conf
+  4a. Update [database] access informations in /etc/3g-bridge.conf
 
-  4b. Set up an EGEE plugin instance as the target in .../3g-bridge.conf.
-      You have to set up the following properties:
-       o name of the plugin instance surrounded by '[' and ']': '[boincgrid]'
-       o the plugin's type: 'handler = EGEE'
-       o the VO name to use: 'voname = gilda'
-       o the WMProxy endpoint for the VO
-       o MyProxy setings for retrieving proxies
+  4b. Create a queue:
+      mysql> insert into cg_algqueue(grid, alg, batchsize) \
+            values('boincgrid', '', 10);
+      Here, we create a queue for the plugin instance named 'boincgrid'
+      that supports submitting at most 10 jobs in one collection. The
+      collection size determines the maximum number of jobs passed to
+      the WMS in one communication session.
 
-  4c. Set up the BOINC job source in .../3g-bridge.conf.
+  4c. Set up an EGEE plugin instance as the target in /etc/3g-bridge.conf.
       You have to set up the following properties:
-      o a name for the job source surrounded by '[' and ']': '[jobwrapper]'
+      o name of the plugin instance surrounded by "[" and "]" e.g. [boincgrid]
+      o the plugin's type: 'handler = EGEE'
+      o the VO name to use: 'voname = gilda'
+      o the WMProxy endpoint for the VO
+      o MyProxy setings for retrieving proxies (see MyProxy
+        configuration below)
+
+  4d. Set up a BOINC job source in /etc/3g-bridge.conf.
+      You have to set up the following properties:
+      o a name for the job source surrounded by "[" and "]" e.g. [jobwrapper]
       o the target plugin instance to use: 'grid = boincgrid'
       o you may set other optional parameters such as logging
-        otherwise defaults specified in the config file are used
+        otherwise [defaults] specified in the config file are used
 
-  5. Now create a new empty directory for the BOINC jobwrapper client.
+  5. Now create a new empty work directory for the BOINC jobwrapper client.
+     (Its name is not important but the rpm packaged version expects
+     these directories to reside under /var/lib/3g-bridge with a name
+     matching jobwrapper-* then you can use the supplied init script
+     to start/stop multiple boinc_jobwrapper_clients.)
      Create a configuration file jobwrapper_client.xml in this directory
-     Then, modify attribute values in this configuration file
-     according to your settings:
-     o location of the 3G Bridge config file: <jobwrapper_binary> tag
-     o number of workunit/CPU slots to use: <cpu> tag
-     o location of the bridge configuration file: <bridge_conf> tag
+     Modify attribute values in this configuration file according to
+     your settings:
+     o location of the jobwrapper executable: <jobwrapper_binary> tag
+     o number of workunit/CPU slots to use (this determined how many
+       workunits are processed concurently): <cpu> tag
+     o location of the 3g-bridge configuration file: <bridge_conf> tag
      o configuration section for this job source: <conf_section> tag
-     An example jobwrapper_client.xml file is provided in the doc directory.
+     o (optional) port to use for remote management: <gui_rpc_port> tag
+     Make sure that the directory and config file is owned by the user
+     the bridge will be running as
+     $ chown 3g-bridge:3g-bridge /var/lib/3g-bridge/jobwrapper-boinc
+     (An example jobwrapper_client.xml file is provided in the doc directory.)
 
   6. Start the boinc_jobwrapper_client in this new directory, and attach to
-     the requested BOINC project:
-     $ .../boinc_jobwrapper_client --no_gui_rpc --attach_project <URL> <KEY>
+     the requested BOINC project. Do this as the user created for the
+     bridge, on SL4 you can get a shell with the following command
+     'runuser -s /bin/bash 3g-bridge'):
+     $ boinc_jobwrapper_client --no_gui_rpc --attach_project <URL> <KEY>
      The BOINC jobwrapper client begins fetching workunits from the BOINC
      server and places them into the 3G Bridge Job Database.
 
   7. Start the bridge:
-      $ .../3g-bridge -c .../3g-bridge.conf
+     $ .../3g-bridge -c .../3g-bridge.conf
+     The rpm package also contains an init script that can be used instead:
+     $ service 3g-bridge start
+     this expects the config file to be /etc/3g-bridge.conf
 
 In order to add a new BOINC -> EGEE path to the already running bridge, the
 following steps must be executed:
 
   1. Step '4b.-6.' from above. Note: if you plan to use an already
      existing EGEE plugin instance for executing jobs from the new BOINC
-     server, step '4b.' can be skipped.
+     server, step '4c.' can be skipped.
 
   2. Stop the bridge, the following command stops a bridge running as a daemon
       $ .../3g-bridge -c .../3g-bridge.conf -k
@@ -90,3 +113,37 @@ following steps must be executed:
 It is recommended to start the different components either as a background
 process or in a screen terminal. The bridge by defaults detaches from
 the terminal and becomes a daemon. This can be changed with the -f option.
+If running as a deamon the bridge logs to syslog then after it could
+read its config file it uses the log-target specified therein.
+
+4. Configuring a MyProxy server to support proxy retrieval
+----------------------------------------------------------
+
+The bridge needs a valid proxy to access EGEE resources. These are
+retrieved from a myproxy server by each plugin instance as specified
+in the config file by the following parameters:
+
+myproxy_host = myproxy.server.domain
+myproxy_port = 7512
+myproxy_user = /O=grid/O=Organisation/CN=Grid User
+myproxy_authcert = /etc/grid-security/bridge.cert
+myproxy_authkey = /etc/grid-security/bridge.key
+
+Most of these are self explanatory, the authcert and authkey are
+credentials used to authenticate to the MyProxy server to retrieve a
+proxy belonging to user (this is the user that the job will be
+submitted as). To allow this the following configuration options are
+required in myproxy-server.conf on the MyProxy server side:
+
+authorized_retrievers "/O=grid/O=Service/CN=bridge"
+trusted_retrievers "/O=grid/O=Service/CN=bridge"
+default_trusted_retrievers "/O=grid/O=Service/CN=bridge"
+
+where "/O=grid/O=Service/CN=bridge" is the subject of bridge.cert above.
+Users whose WUs are to be sent through the bridge should delegate
+their proxy first with the following command:
+
+$ GT_PROXY_MODE=old myproxy-init -s myproxy.server.domain -d -n
+
+and then keep it up to date as long as they want to use EGEE resources
+through the bridge.

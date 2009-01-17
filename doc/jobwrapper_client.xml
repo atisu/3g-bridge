@@ -2,3 +2,4 @@
 <jobwrapper_binary>/usr/libexec/3g-bridge/jobwrapper</jobwrapper_binary>
 <bridge_conf>/etc/3g-bridge/3g-bridge.conf</bridge_conf>
 <conf_section>jobwrapper</conf_section>
+<gui_rpc_port>10000</gui_rpc_port>
