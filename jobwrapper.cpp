@@ -409,8 +409,10 @@ string add_to_3g_db(char *slotStr)
 	LOG(LOG_INFO, "Inserting WU \"%s\" into 3G Job Database with identifier \"%s\".", wuname, sID);
 
 	char *query;
+	gchar *sargs = g_strescape(arguments, NULL);
 	asprintf(&query, "INSERT INTO cg_job(id, alg, grid, status, args) VALUES (\"%s\",\"%s\",\"%s\",\"%s\",\"%s\")",
-		sID, wrapFname, grid, "PREPARE", arguments);
+		sID, wrapFname, grid, "PREPARE", sargs);
+	g_free(sargs);
 	LOG(LOG_DEBUG, "MySQL    job insert command is: %s", query);
 	if (mysql_query(conn, query))
 	{

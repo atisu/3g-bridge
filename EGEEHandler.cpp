@@ -239,7 +239,11 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		// The arguments
 		string arg = actJ->getArgs();
 		if (arg.size())
-			jobJDLAd->setAttribute(JDL::ARGUMENTS, arg);
+		{
+			gchar *sargs = g_strescape(arg.c_str(), NULL);
+			jobJDLAd->setAttribute(JDL::ARGUMENTS, sargs);
+			g_free(sargs);
+		}
 
 		// Set some other attributes
 		jobJDLAd->setAttribute(JDL::RETRYCOUNT, 10);
