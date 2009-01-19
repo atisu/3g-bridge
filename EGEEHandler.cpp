@@ -241,6 +241,13 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		if (arg.size())
 		{
 			gchar *sargs = g_strescape(arg.c_str(), NULL);
+			gchar *pargs = sargs;
+			while (*pargs != '\0')
+			{
+				if (*pargs == '"')
+					*pargs = '\'';
+				pargs++;
+			}
 			jobJDLAd->setAttribute(JDL::ARGUMENTS, sargs);
 			g_free(sargs);
 		}
