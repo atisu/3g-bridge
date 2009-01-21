@@ -376,15 +376,18 @@ string add_to_3g_db(char *slotStr)
 	uuid_unparse(uID, sID);
 	string exe_path(exec_path);
 	string exe_path_bn = exe_path.substr(exe_path.rfind("/")+1);
-	asprintf(&wrapStr, wrap_template, sID, slotStr, exec_path, arguments);
+	gchar *sargs = g_strescape(arguments, NULL);
+	asprintf(&wrapStr, wrap_template, sID, slotStr, exec_path, sargs);
 	sprintf(wrapFname, "%s.sh", sID);
         sprintf(outsFname, "%s.outs", sID);
 	if (NULL == (wrapF = fopen(wrapFname, "w"))) {
         	LOG(LOG_ERR, "Error: unable to open file \"%s\" for writing: %s", wrapFname, strerror(errno));
+		g_free(sargs);
 	        return "";
 	}
 	if (NULL == (outF = fopen(outsFname, "w"))) {
         	LOG(LOG_ERR, "Error: unable to open file \"%s\" for writing: %s", outsFname, strerror(errno));
+		g_free(sargs);
 	        return "";
 	}
 	fwrite(wrapStr, 1, strlen(wrapStr), wrapF);
@@ -409,7 +412,6 @@ string add_to_3g_db(char *slotStr)
 	LOG(LOG_INFO, "Inserting WU \"%s\" into 3G Job Database with identifier \"%s\".", wuname, sID);
 
 	char *query;
-	gchar *sargs = g_strescape(arguments, NULL);
 	asprintf(&query, "INSERT INTO cg_job(id, alg, grid, status, args) VALUES (\"%s\",\"%s\",\"%s\",\"%s\",\"%s\")",
 		sID, wrapFname, grid, "PREPARE", sargs);
 	g_free(sargs);
