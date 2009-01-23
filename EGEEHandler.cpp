@@ -40,6 +40,8 @@
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+#include <sys/wait.h>
+#include <sys/types.h>
 #include <uuid/uuid.h>
 #include <glite/lb/Job.h>
 #include <glite/jdl/Ad.h>
@@ -65,6 +67,67 @@ globus_bool_t EGEEHandler::done;
 bool EGEEHandler::globus_err;
 int EGEEHandler::global_offset;
 static const char *tmppath;
+
+
+/**
+ * Invoke a command. Imported from DCAPIHandler and slightly modified
+ * so stdout and stderr is returned to the caller.
+ */
+static int invoke_cmd(const char *exe, const char *const argv[], string *stdouts, string *stderrs) throw (BackendException *)
+{
+        int socks[2][2];
+
+        for (int i = 0; i < 2; i++)
+                if (socketpair(AF_UNIX, SOCK_STREAM, 0, socks[0]) == -1 ||
+			socketpair(AF_UNIX, SOCK_STREAM, 0, socks[1]) == -1)
+                        throw new BackendException("socketpair() failed: %s",
+				strerror(errno));
+
+        pid_t pid = fork();
+        if (pid)
+        {
+                /* Parent */
+                int status;
+            	char buf[1024];
+		string *strs[2] = {stdouts, stderrs};
+
+		for (int i = 0; i < 2; i++)
+		{
+            		close(socks[i][0]);
+			if (strs[i])
+			{
+				*strs[i] = "";
+            			while ((status = read(socks[i][1], buf, sizeof(buf))) > 0)
+                    			strs[i]->append(buf, status);
+			}
+            		close(socks[i][1]);
+		}
+
+                if (waitpid(pid, &status, 0) == -1)
+                        throw new BackendException("waitpid() failed: %s",
+				strerror(errno));
+                if (WIFSIGNALED(status))
+                        throw new BackendException("Command %s died with signal %d",
+                		exe, WTERMSIG(status));
+
+                return WEXITSTATUS(status);
+        }
+
+        /* Child */
+        int fd = open("/dev/null", O_RDWR);
+        dup2(fd, 0);
+        close(fd);
+
+        dup2(socks[0][0], 1);
+        dup2(socks[1][0], 2);
+
+        for (int i = 0; i < 2; i++)
+                for (int j = 0; j < 2; j++)
+                	close(socks[i][j]);
+
+        execvp(exe, (char *const *)argv);
+        _Exit(255);
+}
 
 
 EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException *)
@@ -137,8 +200,9 @@ void EGEEHandler::createCFG() throw(BackendException *)
 
 EGEEHandler::~EGEEHandler()
 {
-	char cmd[PATH_MAX];
+	const char *rmargs[] = { "rm", "-rf", tmpdir.c_str(), NULL };
 
+	invoke_cmd("rm", rmargs, NULL, NULL);
 	g_free(voname);
 	g_free(wmpendp);
 	g_free(myproxy_host);
@@ -148,8 +212,6 @@ EGEEHandler::~EGEEHandler()
 	g_free(myproxy_port);
 	delete cfg;
 
-	snprintf(cmd, sizeof(cmd), "rm -rf '%s'", tmpdir.c_str());
-	system(cmd);
 }
 
 
@@ -210,6 +272,9 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 			LOG(LOG_WARNING, "EGEE Plugin (%s): failed to get job JDL template, EGEE exception follows:",
 				name.c_str());
 			LOG(LOG_WARNING, getEGEEErrMsg(e).c_str());
+			LOG(LOG_WARNING, "EGEE Plugin (%s): marking job %s as "
+				"failed.", name.c_str(), (*it)->getId().c_str());
+			(*it)->setStatus(Job::ERROR);
 			continue;
 		}
 
@@ -240,7 +305,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		string arg = actJ->getArgs();
 		if (arg.size())
 		{
-			gchar *sargs = g_strescape(arg.c_str(), NULL);
+			gchar *sargs = g_strdup(arg.c_str());
 			gchar *pargs = sargs;
 			while (*pargs != '\0')
 			{
@@ -270,6 +335,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		ofstream jobJDL(jdlFname.str().c_str());
 		jobJDL << jobJDLAd->toString() << endl;
 		jobJDL.close();
+		LOG(LOG_DEBUG, "JDL is: %s", jobJDLAd->toString().c_str());
 
 		delete jobJDLAd;
 		i++;
@@ -278,33 +344,48 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 	if (!i)
 	{
 		LOG(LOG_INFO, "EGEE Plugin (%s): due to the previous errors, there are no jobs to submit.", name.c_str());
-		string cmd = "rm -rf '" + string(wdir) + "'";
-		system(cmd.c_str());
+		const char *rmargs[] = { "rm", "-rf", wdir, NULL };
+		invoke_cmd("rm", rmargs, NULL, NULL);
 		return;
 	}
 
 	// Submit the JDLs
-	string cmd = "glite-wms-job-submit -a -e '" + string(wmpendp) + "' -o '" + string(wdir) + "/collection.id' --collection '" + string(jdldir) + "'";
-	LOG(LOG_DEBUG, cmd.c_str());
-	int rtv = system(cmd.c_str());
-	if (rtv)
+	string sout, serr;
+	string collidfile = string(wdir) + "/collection.id";
+	try
 	{
-		LOG(LOG_ERR, "EGEE Plugin (%s): job submission failed!", name.c_str());
-		cmd = "rm -rf '" + string(wdir) + "'";
-		system(cmd.c_str());
+		const char *submitargs[] = {"glite-wms-job-submit", "-a", "-e",
+			wmpendp, "-o", collidfile.c_str(), "--collection", jdldir, NULL};
+		if (invoke_cmd("glite-wms-job-submit", submitargs, &sout, &serr))
+		{
+			LOG(LOG_ERR, "EGEE Plugin (%s): job submission failed:"
+				"\n%s\n%s", name.c_str(), sout.c_str(),
+				serr.c_str());
+			const char *rmargs[] = { "rm", "-rf", wdir, NULL };
+			invoke_cmd("rm", rmargs, NULL, NULL);
+			return;
+		}
+	}
+	catch (BackendException *e)
+	{
+		LOG(LOG_ERR, "EGEE Plugin (%s): job submission failed: %s",
+			name.c_str(), e->what());
+		const char *rmargs[] = { "rm", "-rf", wdir, NULL };
+		invoke_cmd("rm", rmargs, NULL, NULL);
 		return;
 	}
+	
 
 	// Find out collection's ID
-        ifstream collIDf(string(string(wdir) + "/collection.id").c_str());
+        ifstream collIDf(collidfile.c_str());
 	string collID;
 	do
 	{
 		collIDf >> collID;
 	} while ("https://" != collID.substr(0, 8));
 
-	cmd = "rm -rf '" + string(wdir) + "'";
-	system(cmd.c_str());
+	const char *rmargs[] = { "rm", "-rf", wdir, NULL };
+	invoke_cmd("rm", rmargs, NULL, NULL);
 
 	LOG(LOG_DEBUG, "EGEE Plugin (%s): collection subitted, now detemining node IDs.", name.c_str());
 
