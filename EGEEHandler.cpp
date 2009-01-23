@@ -518,6 +518,7 @@ void EGEEHandler::updateJob(Job *job)
 			if (tries >= 3)
 			{
 				job->setStatus(Job::ERROR);
+				cleanJob(job->getGridId());
 				return;
 			}
 			sleep(5);
@@ -530,6 +531,7 @@ void EGEEHandler::updateJob(Job *job)
 			if (tries >= 3)
 			{
 				job->setStatus(Job::ERROR);
+				cleanJob(job->getGridId());
 				return;
 			}
 			sleep(5);
@@ -550,6 +552,8 @@ void EGEEHandler::updateJob(Job *job)
 					break;
 			}
 			job->setStatus(statusRelation[j].jobS);
+			if (Job::ERROR == statusRelation[j].jobS)
+				cleanJob(job->getGridId());
 		}
 	}
 }
