@@ -78,8 +78,7 @@ static int invoke_cmd(const char *exe, const char *const argv[], string *stdouts
         int socks[2][2];
 
         for (int i = 0; i < 2; i++)
-                if (socketpair(AF_UNIX, SOCK_STREAM, 0, socks[0]) == -1 ||
-			socketpair(AF_UNIX, SOCK_STREAM, 0, socks[1]) == -1)
+                if (socketpair(AF_UNIX, SOCK_STREAM, 0, socks[i]) == -1)
                         throw new BackendException("socketpair() failed: %s",
 				strerror(errno));
 
