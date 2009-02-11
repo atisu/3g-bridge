@@ -96,13 +96,12 @@ static char *wrap_template =
 "TID=%s\n"
 "SLOT=%s\n"
 "EXE=\"%s\"\n"
-"ARGS=\"%s\"\n"
 "OLDWD=\"`pwd`\"\n"
 "rm -rf /tmp/$TID; mkdir -p /tmp/$TID\n"
 "tar zxf $TID.tgz -C /tmp/$TID\n"
 "rm -f $TID.tgz\n"
 "cd /tmp/$TID/slots/$SLOT\n"
-"\"../../$EXE\" $ARGS\n"
+"\"../../$EXE\" \"$@\"\n"
 "RETCODE=$?\n"
 "cd ../..\n"
 "cat slots/$SLOT/$TID.outs | while read outfile; do\n"
@@ -377,7 +376,7 @@ string add_to_3g_db(char *slotStr)
 	string exe_path(exec_path);
 	string exe_path_bn = exe_path.substr(exe_path.rfind("/")+1);
 	gchar *sargs = g_strescape(arguments, NULL);
-	asprintf(&wrapStr, wrap_template, sID, slotStr, exec_path, sargs);
+	asprintf(&wrapStr, wrap_template, sID, slotStr, exec_path);
 	sprintf(wrapFname, "%s.sh", sID);
         sprintf(outsFname, "%s.outs", sID);
 	if (NULL == (wrapF = fopen(wrapFname, "w"))) {

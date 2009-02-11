@@ -54,6 +54,8 @@ steps:
       o the WMProxy endpoint for the VO
       o MyProxy setings for retrieving proxies (see MyProxy
         configuration below)
+      o set the GridFTP URL prefix for storing input and output files of jobs
+        through the isb_url attribute
 
   4d. Set up a BOINC job source in /etc/3g-bridge.conf.
       You have to set up the following properties:
