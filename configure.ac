@@ -84,6 +84,11 @@ if test "$with_gsoap" != no; then
 fi
 AM_CONDITIONAL([GSOAP], [test "$with_gsoap" != no])
 
+PKG_CHECK_MODULES([UUID], [uuid], [], [no_uuid=yes])
+if test "$no_uuid" = "yes"; then
+	AC_MSG_ERROR([UUID library was not found])
+fi
+
 AC_ARG_WITH([boinc], AS_HELP_STRING([--with-boinc], [Use BOINC in @<:@/usr@:>@]),
 	[], [with_boinc=/usr])
 if test "${with_boinc}" != no; then

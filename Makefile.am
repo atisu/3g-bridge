@@ -33,14 +33,14 @@ injector_SOURCES = \
 		Job.cpp \
 		QMException.cpp \
 		Util.c
-injector_LDADD = -luuid $(GLIB_LIBS) $(MYSQL_LIBS)
+injector_LDADD = $(UUID_LIBS) $(GLIB_LIBS) $(MYSQL_LIBS)
 
 jobwrapper_SOURCES = \
 		jobwrapper.cpp \
 		Util.c
 jobwrapper_CPPFLAGS = $(BOINC_CPPFLAGS) $(AM_CPPFLAGS)
 jobwrapper_LDFLAGS = $(BOINC_LDFLAGS) $(AM_LDFLAGS)
-jobwrapper_LDADD = -luuid -lboinc_api -lboinc $(GLIB_LIBS) $(MYSQL_LIBS)
+jobwrapper_LDADD = $(UUID_LIBS) -lboinc_api -lboinc $(GLIB_LIBS) $(MYSQL_LIBS)
 
 BACKEND_SOURCES =
 BACKEND_LIBS =
@@ -82,7 +82,7 @@ $(SOAP_CPP_SRC): $(SOAP_HEADER)
 		QueueManager.cpp \
 		Util.c \
 		$(BACKEND_SOURCES)
-3g_bridge_LDADD = $(GLIB_LIBS) $(BACKEND_LIBS) $(MYSQL_LIBS)
+3g_bridge_LDADD = $(GLIB_LIBS) $(BACKEND_LIBS) $(MYSQL_LIBS) $(UUID_LIBS)
 
 wssubmitter_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
 wssubmitter_SOURCES = \
@@ -96,7 +96,7 @@ wssubmitter_SOURCES = \
 		Util.c \
 		WSSubmitter.cpp \
 		soap/soapServer.cpp
-wssubmitter_LDADD = $(GLIB_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto -luuid
+wssubmitter_LDADD = $(GLIB_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) $(UUID_LIBS) -lcrypto
 
 wsclient_CPPFALGS = $(GSOAP_CFLAGS)
 wsclient_SOURCES = \
