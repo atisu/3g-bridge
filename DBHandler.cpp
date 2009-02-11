@@ -40,6 +40,8 @@
 #include <string.h>
 #include <mysql.h>
 
+#include <uuid/uuid.h>
+
 using namespace std;
 
 
@@ -201,12 +203,24 @@ static const char *statToStr(Job::JobStatus stat)
 
 auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 {
+	uuid_t uuid;
+
 	const char *alg = res.get_field("alg");
 	const char *grid = res.get_field("grid");
 	const char *args = res.get_field("args");
 	const char *gridid = res.get_field("gridid");
 	const char *id = res.get_field("id");
 	const char *stat = res.get_field("status");
+
+	if (uuid_parse(id, uuid))
+	{
+		LOG(LOG_ERR, "Invalid job ID: %s", id);
+		DBHandler *dbh = get();
+		dbh->query("UPDATE cg_job SET status = '%s' WHERE id = '%s'",
+			status_str[Job::ERROR], id);
+		put(dbh);
+		return auto_ptr<Job>(0);
+	}
 
 	unsigned i;
 	for (i = 0; i < sizeof(status_str) / sizeof(status_str[0]); i++)
