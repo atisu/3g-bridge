@@ -373,8 +373,6 @@ string add_to_3g_db(char *slotStr)
 
 	uuid_generate(uID);
 	uuid_unparse(uID, sID);
-	string exe_path(exec_path);
-	string exe_path_bn = exe_path.substr(exe_path.rfind("/")+1);
 	gchar *sargs = g_strescape(arguments, NULL);
 	asprintf(&wrapStr, wrap_template, sID, slotStr, exec_path);
 	sprintf(wrapFname, "%s.sh", sID);
@@ -574,7 +572,7 @@ int main(int argc, char **argv)
 	parse_init_data_file(aidf2, aid2);
 	fclose(aidf2);
 	wuname = strdup(aid2.wu_name);
-	LOG(LOG_INFO, "About to handle workunit \"%s\" through 3G bridge.", wuname);
+	LOG(LOG_INFO, "About to handle workunit \"%s\" for \"%s\" through 3G bridge.", wuname, exec_path);
 
 	// Initialize MySQL connection
 	init_mysql();
@@ -592,10 +590,10 @@ int main(int argc, char **argv)
 		}
 	} else {
 		idF >> jobID;
-		LOG(LOG_INFO, "Job ID file for WU exists, the job ID is \"%s\".", jobID.c_str());
+		LOG(LOG_INFO, "Job ID file for WU \"%s\" exists, it is \"%s\".", wuname, jobID.c_str());
 		idF.close();
 	}
-	LOG(LOG_INFO, "Our 3G Bridge identifier is \"%s\".\n", jobID.c_str());
+	LOG(LOG_DEBUG, "Our 3G Bridge identifier is \"%s\".\n", jobID.c_str());
 	free(wdcpy);
 
 	status = getstat_3g(jobID);
