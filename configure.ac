@@ -8,6 +8,7 @@ AC_CONFIG_MACRO_DIR([cf])
 AM_INIT_AUTOMAKE([1.9 foreign no-dist-gzip dist-bzip2])
 
 AC_PROG_CC
+AC_PROG_CPP
 AC_PROG_CXX
 
 dnl We need sed for substituting the XML templates
@@ -84,10 +85,8 @@ if test "$with_gsoap" != no; then
 fi
 AM_CONDITIONAL([GSOAP], [test "$with_gsoap" != no])
 
-PKG_CHECK_MODULES([UUID], [uuid], [], [no_uuid=yes])
-if test "$no_uuid" = "yes"; then
-	AC_MSG_ERROR([UUID library was not found])
-fi
+AC_CHECK_LIB([uuid], [uuid_parse],, [AC_MSG_ERROR([libuuid was not found])])
+AC_CHECK_HEADER([uuid/uuid.h],, [AC_MSG_ERROR([uuid/uuid.h was not found])])
 
 AC_ARG_WITH([boinc], AS_HELP_STRING([--with-boinc], [Use BOINC in @<:@/usr@:>@]),
 	[], [with_boinc=/usr])
