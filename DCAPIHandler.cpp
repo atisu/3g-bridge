@@ -125,9 +125,9 @@ static void invoke_cmd(const char *exe, const char *const argv[]) throw (Backend
 	/* Child */
 	int fd = open("/dev/null", O_RDWR);
 	dup2(fd, 0);
-	dup2(fd, 1);
 	close(fd);
 
+	dup2(sock[0], 1);
 	dup2(sock[0], 2);
 	close(sock[0]);
 	close(sock[1]);
