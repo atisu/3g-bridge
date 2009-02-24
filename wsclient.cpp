@@ -326,11 +326,12 @@ static void handle_status(void)
 		G3Bridge__JobStatus st;
 		string str;
 	} statToStr[] = {
-		{G3Bridge__JobStatus__UNKNOWN,  "Unknown" },
-		{G3Bridge__JobStatus__INIT,     "Init"    },
-		{G3Bridge__JobStatus__RUNNING,  "Running" },
-		{G3Bridge__JobStatus__FINISHED, "Finished"},
-		{G3Bridge__JobStatus__ERROR,    "Error"   }
+		{G3Bridge__JobStatus__UNKNOWN,    "Unknown"   },
+		{G3Bridge__JobStatus__INIT,       "Init"      },
+		{G3Bridge__JobStatus__RUNNING,    "Running"   },
+		{G3Bridge__JobStatus__FINISHED,   "Finished"  },
+		{G3Bridge__JobStatus__TEMPFAILED, "TempFailed"},
+		{G3Bridge__JobStatus__ERROR,      "Error"     }
 	};
 
 	struct soap *soap = soap_new();

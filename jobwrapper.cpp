@@ -59,6 +59,8 @@
 
 #define MAX_LENGTH		10000
 #define MAX_FILES		100
+#define RTRY_IVAL		10
+#define RTRY_TIMES		3
 
 using namespace std;
 
@@ -89,6 +91,8 @@ static char *output_files_real_name[MAX_FILES];
 
 static char arguments[MAX_LENGTH];			// the arguments for the exec
 static char exec_path[MAX_LENGTH];			// the executable
+
+static int try_num;					// Resubmission attempts
 
 static char *wrap_template =
 "#!/bin/bash\n"
@@ -543,6 +547,7 @@ int main(int argc, char **argv)
 {
 	int exitcode = 0;
 	string jobID, status = "";
+	try_num = 0;
 
 	cwd = getcwd(NULL, 0);
 	if (!cwd) {
@@ -599,6 +604,26 @@ int main(int argc, char **argv)
 	status = getstat_3g(jobID);
 	while ("FINISHED" != status && "ERROR" != status) {
 		LOG(LOG_DEBUG, "Status of job \"%s\" is \"%s\".", jobID.c_str(), status.c_str());
+		if ("TEMPFAILED" == status)
+		{
+			if (try_num >= RTRY_TIMES)
+			{
+				LOG(LOG_INFO, "Job \"%s\" reported temporary failure %d times. Setting status to ERROR", jobID.c_str(), RTRY_TIMES);
+				status = "ERROR";
+				break;
+			}
+			LOG(LOG_DEBUG, "Now sleeping for %zd minutes before job's \"resubmission\"...",
+				RTRY_IVAL);
+			boinc_sleep(RTRY_IVAL*60);
+			string ofile = string(cwd) + "/" + jobID + ".out.tgz";
+			unlink(ofile.c_str());
+			char *query;
+			asprintf(&query, "UPDATE cg_job SET status='INIT' WHERE id=\"%s\"", jobID.c_str());
+			if (mysql_query(conn, query))
+				LOG(LOG_ERR, "Error: failed to set status of job \"%s\" to INIT: %s", jobID.c_str(), mysql_error(conn));
+			free(query);
+			try_num++;
+		}
 		boinc_sleep(300);
 		status = getstat_3g(jobID);
 	}

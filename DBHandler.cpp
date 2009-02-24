@@ -48,7 +48,7 @@ using namespace std;
 /* The order here must match the definition of JobStatus */
 static const char *status_str[] =
 {
-	"PREPARE", "INIT", "RUNNING", "FINISHED", "ERROR", "CANCEL"
+	"PREPARE", "INIT", "RUNNING", "FINISHED", "ERROR", "TEMPFAILED", "CANCEL"
 };
 
 static vector<DBHandler *> used_dbhs;

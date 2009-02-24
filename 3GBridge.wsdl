@@ -27,6 +27,7 @@
 					<xsd:enumeration value="RUNNING"/><!-- enum const = 2 -->
 					<xsd:enumeration value="FINISHED"/><!-- enum const = 3 -->
 					<xsd:enumeration value="ERROR"/><!-- enum const = 4 -->
+					<xsd:enumeration value="TEMPFAILED"/><!-- enum const = 5 -->
 				</xsd:restriction>
 			</xsd:simpleType>
 

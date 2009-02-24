@@ -361,6 +361,9 @@ int __G3Bridge__getStatus(struct soap *soap, G3Bridge__JobIDList *jobids, G3Brid
 			case Job::FINISHED:
 				status = G3Bridge__JobStatus__FINISHED;
 				break;
+			case Job::TEMPFAILED:
+				status = G3Bridge__JobStatus__TEMPFAILED;
+				break;
 			case Job::ERROR:
 			case Job::CANCEL:
 				status = G3Bridge__JobStatus__ERROR;

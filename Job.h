@@ -53,6 +53,7 @@ public:
 		RUNNING,	/**< Enum value for the RUNNING status. */
 		FINISHED,	/**< Enum value for the FINISHED status. */
 		ERROR,		/**< Enum value for the ERROR status. */
+		TEMPFAILED,	/**< Enum value for the TEMPFAILED status. */
 		CANCEL		/**< Enum value for the CANCEL status. */
 	};
 
