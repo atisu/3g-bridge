@@ -396,8 +396,9 @@ static void handle_output(void)
 		for (unsigned j = 0; j < jout->output.size(); j++)
 		{
 			G3Bridge__LogicalFile *lf = jout->output.at(j);
-			cout << lf->logicalName << "\t" << lf->URL << endl;
+			cout << lf->logicalName << " " << lf->URL << endl;
 		}
+		cout << endl;
 	}
 
 	soap_destroy(soap);
