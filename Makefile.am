@@ -12,6 +12,8 @@ bin_PROGRAMS += wsclient
 sbin_PROGRAMS += wssubmitter
 endif
 
+SUBDIRS = doc
+
 noinst_HEADERS = \
 		AlgQueue.h \
 		BackendException.h \

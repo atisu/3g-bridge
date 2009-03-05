@@ -1,0 +1,216 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl" type="text/xsl"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+        "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" [
+]>
+<refentry id="injector.1" revision="5 Mar 2009">
+    <refentryinfo>
+        <author>
+            <personname>
+                <firstname>Gábor</firstname>
+                <surname>Gombás</surname>
+            </personname>
+            <email>gombasg@sztaki.hu</email>
+        </author>
+        <date>5 Mar 2009</date>
+        <title>injector</title>
+        <productname>3G Bridge</productname>
+        <productnumber>@PACKAGE_VERSION@</productnumber>
+    </refentryinfo>
+
+    <refmeta>
+        <refentrytitle>injector</refentrytitle>
+        <manvolnum>1</manvolnum>
+        <refmiscinfo>3G Bridge</refmiscinfo>
+    </refmeta>
+
+    <refnamediv>
+        <refname><command>injector</command></refname>
+        <refpurpose>
+            3G Bridge direct job submission tool
+        </refpurpose>
+    </refnamediv>
+
+    <refsynopsisdiv>
+	<cmdsynopsis>
+	    <command>injector</command>
+	    <group>
+		<arg choice="plain"><option>-c <replaceable>FILE</replaceable></option></arg>
+		<arg choice="plain"><option>--config <replaceable>FILE</replaceable></option></arg>
+	    </group>
+            <group choice="req">
+		<arg choice="plain"><option>-a <replaceable>APP</replaceable></option></arg>
+		<arg choice="plain"><option>--algname <replaceable>APP</replaceable></option></arg>
+            </group>
+            <group choice="req">
+		<arg choice="plain"><option>-g <replaceable>GRID</replaceable></option></arg>
+		<arg choice="plain"><option>--grid <replaceable>GRID</replaceable></option></arg>
+            </group>
+	    <group rep="repeat" choice="req">
+		<arg choice="plain"><option>-i <replaceable>LFN:PATH</replaceable></option></arg>
+		<arg choice="plain"><option>--input <replaceable>LFN:PATH</replaceable></option></arg>
+	    </group>
+	    <group rep="repeat" choice="req">
+		<arg choice="plain"><option>-o <replaceable>LFN:PATH</replaceable></option></arg>
+		<arg choice="plain"><option>--output <replaceable>LFN:PATH</replaceable></option></arg>
+	    </group>
+            <group>
+		<arg choice="plain"><option>-p <replaceable>PARAMS</replaceable></option></arg>
+		<arg choice="plain"><option>--params <replaceable>PARAMS</replaceable></option></arg>
+            </group>
+        </cmdsynopsis>
+        <cmdsynopsis>
+            <command>injector</command>
+            <group choice="req">
+                <arg choice="plain"><option>-h</option></arg>
+                <arg choice="plain"><option>--help</option></arg>
+            </group>
+        </cmdsynopsis>
+    </refsynopsisdiv>
+
+    <refsect1>
+	<title>DESCRIPTION</title>
+	<para>
+	    <command>injector</command> injects a job into the 3G Bridge's database.
+	</para>
+    </refsect1>
+
+    <refsect1>
+	<title>OPTIONS</title>
+	<variablelist>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-a <replaceable>APP</replaceable></option></arg>
+		        <arg choice="plain"><option>--algname <replaceable>APP</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			The name of the algorithm (application) to run. Some grids
+			require all applications to be registered before they can be
+			used; if this is the case, then <replaceable>APP</replaceable> must
+			already exist in the database of the 3G Bridge.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-c <replaceable>FILE</replaceable></option></arg>
+			<arg choice="plain"><option>--config <replaceable>FILE</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Use the specified config file instead of
+			<filename>@sysconfdir@/3g-bridge.conf</filename>
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-g <replaceable>GRID</replaceable></option></arg>
+			<arg choice="plain"><option>--grid <replaceable>GRID</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Name of the grid where the job should be sent. <replaceable>GRID</replaceable>
+			must already exist in the database of the 3G Bridge.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-h</option></arg>
+			<arg choice="plain"><option>--help</option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Show a short help text.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-i <replaceable>LFN:PATH</replaceable></option></arg>
+			<arg choice="plain"><option>--input <replaceable>LFN:PATH</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Specify the input file(s). There must be at least one input file
+			specified. <replaceable>LFN</replaceable> specifies the logical
+			name of the file, that is the name the application refers to the file as.
+			<replaceable>PATH</replaceable> is the location of the file on the
+			submitter host. The two must be separated by a colon (:).
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-o <replaceable>LFN:PATH</replaceable></option></arg>
+			<arg choice="plain"><option>--output <replaceable>LFN:PATH</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Specify the output file(s). There must be at least one output file
+			specified. <replaceable>LFN</replaceable> specifies the logical
+			name of the file, that is the name the application refers to the file as.
+			<replaceable>PATH</replaceable> is the location where the file to
+			be stored on the submitter host when the job finishes. The two must be
+			separated by a colon (:).
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-p <replaceable>PARAMS</replaceable></option></arg>
+			<arg choice="plain"><option>--params <replaceable>PARAMS</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Command-line parameters to pass to the application. Note that special
+			care should be taken when characters other than alphanumeric and whitespace
+			are used, as the architecture/operating system where the job will eventually
+			run is not known to the 3G Bridge therefore the meaning and handling of
+			special characters can be confusing.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	</variablelist>
+    </refsect1>
+
+    <refsect1>
+	<title>FILES</title>
+	<para>
+	    <filename>@sysconfdir@/3g-bridge.conf</filename>
+	</para>
+    </refsect1>
+
+    <refsect1>
+	<title>SEE ALSO</title>
+	<para>
+	    <citerefentry><refentrytitle>3g-bridge.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
+	    <citerefentry><refentrytitle>3g-bridge</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+	</para>
+    </refsect1>
+
+</refentry>
+<!-- vim: set ai sw=4: -->

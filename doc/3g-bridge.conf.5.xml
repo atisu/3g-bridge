@@ -1,0 +1,446 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl" type="text/xsl"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+	"http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" [
+]>
+<refentry id="3g-bridge.conf.5" revision="5 Mar 2009">
+    <refentryinfo>
+	<author>
+	    <personname>
+		<firstname>Gábor</firstname>
+		<surname>Gombás</surname>
+	    </personname>
+	    <email>gombasg@sztaki.hu</email>
+	</author>
+	<date>5 Mar 2009</date>
+	<title>3g-bridge.conf</title>
+	<productname>3G Bridge</productname>
+	<productnumber>@PACKAGE_VERSION@</productnumber>
+    </refentryinfo>
+
+    <refmeta>
+	<refentrytitle>3g-bridge.conf</refentrytitle>
+	<manvolnum>5</manvolnum>
+	<refmiscinfo>configuration file for the 3G Bridge</refmiscinfo>
+    </refmeta>
+
+    <refnamediv>
+	<refname>3g-bridge.conf</refname>
+	<refpurpose>
+	    configuration file for the 3G Bridge
+	</refpurpose>
+    </refnamediv>
+
+    <refsect1>
+	<title>DESCRIPTION</title>
+	<para>
+	    This file specifies configuration options for various components of
+	    the 3G Bridge suite.
+	</para>
+	<para>
+	    The configuration file is organized into groups. Every group must
+	    start with the group name enclosed in square brackets. Inside a
+	    group there can be any number of key-value pairs specifying various
+	    options. Lines starting with a <quote><literal>#</literal></quote>
+	    are treated as comments and are ignored.
+	</para>
+	<para>
+	    There are a number of sections, described below, that contain options
+	    for specific components of the 3G Bridge suite. If a group is not
+	    one of these, then it defines a target grid system where jobs can be
+	    sent.
+	</para>
+	<para>
+	    The pre-defined group names are:
+
+	    <itemizedlist>
+		<listitem>
+		    <para>
+			<literal>database</literal>: Database access parameters
+		    </para>
+		</listitem>
+		<listitem>
+		    <para>
+			<literal>defaults</literal>: Global defaults
+		    </para>
+		</listitem>
+		<listitem>
+		    <para>
+			<literal>bridge</literal>: Specific options for <command>3g-bridge</command>
+		    </para>
+		</listitem>
+		<listitem>
+		    <para>
+			<literal>wssubmitter</literal>: Specific options for <command>wssubmitter</command>
+		    </para>
+		</listitem>
+	    </itemizedlist>
+	</para>
+    </refsect1>
+
+    <refsect1>
+	<title>DATABASE ACCESS PARAMETERS</title>
+	<para>
+	    The following values can be configured in the <literal>database</literal> group:
+	</para>
+	<glosslist>
+	    <glossentry>
+		<glossterm><envar>name</envar></glossterm>
+		<glossdef>
+		    <para>
+			The name of the MySQL database to use.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>user</envar></glossterm>
+		<glossdef>
+		    <para>
+			User name to use when connecting to the database. Defaults
+			to the name of the current user.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>host</envar></glossterm>
+		<glossdef>
+		    <para>
+			The name of the host where the database is. Defaults to
+			<literal>localhost</literal>.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>password</envar></glossterm>
+		<glossdef>
+		    <para>
+			Password for authenticating to the database.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>max-connections</envar></glossterm>
+		<glossdef>
+		    <para>
+			Max. number of simultaneous database connections. Setting it too low
+			may cause deadlocks; setting it high usually does not cause any harm.
+			The <command>3g-bridge</command> requires this limit to be at least 4;
+			for the <command>wssubmitter</command>, it is recommended to set this
+			limit to 1.5 times the number of download plus service threads.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	</glosslist>
+    </refsect1>
+
+    <refsect1>
+	<title>GLOBAL DEFAULTS</title>
+	<para>
+	    The following values can be configured in the <literal>defaults</literal> group.
+	    The same values can also be listed in the <literal>bridge</literal> and
+	    <literal>wssubmitter</literal> groups, in this case the values specified there
+	    override the defaults.
+	</para>
+	<glosslist>
+	    <glossentry>
+		<glossterm><envar>log-level</envar></glossterm>
+		<glossdef>
+		    <para>
+			Specifies the minimun severity of a message to be logged. The
+			value must be one of (in increasing severity order): <literal>debug</literal>,
+			<literal>info</literal>, <literal>notice</literal>, <literal>warning</literal>,
+			<literal>error</literal> and <literal>crit</literal>. The value is
+			not case-sensitive.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>log-target</envar></glossterm>
+		<glossdef>
+		    <para>
+			Specifies where to send log messages. Possible values:
+			<itemizedlist>
+			    <listitem>
+				<para>
+				    <literal>stdout</literal>: send all messages to the standard output.
+				</para>
+			    </listitem>
+			    <listitem>
+				<para>
+				    <literal>syslog</literal>: send all messages to the system log.
+				    You can also specify the syslog facility after a colon, e.g.:
+				    <informalexample><literal>syslog:user</literal></informalexample>.
+				    The default facility is <literal>daemon</literal>.
+				</para>
+			    </listitem>
+			    <listitem>
+				<para>
+				    <literal>file:<replaceable>FILE</replaceable></literal>: write all
+				    messages to the specified <replaceable>FILE</replaceable>.
+				</para>
+			    </listitem>
+			</itemizedlist>
+		    </para>
+		</glossdef>
+	    </glossentry>
+	</glosslist>
+    </refsect1>
+
+    <refsect1>
+	<title>OPTIONS FOR 3G-BRIDGE</title>
+
+	<para>
+	    The following values can be specified in the <literal>bridge</literal> group:
+	</para>
+	<glosslist>
+	    <glossentry>
+		<glossterm><envar>pid-file</envar></glossterm>
+		<glossdef>
+		    <para>
+			Location of the pid file. When running as a daemon, the <command>3g-bridge</command>
+			stores its process ID in this file.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>sleep-interval</envar></glossterm>
+		<glossdef>
+		    <para>
+			Time to sleep between polls of the database watching for new jobs.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>update-interval</envar></glossterm>
+		<glossdef>
+		    <para>
+			Minimum time between status updates of the grid plugins.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	</glosslist>
+    </refsect1>
+
+    <refsect1>
+	<title>OPTIONS FOR WSSUBMITTER</title>
+
+	<para>
+	    The following values can be specified in the <literal>wssubmitter</literal> group:
+	</para>
+	<glosslist>
+	    <glossentry>
+		<glossterm><envar>pid-file</envar></glossterm>
+		<glossdef>
+		    <para>
+			Location of the pid file. When running as a daemon, the <command>wssubmitter</command>
+			stores its process ID in this file.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>port</envar></glossterm>
+		<glossdef>
+		    <para>
+			Network port where <command>wssubmitter</command> should listen on.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>service-threads</envar></glossterm>
+		<glossdef>
+		    <para>
+			Number of threads to launch for servicing requests.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>download-threads</envar></glossterm>
+		<glossdef>
+		    <para>
+			Number of threads to launch for downloading the input files of
+			submitted jobs.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>input-dir</envar></glossterm>
+		<glossdef>
+		    <para>
+			Directory where the input files of submitted jobs are stored.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>output-dir</envar></glossterm>
+		<glossdef>
+		    <para>
+			Directory where to store the generated output files of finished
+			jobs.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>output-url-prefix</envar></glossterm>
+		<glossdef>
+		    <para>
+			URL prefix for downloading the output files. When a remote client
+			requests the list of output files for a specific job, <command>wssubmitter</command>
+			replaces the value of <envar>output-dir</envar> in the file name with the
+			value of <envar>output-url-prefix</envar> and reports the resulting URL.
+			It is the responsibility of the system administrator to configure the
+			appropriate web server such a way that the output files are really available at
+			the resulting location.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	</glosslist>
+    </refsect1>
+
+    <refsect1>
+	<title>DEFINING GRID INSTANCES</title>
+	<para>
+	    If the name of a group is not one of the values described above, then it defines a
+	    grid instane where jobs can be sent. The name of the group is matched with the
+	    grid name in the database to decide where to send a specific job.
+	</para>
+	<para>
+	    Every grid definition group must contain a value for <envar>handler</envar> that
+	    decides which grid plugin will handle this definition. The group may also contain
+	    additional definitions specific to the grid plugin.
+	</para>
+	<para>
+	    Currently the following grid plugins are available (i.e. these are the allowed values
+	    for <envar>handler</envar>), provided the support for the specified plugin is compiled
+	    into the <command>3g-bridge</command>:
+	</para>
+
+	<itemizedlist>
+	    <listitem>
+		<para>
+		    <literal>DC-API</literal>: Submit jobs using DC-API with batching support.
+		    The jobs must refer to applications that are using the <command>genwrapper</command>.
+		</para>
+	    </listitem>
+	    <listitem>
+		<para>
+		    <literal>DC-API-SINGLE</literal>: Submit jobs using DC-API, without batching
+		    support. Any DC-API compatible applications can be submitted this way.
+		</para>
+	    </listitem>
+	    <listitem>
+		<para>
+		    <literal>EGEE</literal>: Sumbit jobs to an EGEE VO using gLite.
+		</para>
+	    </listitem>
+	</itemizedlist>
+    </refsect1>
+
+    <refsect1>
+	<title>OPTIONS FOR THE DC-API AND DC-API-SINGLE PLUGINS</title>
+
+	<para>
+	    If a grid definition uses the <literal>DC-API</literal> or the <literal>DC-API-SINGLE</literal>
+	    plugin, then the following values can be specified in the defining group:
+	</para>
+	<glosslist>
+	    <glossentry>
+		<glossterm><envar>dc-api-config</envar></glossterm>
+		<glossdef>
+		    <para>
+			Location of the config file for the DC-API. If not specified, the DC-API
+			default is used, which is <filename>dc-api.conf</filename> in the current
+			directory. Note that when running as a daemon, the <command>3g-bridge</command>
+			switces to the root directory, so the default value will not work, and a file
+			with an absolute path name must be specified here.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	</glosslist>
+    </refsect1>
+
+    <refsect1>
+	<title>OPTIONS FOR THE EGEE PLUGIN</title>
+
+	<para>
+	    If a grid definition uses the <literal>EGEE</literal> plugin, then the following
+	    values can be specified in the defining group:
+	</para>
+	<glosslist>
+	    <glossentry>
+		<glossterm><envar>wmproxy-endpoint</envar></glossterm>
+		<glossdef>
+		    <para>
+			URL of the WMS service.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>voname</envar></glossterm>
+		<glossdef>
+		    <para>
+			Name of the VO (Virtual Organization) where the job should be sent.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>myproxy_host</envar></glossterm>
+		<glossdef>
+		    <para>
+			Name of the host where MyProxy runs.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>myproxy_port</envar></glossterm>
+		<glossdef>
+		    <para>
+			The port of the MyProxy server. Defaults to 7512.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>myproxy_user</envar></glossterm>
+		<glossdef>
+		    <para>
+			User name used when authenticating to MyProxy.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>myproxy_authcert</envar></glossterm>
+		<glossdef>
+		    <para>
+			X.509 certificate used for authenticating to MyProxy.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>myproxy_authkey</envar></glossterm>
+		<glossdef>
+		    <para>
+			The private key for the certificate used for authenticating to MyProxy.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>isb_url</envar></glossterm>
+		<glossdef>
+		    <para>
+			URL prefix for the input sandbox.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	</glosslist>
+    </refsect1>
+
+    <refsect1>
+	<title>SEE ALSO</title>
+	<para>
+	    <citerefentry><refentrytitle>3g-bridge</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
+	    <citerefentry><refentrytitle>injector</refentrytitle><manvolnum>1</manvolnum></citerefentry>,
+	    <citerefentry><refentrytitle>wssubmitter</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+	</para>
+    </refsect1>
+
+</refentry>
+<!-- vim: set ai sw=4: -->

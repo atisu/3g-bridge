@@ -1,0 +1,181 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl" type="text/xsl"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+        "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" [
+]>
+<refentry id="wssubmitter.8" revision="5 Mar 2009">
+    <refentryinfo>
+        <author>
+            <personname>
+                <firstname>Gábor</firstname>
+                <surname>Gombás</surname>
+            </personname>
+            <email>gombasg@sztaki.hu</email>
+        </author>
+        <date>5 Mar 2009</date>
+        <title>wssubmitter</title>
+        <productname>3G Bridge</productname>
+        <productnumber>@PACKAGE_VERSION@</productnumber>
+    </refentryinfo>
+
+    <refmeta>
+        <refentrytitle>wssubmitter</refentrytitle>
+        <manvolnum>8</manvolnum>
+        <refmiscinfo>3G Bridge</refmiscinfo>
+    </refmeta>
+
+    <refnamediv>
+        <refname><command>wssubmitter</command></refname>
+        <refpurpose>
+            3G Bridge Web Service interface
+        </refpurpose>
+    </refnamediv>
+
+    <refsynopsisdiv>
+	<cmdsynopsis>
+	    <command>wssubmitter</command>
+	    <group>
+		<arg choice="plain"><option>-c <replaceable>FILE</replaceable></option></arg>
+		<arg choice="plain"><option>--config <replaceable>FILE</replaceable></option></arg>
+	    </group>
+            <group>
+                <arg choice="plain"><option>-d</option></arg>
+                <arg choice="plain"><option>--debug</option></arg>
+            </group>
+            <group>
+                <arg choice="plain"><option>-f</option></arg>
+                <arg choice="plain"><option>--nofork</option></arg>
+            </group>
+        </cmdsynopsis>
+        <cmdsynopsis>
+            <command>wssubmitter</command>
+            <group choice="req">
+                <arg choice="plain"><option>-k</option></arg>
+                <arg choice="plain"><option>--kill</option></arg>
+            </group>
+        </cmdsynopsis>
+        <cmdsynopsis>
+            <command>wssubmitter</command>
+            <group choice="req">
+                <arg choice="plain"><option>-h</option></arg>
+                <arg choice="plain"><option>--help</option></arg>
+            </group>
+        </cmdsynopsis>
+    </refsynopsisdiv>
+
+    <refsect1>
+	<title>DESCRIPTION</title>
+	<para>
+	    <command>wssubmitter</command> is the web service interface to the 3G bridge.
+	    It receives job submission requests and stores them in the database for
+	    being processed by <command>3g-bridge</command>.
+	</para>
+    </refsect1>
+
+    <refsect1>
+	<title>OPTIONS</title>
+	<variablelist>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-c <replaceable>FILE</replaceable></option></arg>
+			<arg choice="plain"><option>--config <replaceable>FILE</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Use the specified config file instead of
+			<filename>@sysconfdir@/3g-bridge.conf</filename>
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-d</option></arg>
+			<arg choice="plain"><option>--debug</option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Debug mode: do not fork to the background, and send all
+			output to <filename>stderr</filename> istead of syslog.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-f</option></arg>
+			<arg choice="plain"><option>--nofork</option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Do not fork to the background. Useful if you want to run
+			<command>3g-bridge</command> under a debugger.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-h</option></arg>
+			<arg choice="plain"><option>--help</option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Show a short help text.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-k</option></arg>
+			<arg choice="plain"><option>--kill</option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Kill the running daemon by sending it a <literal>SIGTERM</literal>
+			signal.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	</variablelist>
+    </refsect1>
+
+    <refsect1>
+	<title>SIGNALS</title>
+	<para>
+	    When running as a daemon, receiving a <literal>SIGHUP</literal> signal
+	    causes the daemon to exit. The reason of this behaviour is to enable the
+	    <command>wssubmitter</command> to be supervised by BOINC.
+	</para>
+    </refsect1>
+
+    <refsect1>
+	<title>FILES</title>
+	<para>
+	    <filename>@sysconfdir@/3g-bridge.conf</filename>
+	</para>
+    </refsect1>
+
+    <refsect1>
+	<title>SEE ALSO</title>
+	<para>
+	    <citerefentry><refentrytitle>3g-bridge.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
+	    <citerefentry><refentrytitle>3g-bridge</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
+	    <citerefentry><refentrytitle>wsclient</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+	</para>
+    </refsect1>
+
+</refentry>
+<!-- vim: set ai sw=4: -->

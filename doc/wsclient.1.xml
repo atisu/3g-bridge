@@ -1,0 +1,370 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl" type="text/xsl"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+        "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" [
+]>
+<refentry id="wsclient.1" revision="5 Mar 2009">
+    <refentryinfo>
+        <author>
+            <personname>
+                <firstname>Gábor</firstname>
+                <surname>Gombás</surname>
+            </personname>
+            <email>gombasg@sztaki.hu</email>
+        </author>
+        <date>5 Mar 2009</date>
+        <title>wsclient</title>
+        <productname>3G Bridge</productname>
+        <productnumber>@PACKAGE_VERSION@</productnumber>
+    </refentryinfo>
+
+    <refmeta>
+        <refentrytitle>wsclient</refentrytitle>
+        <manvolnum>1</manvolnum>
+        <refmiscinfo>3G Bridge</refmiscinfo>
+    </refmeta>
+
+    <refnamediv>
+        <refname><command>wsclient</command></refname>
+        <refpurpose>
+            3G Bridge Web Service job submission tool
+        </refpurpose>
+    </refnamediv>
+
+    <refsynopsisdiv>
+	<cmdsynopsis>
+	    <command>wsclient</command>
+            <group choice="req">
+		<arg choice="plain"><option>-e <replaceable>URL</replaceable></option></arg>
+		<arg choice="plain"><option>--endpoint <replaceable>URL</replaceable></option></arg>
+            </group>
+            <group choice="req">
+		<arg choice="plain"><option>-m add</option></arg>
+		<arg choice="plain"><option>--mode add</option></arg>
+            </group>
+            <group choice="req">
+		<arg choice="plain"><option>-n <replaceable>APP</replaceable></option></arg>
+		<arg choice="plain"><option>--name <replaceable>APP</replaceable></option></arg>
+            </group>
+            <group choice="req">
+		<arg choice="plain"><option>-g <replaceable>GRID</replaceable></option></arg>
+		<arg choice="plain"><option>--grid <replaceable>GRID</replaceable></option></arg>
+            </group>
+	    <group rep="repeat" choice="req">
+		<arg choice="plain"><option>-i <replaceable>LFN=URL</replaceable></option></arg>
+		<arg choice="plain"><option>--in <replaceable>LFN=URL</replaceable></option></arg>
+	    </group>
+	    <group rep="repeat" choice="req">
+		<arg choice="plain"><option>-o <replaceable>LFN</replaceable></option></arg>
+		<arg choice="plain"><option>--out <replaceable>LFN</replaceable></option></arg>
+	    </group>
+            <group>
+		<arg choice="plain"><option>-a <replaceable>PARAMS</replaceable></option></arg>
+		<arg choice="plain"><option>--args <replaceable>PARAMS</replaceable></option></arg>
+            </group>
+	    <arg><option>--repeat <replaceable>COUNT</replaceable></option></arg>
+        </cmdsynopsis>
+	<cmdsynopsis>
+	    <command>wsclient</command>
+            <group choice="req">
+		<arg choice="plain"><option>-e <replaceable>URL</replaceable></option></arg>
+		<arg choice="plain"><option>--endpoint <replaceable>URL</replaceable></option></arg>
+            </group>
+            <group choice="req">
+		<arg choice="plain"><option>-m <replaceable>MODE</replaceable></option></arg>
+		<arg choice="plain"><option>--mode <replaceable>MODE</replaceable></option></arg>
+            </group>
+            <group rep="repeat">
+		<arg choice="plain"><option>-j <replaceable>JOBID</replaceable></option></arg>
+		<arg choice="plain"><option>--jid <replaceable>JOBID</replaceable></option></arg>
+            </group>
+            <group>
+		<arg choice="plain"><option>-f <replaceable>FILE</replaceable></option></arg>
+		<arg choice="plain"><option>--jidfile <replaceable>FILE</replaceable></option></arg>
+            </group>
+        </cmdsynopsis>
+        <cmdsynopsis>
+            <command>wsclient</command>
+            <group choice="req">
+                <arg choice="plain"><option>-h</option></arg>
+                <arg choice="plain"><option>--help</option></arg>
+            </group>
+        </cmdsynopsis>
+    </refsynopsisdiv>
+
+    <refsect1>
+	<title>DESCRIPTION</title>
+	<para>
+	    <command>wsclient</command> is a client for interacting with the 3G Bridge
+	    using the web service interface.
+	</para>
+    </refsect1>
+
+    <refsect1>
+	<title>GENERIC OPTIONS</title>
+	<variablelist>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-e <replaceable>URL</replaceable></option></arg>
+		        <arg choice="plain"><option>--endpoint <replaceable>URL</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			The URL of the web service interface.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-m <replaceable>MODE</replaceable></option></arg>
+			<arg choice="plain"><option>--mode <replaceable>MODE</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Mode of operation. Must be one of:
+		    </para>
+
+		    <itemizedlist>
+			<listitem>
+			    <para>
+				<literal>add</literal>: submit a new job
+			    </para>
+			</listitem>
+			<listitem>
+			    <para>
+				<literal>status</literal>: query the status of jobs
+			    </para>
+			</listitem>
+			<listitem>
+			    <para>
+				<literal>delete</literal>: delete all stored files for the job.
+				If the job is still running, it is cancelled
+			    </para>
+			</listitem>
+			<listitem>
+			    <para>
+				<literal>output</literal>: query the location of the output files
+				of finished jobs
+			    </para>
+			</listitem>
+			<listitem>
+			    <para>
+				<literal>finished</literal>: query the IDs of finished (either
+				successful or failed) jobs
+			    </para>
+			</listitem>
+		    </itemizedlist>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-h</option></arg>
+			<arg choice="plain"><option>--help</option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Show a short help text.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	</variablelist>
+    </refsect1>
+
+    <refsect1>
+	<title>JOB SUBMISSION OPTIONS</title>
+
+	<para>
+	    If the <option>--mode</option> option specifies <literal>add</literal>,
+	    then the following options are available:
+	</para>
+
+	<variablelist>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-n <replaceable>APP</replaceable></option></arg>
+			<arg choice="plain"><option>--name <replaceable>APP</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			The name of the application to execute.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-g <replaceable>GRID</replaceable></option></arg>
+			<arg choice="plain"><option>--grid <replaceable>GRID</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Name of the grid where the job should be sent. <replaceable>GRID</replaceable>
+			must already exist in the database of the 3G Bridge.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-i <replaceable>LFN=URL</replaceable></option></arg>
+			<arg choice="plain"><option>--in <replaceable>LFN=URL</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Specify the input file(s). There must be at least one input file
+			specified. <replaceable>LFN</replaceable> specifies the logical
+			name of the file, that is the name the application refers to the file as.
+			<replaceable>URL</replaceable> specifies where the file should be fetched
+			from.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-o <replaceable>LFN</replaceable></option></arg>
+			<arg choice="plain"><option>--out <replaceable>LFN</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Specify the output file(s). There must be at least one output file
+			specified. <replaceable>LFN</replaceable> specifies the logical
+			name of the file, that is the name the application refers to the file as.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-a <replaceable>PARAMS</replaceable></option></arg>
+			<arg choice="plain"><option>--args <replaceable>PARAMS</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Command-line parameters to pass to the application. Note that special
+			care should be taken when characters other than alphanumeric and whitespace
+			are used, as the architecture/operating system where the job will eventually
+			run is not known to the 3G Bridge therefore the meaning and handling of
+			special characters can be confusing.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <arg choice="plain"><option>--repeat <replaceable>COUNT</replaceable></option></arg>
+		</term>
+
+		<listitem>
+		    <para>
+			Submit the job <replaceable>COUNT</replaceable> times. Useful for benchmarking
+			and stress testing the system.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	</variablelist>
+    </refsect1>
+
+    <refsect1>
+	<title>OTHER OPTIONS</title>
+
+	<para>
+	    If the <option>--mode</option> option is not <literal>add</literal>,
+	    then the following options are available:
+	</para>
+
+	<variablelist>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-j <replaceable>JOBID</replaceable></option></arg>
+			<arg choice="plain"><option>--jid <replaceable>JOBID</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			The ID of the job to operate on. This option may be specified multiple
+			times.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-f <replaceable>FILE</replaceable></option></arg>
+			<arg choice="plain"><option>--jidfile <replaceable>FILE</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			<replaceable>FILE</replaceable> contains the job IDs to operate on,
+			one ID per line. If <replaceable>FILE</replaceable> is <literal>-</literal>, then
+			the job ID list will be read from standard input.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	</variablelist>
+    </refsect1>
+
+    <refsect1>
+	<title>OUTPUT</title>
+
+	<para>
+	    The format of the output depends on the value of the <option>--mode</option> option.
+	</para>
+	<para>
+	    If <option>--mode</option> is <literal>add</literal>, then the ID of the submitted job
+	    is printed to the standard output. If the <option>--repeat</option> option was also
+	    specified, then the ID of every submitted job is printed, each on a separate line.
+	</para>
+    	<para>
+	    If <option>--mode</option> is <literal>status</literal>, then every line in the output
+	    consists of a job ID, a space, and the status of the job.
+	</para>
+	<para>
+	    If <option>--mode</option> is <literal>output</literal>, then the first a comment is
+	    printed starting with the hash ('#') character. After that, for every output, a
+	    separate line is printed containing the logical name of the file, a space, and the
+	    URL where the file can be fetched from. When multiple job IDs are specified, the
+	    information for the different jobs are separated by an empty line.
+	</para>
+	<para>
+	    If <option>--mode</option> is <literal>finished</literal>, then the output consists
+	    of the job IDs of finished jobs, each printed on a separate line.
+	</para>
+	<para>
+	    The <literal>delete</literal> mode generates no output.
+	</para>
+    </refsect1>
+
+    <refsect1>
+	<title>SEE ALSO</title>
+	<para>
+	    <citerefentry><refentrytitle>3g-bridge</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
+	    <citerefentry><refentrytitle>wssubmitter</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+	</para>
+    </refsect1>
+
+</refentry>
+<!-- vim: set ai sw=4: -->
