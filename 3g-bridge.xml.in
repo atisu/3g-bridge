@@ -27,6 +27,18 @@
 		</arguments>
 	</daemon>
 
+@@ WS-START @@
+	<!-- Web service interface daemon -->
+	<daemon>
+		<binary>wssubmitter</binary>
+		<arguments>
+			<arg>-f</arg>
+			<arg>-c</arg>
+			<arg>${workdir}/3g-bridge.conf</arg>
+		</arguments>
+	</daemon>
+@@ WS-END @@
+
 	<!-- The application manager script will substitute the correct
 	     values for us -->
 	<dcapi-conf>dc-api.conf</dcapi-conf>

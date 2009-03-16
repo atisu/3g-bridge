@@ -2,9 +2,10 @@ ACLOCAL_AMFLAGS = -I cf
 
 AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@ -DRUNDIR='"${localstatedir}/run"' @GSOAP_CFLAGS@
 
+pkglibexecdir = $(libexecdir)/@PACKAGE@
+
 bin_PROGRAMS = injector
 sbin_PROGRAMS = 3g-bridge
-pkglibexecdir = $(libexecdir)/@PACKAGE@
 
 if HAVE_BOINC
 pkglibexec_PROGRAMS = jobwrapper
@@ -13,6 +14,20 @@ endif
 if HAVE_GSOAP
 bin_PROGRAMS += wsclient
 sbin_PROGRAMS += wssubmitter
+endif
+
+BACKEND_SOURCES =
+BACKEND_LIBS =
+
+if HAVE_DCAPI
+BACKEND_SOURCES += DCAPIHandler.cpp DCAPIHandlerSingle.cpp
+BACKEND_LIBS += $(DCAPI_MASTER_LIBS)
+endif
+
+if HAVE_EGEE
+BACKEND_SOURCES += EGEEHandler.cpp
+BACKEND_LIBS += $(EGEE_LIBS)
+AM_CPPFLAGS += $(EGEE_CPPFLAGS)
 endif
 
 SUBDIRS = doc
@@ -46,20 +61,6 @@ jobwrapper_SOURCES = \
 jobwrapper_CPPFLAGS = $(BOINC_CPPFLAGS) $(AM_CPPFLAGS)
 jobwrapper_LDFLAGS = $(BOINC_LDFLAGS) $(AM_LDFLAGS)
 jobwrapper_LDADD = -lboinc_api -lboinc $(GLIB_LIBS) $(MYSQL_LIBS)
-
-BACKEND_SOURCES =
-BACKEND_LIBS =
-
-if HAVE_DCAPI
-BACKEND_SOURCES += DCAPIHandler.cpp DCAPIHandlerSingle.cpp
-BACKEND_LIBS += $(DCAPI_MASTER_LIBS)
-endif
-
-if HAVE_EGEE
-BACKEND_SOURCES += EGEEHandler.cpp
-BACKEND_LIBS += $(EGEE_LIBS)
-AM_CPPFLAGS += $(EGEE_CPPFLAGS)
-endif
 
 WSDL = 3GBridge.wsdl
 TYPEMAP = 3GBridge.typemap
@@ -110,24 +111,31 @@ wsclient_SOURCES = \
 		wsclient.cpp
 wsclient_LDADD = $(GLIB_LIBS) $(GSOAP_LIBS)
 
-master.xml: master.xml.in
+if HAVE_GSOAP
+GSOAP_EDIT = -e '/^@@ WS-START @@/d' -e '/^@@ WS-END @@/d'
+else
+GSOAP_EDIT = -e '/^@@ WS-START @@/,/^@@ WS-END @@/d'
+endif
+
+3g-bridge.xml: 3g-bridge.xml.in
 	$(SED) -e "s,@PACKAGE_VERSION\@,$(PACKAGE_VERSION)," \
+		$(GSOAP_EDIT) \
 		$< > $@
 
-CLEANFILES = master.xml queuemanager.tar.gz soap/*
+CLEANFILES = 3g-bridge.xml 3g-bridge-package.tar.gz soap/*
 MAINTAINERCLEANFILES = Makefile.in
 
 EXTRA_DIST = \
 		3GBridge.typemap \
 		3GBridge.wsdl \
-		master.xml.in \
+		3g-bridge.xml.in \
 		etc/3g-bridge.* \
 		doc/*
 
 dist_doc_DATA = \
 		doc/README-BOINC2EGEE \
 		doc/jobwrapper_client.xml \
-		master.xml
+		3g-bridge.xml
 nobase_dist_doc_DATA = \
 		db/schema.sql \
 		examples/batch_pack \
@@ -136,17 +144,21 @@ nobase_dist_doc_DATA = \
 
 dist_sysconf_DATA = etc/3g-bridge.conf
 
-package: queuemanager.tar.gz
+package: 3g-bridge-package.tar.gz
 
 package_contents = \
 		3g-bridge \
 		etc/3g-bridge.conf \
-		master.xml \
+		3g-bridge.xml \
 		examples/batch_pack \
 		examples/batch_unpack \
 		examples/dc-api.conf
 
-queuemanager.tar.gz: $(package_contents)
+if HAVE_GSOAP
+package_contents += wssubmitter
+endif
+
+3g-bridge-package.tar.gz: $(package_contents)
 	mkdir package-tmp
 	cp -p $(package_contents) package-tmp/
 	(cd package-tmp && $(AMTAR) cf - *) | GZIP=$(GZIP_ENV) gzip -c > $@
