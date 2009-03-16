@@ -33,14 +33,136 @@ this exception statement from your version.
 
 The full text of the GPL can be found in the file COPYING.
 
+Prerequisites
+------------
+
+See below the list of 3rd party software requried for building the 3G Bridge.
+The list shows the minimum required version.
+
+- MySQL				5.0
+- glib				2.6
+- libcurl			7.12.0		(for the web service interface)
+- gsoap				2.7.9l		(for the web service interface)
+- BOINC				6.15		(for the DC-API plugin)
+- DC-API			0.9		(for the DC-API plugin)
+- gLite				3.1		(for the EGEE plugin)
+- xsltproc			1.1.16		(for building the documentation)
+- DocBook XSL stylesheets	4.5		(for building the documentation)
+
 Building
 --------
 
-autoreconf -if
-./configure [--with-egee] [--with-dcapi]
-make
+The 3G Bridge uses GNU autoconf and automake. See the file INSTALL for generic
+buinding and installation instructions, but in a nutshell:
 
-Dependencies
-------------
-Mysql 5.0
-glib 2.6
+	./configure [--with-egee] [--with-dcapi]
+	make
+	make install
+
+See the output of "./configure --help" for more information about the available
+configuration options.
+
+Deploying the bridge under a BOINC project
+------------------------------------------
+
+If you want to deploy the 3G-Bridge under BOINC, make sure to pass the
+"--with-dcapi" flag to ./configure in order to build with BOINC support.
+Then type "make package", which will create an archive named
+3g-bridge-package.tar.gz. This archive can then be deployed using
+boinc_appmgr (this and the following steps must all be performed under the
+BOINC project user account):
+
+	boinc_appmgr --add /path/to/3g-bridge-package.tar.gz
+
+The 3G Bridge is installed into the $HOME/master/3g-bridge directory.
+
+Now you must edit $HOME/master/3g-bridge/3g-bridge.conf:
+
+- In the [database] section, insert the user, database name, and
+  password needed to connect to the BOINC database
+
+- In the [bridge] section, set the "log-target" key to "stdout" to
+  make logging compatible with the other BOINC components
+
+- If you have built the web service interface, then you should
+  set "log-target" in similarly in the [wssubmitter] section as well.
+  You should also set the "port" key to the TCP port on which the web
+  service interface should listen.
+  
+  Additionally, you should set "input-dir" to a location where the web service
+  interface can store files it downloads; it is a good idea to create a
+  sub-directory under $HOME/master/3g-bridge for this reason. Note that this
+  directory should be on the same file system as the BOINC download directory.
+
+  Lastly, you should set "output-dir" to a directory where the finished
+  jobs' output files are to be stored. This directory must be on the same
+  file system as the BOINC upload directory. You must also configure the web
+  server (Apache) to make the "output-dir" available over the web, and set
+  the appropriate base URL as the value of "output-dir-prefix". For example,
+  if "output-dir" is $HOME/master/3g-bridge/ws-upload, and you have added
+  "Alias /ws-upload/ <root of the BOINC project>/master/3g-bridge/ws-upload/",
+  then "output-dir-prefix" should be "http://<hostname>/ws-upload" (or
+  "https://<hostname>/ws-upload" if you want to use SSL). Make sure to
+  add the appropriate access control rules in the Apache configuration if
+  you do not want anyone on the planet to be able to download the results.
+
+After finishing with 3g-bridge.conf, edit $HOME/master/3g-bridge/dc-api.conf
+and configure your client applications. See the DC-API documentation and the
+following plugin description for details.
+
+When finished with the configuration, you should load the 3G Bridge schema
+into the BOINC database by executing
+
+	mysql <name of the BOINC database> < ${prefix}/share/doc/3g-bridge/db/schema.sql
+
+where "${prefix}" refers to the value you passwed to the "--prefix=..."
+option of configure (/usr/local by default).
+
+If everything is ready, issue "start" to let BOINC launch the 3G Bridge.
+
+Configuring the DC-API and DC-API-SINGLE plugins
+------------------------------------------------
+
+	Note: currently these two plugins cannot be used simultaneously in
+	the same 3G Bridge instance
+
+The DC-API-SINGLE plugin does not require any configuration other than what
+is normally needed for DC-API client applications.
+
+The DC-API plugin on the other hand requires that applications are prepared
+specially to be used with this plugin, and it also requires 5 additional
+keys to be set for every client application in dc-api.conf. These keys are
+BatchPackScript, BatchUnpackScript, BatchHeadTemplate, BatchBodyTemplate,
+and BatchTailTemplate. The DC-API plugin is capable of batching several
+input jobs inside a single BOINC WU. In order to do so, it generates a
+script (utilizing genwrapper) by including the file pointed by
+BatchHeadTemplate, followed by the file pointed by BatchBodyTemplate as many
+times as the number of input jobs to be put into the WU, and finally the
+file pointed by BatchTailTemplate. The DC-API plugin also performs a number
+of macro substitutions when generating the script:
+
+- In the BatchHeadTemplate, %{inputs} is replaced by the name of the archive
+  (generated by the BatchPackScript script) containing all the input files
+
+- In the BatchBodyTemplate, %{input_dir} is replaced by the relative input
+  directory of the current job, %{output_dir} is replaced by the relative
+  location where the output files of the current job are to be stored, and
+  %{args} is replaced by the command-line arguments of the current job.
+
+- In the BatchTailTemplate, %{outputs} is replaced by the name of the
+  archive all output files should be packed to, and %{output_pattern} is
+  replaced by a shell wildcard pattern that matches the output directories
+  of all jobs inside the WU.
+
+The BatchPackScript and BatchUnpackScript scripts are run on the master side
+and are usually shared by all applications (i.e. they can be specified in
+the [Master] section of dc-api.conf instead of the per-application
+sections). The BatchPackScript script gets invoked with the base directory
+where the to-be-packed input files are, the name of the destination archive
+file, and a list of shell wildcard patterns matching the files that should
+be part of the archive. The BatchUnpackScript gets called with two
+parameters: the location of the output archive generated by the WU, and the
+directory where this archive should be extracted into.
+
+You can find examples for these scripts and templates under the
+${prefix}/share/doc/3g-bridge/examples directory.
