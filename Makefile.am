@@ -5,9 +5,12 @@ AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@ -DRUNDIR='"${localstatedir}/run"' @
 bin_PROGRAMS = injector
 sbin_PROGRAMS = 3g-bridge
 pkglibexecdir = $(libexecdir)/@PACKAGE@
-pkglibexec_PROGRAMS = jobwrapper
 
-if GSOAP
+if HAVE_BOINC
+pkglibexec_PROGRAMS = jobwrapper
+endif
+
+if HAVE_GSOAP
 bin_PROGRAMS += wsclient
 sbin_PROGRAMS += wssubmitter
 endif

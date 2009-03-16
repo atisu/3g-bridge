@@ -22,9 +22,16 @@ if test "$ac_cv_cxx_compiler_gnu" = yes; then
 	CXXFLAGS="-Wall -Wsign-compare ${CXXFLAGS}"
 fi
 
+dnl Make sure configure remembers the value of PKG_CONFIG_PATH
+AC_ARG_VAR([PKG_CONFIG_PATH], [Path where pkg-config looks for .pc files])
+
 dnl ===================================================================
 dnl Check for 3rd party software
 dnl ===================================================================
+
+dnl -------------------------------------------------------------------
+dnl MySQL
+dnl -------------------------------------------------------------------
 
 AC_PATH_PROG([MYSQL_CONFIG], [mysql_config], [none])
 if test "$MYSQL_CONFIG" = none; then
@@ -36,10 +43,18 @@ AC_SUBST([MYSQL_CPPFLAGS])
 MYSQL_LIBS=`$MYSQL_CONFIG --libs_r`
 AC_SUBST([MYSQL_LIBS])
 
+dnl -------------------------------------------------------------------
+dnl glib
+dnl -------------------------------------------------------------------
+
 AM_PATH_GLIB_2_0([2.10.0],,, [gthread])
 if test "$no_glib" = yes; then
 	AC_MSG_ERROR([glib libraries were not found])
 fi
+
+dnl -------------------------------------------------------------------
+dnl DC-API
+dnl -------------------------------------------------------------------
 
 AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@no@:>@]),
 	[], [with_dcapi=no])
@@ -50,6 +65,10 @@ if test "$with_dcapi" != no; then
 	AC_DEFINE([HAVE_DCAPI], [1], [Define if DC-API is requested.])
 fi
 AM_CONDITIONAL([HAVE_DCAPI], [test "$with_dcapi" != no])
+
+dnl -------------------------------------------------------------------
+dnl EGEE/gLite
+dnl -------------------------------------------------------------------
 
 dnl Check for EGEE backend
 AC_ARG_WITH([egee], AS_HELP_STRING([--with-egee], [Enable EGEE backend @<:@no@:>@]),
@@ -62,34 +81,56 @@ if test "$with_egee" != no; then
 fi
 AM_CONDITIONAL([HAVE_EGEE], [test "$with_egee" != no])
 
-AC_ARG_VAR([PKG_CONFIG_PATH], [Path where pkg-config looks for .pc files])
-AC_ARG_WITH([gsoap], AS_HELP_STRING([--with-gsoap], [Use gSOAP in @<:@/usr@:>@]),
-	[], [with_gsoap=/usr])
-if test "$with_gsoap" != no; then
-	PKG_CHECK_MODULES([GSOAP], [gsoap++], [], [with_gsoap=no])
+dnl -------------------------------------------------------------------
+dnl gsoap & libcurl
+dnl -------------------------------------------------------------------
+
+AC_ARG_WITH([gsoap], AS_HELP_STRING([--with-gsoap], [Use gSOAP @<:@auto@:>@]),
+	[], [with_gsoap=auto])
+no_gsoap=
+if test "$with_gsoap" = no; then
+	no_gsoap=yes
+else
+	if test "$with_gsoap" = auto; then
+		PKG_CHECK_MODULES([GSOAP], [gsoap++], [], [no_gsoap=yes])
+		if test "$no_gsoap" != yes; then
+			GSOAP_IMPORT="`pkg-config --variable includedir gsoap++`/gsoap"
+		fi
+	else
+		GSOAP_CFLAGS="-I$with_gsoap/include"
+		GSOAP_IMPORT="$with_gsoap/share/gsoap/import"
+	fi
 fi
-if test "$with_gsoap" != no; then
+if test "$with_gsoap" = yes -a "$no_gsoap" = yes; then
+	AC_MSG_ERROR([gsoap was not found])
+fi
+if test "$no_gsoap" != yes; then
 	LIBCURL_CHECK_CONFIG([yes], [7.12.0], [],
 		[AC_MSG_ERROR([CURL development files are missing])])
 
-	if test "$with_gsoap" = "/usr"; then
-		GSOAP_IMPORT="/usr/include/gsoap"
-	else
-		GSOAP_IMPORT="$with_gsoap/share/gsoap/import"
+	AC_PATH_PROG([SOAPCPP2], [soapcpp2], [false], "$PATH:$with_gsoap/bin")
+	AC_PATH_PROG([WSDL2H], [wsdl2h], [false], "$PATH:$with_gsoap/bin")
+	if test "$SOAPCPP2" = false -o "$WSDL2H" = false; then
+		no_gsoap=yes
 	fi
-	AC_PATH_PROG([SOAPCPP2], [soapcpp2], [], "$with_gsoap/bin")
-	AC_PATH_PROG([WSDL2H], [wsdl2h], [], "$with_gsoap/bin")
-	GSOAP_CFLAGS="-I$with_gsoap/include"
 	AC_SUBST([GSOAP_IMPORT])
 	AC_SUBST([GSOAP_CFLAGS])
 fi
-AM_CONDITIONAL([GSOAP], [test "$with_gsoap" != no])
+AM_CONDITIONAL([HAVE_GSOAP], [test "$no_gsoap" != yes])
+
+dnl -------------------------------------------------------------------
+dnl libuuid
+dnl -------------------------------------------------------------------
 
 AC_CHECK_LIB([uuid], [uuid_parse],, [AC_MSG_ERROR([libuuid was not found])])
 AC_CHECK_HEADER([uuid/uuid.h],, [AC_MSG_ERROR([uuid/uuid.h was not found])])
 
+dnl -------------------------------------------------------------------
+dnl BOINC
+dnl -------------------------------------------------------------------
+
 AC_ARG_WITH([boinc], AS_HELP_STRING([--with-boinc], [Use BOINC in @<:@/usr@:>@]),
-	[], [with_boinc=/usr])
+	[], [with_boinc=no])
 if test "${with_boinc}" != no; then
 	BOINC_CPPFLAGS="-I${with_boinc}/include/BOINC"
     	if test "${with_boinc}" != /usr; then
@@ -98,6 +139,7 @@ if test "${with_boinc}" != no; then
 	AC_SUBST(BOINC_CPPFLAGS)
 	AC_SUBST(BOINC_LDFLAGS)
 fi
+AM_CONDITIONAL([HAVE_BOINC], [test "$with_boinc" != no])
 
 dnl ===================================================================
 dnl Tools needed to build the documentation
