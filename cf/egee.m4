@@ -23,8 +23,8 @@ AC_DEFUN([CLASSADS_CONF], [
 AC_DEFUN([CARES_CONF], [
 	AC_ARG_WITH([cares], AS_HELP_STRING([--with-cares],
 		[Use C-Ares in @<:@/opt/c-ares@:>@]),,
-		[with_cares=/opt/cares])
-	EGEE_CPPFLAGS="$EGEE_CPPFLAGS -I${with_caress}/include"
+		[with_cares=/opt/c-ares])
+	EGEE_CPPFLAGS="$EGEE_CPPFLAGS -I${with_cares}/include"
 	EGEE_LIBS="$EGEE_LIBS -L${with_cares}/lib -lcares"
 ])
 
