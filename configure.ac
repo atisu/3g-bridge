@@ -132,12 +132,24 @@ dnl BOINC
 dnl -------------------------------------------------------------------
 
 AC_ARG_WITH([boinc], AS_HELP_STRING([--with-boinc], [Use BOINC in @<:@/usr@:>@]),
-	[], [with_boinc=no])
+	[], [with_boinc=/usr])
+
 if test "${with_boinc}" != no; then
 	BOINC_CPPFLAGS="-I${with_boinc}/include/BOINC"
     	if test "${with_boinc}" != /usr; then
 		BOINC_LDFLAGS="-L${with_boinc}/lib"
 	fi
+	save_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="-pthread $CPPFLAGS $BOINC_CPPFLAGS"
+	save_LIBS="$LIBS"
+	LIBS="$LIBS $BOINC_LDFLAGS"
+	AC_CHECK_HEADERS([boinc_api.h],,[with_boinc=no])
+	AC_LANG_PUSH([C++])
+	AC_CHECK_LIB([boinc_api],[boinc_init_options],,[with_boinc=no],[-lboinc])
+	AC_LANG_POP([C++])
+	CPPFLAGS="$save_CPPFLAGS"
+	LIBS="$save_LIBS"
+
 	AC_SUBST(BOINC_CPPFLAGS)
 	AC_SUBST(BOINC_LDFLAGS)
 fi
