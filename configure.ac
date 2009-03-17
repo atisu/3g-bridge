@@ -135,6 +135,10 @@ AC_ARG_WITH([boinc], AS_HELP_STRING([--with-boinc], [Use BOINC in @<:@/usr@:>@])
 	[], [with_boinc=/usr])
 
 if test "${with_boinc}" != no; then
+	# Use default value if nothing is specified
+	if test "${with_boinc}" = yes; then
+		with_boinc=/usr
+	fi
 	BOINC_CPPFLAGS="-I${with_boinc}/include/BOINC"
     	if test "${with_boinc}" != /usr; then
 		BOINC_LDFLAGS="-L${with_boinc}/lib"
