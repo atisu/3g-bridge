@@ -59,7 +59,7 @@
 
 #define MAX_LENGTH		10000
 #define MAX_FILES		100
-#define RTRY_IVAL		10
+#define RTRY_IVAL		600
 #define RTRY_TIMES		3
 
 using namespace std;
@@ -149,6 +149,7 @@ void init_config(void)
 	if (!g_key_file_load_from_file(kf, bridgecfg, G_KEY_FILE_NONE, &error)) {
 		LOG(LOG_ERR, "Failed to load the config file %s: %s\n", bridgecfg, error->message);
 		g_error_free(error);
+		g_key_file_free(kf);
 		exit(-1);
 	}
 
@@ -158,30 +159,35 @@ void init_config(void)
 	if (!mysql_dbname) {
 		LOG(LOG_ERR, "Failed to get database name: %s\n", error->message);
 		g_error_free(error);
+		g_key_file_free(kf);
 		exit(-1);
 	}
 	mysql_host = g_key_file_get_string(kf, "database", "host", &error);
 	if (!mysql_host) {
 		LOG(LOG_ERR, "Failed to get database host: %s\n", error->message);
 		g_error_free(error);
+		g_key_file_free(kf);
 		exit(-1);
 	}
 	mysql_user = g_key_file_get_string(kf, "database", "user", &error);
 	if (!mysql_user) {
 		LOG(LOG_ERR, "Failed to get database user: %s\n", error->message);
 		g_error_free(error);
+		g_key_file_free(kf);
 		exit(-1);
 	}
 	mysql_pass = g_key_file_get_string(kf, "database", "password", &error);
 	if (!mysql_pass) {
 		LOG(LOG_ERR, "Failed to get database password: %s\n", error->message);
 		g_error_free(error);
+		g_key_file_free(kf);
 		exit(-1);
 	}
 	grid = g_key_file_get_string(kf, cfgsection, "grid", &error);
 	if (!grid) {
 		LOG(LOG_ERR, "Failed to get %s grid: %s\n", cfgsection, error->message);
 		g_error_free(error);
+		g_key_file_free(kf);
 		exit(-1);
 	}
 
@@ -206,13 +212,13 @@ void read_config(void)
 {
         FILE *jobwrapper_config_file;
         char buf[MAX_LENGTH];
-        char *p;
+        char *p, *d;
         int len;
         int i = 0;
 
         jobwrapper_config_file = fopen(JOBWRAPPER_CONFIG_FILE, "r");
         if (jobwrapper_config_file == NULL) {
-		LOG(LOG_ERR, "Error, cannot open jobwrapper config file: %s,\n  errno=%d %s",
+		LOG(LOG_ERR, "Cannot open jobwrapper config file %s, errno=%d %s",
 			JOBWRAPPER_CONFIG_FILE, errno, strerror(errno));
 		exit(-108);
         }
@@ -224,12 +230,12 @@ void read_config(void)
 			p++;
 			app_files_num = atoi(p);
 			if (app_files_num > MAX_FILES) {
-				LOG(LOG_ERR, "Error:  Application has got too many files %d. Maxmimum app file is %d.",
+				LOG(LOG_ERR, "Application has got too many files %d. Maxmimum app file is %d",
 					app_files_num, MAX_FILES);
 				exit(-1);
 			}
 			if (app_files_num < 1) {
-				LOG(LOG_ERR, "Error:  Application hasn't got any application files according to the %s.\n %s",
+				LOG(LOG_ERR, "Application hasn't got any application files according to file %s: %s",
 					JOBWRAPPER_CONFIG_FILE, buf);
 				exit(-1);
 			}
@@ -264,12 +270,12 @@ void read_config(void)
 			p++;
 			input_files_num = atoi(p);
 			if (input_files_num > MAX_FILES) {
-				LOG(LOG_ERR, "Error:  Application has got too many input files %d. Maximum input file is %d",
+				LOG(LOG_ERR, "Application has got too many input files %d. Maximum input file is %d",
 					input_files_num, MAX_FILES);
 				exit(-1);
 			}
 			if (input_files_num < 0){
-				LOG(LOG_ERR, "Error:  Application has got too few input files %d.",
+				LOG(LOG_ERR, "Application has got too few input files %d",
 					input_files_num);
 				exit(-1);
 			}
@@ -304,12 +310,12 @@ void read_config(void)
 			p++;
 			output_files_num = atoi(p);
 			if (output_files_num > MAX_FILES) {
-				LOG(LOG_ERR, "Error:  Application has got too many output files %d. Maximum output files is %d.",
+				LOG(LOG_ERR, "Application has got too many output files %d. Maximum output files is %d",
 					output_files_num, MAX_FILES);
 				exit(-1);
 			}
 			if (output_files_num < 1) {
-				LOG(LOG_ERR, "Error:  Application has got too few output files %d.",
+				LOG(LOG_ERR, "Application has got too few output files %d",
 					output_files_num);
 				exit(-1);
 			}
@@ -343,7 +349,8 @@ void read_config(void)
 			}
 		} else if ((strstr(buf, "command_line:")) != NULL) {
 finread:
-			p = strdup(buf);
+			d = strdup(buf);
+			p = d;
 			p = strtok(buf, " ");
 			p = strtok(NULL, " ");
 
@@ -361,6 +368,7 @@ finread:
             			snprintf(arguments, len + 1, "%s", p);
 			else
 				sprintf(arguments, " ");
+			free(d);
 		} else {
 			corrupt(); // undefinied line
 		}
@@ -382,12 +390,12 @@ string add_to_3g_db(char *slotStr)
 	sprintf(wrapFname, "%s.sh", sID);
         sprintf(outsFname, "%s.outs", sID);
 	if (NULL == (wrapF = fopen(wrapFname, "w"))) {
-        	LOG(LOG_ERR, "Error: unable to open file \"%s\" for writing: %s", wrapFname, strerror(errno));
+        	LOG(LOG_ERR, "Unable to open file \"%s\" for writing: %s", wrapFname, strerror(errno));
 		g_free(sargs);
 	        return "";
 	}
 	if (NULL == (outF = fopen(outsFname, "w"))) {
-        	LOG(LOG_ERR, "Error: unable to open file \"%s\" for writing: %s", outsFname, strerror(errno));
+        	LOG(LOG_ERR, "Unable to open file \"%s\" for writing: %s", outsFname, strerror(errno));
 		g_free(sargs);
 	        return "";
 	}
@@ -410,7 +418,7 @@ string add_to_3g_db(char *slotStr)
 	LOG(LOG_DEBUG, "Creating input tgz for \"%s\" with command \"%s\".", sID, tcomm.str().c_str());
 	system(tcomm.str().c_str());
 
-	LOG(LOG_INFO, "Inserting WU \"%s\" into 3G Job Database with identifier \"%s\".", wuname, sID);
+	LOG(LOG_INFO, "Inserting WU \"%s\" into 3G Bridge DB with identifier \"%s\".", wuname, sID);
 
 	char *query;
 	asprintf(&query, "INSERT INTO cg_job(id, alg, grid, status, args) VALUES (\"%s\",\"%s\",\"%s\",\"%s\",\"%s\")",
@@ -419,9 +427,8 @@ string add_to_3g_db(char *slotStr)
 	LOG(LOG_DEBUG, "MySQL    job insert command is: %s", query);
 	if (mysql_query(conn, query))
 	{
-		LOG(LOG_ERR, "Error: failed to add job entry to database: %s", mysql_error(conn));
-		LOG(LOG_ERR, "       the above error probably is caused by a missing cg_algqueue entry in");
-		LOG(LOG_ERR, "       the database. Please check if you have defined the \'%s\' algorithm queue!", grid);
+		LOG(LOG_ERR, "Failed to add job entry to 3G Bridge DB, probably caused by a "
+			"missing cg_algqueue entry in the database: %s", mysql_error(conn));
 		free(query);
 		return "";
 	}
@@ -490,7 +497,8 @@ string getstat_3g(string jobID)
 		free(query);
 		return "UNKNOWN";
 	}
-	if (!(res = mysql_store_result(conn)))
+	res = mysql_store_result(conn);
+	if (!res)
 	{
 		LOG(LOG_ERR, "Error: failed to get status of job \"%s\": %s", jobID.c_str(), mysql_error(conn));
 		free(query);
@@ -529,7 +537,7 @@ void clean_3g(string jobID)
 void init_mysql()
 {
 	LOG(LOG_DEBUG, "Trying to establish connection to MySQL DB \"%s\" on host \"%s\" with user \"%s\".", mysql_dbname, mysql_host, mysql_user);
-	conn = mysql_init(0);
+	conn = mysql_init(NULL);
 	if (!conn)
 	{
 		LOG(LOG_ERR, "Failed to initialize MySQL: %s", mysql_error(conn));
@@ -540,8 +548,32 @@ void init_mysql()
 		LOG(LOG_ERR, "Failed to connect to MySQL server: %s", mysql_error(conn));
 		exit(-1);
 	}
-	LOG(LOG_INFO, "MySQL connection OK.\n");
 }
+
+
+void cleanup(const string& jobID)
+{
+	for (int i = 0; i < app_files_num; i++)
+	{
+		free(app_files[i]);
+		free(app_files_real_name[i]);
+	}
+	for (int i = 0; i < input_files_num; i++)
+	{
+		free(input_files[i]);
+		free(input_files_real_name[i]);
+	}
+	for (int i = 0; i < output_files_num; i++)
+	{
+		free(output_files[i]);
+		free(output_files_real_name[i]);
+	}
+
+	free(cwd);
+	clean_3g(jobID);
+	mysql_close(conn);
+}
+
 
 int main(int argc, char **argv)
 {
@@ -555,10 +587,6 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
 	init_config();
-	LOG(LOG_INFO, "Jobwrapper pid=%d starts", getpid());
-	LOG(LOG_DEBUG, "CWD=\"%s\"\n", cwd);
-	for (int i = 0 ; i < argc; i++)
-		LOG(LOG_DEBUG, "argv[%d]=\"%s\"\n", i, argv[i]);
 
 	BOINC_OPTIONS opts;
 	boinc_options_defaults(opts);
@@ -577,7 +605,11 @@ int main(int argc, char **argv)
 	parse_init_data_file(aidf2, aid2);
 	fclose(aidf2);
 	wuname = strdup(aid2.wu_name);
-	LOG(LOG_INFO, "About to handle workunit \"%s\" for \"%s\" through 3G bridge.", wuname, exec_path);
+
+	LOG(LOG_INFO, "Jobwrapper (PID %d) starting WU \"%s\" (executable is \"%s\")", getpid(), wuname, exec_path);
+	LOG(LOG_DEBUG, "CWD=\"%s\"", cwd);
+	for (int i = 0 ; i < argc; i++)
+		LOG(LOG_DEBUG, "argv[%d]=\"%s\"", i, argv[i]);
 
 	// Initialize MySQL connection
 	init_mysql();
@@ -585,42 +617,43 @@ int main(int argc, char **argv)
 	ifstream idF(IDFILE);
 	if (!idF)
 	{
-		LOG(LOG_INFO, "Job ID file for WU not present, submitting a new job.");
+		LOG(LOG_DEBUG, "Job ID file for WU not present, submitting a new job");
 		jobID = add_to_3g_db(slotStr);
 		if (jobID == "")
 		{
-			LOG(LOG_ERR, "Error: 3G Bridge database identifier is not set!");
+			LOG(LOG_ERR, "3G Bridge database identifier is not set!");
 			idF.close();
 			exit(-1);
 		}
 	} else {
-		idF >> jobID;
-		LOG(LOG_INFO, "Job ID file for WU \"%s\" exists, it is \"%s\".", wuname, jobID.c_str());
+		getline(idF, jobID);
+		LOG(LOG_DEBUG, "WU \"%s\" has previously been started with 3G Bridge ID \"%s\"", wuname, jobID.c_str());
 		idF.close();
 	}
-	LOG(LOG_DEBUG, "Our 3G Bridge identifier is \"%s\".\n", jobID.c_str());
+	LOG(LOG_INFO, "3G Bridge ID of WU \"%s\" is: \"%s\"", wuname, jobID.c_str());
 	free(wdcpy);
 
 	status = getstat_3g(jobID);
-	while ("FINISHED" != status && "ERROR" != status) {
-		LOG(LOG_DEBUG, "Status of job \"%s\" is \"%s\".", jobID.c_str(), status.c_str());
+	while ("FINISHED" != status && "ERROR" != status && "UNKNOWN" != status) {
+		LOG(LOG_DEBUG, "Status of 3G job \"%s\" is: \"%s\"", jobID.c_str(), status.c_str());
 		if ("TEMPFAILED" == status)
 		{
+			LOG(LOG_WARNING, "Status of WU \"%s\" is: %s", wuname, status.c_str());
 			if (try_num >= RTRY_TIMES)
 			{
-				LOG(LOG_INFO, "Job \"%s\" reported temporary failure %d times. Setting status to ERROR", jobID.c_str(), RTRY_TIMES);
+				LOG(LOG_ERR, "WU \"%s\" reported temporary failure %d times. Setting status to ERROR", wuname, RTRY_TIMES);
 				status = "ERROR";
 				break;
 			}
-			LOG(LOG_DEBUG, "Now sleeping for %zd minutes before job's \"resubmission\"...",
-				RTRY_IVAL);
-			boinc_sleep(RTRY_IVAL*60);
+			LOG(LOG_WARNING, "WU \"%s\" sleeps now %zd seconds before its \"resubmission\"...",
+				wuname, RTRY_IVAL);
+			boinc_sleep(RTRY_IVAL);
 			string ofile = string(cwd) + "/" + jobID + ".out.tgz";
 			unlink(ofile.c_str());
 			char *query;
 			asprintf(&query, "UPDATE cg_job SET status='INIT' WHERE id=\"%s\"", jobID.c_str());
 			if (mysql_query(conn, query))
-				LOG(LOG_ERR, "Error: failed to set status of job \"%s\" to INIT: %s", jobID.c_str(), mysql_error(conn));
+				LOG(LOG_ERR, "Failed to set status of WU \"%s\" to INIT: %s", wuname, mysql_error(conn));
 			free(query);
 			try_num++;
 		}
@@ -628,23 +661,29 @@ int main(int argc, char **argv)
 		status = getstat_3g(jobID);
 	}
 
-        LOG(LOG_INFO, "Job \"%s\" finished with status \"%s\".", jobID.c_str(), status.c_str());
+        LOG(LOG_INFO, "WU \"%s\" finished with status: \"%s\"", wuname, status.c_str());
         if ("FINISHED" == status) {
 		stringstream tcomm;
     		tcomm << "tar zxf " << jobID << ".out.tgz -C ../..";
-    		LOG(LOG_DEBUG, "Executing command to unpack output results: \"%s\".", tcomm.str().c_str());
+    		LOG(LOG_DEBUG, "Unpacking output results of WU \"%s\" with command: \"%s\".", wuname, tcomm.str().c_str());
     		system(tcomm.str().c_str());
     		exitcode = 0;
 	}
 
-	clean_3g(jobID);
-	mysql_close(conn);
+	if ("UNKNOWN" == status)
+	{
+		LOG(LOG_DEBUG, "WU \"%s\" reported as %s, we assume it has already been processed", wuname, status.c_str());
+		exitcode = 0;
+	}
+
+	cleanup(jobID);
 
 	FILE *f;
 	if (NULL != (f = fopen("boinc_finish_called", "w")))
     		fclose(f);
 
-	LOG(LOG_INFO, "Job \"%s\" finished with jobid \"%s\". The exitcode was %d.", exec_path, jobID.c_str(), exitcode);
+	LOG(LOG_INFO, "WU \"%s\" finished with exit code %d", wuname, exitcode);
+	free(wuname);
 
 	APP_INIT_DATA aid;
 	FILE *aidf = fopen("init_data.xml", "r");
@@ -661,7 +700,9 @@ int main(int argc, char **argv)
     		"<checkpoint_cpu_time>%.15e</checkpoint_cpu_time>\n"
     		"<fraction_done>%2.8f</fraction_done>\n",
     		aid.wu_cpu_time, 0.0, 100.0);
-	app_client_shm->shm->app_status.send_msg(msg_buf);
+	if (app_client_shm)
+		if (app_client_shm->shm)
+			app_client_shm->shm->app_status.send_msg(msg_buf);
 
 	boinc_exit(exitcode);
 	return exitcode;
