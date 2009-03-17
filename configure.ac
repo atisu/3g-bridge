@@ -98,7 +98,10 @@ else
 		fi
 	else
 		GSOAP_CFLAGS="-I$with_gsoap/include"
+		GSOAP_LIBS="-L$with_gsoap/lib"
 		GSOAP_IMPORT="$with_gsoap/share/gsoap/import"
+		AC_SUBST([GSOAP_CFLAGS])
+		AC_SUBST([GSOAP_LIBS])
 	fi
 fi
 if test "$with_gsoap" = yes -a "$no_gsoap" = yes; then
@@ -114,7 +117,6 @@ if test "$no_gsoap" != yes; then
 		no_gsoap=yes
 	fi
 	AC_SUBST([GSOAP_IMPORT])
-	AC_SUBST([GSOAP_CFLAGS])
 fi
 AM_CONDITIONAL([HAVE_GSOAP], [test "$no_gsoap" != yes])
 
