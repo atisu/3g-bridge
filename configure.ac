@@ -98,7 +98,7 @@ else
 		fi
 	else
 		GSOAP_CFLAGS="-I$with_gsoap/include"
-		GSOAP_LIBS="-L$with_gsoap/lib"
+		GSOAP_LIBS="-L$with_gsoap/lib -lgsoap++"
 		GSOAP_IMPORT="$with_gsoap/share/gsoap/import"
 		AC_SUBST([GSOAP_CFLAGS])
 		AC_SUBST([GSOAP_LIBS])
