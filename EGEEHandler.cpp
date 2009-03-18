@@ -437,11 +437,16 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		{
 			LOG(LOG_ERR, "EGEE Plugin (%s): job submission failed:"
 				"\n%s", name.c_str(), stdoe.c_str());
+			
 			const char *rmargs[] = { "rm", "-rf", wdir, NULL };
 			invoke_cmd("rm", rmargs, NULL);
 			for (JobVector::iterator it = jobs.begin();
 				it != jobs.end(); it++)
+			{
+				logjob((*it)->getId(), ERROR, "Job submission "
+					"failed: " + stdoe);
 				cleanJobStorage(*it);
+			}
 			return;
 		}
 	}
