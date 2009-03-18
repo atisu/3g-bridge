@@ -101,7 +101,7 @@
 		<listitem>
 		    <para>
 			Debug mode: do not fork to the background, and send all
-			output to <filename>stderr</filename> istead of syslog.
+			output to <filename>stderr</filename> instead of syslog.
 		    </para>
 		</listitem>
 	    </varlistentry>
