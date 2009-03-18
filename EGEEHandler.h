@@ -139,6 +139,12 @@ class EGEEHandler : public GridHandler {
 	/// Name of the supported Virtual Organization
 	char *voname;
 
+	/// Job logging directory
+	char *joblogdir;
+
+	/// Job logging level
+	int jobloglevel;
+
 	/**
 	 * Initialize GSIFTP for operations. Initializes different structures
 	 * for GSIFTP operations.
@@ -271,6 +277,16 @@ class EGEEHandler : public GridHandler {
 	 *	  the database or not
 	 */
 	void cancelJob(Job *job, bool clean = true);
+
+	/**
+	 * Log a message related to a job. Location of the log file is
+	 * joblogdir + "/" + jobid + ".log". If level < jobloglevel, the
+	 * message isn't printed.
+	 * @param jobid the job ID to use
+	 * @param level message log level: NONE, ERROR, ALL
+	 * @param msg the message to log
+	 */
+	void logjob(const string& jobid, const int level, const string& msg);
 };
 
 #endif /* EGEEHANDLER_H */

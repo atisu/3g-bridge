@@ -70,6 +70,8 @@ char *EGEEHandler::globus_errmsg;
 static const char *tmppath;
 
 
+typedef enum {NONE, ERROR, ALL} llevel;
+
 /**
  * Invoke a command. Imported from DCAPIHandler and slightly modified
  * so stdout and stderr is returned to the caller.
@@ -187,6 +189,19 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 		throw new BackendException("EGEE: failed to create temporary "
 			"directory \"%s\"", buf);
 	tmpdir = buf;
+
+	jobloglevel = NONE;
+	joblogdir = g_key_file_get_string(config, instance, "joblogdir", NULL);
+	if (joblogdir && strlen(joblogdir))
+	{
+		char *jl = g_key_file_get_string(config, instance, "joblogs",
+			NULL);
+		if (!strcmp(jl, "error"))
+			jobloglevel = ERROR;
+		else if (!strcmp(jl, "all"))
+			jobloglevel = ALL;
+		free(jl);
+	}
 
 	groupByNames = false;
 	LOG(LOG_INFO, "EGEE Plugin: instance \"%s\" initialized.", instance);
@@ -553,7 +568,7 @@ void EGEEHandler::updateStatus(void) throw (BackendException *)
 	}
 	catch (BackendException *e)
 	{
-		LOG(LOG_ERR, "EGEE Plugin (%s): failed to create ConfigContext "
+		LOG(LOG_ERR, "EGEE Plugin (%s): failed to create ConfigContext"
 			", skipping job status update: %s", name.c_str(),
 			e->what());
 		delete e;
@@ -737,6 +752,10 @@ void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const ve
 						name.c_str(), globus_errmsg);
 				}
 			}
+			if (cnt == 3)
+				throw new BackendException("Failed to transfer "
+					"from " + string(src) + " to " +
+					string(dst));
 		}
 	}
 	catch (BackendException *e)
@@ -1150,6 +1169,9 @@ void EGEEHandler::updateJob(Job *job)
 	unsigned tries = 0;
 	string statStr = "";
 	int statCode = 0;
+	logjob(job->getId(), ALL, "Updating status of job " + job->getGridId());
+	const char *gstat[] = {"glite-wms-job-status", "-v", "3",
+		job->getGridId().c_str()};
 	while (tries < 3)
 	{
 		try
@@ -1165,6 +1187,12 @@ void EGEEHandler::updateJob(Job *job)
 		}
 		catch (BaseException &e)
 		{
+			string gstatstr;
+			invoke_cmd("glite-wms-job-status", gstat, &gstatstr);
+			logjob(job->getId(), ERROR, "Failed to update status"
+				"of job " + job->getGridId() + ": " + getEGEEErrMsg(e));
+			logjob(job->getId(), ERROR, "CLI-based status query:" +
+				gstatstr);
 			LOG(LOG_WARNING, "EGEE Plugin (%s): failed to update "
 				"status of EGEE job \"%s\" (attempt %zd), EGEE "
 				"exception follows:\n%s", name.c_str(),
@@ -1185,6 +1213,12 @@ void EGEEHandler::updateJob(Job *job)
 		}
 		catch (glite::wmsutils::exception::Exception &e)
 		{
+			string gstatstr;
+			invoke_cmd("glite-wms-job-status", gstat, &gstatstr);
+			logjob(job->getId(), ERROR, "Failed to update status"
+				"of job " + job->getGridId() + ": " + e.dbgMessage());
+			logjob(job->getId(), ERROR, "CLI-based status query:" +
+				gstatstr);
 			LOG(LOG_WARNING, "EGEE Plugin (%s): failed to update "
 				"status of EGEE job \"%s\" (attempt %zd), EGEE "
 				"exception follows:\n%s", name.c_str(),
@@ -1205,15 +1239,24 @@ void EGEEHandler::updateJob(Job *job)
 		}
 	}
 
+	logjob(job->getId(), ALL, "Updated status of job " + job->getGridId() + " is: " + statStr);
 	LOG(LOG_DEBUG, "EGEE Plugin (%s): updated EGEE status of job \"%s\" "
 		"(EGEE identifier is \"%s\"): %s", name.c_str(),
 		job->getId().c_str(), job->getGridId().c_str(), statStr.c_str());
+
+	string linfostr;
+	const char *linfo[] = {"glite-wms-job-logging-info", "-v", "3",
+		job->getGridId().c_str(), NULL};
 	for (unsigned j = 0; statusRelation[j].EGEEs != ""; j++)
 	{
 		if (statusRelation[j].EGEEs == statStr)
 		{
 			if (Job::FINISHED == statusRelation[j].jobS)
 			{
+				invoke_cmd("glite-wms-job-logging-info",
+					linfo, &linfostr);
+				logjob(job->getId(), ALL, "Detailed job "
+					"logging info: " + linfostr);
 				if (glite::lb::JobStatus::DONE_CODE_OK == 
 					statCode)
 					getOutputs_real(job);
@@ -1222,7 +1265,13 @@ void EGEEHandler::updateJob(Job *job)
 			}
 			job->setStatus(statusRelation[j].jobS);
 			if (Job::ERROR == statusRelation[j].jobS)
-				cleanJob(job);
+			{
+				invoke_cmd("glite-wms-job-logging-info",
+					linfo, &linfostr);
+				logjob(job->getId(), ALL, "Detailed job "
+					"logging info: " + linfostr);
+				cleanJobStorage(job);
+			}
 		}
 	}
 }
@@ -1253,4 +1302,22 @@ void EGEEHandler::cancelJob(Job *job, bool clean)
 		jobDB->deleteJob(job->getId());
 		DBHandler::put(jobDB);
 	}
+}
+
+
+void EGEEHandler::logjob(const string& jobid, const int level, const string& msg)
+{
+	if (level < jobloglevel)
+		return;
+	string lfn = joblogdir + string("/") + jobid + string(".log");
+	ofstream lf;
+	lf.open(lfn.c_str(), ios::out|ios::app);
+	if (!lf.is_open())
+	{
+		LOG(LOG_WARNING, "EGEE Plugin (%s): failed to open job log file"
+			" \"%s\" for writing.", name.c_str(), lfn.c_str());
+		return;
+	}
+	lf << msg << endl;
+	lf.close();
 }

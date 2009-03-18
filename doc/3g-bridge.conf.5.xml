@@ -430,6 +430,28 @@
 		    </para>
 		</glossdef>
 	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>joblogdir</envar></glossterm>
+		<glossdef>
+		    <para>
+			Directory prefix for the job log files. EGEE plugin places some EGEE-related
+			logging information (e.g. status query, detailed logging information, etc.).
+			Log files will be placed into this directory following the JOBID.log filename
+			scheme.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>joblogs</envar></glossterm>
+		<glossdef>
+		    <para>
+			Specifies the logging level to be used for files in joblogdir. 'none' means
+			nothing should be logged, 'error' means error messages and related inspection
+			information should be logged, 'all' means everything should be logged. This
+			latter includes logging status changes and EGEE logging information printing.
+		    </para>
+		</glossdef>
+	    </glossentry>
 	</glosslist>
     </refsect1>
 
