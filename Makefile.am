@@ -117,25 +117,25 @@ else
 GSOAP_EDIT = -e '/^@@ WS-START @@/,/^@@ WS-END @@/d'
 endif
 
-3g-bridge.xml: 3g-bridge.xml.in
+master.xml: master.xml.in
 	$(SED) -e "s,@PACKAGE_VERSION\@,$(PACKAGE_VERSION)," \
 		$(GSOAP_EDIT) \
 		$< > $@
 
-CLEANFILES = 3g-bridge.xml 3g-bridge-package.tar.gz soap/*
+CLEANFILES = master.xml 3g-bridge-package.tar.gz soap/*
 MAINTAINERCLEANFILES = Makefile.in
 
 EXTRA_DIST = \
 		3GBridge.typemap \
 		3GBridge.wsdl \
-		3g-bridge.xml.in \
+		master.xml.in \
 		etc/3g-bridge.* \
 		doc/*
 
 dist_doc_DATA = \
 		doc/README-BOINC2EGEE \
 		doc/jobwrapper_client.xml \
-		3g-bridge.xml
+		master.xml
 nobase_dist_doc_DATA = \
 		db/schema.sql \
 		examples/batch_pack \
@@ -149,7 +149,7 @@ package: 3g-bridge-package.tar.gz
 package_contents = \
 		3g-bridge \
 		etc/3g-bridge.conf \
-		3g-bridge.xml \
+		master.xml \
 		examples/batch_pack \
 		examples/batch_unpack \
 		examples/dc-api.conf
