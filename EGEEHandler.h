@@ -88,9 +88,6 @@ class EGEEHandler : public GridHandler {
 
     private:
 
-	/// Success indicator constant
-	//static const int SUCCESS = 0;
-
 	/// Lock for GSIFTP operations
 	static globus_mutex_t lock;
 
@@ -106,9 +103,6 @@ class EGEEHandler : public GridHandler {
 	/// Error message of GSIFTP operations
 	static char *globus_errmsg;
 
-	/// Offset for GSIFTP operations
-	//static int global_offset;
-	
 	/// Temporary directory for storing proxy
 	string tmpdir;
 
