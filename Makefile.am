@@ -129,6 +129,7 @@ EXTRA_DIST = \
 		3GBridge.typemap \
 		3GBridge.wsdl \
 		master.xml.in \
+		3g-bridge.spec \
 		etc/3g-bridge.* \
 		doc/*
 

@@ -1,0 +1,143 @@
+%define ver @VERSION@
+#define rev 2149
+
+Summary: Generic Grid Grid (3G) bridge.
+Name: 3g-bridge
+Version: %{ver}%{?rev:r%{rev}}
+Release: 1
+License: GPL
+Group: Grid
+Source: %{name}-%{version}.tar.bz2
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
+BuildRequires: libstdc++-devel
+BuildRequires: glite-wms-wmproxy-api-cpp
+# For libuuid.so:
+BuildRequires: e2fsprogs-devel
+#BuildRequires: glib2 >= 2.6
+# Static glib sources and deps, only needed until glib2 >= 2.6 comes
+# with the distro, at which point it can be shared and a BuildRequires
+Source1: http://ftp.gnome.org/pub/gnome/sources/glib/2.12/glib-2.12.13.tar.bz2
+BuildRequires: pkgconfig >= 0.14
+BuildRequires: gettext
+Source2: http://prdownloads.sourceforge.net/gsoap2/gsoap_2.7.11.tar.gz
+BuildRequires: curl-devel
+
+%description
+The purpose of the 3G bridge application is to create a connection between a
+job source and a grid backend. The 3G bridge communicates with the job
+source via a MySQL database. The job source renders job descriptors in the
+MySQL database. The supported grid backend in this version is EGEE.
+
+%package wsclient
+Summary: Generic Grid Grid (3G) bridge wsclient job source.
+Group: Grid
+
+%description wsclient
+The purpose of the 3G bridge application is to create a connection between a
+job source and a grid backend. The 3G bridge communicates with the job
+source via a MySQL database. The job source renders job descriptors in the
+MySQL database. This package contains the web service based job source client.
+
+%prep
+%setup -q -n %{name}-%{ver} -a 1 -a 2
+
+%build
+# Build static glib first, this can also be removed when using system glib
+cd glib-2.12.13
+./configure --host=%{_host} --build=%{_build} --target=%{_target_platform} \
+            --prefix="$PWD/installed" --enable-static --disable-shared
+make
+make install
+PKG_CONFIG_PATH=$PWD/installed/lib/pkgconfig:$PKG_CONFIG_PATH
+LD_LIBRARY_PATH=$PWD/installed/lib:$LD_LIBRARY_PATH
+cd ..
+
+# Build gsoap
+cd gsoap-2.7
+./configure --host=%{_host} --build=%{_build} --target=%{_target_platform} \
+            --prefix="$PWD/installed" --enable-static --disable-shared
+make
+make install
+PKG_CONFIG_PATH=$PWD/installed/lib/pkgconfig:$PKG_CONFIG_PATH
+LD_LIBRARY_PATH=$PWD/installed/lib:$LD_LIBRARY_PATH
+cd ..
+export PKG_CONFIG_PATH LD_LIBRARY_PATH
+
+# Real build starts here
+%configure --with-egee --with-gsoap=$PWD/gsoap-2.7/installed
+make
+
+%install
+rm -rf "$RPM_BUILD_ROOT"
+mkdir -p "$RPM_BUILD_ROOT"
+%makeinstall
+install -D etc/3g-bridge.init "$RPM_BUILD_ROOT/%{_sysconfdir}/rc.d/init.d/3g-bridge"
+install -D etc/3g-bridge.logrotate "$RPM_BUILD_ROOT/%{_sysconfdir}/logrotate.d/3g-bridge"
+install -D COPYING "$RPM_BUILD_ROOT/%{_docdir}/3g-bridge/COPYING"
+install -D README "$RPM_BUILD_ROOT/%{_docdir}/3g-bridge/README"
+mkdir -p "$RPM_BUILD_ROOT/%{_localstatedir}/lib/3g-bridge"
+mkdir -p "$RPM_BUILD_ROOT/%{_localstatedir}/log/3g-bridge"
+
+%clean
+rm -rf "$RPM_BUILD_ROOT"
+
+%pre
+/usr/sbin/useradd -c '3G Bridge' -s /sbin/nologin \
+                  -r -d '/var/lib/3g-bridge' 3g-bridge 2> /dev/null || :
+
+%post
+/sbin/chkconfig --add 3g-bridge
+
+%preun
+if [ $1 = 0 ]; then
+    service 3g-bridge stop > /dev/null 2>&1
+    /sbin/chkconfig --del 3g-bridge
+fi
+
+%postun
+if [ "$1" -ge "1" ]; then
+    service 3g-bridge condrestart > /dev/null 2>&1 || :
+fi
+
+%files
+%defattr(-, root, root)
+%{_bindir}/injector
+%{_libexecdir}/3g-bridge/jobwrapper
+%{_sbindir}/3g-bridge
+%{_sbindir}/wssubmitter
+%doc %{_mandir}/man1/injector.1*
+%doc %{_mandir}/man5/3g-bridge.conf.5*
+%doc %{_mandir}/man8/3g-bridge.8*
+%doc %{_mandir}/man8/wssubmitter.8*
+%config(noreplace) %attr(0640, root, 3g-bridge) %{_sysconfdir}/3g-bridge.conf
+%config(noreplace) %{_sysconfdir}/logrotate.d/3g-bridge
+%{_sysconfdir}/rc.d/init.d/3g-bridge
+%docdir %{_docdir}/3g-bridge
+%{_docdir}/3g-bridge
+%attr(0750, 3g-bridge, 3g-bridge) %{_localstatedir}/lib/3g-bridge
+%attr(0750, 3g-bridge, 3g-bridge) %{_localstatedir}/log/3g-bridge
+
+%files wsclient
+%defattr(-, root, root)
+%{_bindir}/wsclient
+%doc %{_mandir}/man1/wsclient.1*
+
+%changelog
+* Tue Mar 24 2009 BALATON Zoltan <balaton@sztaki.hu> 0.90-1
+- Added URLs for additional sources
+
+* Wed Feb 11 2009 BALATON Zoltan <balaton@sztaki.hu> 0.9r2103-1
+- Added build requires e2fsprogs-devel for libuuid
+
+* Mon Dec 19 2008 BALATON Zoltan <balaton@sztaki.hu> 0.9r2086-1
+- Fix location of README and COPYING doc files
+- Mark configs as noreplace
+
+* Sun Dec 18 2008 BALATON Zoltan <balaton@sztaki.hu> 0.9r2085-1
+- also install README file
+
+* Wed Dec 10 2008 BALATON Zoltan <balaton@sztaki.hu> 0.9r2053-1
+- rebuild to include license
+
+* Thu Nov 27 2008 BALATON Zoltan <balaton@sztaki.hu> 0.9r2031-1
+- alpha test release
