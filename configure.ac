@@ -104,9 +104,6 @@ else
 		AC_SUBST([GSOAP_LIBS])
 	fi
 fi
-if test "$with_gsoap" = yes -a "$no_gsoap" = yes; then
-	AC_MSG_ERROR([gsoap was not found])
-fi
 if test "$no_gsoap" != yes; then
 	LIBCURL_CHECK_CONFIG([yes], [7.12.0], [],
 		[AC_MSG_ERROR([CURL development files are missing])])
@@ -117,6 +114,9 @@ if test "$no_gsoap" != yes; then
 		no_gsoap=yes
 	fi
 	AC_SUBST([GSOAP_IMPORT])
+fi
+if test "$with_gsoap" = yes -a "$no_gsoap" = yes; then
+	AC_MSG_ERROR([gsoap was not found])
 fi
 AM_CONDITIONAL([HAVE_GSOAP], [test "$no_gsoap" != yes])
 
