@@ -645,7 +645,7 @@ int main(int argc, char **argv)
 				status = "ERROR";
 				break;
 			}
-			LOG(LOG_WARNING, "WU \"%s\" sleeps now %zd seconds before its \"resubmission\"...",
+			LOG(LOG_WARNING, "WU \"%s\" sleeps now %d seconds before its \"resubmission\"...",
 				wuname, RTRY_IVAL);
 			boinc_sleep(RTRY_IVAL);
 			string ofile = string(cwd) + "/" + jobID + ".out.tgz";
