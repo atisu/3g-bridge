@@ -1,3 +1,12 @@
+2009-04-02  FARKAS Zoltan  <zfarkas@sztaki.hu>
+
+	* Created release 0.92
+
+2009-04-02  GOMBAS Gabor  <gombasg@sztaki.hu>
+
+	* Check & re-open the DB connection whenever a DB handle is requested
+	* Remove the check from query() in order not to break transactions
+
 2009-03-31  FARKAS Zoltan  <zfarkas@sztaki.hu>
 
 	* Created release 0.91
