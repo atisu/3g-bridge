@@ -1054,7 +1054,17 @@ void EGEEHandler::getOutputs_real(Job *job)
 			locFiles.push_back("file://" +
 				job->getOutputPath((*outs)[i]));
 		}
-    		transfer_files_globus(remFiles, locFiles);
+		try
+		{
+    			transfer_files_globus(remFiles, locFiles);
+		}
+		catch (BackendException *e)
+		{
+			LOG(LOG_WARNING, "EGEE Plugin (%s): some file transfers"
+				" failed. Please check above messages for "
+				"details.", name.c_str());
+			delete e;
+		}
 
 		const char *ofn = (string(tmpdir)+"/"+job->getId()+"std.out").c_str();
 		const char *efn = (string(tmpdir)+"/"+job->getId()+"std.err").c_str();
