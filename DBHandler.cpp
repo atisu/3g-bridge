@@ -143,14 +143,7 @@ bool DBHandler::query(const char *fmt, ...)
 	char *qstr;
 
 	if (!conn)
-		connect();
-	if (mysql_ping(conn))
-	{
-		LOG(LOG_ERR, "Database connection error: %s", mysql_error(conn));
-		mysql_close(conn);
-		conn = 0;
-		return false;
-	}
+		throw new QMException("Not connected to the database");
 
 	va_start(ap, fmt);
 	vasprintf(&qstr, fmt, ap);
@@ -179,6 +172,16 @@ void DBHandler::connect()
 		conn = 0;
 		throw new QMException("Could not connect to the database: %s", error.c_str());
 	}
+}
+
+void DBHandler::check()
+{
+	if (!mysql_ping(conn))
+		return;
+
+	LOG(LOG_ERR, "Database connection error: %s", mysql_error(conn));
+	mysql_close(conn);
+	connect();
 }
 
 DBHandler::DBHandler()
@@ -516,6 +519,8 @@ out:
 	used_dbhs.push_back(dbh);
 	if (db_lock)
 		g_mutex_unlock(db_lock);
+
+	dbh->check();
 	return dbh;
 }
 

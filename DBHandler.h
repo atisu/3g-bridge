@@ -273,6 +273,11 @@ class DBHandler {
 	 * Connect to the database.
 	 */
 	void connect(void);
+
+	/**
+	 * Check the connection and reconnect if neccessary.
+	 */
+	void check(void);
 };
 
 
