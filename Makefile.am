@@ -145,6 +145,9 @@ nobase_dist_doc_DATA = \
 
 dist_sysconf_DATA = etc/3g-bridge.conf
 
+dist-hook:
+	[ `svnversion` != 'exported' ] && svn2cl --group-by-day --authors=AUTHORS --revision HEAD:2153 -o $(distdir)/ChangeLog
+
 package: 3g-bridge-package.tar.gz
 
 package_contents = \
