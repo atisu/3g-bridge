@@ -222,7 +222,6 @@ EGEEHandler::~EGEEHandler()
 	g_free(myproxy_port);
 	g_free(isb_url);
 	delete cfg;
-
 }
 
 
@@ -252,20 +251,6 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 			(*it)->setStatus(Job::ERROR);
 		return;
 	}
-	snprintf(wdir, sizeof(wdir), "%s/submitdir.XXXXXX", tmpdir.c_str());
-	char *ttmpdir = mkdtemp(wdir);
-	if (!ttmpdir)
-	{
-		LOG(LOG_ERR, "EGEE Plugin (%s): failed to create temporary "
-			"directory for submission", name.c_str());
-		return;
-	}
-
-	sprintf(jdldir, "%s/jdlfiles", wdir);
-	sprintf(jobdir, "%s/jobfiles", wdir);
-	mkdir(jdldir, 0700);
-	mkdir(jobdir, 0700);
-	unsigned i = 0;
 
 	string jobJDLStr;
 	try
@@ -286,6 +271,21 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		return;
 	}
 
+	snprintf(wdir, sizeof(wdir), "%s/submitdir.XXXXXX", tmpdir.c_str());
+	char *ttmpdir = mkdtemp(wdir);
+	if (!ttmpdir)
+	{
+		LOG(LOG_ERR, "EGEE Plugin (%s): failed to create temporary "
+			"directory for submission", name.c_str());
+		return;
+	}
+
+	const char *rmargs[] = { "rm", "-rf", wdir, NULL };
+	sprintf(jdldir, "%s/jdlfiles", wdir);
+	sprintf(jobdir, "%s/jobfiles", wdir);
+	mkdir(jdldir, 0700);
+	mkdir(jobdir, 0700);
+	unsigned i = 0;
 
 	for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
 	{
@@ -308,11 +308,11 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		wrapstr += jobprefix + "\"$i\" file://`pwd`/\"$i\"\n";
 		wrapstr += " [ $? != 0 ] && exit 1\ndone\n";
 		wrapstr += "chmod u+x ./" + actJ->getName() + "\n";
-		wrapstr += "./" + actJ->getName() + " \"$@\"\nfor i in";
+		wrapstr += "./" + actJ->getName() + " \"$@\"\nEXITCODE=$?\nfor i in";
 		for (unsigned j = 0; j < outs->size(); j++)
 			wrapstr += " \"" + (*outs)[j] + "\"";
 		wrapstr += "; do\n globus-url-copy -rst -rst-retries 3 file://";
-		wrapstr += "`pwd`/\"$i\" " + jobprefix + "\"$i\"\ndone\n";
+		wrapstr += "`pwd`/\"$i\" " + jobprefix + "\"$i\"\ndone\nexit $EXITCODE\n";
 	
 		LOG(LOG_DEBUG, "EGEE Plugin (%s): about to submit wrapper "
 			" script for job \"%s\":\n%s", name.c_str(), cjid,
@@ -350,8 +350,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		{
 			string ipath = actJ->getInputPath((*ins)[j]);
 			srcFiles.push_back("file://" + ipath);
-    			string fbname = ipath.substr(ipath.rfind("/")+1);
-			dstFiles.push_back(jobprefix + fbname);
+			dstFiles.push_back(jobprefix + "/" + (*ins)[j]);
 		}
 		try
 		{
@@ -420,7 +419,6 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 	{
 		LOG(LOG_INFO, "EGEE Plugin (%s): due to the previous errors, "
 			"there are no jobs to submit.", name.c_str());
-		const char *rmargs[] = { "rm", "-rf", wdir, NULL };
 		invoke_cmd("rm", rmargs, NULL);
 		return;
 	}
@@ -454,7 +452,6 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 	{
 		LOG(LOG_ERR, "EGEE Plugin (%s): job submission failed: %s",
 			name.c_str(), e->what());
-		const char *rmargs[] = { "rm", "-rf", wdir, NULL };
 		invoke_cmd("rm", rmargs, NULL);
 		for (JobVector::iterator it = jobs.begin(); it != jobs.end();
 			it++)
@@ -470,7 +467,6 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		collIDf >> collID;
 	} while ("https://" != collID.substr(0, 8));
 
-	const char *rmargs[] = { "rm", "-rf", wdir, NULL };
 	invoke_cmd("rm", rmargs, NULL);
 
 	LOG(LOG_DEBUG, "EGEE Plugin (%s): collection subitted, now determining "
@@ -682,6 +678,7 @@ void EGEEHandler::set_globus_err(globus_object_t *error)
 
 void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const vector<string> &dstFiles) throw(BackendException *)
 {
+	bool transproblem = false;
         globus_result_t result;
 	globus_ftp_client_handle_t ftp_handle;
 	globus_ftp_client_handleattr_t ftp_handle_attrs;
@@ -692,6 +689,7 @@ void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const ve
         globus_ftp_client_operationattr_t sfa, dfa;
 
         globus_module_activate(GLOBUS_FTP_CLIENT_MODULE);
+        globus_module_activate(GLOBUS_GASS_COPY_MODULE);
 	init_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
 
 	if (srcFiles.size() != dstFiles.size())
@@ -758,9 +756,12 @@ void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const ve
 				}
 			}
 			if (cnt == 3)
-				throw new BackendException("Failed to transfer "
-					"from " + string(src) + " to " +
-					string(dst));
+			{
+				transproblem = true;
+				LOG(LOG_ERR, "EGEE Plugin (%s): failed to "
+					"transfer from %s to %s!", name.c_str(),
+					src, dst);
+			}
 		}
 	}
 	catch (BackendException *e)
@@ -769,6 +770,7 @@ void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const ve
 		globus_ftp_client_operationattr_destroy(&dfa);
 		globus_gass_copy_handle_destroy(&g_c_h);
 		destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
+    		globus_module_deactivate(GLOBUS_GASS_COPY_MODULE);
 		globus_module_deactivate(GLOBUS_FTP_CLIENT_MODULE);
 		throw e;
 	}
@@ -776,7 +778,10 @@ void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const ve
 	globus_ftp_client_operationattr_destroy(&dfa);
 	globus_gass_copy_handle_destroy(&g_c_h);
 	destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
+	globus_module_deactivate(GLOBUS_GASS_COPY_MODULE);
 	globus_module_deactivate(GLOBUS_FTP_CLIENT_MODULE);
+	if (transproblem)
+		throw new BackendException("Some file transfer(s) failed!");
 }
 
 
@@ -939,7 +944,7 @@ void EGEEHandler::cleanJobStorage(Job *job)
 	string jobprefix = string(isb_url) + "/" + job->getId() + "/";
 
 	for (unsigned j = 0; j < ins->size(); j++)
-		cleanFiles.push_back(job->getInputPath((*ins)[j]));
+		cleanFiles.push_back((*ins)[j]);
 	for (unsigned j = 0; j < outs->size(); j++)
 		cleanFiles.push_back((*outs)[j]);
 	delete_files_globus(cleanFiles, jobprefix);
@@ -961,17 +966,17 @@ void EGEEHandler::delegate_Proxy(const string& delID)
 
 string EGEEHandler::getEGEEErrMsg(const BaseException &e)
 {
-    stringstream msg;
-    msg << "EGEE exception caught:" << endl;
-    if (e.ErrorCode)
-        msg << "  Error code: " << *(e.ErrorCode) << endl;
-    if (e.Description)
-        msg << "  Description: " << *(e.Description) << endl;
-    msg << "  Method name: " << e.methodName << endl;
-    if (e.FaultCause)
-        for (unsigned i = 0; i < (e.FaultCause)->size(); i++)
-	    msg << "   FaultCause: " << (*(e.FaultCause))[i] << endl;
-    return msg.str();
+	stringstream msg;
+	msg << "EGEE exception caught:" << endl;
+	if (e.ErrorCode)
+    		msg << "  Error code: " << *(e.ErrorCode) << endl;
+	if (e.Description)
+    		msg << "  Description: " << *(e.Description) << endl;
+	msg << "  Method name: " << e.methodName << endl;
+	if (e.FaultCause)
+    		for (unsigned i = 0; i < (e.FaultCause)->size(); i++)
+			msg << "   FaultCause: " << (*(e.FaultCause))[i] << endl;
+	return msg.str();
 }
 
 
@@ -1066,28 +1071,35 @@ void EGEEHandler::getOutputs_real(Job *job)
 			delete e;
 		}
 
-		const char *ofn = (string(tmpdir)+"/"+job->getId()+"std.out").c_str();
-		const char *efn = (string(tmpdir)+"/"+job->getId()+"std.err").c_str();
-		stringstream outdata;
-		outdata << "EGEE Plugin (" << name << "): stdout of job \"";
-		outdata << job->getId() << "\" follows:\n";
-		ifstream stdomsg(ofn);
-		if (stdomsg.is_open())
+		/*
+		for (unsigned i = 0; i < URIs.size(); i++)
 		{
-			outdata << stdomsg.rdbuf();
-			stdomsg.close();
+			struct stat st;
+    			string fbname = remFiles[i].substr(remFiles[i].rfind("/")+1);
+			string ln = string(tmpdir) + "/" + fbname;
+			if (-1 == stat(fbname.c_str(), &st))
+			{
+				LOG(LOG_DEBUG, "stat() failed for %s: %s", ln.c_str(), strerror(errno));
+			}
+			else
+			{
+				LOG(LOG_DEBUG, "Size of %s: %d", ln.c_str(), st.st_size);
+			}
 		}
-		LOG(LOG_DEBUG, "%s", outdata.str().c_str());
-		stringstream errdata;
-		errdata << "EGEE Plugin (" << name << "): stderr of job \"";
-		errdata << job->getId() << "\" follows:\n";
-		ifstream stdemsg(efn);
-		if (stdemsg.is_open())
+		*/
+
+		// If job logging level isn't NONE, preserve stdout and stderr
+		if (jobloglevel != NONE)
 		{
-			errdata << stdemsg.rdbuf();
-			stdemsg.close();
+			const char *ofn = (string(tmpdir)+"/"+job->getId()+
+				"std.out").c_str();
+			const char *efn = (string(tmpdir)+"/"+job->getId()+
+				"std.err").c_str();
+			string no = string(joblogdir)+"/"+job->getId()+".out";
+			string ne = string(joblogdir)+"/"+job->getId()+".err";
+			link(ofn, no.c_str());
+			link(efn, ne.c_str());
 		}
-		LOG(LOG_DEBUG, "%s", errdata.str().c_str());
 		cleanJob(job);
 	}
 	catch (BaseException &e)
@@ -1097,12 +1109,14 @@ void EGEEHandler::getOutputs_real(Job *job)
 			"EGEE exception is here for your convenience: ",
 			name.c_str());
 		LOG(LOG_WARNING, getEGEEErrMsg(e).c_str());
+		cleanJobStorage(job);
 	}
 	catch (BackendException *e)
 	{
 		LOG(LOG_WARNING, "EGEE Plugin (%s): cleaning job \"%s\" failed.",
 			name.c_str(), job->getGridId().c_str());
 		delete e;
+		cleanJobStorage(job);
 	}
 }
 
@@ -1184,6 +1198,7 @@ void EGEEHandler::updateJob(Job *job)
 	unsigned tries = 0;
 	string statStr = "";
 	int statCode = 0;
+	int exitCode = 0;
 	logjob(job->getId(), ALL, "Updating status of job " + job->getGridId());
 	const char *gstat[] = {"glite-wms-job-status", "-v", "3",
 		job->getGridId().c_str()};
@@ -1198,6 +1213,7 @@ void EGEEHandler::updateJob(Job *job)
 		        glite::lb::JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
 	    		statStr = stat.name();
 			statCode = stat.getValInt(glite::lb::JobStatus::DONE_CODE);
+			exitCode = stat.getValInt(glite::lb::JobStatus::EXIT_CODE);
 			tries = 3;
 		}
 		catch (BaseException &e)
@@ -1268,15 +1284,33 @@ void EGEEHandler::updateJob(Job *job)
 		{
 			if (Job::FINISHED == statusRelation[j].jobS)
 			{
-				invoke_cmd("glite-wms-job-logging-info",
-					linfo, &linfostr);
-				logjob(job->getId(), ALL, "Detailed job "
-					"logging info: " + linfostr);
-				if (glite::lb::JobStatus::DONE_CODE_OK == 
-					statCode)
-					getOutputs_real(job);
+				LOG(LOG_DEBUG, "EGEE Plugin (%s): exit code of"
+					" EGEE job \"%s\" is: %d", name.c_str(),
+					job->getGridId().c_str(), exitCode);
+				getOutputs_real(job);
+				if (glite::lb::JobStatus::DONE_CODE_OK !=
+					statCode || 0 != exitCode)
+				{
+					invoke_cmd("glite-wms-job-logging-info",
+						linfo, &linfostr);
+					logjob(job->getId(), ALL, "Detailed job"
+						" logging info: " + linfostr);
+				}
 				else
-					break;
+				{
+					if (jobloglevel == ERROR)
+					{
+						string lfn = joblogdir + string("/") +
+							job->getId() + string(".log");
+						string efn = joblogdir + string("/") +
+							job->getId() + string(".err");
+						string ofn = joblogdir + string("/") +
+							job->getId() + string(".out");
+						unlink(lfn.c_str());
+						unlink(efn.c_str());
+						unlink(ofn.c_str());
+					}
+				}
 			}
 			job->setStatus(statusRelation[j].jobS);
 			if (Job::ERROR == statusRelation[j].jobS)
@@ -1322,8 +1356,11 @@ void EGEEHandler::cancelJob(Job *job, bool clean)
 
 void EGEEHandler::logjob(const string& jobid, const int level, const string& msg)
 {
+	char datestr[256];
+
 	if (level < jobloglevel)
 		return;
+
 	string lfn = joblogdir + string("/") + jobid + string(".log");
 	ofstream lf;
 	lf.open(lfn.c_str(), ios::out|ios::app);
@@ -1333,6 +1370,10 @@ void EGEEHandler::logjob(const string& jobid, const int level, const string& msg
 			" \"%s\" for writing.", name.c_str(), lfn.c_str());
 		return;
 	}
-	lf << msg << endl;
+	
+	time_t curtime = time(NULL);
+	struct tm* lt = localtime(&curtime);
+	strftime(datestr, 255, "%F %T: ", lt);
+	lf << string(datestr) << msg << endl;
 	lf.close();
 }
