@@ -244,11 +244,11 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 	catch (BackendException *e)
 	{
 		LOG(LOG_ERR, "EGEE Plugin (%s): failed to create ConfigContext "
-			"(%s), so %zd jobs are marked as failed.", name.c_str(),
-			e->what(), jobs.size());
+			"(%s), so %zd jobs are marked as temporary failed.",
+			name.c_str(), e->what(), jobs.size());
 		delete e;
 		for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
-			(*it)->setStatus(Job::ERROR);
+			(*it)->setStatus(Job::TEMPFAILED);
 		return;
 	}
 
@@ -264,10 +264,10 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		LOG(LOG_WARNING, "EGEE Plugin (%s): failed to get job JDL "
 			"template, EGEE exception follows:\n%s", name.c_str(),
 			getEGEEErrMsg(e).c_str());
-		LOG(LOG_WARNING, "EGEE Plugin (%s): marking jobs as failed.",
-			name.c_str());
+		LOG(LOG_WARNING, "EGEE Plugin (%s): marking jobs as temporary "
+			"failed.", name.c_str());
 		for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
-			(*it)->setStatus(Job::ERROR);
+			(*it)->setStatus(Job::TEMPFAILED);
 		return;
 	}
 
@@ -315,7 +315,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		wrapstr += "`pwd`/\"$i\" " + jobprefix + "\"$i\"\ndone\nexit $EXITCODE\n";
 	
 		LOG(LOG_DEBUG, "EGEE Plugin (%s): about to submit wrapper "
-			" script for job \"%s\":\n%s", name.c_str(), cjid,
+			"script for job \"%s\":\n%s", name.c_str(), cjid,
 			wrapstr.c_str());
 		ofstream wfile((string(jdirname) + "/wrapscript.sh").c_str());
 		wfile << wrapstr;
@@ -336,7 +336,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 			LOG(LOG_ERR, "EGEE Plugin (%s): failed to create remote"
 				" working direcotry of job \"%s\": %s",
 				name.c_str(), cjid, e->what());
-			actJ->setStatus(Job::ERROR);
+			actJ->setStatus(Job::TEMPFAILED);
 			delete e;
 			continue;
 		}
@@ -361,7 +361,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 			LOG(LOG_ERR, "EGEE Plugin (%s): failed to upload input "
 				"files of job \"%s\": %s", name.c_str(), cjid,
 				e->what());
-			actJ->setStatus(Job::ERROR);
+			actJ->setStatus(Job::TEMPFAILED);
 			cleanJobStorage(actJ);
 			delete e;
 			continue;

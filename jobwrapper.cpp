@@ -654,6 +654,7 @@ int main(int argc, char **argv)
 			asprintf(&query, "UPDATE cg_job SET status='INIT' WHERE id=\"%s\"", jobID.c_str());
 			if (mysql_query(conn, query))
 				LOG(LOG_ERR, "Failed to set status of WU \"%s\" to INIT: %s", wuname, mysql_error(conn));
+			LOG(LOG_DEBUG, "Status of job \"%s\" set to INIT", jobID.c_str());
 			free(query);
 			try_num++;
 		}
