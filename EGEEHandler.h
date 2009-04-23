@@ -34,7 +34,7 @@
 #include <vector>
 #include <glite/wms/wmproxyapi/wmproxy_api.h>
 #include <globus_ftp_client.h>
-
+#include <globus_ftp_client_restart_plugin.h>
 
 using namespace std;
 using namespace glite::wms;
@@ -146,7 +146,7 @@ class EGEEHandler : public GridHandler {
 	 * @param ftp_handle_attrs GSIFTP client handle attributes pointer
 	 * @param ftp_op_attrs GSIFTP client operation attributes pointer
 	 */
-	void init_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs);
+	void init_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs, globus_ftp_client_plugin_t *rst_pin = NULL);
 
 	/**
 	 * Destroy structures of GSIFTP operations.
@@ -154,7 +154,7 @@ class EGEEHandler : public GridHandler {
 	 * @param ftp_handle_attrs GSIFTP client handle attributes pointer
 	 * @param ftp_op_attrs GSIFTP client operation attributes pointer
 	 */
-	void destroy_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs);
+	void destroy_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs, globus_ftp_client_plugin_t *rst_pin = NULL);
 
 	/**
 	 * Handle finish of GSIFTP operations. This function is called every

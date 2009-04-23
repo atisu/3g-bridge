@@ -612,7 +612,10 @@ GridHandler *EGEEHandler::getInstance(GKeyFile *config, const char *instance)
 //
 
 
-void EGEEHandler::init_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs)
+void EGEEHandler::init_ftp_client(globus_ftp_client_handle_t *ftp_handle,
+	globus_ftp_client_handleattr_t *ftp_handle_attrs,
+	globus_ftp_client_operationattr_t *ftp_op_attrs,
+	globus_ftp_client_plugin_t *rst_pin)
 {
 	globus_result_t result;
 
@@ -630,6 +633,19 @@ void EGEEHandler::init_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus
 	if (GLOBUS_SUCCESS != result)
 		throw new BackendException("Failed to initialize GridFTP "
 			"client operation attribute");
+	if (rst_pin)
+	{
+		result = globus_ftp_client_restart_plugin_init(rst_pin, 3, 0,
+			NULL);
+		if (GLOBUS_SUCCESS != result)
+			throw new BackendException("Failed to initialize "
+				"GridFTP restart plugin");
+		result = globus_ftp_client_handleattr_add_plugin(ftp_handle_attrs,
+			rst_pin);
+		if (GLOBUS_SUCCESS != result)
+			throw new BackendException("Failed to add restart "
+				"plugin to FTP handle attributes");
+	}
 
 	globus_mutex_init(&lock, GLOBUS_NULL);
 	globus_cond_init(&cond, GLOBUS_NULL);
@@ -645,9 +661,14 @@ void EGEEHandler::init_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus
 }
 
 
-void EGEEHandler::destroy_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs)
+void EGEEHandler::destroy_ftp_client(globus_ftp_client_handle_t *ftp_handle,
+	globus_ftp_client_handleattr_t *ftp_handle_attrs,
+	globus_ftp_client_operationattr_t *ftp_op_attrs,
+	globus_ftp_client_plugin_t *rst_pin)
 {
 	globus_ftp_client_handleattr_destroy(ftp_handle_attrs);
+	if (rst_pin)
+		globus_ftp_client_restart_plugin_destroy(rst_pin);
         globus_ftp_client_operationattr_destroy(ftp_op_attrs);
 	globus_ftp_client_handle_destroy(ftp_handle);
 	globus_cond_destroy(&cond);
@@ -687,10 +708,12 @@ void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const ve
         globus_gass_copy_attr_t sattr, dattr;
         globus_gass_copy_handleattr_t g_c_h_a;
         globus_ftp_client_operationattr_t sfa, dfa;
+	globus_ftp_client_plugin_t rst_pin;
 
         globus_module_activate(GLOBUS_FTP_CLIENT_MODULE);
+	globus_module_activate(GLOBUS_FTP_CLIENT_RESTART_PLUGIN_MODULE);
         globus_module_activate(GLOBUS_GASS_COPY_MODULE);
-	init_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
+	init_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs, &rst_pin);
 
 	if (srcFiles.size() != dstFiles.size())
 		LOG(LOG_WARNING, "EGEE Plugin (%s): sizes of source and destination "
@@ -707,6 +730,8 @@ void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const ve
 			throw new BackendException("globus_gass_copy_handleattr"
 				"_init() failed : %s", globus_errmsg);
 		}
+		result |= globus_gass_copy_handleattr_set_ftp_attr(&g_c_h_a,
+			&ftp_handle_attrs);
 	        result |= globus_gass_copy_handle_init(&g_c_h, &g_c_h_a);
 
 	        result |= globus_gass_copy_attr_init(&sattr);
@@ -737,30 +762,14 @@ void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const ve
 
 			LOG(LOG_DEBUG, "EGEE Plugin (%s): transferring \"%s\" "
 				"to \"%s\"", name.c_str(), src, dst);
-			unsigned cnt = 0;
-			result = 1;
-			while (result && cnt < 3)
-			{
-				if (cnt)
-					sleep(5);
-				LOG(LOG_DEBUG, "EGEE Plugin (%s): transfer "
-					"attempt %zd of 3", name.c_str(), ++cnt);
-				result = globus_gass_copy_url_to_url(&g_c_h,
-					(char *)src, &sattr, (char *)dst, &dattr);
-				if (result)
-				{
-					set_globus_err(globus_error_get(result));
-					LOG(LOG_WARNING, "EGEE Plugin (%s): "
-						"transfer attempt failed: %s",
-						name.c_str(), globus_errmsg);
-				}
-			}
-			if (cnt == 3)
+			result = globus_gass_copy_url_to_url(&g_c_h,
+				(char *)src, &sattr, (char *)dst, &dattr);
+			if (result)
 			{
 				transproblem = true;
 				LOG(LOG_ERR, "EGEE Plugin (%s): failed to "
-					"transfer from %s to %s!", name.c_str(),
-					src, dst);
+				"transfer from %s to %s!", name.c_str(), src,
+				dst);
 			}
 		}
 	}
@@ -769,16 +778,18 @@ void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const ve
 		globus_ftp_client_operationattr_destroy(&sfa);
 		globus_ftp_client_operationattr_destroy(&dfa);
 		globus_gass_copy_handle_destroy(&g_c_h);
-		destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
+		destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs, &rst_pin);
     		globus_module_deactivate(GLOBUS_GASS_COPY_MODULE);
+		globus_module_deactivate(GLOBUS_FTP_CLIENT_RESTART_PLUGIN_MODULE);
 		globus_module_deactivate(GLOBUS_FTP_CLIENT_MODULE);
 		throw e;
 	}
 	globus_ftp_client_operationattr_destroy(&sfa);
 	globus_ftp_client_operationattr_destroy(&dfa);
 	globus_gass_copy_handle_destroy(&g_c_h);
-	destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
+	destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs, &rst_pin);
 	globus_module_deactivate(GLOBUS_GASS_COPY_MODULE);
+	globus_module_deactivate(GLOBUS_FTP_CLIENT_RESTART_PLUGIN_MODULE);
 	globus_module_deactivate(GLOBUS_FTP_CLIENT_MODULE);
 	if (transproblem)
 		throw new BackendException("Some file transfer(s) failed!");
@@ -1070,23 +1081,6 @@ void EGEEHandler::getOutputs_real(Job *job)
 				"details.", name.c_str());
 			delete e;
 		}
-
-		/*
-		for (unsigned i = 0; i < URIs.size(); i++)
-		{
-			struct stat st;
-    			string fbname = remFiles[i].substr(remFiles[i].rfind("/")+1);
-			string ln = string(tmpdir) + "/" + fbname;
-			if (-1 == stat(fbname.c_str(), &st))
-			{
-				LOG(LOG_DEBUG, "stat() failed for %s: %s", ln.c_str(), strerror(errno));
-			}
-			else
-			{
-				LOG(LOG_DEBUG, "Size of %s: %d", ln.c_str(), st.st_size);
-			}
-		}
-		*/
 
 		// If job logging level isn't NONE, preserve stdout and stderr
 		if (jobloglevel != NONE)
