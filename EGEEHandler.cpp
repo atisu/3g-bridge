@@ -229,7 +229,6 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 {
 	char wdir[PATH_MAX];
 	char jdldir[PATH_MAX];
-	char jobdir[PATH_MAX];
 
 	if (!jobs.size())
 		return;
@@ -252,6 +251,20 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		return;
 	}
 
+	snprintf(wdir, sizeof(wdir), "%s/submitdir.XXXXXX", tmpdir.c_str());
+	char *ttmpdir = mkdtemp(wdir);
+	if (!ttmpdir)
+	{
+		LOG(LOG_ERR, "EGEE Plugin (%s): failed to create temporary "
+			"directory for submission", name.c_str());
+		return;
+	}
+
+	const char *rmargs[] = { "rm", "-rf", wdir, NULL };
+	sprintf(jdldir, "%s/jdlfiles", wdir);
+	mkdir(jdldir, 0700);
+	unsigned i = 0;
+
 	string jobJDLStr;
 	try
 	{
@@ -271,27 +284,8 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		return;
 	}
 
-	snprintf(wdir, sizeof(wdir), "%s/submitdir.XXXXXX", tmpdir.c_str());
-	char *ttmpdir = mkdtemp(wdir);
-	if (!ttmpdir)
-	{
-		LOG(LOG_ERR, "EGEE Plugin (%s): failed to create temporary "
-			"directory for submission", name.c_str());
-		return;
-	}
-
-	const char *rmargs[] = { "rm", "-rf", wdir, NULL };
-	sprintf(jdldir, "%s/jdlfiles", wdir);
-	sprintf(jobdir, "%s/jobfiles", wdir);
-	mkdir(jdldir, 0700);
-	mkdir(jobdir, 0700);
-	unsigned i = 0;
-
 	for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
 	{
-		char jdirname[PATH_MAX];
-		sprintf(jdirname, "%s/%d", jobdir, i);
-		mkdir(jdirname, 0700);
 		Job *actJ = *it;
 		string jid = actJ->getId();
 		const char *cjid = jid.c_str();
@@ -300,29 +294,6 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		auto_ptr<vector<string> > outs = actJ->getOutputs();
 
 		string jobprefix = string(isb_url) + "/" + jid + "/";
-
-		string wrapstr = "#!/bin/bash\nfor i in";
-		for (unsigned j = 0; j < ins->size(); j++)
-			wrapstr += " \"" + (*ins)[j] + "\"";
-		wrapstr += "; do\n globus-url-copy -rst -rst-retries 3 ";
-		wrapstr += jobprefix + "\"$i\" file://`pwd`/\"$i\"\n";
-		wrapstr += " [ $? != 0 ] && exit 1\ndone\n";
-		wrapstr += "chmod u+x ./" + actJ->getName() + "\n";
-		wrapstr += "./" + actJ->getName() + " \"$@\"\nEXITCODE=$?\nfor i in";
-		for (unsigned j = 0; j < outs->size(); j++)
-			wrapstr += " \"" + (*outs)[j] + "\"";
-		wrapstr += "; do\n globus-url-copy -rst -rst-retries 3 file://";
-		wrapstr += "`pwd`/\"$i\" " + jobprefix + "\"$i\"\ndone\nexit $EXITCODE\n";
-	
-		LOG(LOG_DEBUG, "EGEE Plugin (%s): about to submit wrapper "
-			"script for job \"%s\":\n%s", name.c_str(), cjid,
-			wrapstr.c_str());
-		ofstream wfile((string(jdirname) + "/wrapscript.sh").c_str());
-		wfile << wrapstr;
-		wfile.close();
-		Ad *jobJDLAd = new Ad(jobJDLStr);
-		jobJDLAd->addAttribute(JDL::INPUTSB, (string(jdirname) +
-			"/wrapscript.sh").c_str());
 
 		try
 		{
@@ -341,6 +312,10 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 			continue;
 		}
 
+		Ad *jobJDLAd = new Ad(jobJDLStr);
+		jobJDLAd->delAttribute(JDL::EXECUTABLE);
+		jobJDLAd->setAttribute(JDL::EXECUTABLE, actJ->getName());
+
 		// Copy input files to inputsandbox url
 		LOG(LOG_DEBUG, "EGEE Plugin (%s): about to upload input files "
 			"belonging to job \"%s\"", name.c_str(), cjid);
@@ -349,9 +324,12 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     		for (unsigned j = 0; j < ins->size(); j++)
 		{
 			string ipath = actJ->getInputPath((*ins)[j]);
+			string rpath = jobprefix + (*ins)[j];
 			srcFiles.push_back("file://" + ipath);
-			dstFiles.push_back(jobprefix + "/" + (*ins)[j]);
+			dstFiles.push_back(rpath);
+			jobJDLAd->addAttribute(JDL::INPUTSB, rpath.c_str());
 		}
+
 		try
 		{
 			transfer_files_globus(srcFiles, dstFiles);
@@ -368,10 +346,17 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		}
 
 		// Now add outputs
-		jobJDLAd->addAttribute(JDL::OUTPUTSB,  actJ->getId()+"std.out");
                 jobJDLAd->setAttribute(JDL::STDOUTPUT, actJ->getId()+"std.out");
-		jobJDLAd->addAttribute(JDL::OUTPUTSB,  actJ->getId()+"std.err");
-		jobJDLAd->setAttribute(JDL::STDERROR,  actJ->getId()+"std.err");
+		jobJDLAd->addAttribute(JDL::OUTPUTSB, actJ->getId()+"std.out");
+		jobJDLAd->addAttribute(JDL::OSB_DEST_URI, jobprefix + actJ->getId()+"std.out");
+		jobJDLAd->setAttribute(JDL::STDERROR, actJ->getId()+"std.err");
+		jobJDLAd->addAttribute(JDL::OUTPUTSB, actJ->getId()+"std.err");
+		jobJDLAd->addAttribute(JDL::OSB_DEST_URI, jobprefix + actJ->getId()+"std.err");
+		for (unsigned j = 0; j < outs->size(); j++)
+		{
+			jobJDLAd->addAttribute(JDL::OUTPUTSB, (*outs)[j]);
+			jobJDLAd->addAttribute(JDL::OSB_DEST_URI, jobprefix + (*outs)[j]);
+		}
 
 		// The arguments
 		string arg = actJ->getArgs();
@@ -958,13 +943,10 @@ void EGEEHandler::cleanJobStorage(Job *job)
 		cleanFiles.push_back((*ins)[j]);
 	for (unsigned j = 0; j < outs->size(); j++)
 		cleanFiles.push_back((*outs)[j]);
+	cleanFiles.push_back(jobprefix + job->getId()+"std.out");
+	cleanFiles.push_back(jobprefix + job->getId()+"std.err");
 	delete_files_globus(cleanFiles, jobprefix);
 	remove_dir_globus(jobprefix);
-
-	const char *ofn = (string(tmpdir)+"/"+job->getId()+"std.out").c_str();
-	const char *efn = (string(tmpdir)+"/"+job->getId()+"std.err").c_str();
-	unlink(ofn);
-	unlink(efn);
 }
 
 
@@ -1049,21 +1031,17 @@ void EGEEHandler::getOutputs_real(Job *job)
 
 	try
 	{
-		vector<pair<string, long> > URIs;
-		URIs = getOutputFileList(job->getGridId(), cfg);
-		auto_ptr<vector<string> > outs = job->getOutputs();
     		vector<string> remFiles;
 	        vector<string> locFiles;
-	        for (unsigned i = 0; i < URIs.size(); i++)
-		{
-			if ("" == URIs[i].first)
-				continue;
-    			remFiles.push_back(URIs[i].first);
-    			string fbname = remFiles[i].substr(remFiles[i].rfind("/")+1);
-			locFiles.push_back("file://" + string(tmpdir) + "/" +
-				fbname);
-		}
+		auto_ptr<vector<string> > outs = job->getOutputs();
 		string jobprefix = string(isb_url) + "/" + job->getId() + "/";
+		string outtpath = string(tmpdir)+"/"+job->getId()+"std.out";
+		string errtpath = string(tmpdir)+"/"+job->getId()+"std.err";
+
+		remFiles.push_back(jobprefix + job->getId() + "std.out");
+		locFiles.push_back("file://" + outtpath);
+		remFiles.push_back(jobprefix + job->getId() + "std.err");
+		locFiles.push_back("file://" + errtpath);
 		for (unsigned i = 0; i < outs->size(); i++)
 		{
 			remFiles.push_back(jobprefix + (*outs)[i]);
@@ -1085,14 +1063,12 @@ void EGEEHandler::getOutputs_real(Job *job)
 		// If job logging level isn't NONE, preserve stdout and stderr
 		if (jobloglevel != NONE)
 		{
-			const char *ofn = (string(tmpdir)+"/"+job->getId()+
-				"std.out").c_str();
-			const char *efn = (string(tmpdir)+"/"+job->getId()+
-				"std.err").c_str();
 			string no = string(joblogdir)+"/"+job->getId()+".out";
 			string ne = string(joblogdir)+"/"+job->getId()+".err";
-			link(ofn, no.c_str());
-			link(efn, ne.c_str());
+			if (-1 == rename(outtpath.c_str(), no.c_str()))
+				LOG(LOG_WARNING, "Failed to rename stdout: %s", strerror(errno));
+			if (-1 == rename(errtpath.c_str(), ne.c_str()))
+				LOG(LOG_WARNING, "Failed to rename stderr: %s", strerror(errno));
 		}
 		cleanJob(job);
 	}
