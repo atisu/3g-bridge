@@ -34,7 +34,10 @@
 #include <string.h>
 #include <stdarg.h>
 #include <errno.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -77,22 +80,25 @@ static char *mysql_pass;				// The MySQL server password
 
 static char *cwd;					// Working directory of the workunit
 static char *wuname;					// Name of the workunit
-static int app_files_num;				// how many files the application has
-static char *app_files[MAX_FILES];			// what is the name of these files the application thinks
-static char *app_files_real_name[MAX_FILES];		// what is the REAL name of these files the BOINC store
 
-static int input_files_num;				// the same with input files 
-static char *input_files[MAX_FILES];			// e.g. in.txt
-static char *input_files_real_name[MAX_FILES];		// e.g. distribute.txt_df4fg4h6h443fnjx3_0
+static unsigned app_files_num;				// how many files the application has
+static char **app_files;				// what is the name of these files the application thinks
+static char **app_files_real_name;			// what is the REAL name of these files the BOINC store
 
-static int output_files_num;				// the same with output files
-static char *output_files[MAX_FILES];			// e.g. out.txt
-static char *output_files_real_name[MAX_FILES];
+static unsigned input_files_num;			// the same with input files 
+static char **input_files;				// e.g. in.txt
+static char **input_files_real_name;			// e.g. distribute.txt_df4fg4h6h443fnjx3_0
 
-static char arguments[MAX_LENGTH];			// the arguments for the exec
-static char exec_path[MAX_LENGTH];			// the executable
+static unsigned output_files_num;			// the same with output files
+static char **output_files;				// e.g. out.txt
+static char **output_files_real_name;
+
+static char *exec_path;					// the executable
+static char *arguments;					// the arguments for the exec
 
 static int try_num;					// Resubmission attempts
+
+static FILE *infile;
 
 static char *wrap_template =
 "#!/bin/bash\n"
@@ -118,6 +124,95 @@ static char *wrap_template =
 
 
 extern bool update_app_progress(double cpu_t, double cp_cpu_t);
+
+
+void free_config(GKeyFile *kf, GError *error)
+{
+	if (error)
+		g_error_free(error);
+	if (kf)
+		g_key_file_free(kf);
+	g_free(mysql_dbname);
+	g_free(mysql_host);
+	g_free(mysql_user);
+	g_free(mysql_pass);
+	g_free(grid);
+}
+
+void free_config_exit(GKeyFile *kf, GError *error)
+{
+	free_config(kf, error);
+	exit(-1);
+}
+
+
+void free_files(unsigned num, char **files, char **files_open)
+{
+        unsigned i;
+        if (files)
+        {
+                for (i = 0; i < num; i++)
+                {
+                        if (files && files[i])
+                                free(files[i]);
+                        if (files_open && files_open[i])
+                                free(files_open[i]);
+                }
+                if (files)
+                        free(files);
+                if (files_open)
+                        free(files_open);
+        }
+}
+
+
+void freeup_files()
+{
+        fclose(infile);
+        free_files(   app_files_num,    app_files,    app_files_real_name);
+        free_files( input_files_num,  input_files,  input_files_real_name);
+        free_files(output_files_num, output_files, output_files_real_name);
+        if (exec_path)
+                free(exec_path);
+        if (arguments)
+                free(arguments);
+}
+
+
+void free_exit()
+{
+	free_config(NULL, NULL);
+	freeup_files();
+	exit(-1);
+}
+
+
+void clean_3g(string jobID)
+{
+	char *query;
+	asprintf(&query, "DELETE FROM cg_job WHERE id=\"%s\"", jobID.c_str());
+	if (mysql_query(conn, query))
+	{
+		LOG(LOG_ERR, "Error: failed to delete job \"%s\": %s", jobID.c_str(), mysql_error(conn));
+	}
+	free(query);
+
+	unlink((jobID + ".sh").c_str());
+	unlink((jobID + ".tgz").c_str());
+	unlink((jobID + ".out.tgz").c_str());
+}
+
+
+void cleanup(string jobID)
+{
+	free_config(NULL, NULL);
+	freeup_files();
+	free(cwd);
+	if (jobID != "")
+		clean_3g(jobID);
+	if (conn)
+		mysql_close(conn);
+}
 
 
 void init_config(void)
@@ -148,232 +243,164 @@ void init_config(void)
 	kf = g_key_file_new();
 	if (!g_key_file_load_from_file(kf, bridgecfg, G_KEY_FILE_NONE, &error)) {
 		LOG(LOG_ERR, "Failed to load the config file %s: %s\n", bridgecfg, error->message);
-		g_error_free(error);
-		g_key_file_free(kf);
-		exit(-1);
+		free_config_exit(kf, error);
 	}
-
 	log_init(kf, cfgsection);
-
 	mysql_dbname = g_key_file_get_string(kf, "database", "name", &error);
 	if (!mysql_dbname) {
 		LOG(LOG_ERR, "Failed to get database name: %s\n", error->message);
-		g_error_free(error);
-		g_key_file_free(kf);
-		exit(-1);
+		free_config_exit(kf, error);
 	}
 	mysql_host = g_key_file_get_string(kf, "database", "host", &error);
 	if (!mysql_host) {
 		LOG(LOG_ERR, "Failed to get database host: %s\n", error->message);
-		g_error_free(error);
-		g_key_file_free(kf);
-		exit(-1);
+		free_config_exit(kf, error);
 	}
 	mysql_user = g_key_file_get_string(kf, "database", "user", &error);
 	if (!mysql_user) {
 		LOG(LOG_ERR, "Failed to get database user: %s\n", error->message);
-		g_error_free(error);
-		g_key_file_free(kf);
-		exit(-1);
+		free_config_exit(kf, error);
 	}
 	mysql_pass = g_key_file_get_string(kf, "database", "password", &error);
 	if (!mysql_pass) {
 		LOG(LOG_ERR, "Failed to get database password: %s\n", error->message);
-		g_error_free(error);
-		g_key_file_free(kf);
-		exit(-1);
+		free_config_exit(kf, error);
 	}
 	grid = g_key_file_get_string(kf, cfgsection, "grid", &error);
 	if (!grid) {
 		LOG(LOG_ERR, "Failed to get %s grid: %s\n", cfgsection, error->message);
-		g_error_free(error);
-		g_key_file_free(kf);
-		exit(-1);
+		free_config_exit(kf, error);
 	}
 
 	g_key_file_free(kf);
 }
 
 
-void corrupt(void)
+char *parse_app_files()
 {
-	char cmd[MAX_LENGTH];
+        unsigned i;
+        if (1 != fscanf(infile, "app_files_num: %d\n", &app_files_num))
+                return "Failed to parse number of application files!";
 
-	snprintf(cmd, sizeof(cmd), "cp %s ../../", JOBWRAPPER_CONFIG_FILE);
-	if (system(cmd) != 0)
-    		LOG(LOG_ERR, "Error:  The %s file is corrupt. Cannot copy the file into the BoincClientDir.", JOBWRAPPER_CONFIG_FILE);
-	else
-	        LOG(LOG_ERR, "Error:  The %s file is corrupt. Copied into the BoincClientDir.", JOBWRAPPER_CONFIG_FILE);
-	exit(-1);
+        app_files = (char **)malloc(app_files_num*sizeof(char *));
+        app_files_real_name = (char **)malloc(app_files_num*sizeof(char *));
+        for (i = 0; i < app_files_num; i++)
+                if (2 != fscanf(infile, "%as %as\n", &(app_files_real_name[i]), &(app_files[i])))
+                        return "Failed to parse input file data!";
+
+        return NULL;
 }
 
 
-void read_config(void)
+char *parse_in_files()
 {
-        FILE *jobwrapper_config_file;
-        char buf[MAX_LENGTH];
-        char *p, *d;
-        int len;
-        int i = 0;
+        unsigned i;
+        if (1 != fscanf(infile, "input_files_num: %d\n", &input_files_num))
+                return "Failed to parse number of input files!";
 
-        jobwrapper_config_file = fopen(JOBWRAPPER_CONFIG_FILE, "r");
-        if (jobwrapper_config_file == NULL) {
-		LOG(LOG_ERR, "Cannot open jobwrapper config file %s, errno=%d %s",
-			JOBWRAPPER_CONFIG_FILE, errno, strerror(errno));
-		exit(-108);
+        input_files = (char **)malloc(input_files_num*sizeof(char *));
+        input_files_real_name = (char **)malloc(input_files_num*sizeof(char *));
+        for (i = 0; i < input_files_num; i++)
+                if (2 != fscanf(infile, "%as %as\n", &(input_files_real_name[i]), &(input_files[i])))
+                        return "Failed to parse input file data!";
+
+        return NULL;
+}
+
+
+char *parse_out_files()
+{
+        unsigned i;
+        if (1 != fscanf(infile, "output_files_num: %d\n", &output_files_num))
+                return "Failed to parse number of output files!";
+
+        output_files = (char **)malloc(output_files_num*sizeof(char *));
+        output_files_real_name = (char **)malloc(output_files_num*sizeof(char *));
+        for (i = 0; i < output_files_num; i++)
+        {
+                char *fread;
+                if (1 != fscanf(infile, "%as ", &fread))
+                        return(strerror(errno));
+                if (!strcmp(fread, "command_line:"))
+                {
+                        output_files_num = i;
+                        return fread;
+                }
+                output_files_real_name[i] = fread;
+                if (1 != fscanf(infile, "%as\n", &(output_files[i])))
+                        return "Failed to parse output file data!";
         }
-        while (fgets(buf, sizeof(buf), jobwrapper_config_file)) {
-		if ((strstr(buf, "app_files_num:")) != NULL) {
-			p = (char *)strchr(buf, ' ');
-			if (p == NULL)
-				corrupt();
-			p++;
-			app_files_num = atoi(p);
-			if (app_files_num > MAX_FILES) {
-				LOG(LOG_ERR, "Application has got too many files %d. Maxmimum app file is %d",
-					app_files_num, MAX_FILES);
-				exit(-1);
-			}
-			if (app_files_num < 1) {
-				LOG(LOG_ERR, "Application hasn't got any application files according to file %s: %s",
-					JOBWRAPPER_CONFIG_FILE, buf);
-				exit(-1);
-			}
-			for (i = 0; i < app_files_num; i++) {
-				fgets(buf, sizeof(buf), jobwrapper_config_file);
-				if (!strcmp(buf, ""))
-					corrupt();
-				len = strcspn(buf, " ");
-				if (len > MAX_LENGTH - 1)
-					len = MAX_LENGTH - 1;
-				if (len < 1)
-					corrupt();
-				app_files_real_name[i] = (char *) malloc (len + 1);
-				snprintf(app_files_real_name[i], len + 1, "%s", buf);
+        return NULL;
+}
 
-				p = (char *)strchr(buf, ' ');
-				if (p == NULL)
-					corrupt();
-				p++;
-				len = strcspn(p, "\n");
-				if (len > MAX_LENGTH - 1)
-					len = MAX_LENGTH - 1;
-				if (len < 1)
-					corrupt();
-				app_files[i] = (char *) malloc(len + 1);
-				snprintf(app_files[i], len + 1, "%s", p);
-			}
-		} else if ((strstr(buf, "input_files_num:")) != NULL) {
-		        p = (char *)strchr(buf, ' ');
-			if (p == NULL)
-				corrupt();
-			p++;
-			input_files_num = atoi(p);
-			if (input_files_num > MAX_FILES) {
-				LOG(LOG_ERR, "Application has got too many input files %d. Maximum input file is %d",
-					input_files_num, MAX_FILES);
-				exit(-1);
-			}
-			if (input_files_num < 0){
-				LOG(LOG_ERR, "Application has got too few input files %d",
-					input_files_num);
-				exit(-1);
-			}
-			for (i = 0; i < input_files_num; i++) {
-				fgets(buf, sizeof(buf), jobwrapper_config_file);
-				if (!strcmp(buf, ""))
-					corrupt();
-				len = strcspn(buf, " ");
-				if (len > MAX_LENGTH - 1)
-					len = MAX_LENGTH - 1;
-				if (len < 1)
-					corrupt();
-				input_files_real_name[i] = (char *) malloc (len + 1);
-				snprintf(input_files_real_name[i], len + 1, "%s", buf);
 
-				p = (char *)strchr(buf, ' ');
-				if (p == NULL)
-					corrupt();
-				p++;
-				len = strcspn(p, "\n");
-				if (len > MAX_LENGTH - 1)
-					len = MAX_LENGTH - 1;
-				if (len < 1)
-					corrupt();
-				input_files[i] = (char *) malloc(len + 1);
-				snprintf(input_files[i], len + 1, "%s", p);
-			}
-		} else if ((strstr(buf, "output_files_num:")) != NULL) {
-			p = (char *)strchr(buf, ' ');
-			if (p == NULL)
-				corrupt();
-			p++;
-			output_files_num = atoi(p);
-			if (output_files_num > MAX_FILES) {
-				LOG(LOG_ERR, "Application has got too many output files %d. Maximum output files is %d",
-					output_files_num, MAX_FILES);
-				exit(-1);
-			}
-			if (output_files_num < 1) {
-				LOG(LOG_ERR, "Application has got too few output files %d",
-					output_files_num);
-				exit(-1);
-			}
-			for (i = 0; i < output_files_num; i++) {
-				fgets(buf, sizeof(buf), jobwrapper_config_file);
-				if (!strcmp(buf, ""))
-					corrupt();
-				if (NULL != strstr(buf, "command_line:")) {
-					output_files_num = i;
-					goto finread;
-				}
-				len = strcspn(buf, " ");
-				if (len > MAX_LENGTH - 1)
-					len = MAX_LENGTH - 1;
-				if (len < 1)
-					corrupt();
-				output_files_real_name[i] = (char *) malloc (len + 1);
-				snprintf(output_files_real_name[i], len + 1, "%s", buf);
+char *parse_cmd_line()
+{
+        char *p;
+        size_t bsize = 4096;
+        char *cmd_line = (char *)malloc(bsize*sizeof(char));
+        if (1 != fscanf(infile, "%s ", cmd_line))
+                return "Failed to parse command line arguments!";
+        if (strcmp(cmd_line, "command_line:"))
+                return "Failed to parse command line arguments!";
+        if (-1 == getline(&cmd_line, &bsize, infile))
+                return "Failed to parse command line arguments!";
+        if (cmd_line[strlen(cmd_line)-1] == '\n')
+                cmd_line[strlen(cmd_line)-1] = '\0';
 
-				p = (char *)strchr(buf, ' ');
-				if (p == NULL)
-					corrupt();
-				p++;
-				len = strcspn(p, "\n");
-				if (len > MAX_LENGTH - 1)
-					len = MAX_LENGTH - 1;
-				if (len < 1)
-					corrupt();
-				output_files[i] = (char *) malloc(len + 1);
-				snprintf(output_files[i], len + 1, "%s", p);
-			}
-		} else if ((strstr(buf, "command_line:")) != NULL) {
-finread:
-			d = strdup(buf);
-			p = d;
-			p = strtok(buf, " ");
-			p = strtok(NULL, " ");
+        p = cmd_line;
+        while (*p != ' ' && *p != 0)
+                p++;
+        exec_path = strndup(cmd_line, p-cmd_line);
+        arguments = strdup(p+1);
+        free(cmd_line);
 
-			len = strcspn(p, " ");
-			if (len > MAX_LENGTH - 1)
-				len = MAX_LENGTH - 1;
-			if (len < 1)
-				corrupt();
-        		snprintf(exec_path, len + 1, "%s", p);
-			p += len+1;/*p = strtok(NULL, " ");*/
-			len = strcspn(p, "\n");
-			if (len > MAX_LENGTH - 1)
-				len = MAX_LENGTH - 1;
-			if (len > 0)
-            			snprintf(arguments, len + 1, "%s", p);
-			else
-				sprintf(arguments, " ");
-			free(d);
-		} else {
-			corrupt(); // undefinied line
-		}
-	}    
-	fclose(jobwrapper_config_file);
+        return NULL;
+}
+
+
+void read_app_data(void)
+{
+        char *res;
+        
+        if (NULL == (infile = fopen(JOBWRAPPER_CONFIG_FILE, "r")))
+        {
+                LOG(LOG_ERR, "Failed to open jobwrapper config file %s: %s\n",
+			JOBWRAPPER_CONFIG_FILE, strerror(errno));
+		free_exit();
+        }
+
+        if (NULL != (res = parse_app_files()))
+        {
+		LOG(LOG_ERR, "%s\n", res);
+		free_exit();
+        }
+
+        if (NULL != (res = parse_in_files()))
+        {
+		LOG(LOG_ERR, "%s\n", res);
+		free_exit();
+        }
+
+        if (NULL != (res = parse_out_files()))
+        {
+                if (!strcmp(res, "command_line:"))
+                {
+                        free(res);
+                        fseek(infile, -strlen("command_line:")-1, SEEK_CUR);
+                }
+                else
+                {
+			LOG(LOG_ERR, "%s\n", res);
+			free_exit();
+                }
+        }
+
+        if (NULL != (res = parse_cmd_line()))
+        {
+		LOG(LOG_ERR, "%s\n", res);
+		free_exit();
+        }
 }
 
 
@@ -400,7 +427,7 @@ string add_to_3g_db(char *slotStr)
 	        return "";
 	}
 	fwrite(wrapStr, 1, strlen(wrapStr), wrapF);
-	for (int i = 0; i < output_files_num; i++)
+	for (unsigned i = 0; i < output_files_num; i++)
         	fprintf(outF, "%s\n", output_files_real_name[i]);
 	fprintf(outF, "slots\n");
         fclose(wrapF);
@@ -408,12 +435,12 @@ string add_to_3g_db(char *slotStr)
         free(wrapStr);
 
 	string infiles = "";
-        for (int i = 0; i < input_files_num; i++)
-	        infiles += "\"" + string(input_files_real_name[i]) + "\" ";
-			for (int i = 0; i < app_files_num; i++)
-		        	infiles += "\"" + string(app_files_real_name[i]) + "\" ";
+	for (unsigned i = 0; i < input_files_num; i++)
+		infiles += "\"" + string(input_files_real_name[i]) + "\" ";
+	for (unsigned i = 0; i < app_files_num; i++)
+		infiles += "\"" + string(app_files_real_name[i]) + "\" ";
 
-        stringstream tcomm;
+	stringstream tcomm;
 	tcomm << "tar zcf " << sID << ".tgz -C ../.. slots/" << slotStr << " " << infiles;
 	LOG(LOG_DEBUG, "Creating input tgz for \"%s\" with command \"%s\".", sID, tcomm.str().c_str());
 	system(tcomm.str().c_str());
@@ -518,22 +545,6 @@ string getstat_3g(string jobID)
 }
 
 
-void clean_3g(string jobID)
-{
-	char *query;
-	asprintf(&query, "DELETE FROM cg_job WHERE id=\"%s\"", jobID.c_str());
-	if (mysql_query(conn, query))
-	{
-		LOG(LOG_ERR, "Error: failed to delete job \"%s\": %s", jobID.c_str(), mysql_error(conn));
-	}
-	free(query);
-
-	unlink((jobID + ".sh").c_str());
-	unlink((jobID + ".tgz").c_str());
-	unlink((jobID + ".out.tgz").c_str());
-}
-
-
 void init_mysql()
 {
 	LOG(LOG_DEBUG, "Trying to establish connection to MySQL DB \"%s\" on host \"%s\" with user \"%s\".", mysql_dbname, mysql_host, mysql_user);
@@ -548,30 +559,6 @@ void init_mysql()
 		LOG(LOG_ERR, "Failed to connect to MySQL server: %s", mysql_error(conn));
 		exit(-1);
 	}
-}
-
-
-void cleanup(const string& jobID)
-{
-	for (int i = 0; i < app_files_num; i++)
-	{
-		free(app_files[i]);
-		free(app_files_real_name[i]);
-	}
-	for (int i = 0; i < input_files_num; i++)
-	{
-		free(input_files[i]);
-		free(input_files_real_name[i]);
-	}
-	for (int i = 0; i < output_files_num; i++)
-	{
-		free(output_files[i]);
-		free(output_files_real_name[i]);
-	}
-
-	free(cwd);
-	clean_3g(jobID);
-	mysql_close(conn);
 }
 
 
@@ -598,7 +585,7 @@ int main(int argc, char **argv)
 	slotStr = basename(wdcpy);
 
 	// Reading out the needed informations for the job and the 3G bridge
-	read_config();
+	read_app_data();
 
         APP_INIT_DATA aid2;
 	FILE *aidf2 = fopen("init_data.xml", "r");
@@ -623,6 +610,7 @@ int main(int argc, char **argv)
 		{
 			LOG(LOG_ERR, "3G Bridge database identifier is not set!");
 			idF.close();
+			cleanup("");
 			exit(-1);
 		}
 	} else {
@@ -692,7 +680,7 @@ int main(int argc, char **argv)
 	fclose(aidf);
 	for (int i = 0; i < 3; i++) {
     		boinc_report_app_status(aid.wu_cpu_time, 0, 100);
-		sleep(1);
+		boinc_sleep(1);
 	}
 
 	char msg_buf[MSG_CHANNEL_SIZE];
