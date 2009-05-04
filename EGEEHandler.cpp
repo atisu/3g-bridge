@@ -764,18 +764,12 @@ void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const ve
 		globus_ftp_client_operationattr_destroy(&dfa);
 		globus_gass_copy_handle_destroy(&g_c_h);
 		destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs, &rst_pin);
-    		globus_module_deactivate(GLOBUS_GASS_COPY_MODULE);
-		globus_module_deactivate(GLOBUS_FTP_CLIENT_RESTART_PLUGIN_MODULE);
-		globus_module_deactivate(GLOBUS_FTP_CLIENT_MODULE);
 		throw e;
 	}
 	globus_ftp_client_operationattr_destroy(&sfa);
 	globus_ftp_client_operationattr_destroy(&dfa);
 	globus_gass_copy_handle_destroy(&g_c_h);
 	destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs, &rst_pin);
-	globus_module_deactivate(GLOBUS_GASS_COPY_MODULE);
-	globus_module_deactivate(GLOBUS_FTP_CLIENT_RESTART_PLUGIN_MODULE);
-	globus_module_deactivate(GLOBUS_FTP_CLIENT_MODULE);
 	if (transproblem)
 		throw new BackendException("Some file transfer(s) failed!");
 }
@@ -815,7 +809,6 @@ void EGEEHandler::delete_files_globus(const vector<string> &fileNames, const str
 				globus_errmsg);
 			destroy_ftp_client(&ftp_handle, &ftp_handle_attrs,
 				&ftp_op_attrs);
-			globus_module_deactivate(GLOBUS_FTP_CLIENT_MODULE);
 			continue;
 		}
 		globus_mutex_lock(&lock);
@@ -827,7 +820,6 @@ void EGEEHandler::delete_files_globus(const vector<string> &fileNames, const str
 				"file \"%s\": %s", name.c_str(), rname.c_str(),
 				globus_errmsg);
 		destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
-		globus_module_deactivate(GLOBUS_FTP_CLIENT_MODULE);
 	}
 }
 
@@ -849,7 +841,6 @@ void EGEEHandler::create_dir_globus(const string &dirurl) throw (BackendExceptio
 	{
 		set_globus_err(globus_error_get(result));
 		destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
-		globus_module_deactivate(GLOBUS_FTP_CLIENT_MODULE);
 		throw new BackendException("Failed to create remote "
 			"directory \"" + dirurl + "\" using GridFTP: " +
 			string(globus_errmsg));
@@ -861,7 +852,6 @@ void EGEEHandler::create_dir_globus(const string &dirurl) throw (BackendExceptio
 	globus_mutex_unlock(&lock);
 
 	destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
-	globus_module_deactivate(GLOBUS_FTP_CLIENT_MODULE);
 	if (globus_err)
 		throw new BackendException("Failed to create remote "
 			"directory \"" + dirurl + "\" using GridFTP: " +
@@ -889,7 +879,6 @@ void EGEEHandler::remove_dir_globus(const string &dirurl)
 			"directory \"%s\" using GridFTP: %s", name.c_str(),
 			dirurl.c_str(), globus_errmsg);
 		destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
-		globus_module_deactivate(GLOBUS_FTP_CLIENT_MODULE);
 		return;
 	}
 
@@ -899,7 +888,6 @@ void EGEEHandler::remove_dir_globus(const string &dirurl)
 	globus_mutex_unlock(&lock);
 
 	destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
-	globus_module_deactivate(GLOBUS_FTP_CLIENT_MODULE);
 	if (globus_err)
 		LOG(LOG_WARNING, "EGEE Plugin (%s): failed to remove remote "
 			"directory \"%s\" using GridFTP: %s", name.c_str(),
@@ -1146,7 +1134,6 @@ void EGEEHandler::getProxyInfo(const char *proxyfile, time_t *lifetime)
 
 	globus_gsi_cred_handle_destroy(handle);
 	globus_gsi_cred_handle_attrs_destroy(attrs);
-	globus_module_deactivate(GLOBUS_GSI_CREDENTIAL_MODULE);
 }
 
 
