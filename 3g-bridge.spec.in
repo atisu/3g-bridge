@@ -11,6 +11,7 @@ Source: %{name}-%{version}.tar.bz2
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 BuildRequires: libstdc++-devel
 BuildRequires: glite-wms-wmproxy-api-cpp
+BuildRequires: boinc-client-devel
 # For libuuid.so:
 BuildRequires: e2fsprogs-devel
 #BuildRequires: glib2 >= 2.6
@@ -123,6 +124,9 @@ fi
 %doc %{_mandir}/man1/wsclient.1*
 
 %changelog
+* Tue May  5 2009 BALATON Zoltan <balaton@sztaki.hu> 0.92r2189-2
+- Added build requires boinc-client-devel
+
 * Tue Mar 24 2009 BALATON Zoltan <balaton@sztaki.hu> 0.90-1
 - Added URLs for additional sources
 
