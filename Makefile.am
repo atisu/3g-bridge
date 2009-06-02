@@ -30,6 +30,10 @@ BACKEND_LIBS += $(EGEE_LIBS)
 AM_CPPFLAGS += $(EGEE_CPPFLAGS)
 endif
 
+if HAVE_XTREMWEB
+BACKEND_SOURCES += XWHandler.cpp
+endif
+
 SUBDIRS = doc
 
 noinst_HEADERS = \
@@ -40,6 +44,7 @@ noinst_HEADERS = \
 		DCAPIHandler.h \
 		DCAPIHandlerSingle.h \
 		DownloadManager.h \
+		XWHandler.h \
 		EGEEHandler.h \
 		GridHandler.h \
 		Job.h \

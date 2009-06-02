@@ -342,6 +342,9 @@ static void init_grid_handlers(void)
 #ifdef HAVE_EGEE
 	registerPlugin("EGEE", EGEEHandler::getInstance);
 #endif
+#ifdef HAVE_XTREMWEB
+	registerPlugin("XTREMWEB", XWHandler::getInstance);
+#endif
 
 	sections = g_key_file_get_groups(global_config, NULL);
 	for (i = 0; sections && sections[i]; i++)

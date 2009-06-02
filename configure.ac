@@ -82,6 +82,18 @@ fi
 AM_CONDITIONAL([HAVE_EGEE], [test "$with_egee" != no])
 
 dnl -------------------------------------------------------------------
+dnl XtremWeb
+dnl -------------------------------------------------------------------
+
+dnl Check for XtremWeb backend
+AC_ARG_WITH([xtremweb], AS_HELP_STRING([--with-xtremweb], [Enable XtremWeb backend @<:@no@:>@]),
+	[], [with_xtremweb=no])
+if test "$with_xtremweb" != no; then
+	AC_DEFINE([HAVE_XTREMWEB], [1], [Define if XtremWeb support is requested.])
+fi
+AM_CONDITIONAL([HAVE_XTREMWEB], [test "$with_xtremweb" != no])
+
+dnl -------------------------------------------------------------------
 dnl gsoap & libcurl
 dnl -------------------------------------------------------------------
 
