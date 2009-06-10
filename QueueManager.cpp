@@ -39,6 +39,9 @@
 #ifdef HAVE_EGEE
 #include "EGEEHandler.h"
 #endif
+#ifdef HAVE_XTREMWEB
+#include "XWHandler.h"
+#endif
 
 #include <map>
 #include <list>
