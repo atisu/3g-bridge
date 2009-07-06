@@ -6,21 +6,14 @@ Standards-Version: 3.8.1
 Build-Depends: libmysqlclient15-dev | libmysqlclient-dev, libglib2.0-dev, libdcapi-boinc-dev, debhelper (>= 7),
  pkg-config, automake, autoconf, libcurl4-openssl-dev, xsltproc, docbook-xsl, gsoap
 
-Package: 3g-bridge-qm
+Package: 3g-bridge
 Section: net
 Priority: extra
 Architecture: any
 Depends: ${shlibs:Depends}
+Recommends: 3g-bridge-wsclient
 Description: A bridge connecting various grid infrastructures
- This package contains the queue manager component.
-
-Package: 3g-bridge-ws
-Section: net
-Priority: extra
-Architecture: any
-Depends: ${shlibs:Depends}, 3g-bridge-qm
-Description: A bridge connecting various grid infrastructures
- This package contains the web service interface.
+ This package contains the queue manager and the web service interface.
 
 Package: 3g-bridge-wsclient
 Section: net
@@ -34,6 +27,6 @@ Package: 3g-bridge-dbg
 Section: net
 Priority: extra
 Architecture: any
-Depends: 3g-bridge-qm (= ${Source-Version})
+Depends: 3g-bridge (= ${Source-Version})
 Description: 3G Bridge debug symbols
  This package contains the debugging symbols for the 3G Bridge.

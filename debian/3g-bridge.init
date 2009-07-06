@@ -1,0 +1,101 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          3g-bridge
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# X-Start-Before:    
+# X-Stop-After:      
+# Default-Start:     2 3 4 5
+# Default-Stop:      1
+# Short-Description: Start the 3G-Bridge
+# Description:       Launches the 3G-Bridge
+### END INIT INFO
+
+BRIDGE_DAEMON=/usr/sbin/3g-bridge
+WSSUBMITTER_DAEMON=/usr/sbin/wssubmitter
+
+test -x $BRIDGE_DAEMON || exit 0
+
+CONFFILE="/etc/3g-bridge.conf"
+ENABLED="no"
+BRIDGE_OPTIONS=""
+WSSUBMITTER_OPTIONS=""
+
+test -f /etc/default/3g-bridge && . /etc/default/3g-bridge
+
+case "$ENABLED" in
+	1|y*|Y*) ;;
+	*) exit 0
+esac
+
+. /lib/lsb/init-functions
+
+pidfile () {
+	awk "/^\\[/ { if (in_sect) in_sect = 0 } /^\\[$1\\]/ { in_sect = 1 } /^pid-file/ { if (in_sect) print \$3 }" "$CONFFILE"
+}
+
+BRIDGE_PID=`pidfile bridge`
+WSSUBMITTER_PID=`pidfile wssubmitter`
+
+case "$1" in
+	start)
+		log_daemon_msg "Starting 3G-Bridge"
+		if [ ! -z "$BRIDGE_PID" ]; then
+			log_progress_msg "3g-bridge"
+			start-stop-daemon --start --quiet \
+				--pidfile "$BRIDGE_PID" \
+				--exec "$BRIDGE_DAEMON" \
+				-- \
+				--config "$CONFFILE" "$BRIDGE_OPTIONS"
+		fi
+		if [ ! -z "$WSSUBMITTER_PID" ]; then
+			log_progress_msg "wssubmitter"
+			start-stop-daemon --start --quiet \
+				--pidfile "$WSSUBMITTER_PID" \
+				--exec "$WSSUBMITTER_DAEMON" \
+				-- \
+				--config "$CONFFILE" "$WSSUBMITTER_OPTIONS"
+		fi
+		log_end_msg 0
+		;;
+	stop)
+		log_daemon_msg "Stopping 3G-Bridge"
+		if [ ! -z "$WSSUBMITTER_PID" ]; then
+			log_progress_msg "wssubmitter"
+			$WSSUBMITTER_DAEMON --config "$CONFFILE" --kill
+		fi
+		if [ ! -z "$BRIDGE_PID" ]; then
+			log_progress_msg "3g-bridge"
+			$BRIDGE_DAEMON --config "$CONFFILE" --kill
+		fi
+		log_end_msg 0
+		;;
+	restart|force-reload)
+		log_daemon_msg "Restarting 3G-Bridge"
+		if [ ! -z "$BRIDGE_PID" ]; then
+			log_progress_msg "3g-bridge"
+			$BRIDGE_DAEMON --config "$CONFFILE" --kill
+			start-stop-daemon --start --quiet \
+				--pidfile "$BRIDGE_PID" \
+				--exec "$BRIDGE_DAEMON" \
+				-- \
+				--config "$CONFFILE" "$BRIDGE_OPTIONS"
+		fi
+		if [ ! -z "$WSSUBMITTER_PID" ]; then
+			log_progress_msg "wssubmitter"
+			$WSSUBMITTER_DAEMON --config "$CONFFILE" --kill
+			start-stop-daemon --start --quiet \
+				--pidfile "$WSSUBMITTER_PID" \
+				--exec "$WSSUBMITTER_DAEMON" \
+				-- \
+				--config "$CONFFILE" "$WSSUBMITTER_OPTIONS"
+		fi
+		log_end_msg 0
+		;;
+	*)
+		log_action_msg "Usage: $0 (start|stop|restart|force-reload)"
+		exit 2
+		;;
+esac
+
+exit 0

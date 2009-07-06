@@ -1,8 +1,0 @@
-# Location of the config file
-CONFFILE="/etc/3g-bridge.conf"
-
-# Do you want to start the daemon at boot?
-START_AT_BOOT="no"
-
-# Extra options for the daemon
-OPTIONS=""
