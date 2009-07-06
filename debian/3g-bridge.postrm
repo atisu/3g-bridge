@@ -1,0 +1,29 @@
+#! /bin/sh
+
+set -e
+
+if [ -f /usr/share/debconf/confmodule ]; then
+	. /usr/share/debconf/confmodule
+fi
+if [ -f /usr/share/dbconfig-common/dpkg/postrm.mysql ]; then
+	. /usr/share/dbconfig-common/dpkg/postrm.mysql
+	dbc_go 3g-bridge $@
+fi
+
+CONFFILE=/etc/3g-bridge.conf
+if [ "$1" = "purge" ]; then
+	if which ucf >/dev/null 2>&1; then
+		ucf --debconf-ok --purge $CONFFILE
+	fi
+	if which ucfr >/dev/null 2>&1; then
+		ucfr --purge 3g-bridge $CONFFILE
+	fi
+
+	for ext in ucf-new ucf-old ucf-dist; do
+		rm -f $CONFFILE.$ext
+	done
+	rm -f $CONFFILE
+fi
+
+#DEBHELPER#
+

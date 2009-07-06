@@ -15,18 +15,13 @@ BRIDGE_DAEMON=/usr/sbin/3g-bridge
 WSSUBMITTER_DAEMON=/usr/sbin/wssubmitter
 
 test -x $BRIDGE_DAEMON || exit 0
+test -x $WSSUBMITTER_DAEMON || exit 0
 
 CONFFILE="/etc/3g-bridge.conf"
-ENABLED="no"
 BRIDGE_OPTIONS=""
 WSSUBMITTER_OPTIONS=""
 
 test -f /etc/default/3g-bridge && . /etc/default/3g-bridge
-
-case "$ENABLED" in
-	1|y*|Y*) ;;
-	*) exit 0
-esac
 
 . /lib/lsb/init-functions
 

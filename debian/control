@@ -10,8 +10,9 @@ Package: 3g-bridge
 Section: net
 Priority: extra
 Architecture: any
-Depends: ${shlibs:Depends}
-Recommends: 3g-bridge-wsclient
+Depends: ${shlibs:Depends}, dbconfig-common, ${misc:Depends}
+Recommends: 3g-bridge-wsclient, mysql-client
+Suggests: mysql-server
 Description: A bridge connecting various grid infrastructures
  This package contains the queue manager and the web service interface.
 
