@@ -1,3 +1,11 @@
+3g-bridge (0.95-1) unstable; urgency=low
+
+  * New upstream release.
+  * Packaging has been updated for lenny.
+  * Use dbconfig-common for configuring the database.
+
+ -- Gábor Gombás <gombasg@sztaki.hu>  Wed, 08 Jul 2009 15:01:12 +0200
+
 3g-bridge (0.9-7) unstable; urgency=low
 
   * Make sure the plugin update methods are not called too frequently.
