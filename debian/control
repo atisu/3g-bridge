@@ -12,6 +12,8 @@ Priority: extra
 Architecture: any
 Depends: ${shlibs:Depends}, dbconfig-common, ${misc:Depends}
 Recommends: 3g-bridge-wsclient, mysql-client
+Replaces: 3g-bridge-qm
+Conflicts: 3g-bridge-qm
 Suggests: mysql-server
 Description: A bridge connecting various grid infrastructures
  This package contains the queue manager and the web service interface.
