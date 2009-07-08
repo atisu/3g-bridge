@@ -30,6 +30,6 @@ Package: 3g-bridge-dbg
 Section: net
 Priority: extra
 Architecture: any
-Depends: 3g-bridge (= ${Source-Version})
+Depends: 3g-bridge (= ${binary:Version})
 Description: 3G Bridge debug symbols
  This package contains the debugging symbols for the 3G Bridge.
