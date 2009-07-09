@@ -43,6 +43,7 @@ using namespace std;
 #define XWGET    3
 #define XWCLEAN  4
 
+
 struct xwcommand
 {
     int type;
@@ -54,10 +55,14 @@ struct xwcommand
     string name;
 };
 
-string * xtremwebClient(struct xwcommand xwc);
-string g_cmdbase;
-string g_env;
 
+string * xtremwebClient(struct xwcommand xwc);
+string g_cmdbase;//cmdbase for execution the commands
+string g_env;//a global env parameter
+string g_uuid; //uuid for Bridge jobs
+string g_outputpath;//outputpath foroutput files
+string g_timefordl; //time in seconds to download results for bridgss
+string g_installdir; //the directory where you have installed 3g bridge
 
 
 XWHandler::XWHandler(GKeyFile *config, const char *instance) throw (BackendException *)
@@ -68,7 +73,16 @@ XWHandler::XWHandler(GKeyFile *config, const char *instance) throw (BackendExcep
     groupByNames = false;
     xwclient = g_key_file_get_string(config,GROUP_XWDG,"xwclient-dir",NULL);
 
-    string g_env= g_key_file_get_string(config,GROUP_XWDG,"xwenv",NULL);
+    g_env= g_key_file_get_string(config,GROUP_XWDG,"xwenv",NULL);
+
+    g_outputpath=g_key_file_get_string(config,GROUP_WSSUBMITTER,"output-dir",NULL);
+    LOG(LOG_DEBUG,"XW bridge output dir:%s \n",g_outputpath.c_str());
+
+    g_timefordl=g_key_file_get_string(config,GROUP_XWDG,"xwdltime",NULL);
+    LOG(LOG_DEBUG,"XW bridge download results time:%s \n",g_timefordl.c_str());
+
+    g_installdir=g_key_file_get_string(config,GROUP_XWDG,"installdir",NULL);
+    LOG(LOG_DEBUG,"XW bridge installed dirs:%s \n",g_installdir.c_str());
 
     if (!xwclient)
         throw new BackendException("XtremWeb: no XtremWeb client path "
@@ -78,6 +92,7 @@ XWHandler::XWHandler(GKeyFile *config, const char *instance) throw (BackendExcep
 
 }
 
+
 XWHandler::~XWHandler()
 {
     /*
@@ -86,7 +101,6 @@ XWHandler::~XWHandler()
       system(cmd);
     */
 }
-
 
 
 void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
@@ -100,7 +114,6 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     {
 
         Job *actJ = *it;
-
 
         string submit = cmdbase + "xwsubmit";
 
@@ -161,13 +174,9 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 
         //change the status of the job
         actJ->setStatus(Job::RUNNING);
-
-
-
     }
     LOG(LOG_INFO, "XW Plugin: job submission finished.");
 }
-
 
 
 void XWHandler::updateStatus(void) throw (BackendException *)
@@ -188,6 +197,7 @@ GridHandler *XWHandler::getInstance(GKeyFile *config, const char *instance)
 {
     return new XWHandler(config, instance);
 }
+
 
 void XWHandler::updateJob(Job *job, string status)
 {
@@ -211,17 +221,7 @@ void XWHandler::updateJob(Job *job, string status)
         {"", Job::INIT},
     };
 
-
-
-
-
-
-
     string statStr=status;
-
-
-
-
 
     LOG(LOG_INFO,"\nStatus Str:%s",statStr.c_str(),"\n");
     LOG(LOG_INFO, "XWDG Plugin (%s): updating status of job \"%s\" (unique identifier is \"%s\").", name.c_str(), job->getGridId().c_str(), job->getId().c_str());
@@ -244,77 +244,70 @@ void XWHandler::poll(Job *job) throw (BackendException *)
 {
     string xwid="";
     xwid = job->getGridId();
+    g_uuid = job->getId();
+
     xwcommand xwstatus;
     switch (job->getStatus())
     {
-    case Job::RUNNING:
-    {
-        xwstatus.xwid=xwid;
-        //we need this to fix an XtremWeb bug
-        string * retour;
+	case Job::RUNNING:
+	{
+    	    xwstatus.xwid=xwid;
+    	    //we need this to fix an XtremWeb bug
+    	    string * retour;
 #ifdef XWFIX
-        xwstatus.type=XWCLEAN;
-        retour = xtremwebClient(xwstatus);
+    	    xwstatus.type=XWCLEAN;
+    	    retour = xtremwebClient(xwstatus);
 #endif
-        xwstatus.type=XWSTATUS;
-        retour = xtremwebClient(xwstatus);
+    	    xwstatus.type=XWSTATUS;
+    	    retour = xtremwebClient(xwstatus);
 
+    	    string status = "ERROR";
+    	    int pos_xwid = retour->rfind("status=\"");
+    	    if ( string::npos != pos_xwid )
+    	    {
 
-        string status = "ERROR";
-        int pos_xwid = retour->rfind("status=\"");
-        if ( string::npos != pos_xwid )
-        {
+        	status = retour->substr(pos_xwid+8,retour->length()-1);
+        	//trim xwid
+        	size_t endpos = status.find("\"");
+        	if ( string::npos != endpos )
+            	    status = status.substr( 0, endpos );
+    	    }
 
-            status = retour->substr(pos_xwid+8,retour->length()-1);
-            //trim xwid
-            size_t endpos = status.find("\"");
-            if ( string::npos != endpos )
-                status = status.substr( 0, endpos );
-        }
+    	    LOG(LOG_INFO, "STATUS[ %s ]STATUS",status.c_str());
 
+    	    if (status=="COMPLETED")
+    	    {
+        	xwstatus.xwid=xwid;
+        	//we need this to fix an XtremWeb bug
 
-        LOG(LOG_INFO, "STATUS[ %s ]STATUS",status.c_str());
+        	xwstatus.type=XWGET;
+        	retour = xtremwebClient(xwstatus);
+    	    }
+    	    updateJob(job,status);
 
-        if (status=="COMPLETED")
-        {
-            xwstatus.xwid=xwid;
-            //we need this to fix an XtremWeb bug
+    	    break;
+	}
 
-            xwstatus.type=XWGET;
-            retour = xtremwebClient(xwstatus);
+	case Job::FINISHED:
+	{
 
-        }
-        updateJob(job,status);
+    	    xwstatus.xwid=xwid;
 
-        break;
+    	    string * retour;
+
+    	    LOG(LOG_INFO,"POLL : s% ,FINISHED\n",xwid.c_str());
+    	    xwstatus.type=XWGET;
+    	    retour = xtremwebClient(xwstatus);
+    	    break;
+	}
     }
-
-
-    case Job::FINISHED:
-    {
-
-        xwstatus.xwid=xwid;
-
-        string * retour;
-
-        LOG(LOG_INFO,"POLL : s% ,FINISHED\n",xwid.c_str());
-        xwstatus.type=XWGET;
-        retour = xtremwebClient(xwstatus);
-        break;
-    }
-    }
-
 
     LOG(LOG_INFO,"POLL : %s \n",xwid.c_str());
-
 }
 
 
 string * xtremwebClient(struct xwcommand xwc)
 {
-
-
-
     int status, old_stdout, old_stderr, c;
     int pipe_stdout[2], pipe_stderr[2];
     char buffer[1024];
@@ -326,158 +319,176 @@ string * xtremwebClient(struct xwcommand xwc)
 
     switch (xwc.type)
     {
-    case XWSUBMIT:
-    {
-        string submitpath="";
-        submitpath=g_cmdbase + "xwsubmit";
+	case XWSUBMIT:
+	{
+    	    string submitpath="";
+    	    submitpath=g_cmdbase + "xwsubmit";
 
-        char t[512];
-        memset(t,0,512);
-        strcpy(t,submitpath.c_str());
+    	    char t[512];
+    	    memset(t,0,512);
+    	    strcpy(t,submitpath.c_str());
 
-        LOG(LOG_DEBUG,"t[]=%s\n",t);
-        char *  args[] = {  "bash",t,"",  (char*)NULL };
-        char tmp[512];
-        string submit = xwc.bin + " " + xwc.args + " " + xwc.env;
-        args[2] = strcpy(tmp, submit.c_str());
+    	    LOG(LOG_DEBUG,"t[]=%s\n",t);
+    	    char *  args[] = {  "bash",t,"",  (char*)NULL };
+    	    char tmp[512];
+    	    string submit = xwc.bin + " " + xwc.args + " " + xwc.env;
+    	    args[2] = strcpy(tmp, submit.c_str());
 
-        LOG(LOG_INFO,"xwclient : %s %s %s\n", args[0], args[1], args[2]);
+    	    LOG(LOG_INFO,"xwclient : %s %s %s\n", args[0], args[1], args[2]);
 
-        if (fork()==0)
+    	    if (fork()==0)
+    	    {
+        	close (pipe_stdout[0]);
+        	close (pipe_stderr[0]);
+        	/* redirect to pipe */
+        	dup2(pipe_stdout[1], STDOUT_FILENO);
+        	dup2(pipe_stderr[1], STDERR_FILENO);
+        	execv("/bin/bash",args);
+    	    }
+    	    break;
+	}
+
+	case XWSTATUS:
         {
-            close (pipe_stdout[0]);
-            close (pipe_stderr[0]);
-            /* redirect to pipe */
-            dup2(pipe_stdout[1], STDOUT_FILENO);
-            dup2(pipe_stderr[1], STDERR_FILENO);
-            execv("/bin/bash",args);
-        }
-        break;
+    	    string submitpath="";
+    	    submitpath=g_cmdbase + "xwstatus";
+
+    	    char t[512];
+    	    memset(t,0,512);
+    	    strcpy(t,submitpath.c_str());
+
+    	    LOG(LOG_DEBUG,"t[]=%s\n",t);
+    	    char *  args[] = {  "bash",t,"",  (char*)NULL };
+    	    char tmp[512];
+    	    args[2] = strcpy(tmp, xwc.xwid.c_str());
+
+    	    LOG(LOG_INFO,"xwclient : %s %s %s\n", args[0], args[1], args[2]);
+
+    	    if (fork()==0)
+    	    {
+        	close (pipe_stdout[0]);
+        	close (pipe_stderr[0]);
+        	/* redirect to pipe */
+        	dup2(pipe_stdout[1], STDOUT_FILENO);
+        	dup2(pipe_stderr[1], STDERR_FILENO);
+        	execv("/bin/bash",args);
+    	    }
+    	    break;
+	}
+
+	case XWDATA:
+	{
+	    string submitpath="";
+    	    submitpath=g_cmdbase + "xwdata";
+
+    	    char t[512];
+    	    memset(t,0,512);
+    	    strcpy(t,submitpath.c_str());
+
+    	    LOG(LOG_DEBUG,"t[]=%s\n",t);
+    	    char *  args[] = {  "bash",t,"",  (char*)NULL };
+
+    	    char tmp[512];
+    	    string data = xwc.name + " " + xwc.path;
+    	    args[2] = strcpy(tmp, data.c_str());
+
+    	    LOG(LOG_INFO,"xwclient : %s %s %s\n", args[0], args[1], args[2]);
+
+    	    if (fork()==0)
+    	    {
+        	close (pipe_stdout[0]);
+    		close (pipe_stderr[0]);
+        	/* redirect to pipe */
+        	dup2(pipe_stdout[1], STDOUT_FILENO);
+        	dup2(pipe_stderr[1], STDERR_FILENO);
+        	execv("/bin/bash",args);
+    	    }
+    	    break;
+	}
+
+	case XWCLEAN:
+	{
+    	    string submitpath="";
+    	    submitpath=g_cmdbase + "xwclean";
+
+    	    char t[512];
+    	    memset(t,0,512);
+    	    strcpy(t,submitpath.c_str());
+    	    LOG(LOG_DEBUG,"xwclean t[]=%s\n",t);
+    	    char *  args[] = {  "bash",t,"",  (char*)NULL };
+    	    char tmp[512];
+    	    args[2] = strcpy(tmp, xwc.xwid.c_str());
+    	    LOG(LOG_DEBUG,"xwclient : %s %s %s\n", args[0], args[1], args[2]);
+
+    	    if (fork()==0)
+    	    {
+        	close (pipe_stdout[0]);
+        	close (pipe_stderr[0]);
+        	/* redirect to pipe */
+        	dup2(pipe_stdout[1], STDOUT_FILENO);
+        	dup2(pipe_stderr[1], STDERR_FILENO);
+        	execv("/bin/bash",args);
+    	    }
+    	    break;
+	}
+
+	case XWGET:
+	{
+    	    system("pwd");
+    	    string workdir=g_installdir;
+    	    chdir(workdir.c_str());
+
+    	    LOG(LOG_DEBUG,"chdir : %s \n", workdir.c_str());
+
+    	    string submitpath="";
+    	    submitpath=g_cmdbase + "xwdownload";
+
+    	    char t[512];
+    	    memset(t,0,512);
+    	    strcpy(t,submitpath.c_str());
+    	    LOG(LOG_DEBUG,"t[]=%s\n",t);
+    	    char *  args[] = {"bash",t,"",  (char*)NULL };
+    	    char tmp[512];
+    	    string submit = xwc.bin + " " + xwc.args + " " + xwc.xwid+" "+xwc.env;
+    	    args[2] = strcpy(tmp, submit.c_str());
+    	    LOG(LOG_DEBUG,"xwclient : %s %s %s\n", args[0], args[1], args[2]);
+
+    	    if (fork()==0)
+    	    {
+        	close (pipe_stdout[0]);
+        	close (pipe_stderr[0]);
+        	/* redirect to pipe */
+        	dup2(pipe_stdout[1], STDOUT_FILENO);
+        	dup2(pipe_stderr[1], STDERR_FILENO);
+        	execv("/bin/bash",args);
+    	    }
+    	    int timedl=atoi(g_timefordl.c_str());
+    	    LOG(LOG_DEBUG,"time to dl: %d \n",timedl);
+    	    sleep(timedl);//waiting for results file downloaded
+    	    string uuid=g_uuid;
+    	    string xwid=xwc.xwid.substr(25,36);
+    	    string fileToUnzip= "*_ResultsOf_"+xwid+".zip";
+
+    	    string path=g_outputpath+"/"+uuid.substr(0,2)+"/"+uuid+"/";
+
+    	    LOG(LOG_DEBUG,"outputpath : %s \n", path.c_str());
+
+    	    string cmdmv="mv "+fileToUnzip+" "+path;
+
+    	    string unzip = "unzip -o " + path+fileToUnzip;
+    	    string cmdunzip="/usr/bin/"+unzip+" -d "+path;
+
+    	    LOG(LOG_DEBUG,"cmdmv : %s \n", cmdmv.c_str());
+
+    	    system(cmdmv.c_str());
+
+    	    LOG(LOG_DEBUG,"cmdunzip : %s \n", cmdunzip.c_str());
+    	    system(cmdunzip.c_str());
+
+	    break;
+	}
+
     }
-
-    case XWSTATUS:
-    {
-        string submitpath="";
-        submitpath=g_cmdbase + "xwstatus";
-
-
-        char t[512];
-        memset(t,0,512);
-        strcpy(t,submitpath.c_str());
-
-        LOG(LOG_DEBUG,"t[]=%s\n",t);
-        char *  args[] = {  "bash",t,"",  (char*)NULL };
-
-
-
-
-        char tmp[512];
-        args[2] = strcpy(tmp, xwc.xwid.c_str());
-
-        LOG(LOG_INFO,"xwclient : %s %s %s\n", args[0], args[1], args[2]);
-
-        if (fork()==0)
-        {
-            close (pipe_stdout[0]);
-            close (pipe_stderr[0]);
-            /* redirect to pipe */
-            dup2(pipe_stdout[1], STDOUT_FILENO);
-            dup2(pipe_stderr[1], STDERR_FILENO);
-            execv("/bin/bash",args);
-        }
-        break;
-
-    }
-    case XWDATA:
-    {
-        string submitpath="";
-        submitpath=g_cmdbase + "xwdata";
-
-
-        char t[512];
-        memset(t,0,512);
-        strcpy(t,submitpath.c_str());
-
-        LOG(LOG_DEBUG,"t[]=%s\n",t);
-        char *  args[] = {  "bash",t,"",  (char*)NULL };
-
-        char tmp[512];
-        string data = xwc.name + " " + xwc.path;
-        args[2] = strcpy(tmp, data.c_str());
-
-        LOG(LOG_INFO,"xwclient : %s %s %s\n", args[0], args[1], args[2]);
-
-        if (fork()==0)
-        {
-            close (pipe_stdout[0]);
-            close (pipe_stderr[0]);
-            /* redirect to pipe */
-            dup2(pipe_stdout[1], STDOUT_FILENO);
-            dup2(pipe_stderr[1], STDERR_FILENO);
-            execv("/bin/bash",args);
-        }
-        break;
-    }
-    case XWCLEAN:
-    {
-        string submitpath="";
-        submitpath=g_cmdbase + "xwclean";
-
-        char t[512];
-        memset(t,0,512);
-        strcpy(t,submitpath.c_str());
-        LOG(LOG_DEBUG,"xwclean t[]=%s\n",t);
-        char *  args[] = {  "bash",t,"",  (char*)NULL };
-
-
-
-        char tmp[512];
-        args[2] = strcpy(tmp, xwc.xwid.c_str());
-        LOG(LOG_DEBUG,"xwclient : %s %s %s\n", args[0], args[1], args[2]);
-
-
-        if (fork()==0)
-        {
-            close (pipe_stdout[0]);
-            close (pipe_stderr[0]);
-            /* redirect to pipe */
-            dup2(pipe_stdout[1], STDOUT_FILENO);
-            dup2(pipe_stderr[1], STDERR_FILENO);
-            execv("/bin/bash",args);
-        }
-        break;
-    }
-
-    case XWGET:
-    {
-        string submitpath="";
-        submitpath=g_cmdbase + "xwdownload";
-
-
-        char t[512];
-        memset(t,0,512);
-        strcpy(t,submitpath.c_str());
-        LOG(LOG_DEBUG,"t[]=%s\n",t);
-        char *  args[] = {"bash",t,"",  (char*)NULL };
-        char tmp[512];
-        string submit = xwc.bin + " " + xwc.args + " " + xwc.xwid+" "+xwc.env;
-        args[2] = strcpy(tmp, submit.c_str());
-        LOG(LOG_DEBUG,"xwclient : %s %s %s\n", args[0], args[1], args[2]);
-
-        if (fork()==0)
-        {
-            close (pipe_stdout[0]);
-            close (pipe_stderr[0]);
-            /* redirect to pipe */
-            dup2(pipe_stdout[1], STDOUT_FILENO);
-            dup2(pipe_stderr[1], STDERR_FILENO);
-            execv("/bin/bash",args);
-        }
-        break;
-    }
-
-    }
-
 
     int test = wait(NULL);
     close (pipe_stdout[1]);
@@ -493,4 +504,3 @@ string * xtremwebClient(struct xwcommand xwc)
 
     return message;
 }
-
