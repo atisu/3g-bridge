@@ -145,6 +145,13 @@ static bool submit_job(Job *job)
 	char **argv = NULL;
 	int argc;
 
+	if (NULL == job->getAlgQueue())
+	{
+		LOG(LOG_ERR, "DC-API-SINGLE: Job %s: unknown algorithm queue",
+			job->getId().c_str());
+		return false;
+	}
+
 	if (!g_shell_parse_argv(job->getArgs().c_str(), &argc, &argv, &error))
 	{
 		if (G_SHELL_ERROR_EMPTY_STRING != error->code)
