@@ -466,7 +466,14 @@ string * xtremwebClient(struct xwcommand xwc)
     	    LOG(LOG_DEBUG,"time to dl: %d \n",timedl);
     	    sleep(timedl);//waiting for results file downloaded
     	    string uuid=g_uuid;
-    	    string xwid=xwc.xwid.substr(25,36);
+
+	    int xwidlen=(xwc.xwid).length();
+	    int idlen=36;
+	    //this xwgridid is generated, the length is fixed to 36
+	    int envlen=xwidlen-idlen;
+	    LOG(LOG_DEBUG,"envlen,idlen: %d %d \n",envlen,idlen);
+
+	    string xwid=xwc.xwid.substr(envlen,idlen);
     	    string fileToUnzip= "*_ResultsOf_"+xwid+".zip";
 
     	    string path=g_outputpath+"/"+uuid.substr(0,2)+"/"+uuid+"/";

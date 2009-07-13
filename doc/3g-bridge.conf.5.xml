@@ -454,6 +454,60 @@
 	    </glossentry>
 	</glosslist>
     </refsect1>
+    
+    <refsect1>
+	<title>OPTIONS FOR THE XTERMWEB PLUGIN</title>
+
+	<para>
+	    If a grid definition uses the <literal>XTREMWEB</literal> plugin, then the following
+	    values can be specified in the defining group:
+	</para>
+	<glosslist>
+	    <glossentry>
+		<glossterm><envar>xwclient-dir</envar></glossterm>
+		<glossdef>
+		    <para>
+			Path and directory of the installed XtremWeb Client.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>xwenv</envar></glossterm>
+		<glossdef>
+		    <para>
+			Enviroment parameter for XtremWeb client functions.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>handler</envar></glossterm>
+		<glossdef>
+		    <para>
+			Name of XtremWeb handler.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>installdir</envar></glossterm>
+		<glossdef>
+		    <para>
+			Installed directory of XtremWeb bridge, where the 3g-bridge executable located.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>xwdltime</envar></glossterm>
+		<glossdef>
+		    <para>
+			Time in seconds to download results file for bridge, redefine it according to size of files, default value is 20 seconds.
+larger results files to download, more time to use.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	
+	  	
+	</glosslist>
+    </refsect1>
 
     <refsect1>
 	<title>SEE ALSO</title>
