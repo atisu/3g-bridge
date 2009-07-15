@@ -1,0 +1,35 @@
+#! /usr/bin/env python
+
+import sys
+
+from optparse import OptionParser
+from G3Bridge.G3BridgeMonitor import G3BridgeMonitor
+from soaplib.client import make_service_client
+
+parser = OptionParser(usage = "%prog [options]")
+parser.add_option("-u", "--url",
+                  help = "service endpoint",
+                  metavar = "URL",
+                  action = "store",
+                  dest = "url")
+parser.add_option("-g", "--grid",
+                  help = "grid name",
+                  metavar = "NAME",
+                  action = "store",
+                  dest = "grid")
+
+options, args = parser.parse_args();
+
+if not options.url:
+    raise SystemExit("The service endpoint must be specified")
+if not options.grid:
+    raise SystemExit("The grid name must be specified")
+
+client = make_service_client(options.url, G3BridgeMonitor())
+running = client.getRunningJobsRequest(options.grid)
+waiting = client.getWaitingJobsRequest(options.grid)
+cpus = client.getCPUCountRequest(options.grid)
+
+print "running:", running
+print "waiting:", waiting
+print "cpus:", cpus

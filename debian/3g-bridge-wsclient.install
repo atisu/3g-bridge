@@ -1,1 +1,2 @@
 debian/tmp/usr/bin/wsclient
+debian/tmp/usr/bin/wsmonitorclient

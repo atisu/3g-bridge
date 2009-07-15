@@ -46,8 +46,8 @@
 #include <curl/curl.h>
 #include <uuid/uuid.h>
 
-#include "soap/soapH.h"
-#include "soap/G3BridgeSubmitter.nsmap"
+#include "soap/SubmitterH.h"
+#include "soap/Submitter.nsmap"
 
 #include <glib.h>
 
@@ -103,6 +103,9 @@ static GOptionEntry options[] =
 		"Kill the running daemon", NULL },
 	{ NULL }
 };
+
+/* Hack for gSoap */
+struct Namespace namespaces[] = {{ NULL, }};
 
 /**********************************************************************
  * Calculate file locations
@@ -256,7 +259,7 @@ void DBItem::setRetry(const struct timeval &when, int retries)
  * Web service routines
  */
 
-int __G3Bridge__submit(struct soap *soap, G3Bridge__JobList *jobs, G3Bridge__JobIDList *result)
+int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *jobs, G3BridgeSubmitter__JobIDList *result)
 {
 	DBHandler *dbh;
 
@@ -276,7 +279,7 @@ int __G3Bridge__submit(struct soap *soap, G3Bridge__JobList *jobs, G3Bridge__Job
 		return SOAP_FATAL_ERROR;
 	}
 
-	for (vector<G3Bridge__Job *>::const_iterator jobit = jobs->job.begin(); jobit != jobs->job.end(); jobit++)
+	for (vector<G3BridgeSubmitter__Job *>::const_iterator jobit = jobs->job.begin(); jobit != jobs->job.end(); jobit++)
 	{
 		uuid_t uuid;
 		char jobid[37];
@@ -286,12 +289,12 @@ int __G3Bridge__submit(struct soap *soap, G3Bridge__JobList *jobs, G3Bridge__Job
 
 		vector< pair<string, string> > inputs;
 
-		G3Bridge__Job *wsjob = *jobit;
+		G3BridgeSubmitter__Job *wsjob = *jobit;
 		Job qmjob((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::PREPARE);
 
-		for (vector<G3Bridge__LogicalFile *>::const_iterator inpit = wsjob->inputs.begin(); inpit != wsjob->inputs.end(); inpit++)
+		for (vector<G3BridgeSubmitter__LogicalFile *>::const_iterator inpit = wsjob->inputs.begin(); inpit != wsjob->inputs.end(); inpit++)
 		{
-			G3Bridge__LogicalFile *lfn = *inpit;
+			G3BridgeSubmitter__LogicalFile *lfn = *inpit;
 
 			string path = calc_input_path(jobid, lfn->logicalName);
 			qmjob.addInput(lfn->logicalName, path);
@@ -324,7 +327,7 @@ int __G3Bridge__submit(struct soap *soap, G3Bridge__JobList *jobs, G3Bridge__Job
 	return SOAP_OK;
 }
 
-int __G3Bridge__getStatus(struct soap *soap, G3Bridge__JobIDList *jobids, G3Bridge__StatusList *result)
+int __G3BridgeSubmitter__getStatus(struct soap *soap, G3BridgeSubmitter__JobIDList *jobids, G3BridgeSubmitter__StatusList *result)
 {
 	DBHandler *dbh;
 
@@ -346,27 +349,27 @@ int __G3Bridge__getStatus(struct soap *soap, G3Bridge__JobIDList *jobids, G3Brid
 
 	for (vector<string>::const_iterator it = jobids->jobid.begin(); it != jobids->jobid.end(); it++)
 	{
-		G3Bridge__JobStatus status = G3Bridge__JobStatus__UNKNOWN;
+		G3BridgeSubmitter__JobStatus status = G3BridgeSubmitter__JobStatus__UNKNOWN;
 
 		auto_ptr<Job> job = dbh->getJob(*it);
 		if (job.get()) switch (job->getStatus())
 		{
 			case Job::PREPARE:
 			case Job::INIT:
-				status = G3Bridge__JobStatus__INIT;
+				status = G3BridgeSubmitter__JobStatus__INIT;
 				break;
 			case Job::RUNNING:
-				status = G3Bridge__JobStatus__RUNNING;
+				status = G3BridgeSubmitter__JobStatus__RUNNING;
 				break;
 			case Job::FINISHED:
-				status = G3Bridge__JobStatus__FINISHED;
+				status = G3BridgeSubmitter__JobStatus__FINISHED;
 				break;
 			case Job::TEMPFAILED:
-				status = G3Bridge__JobStatus__TEMPFAILED;
+				status = G3BridgeSubmitter__JobStatus__TEMPFAILED;
 				break;
 			case Job::ERROR:
 			case Job::CANCEL:
-				status = G3Bridge__JobStatus__ERROR;
+				status = G3BridgeSubmitter__JobStatus__ERROR;
 				break;
 		}
 
@@ -378,7 +381,7 @@ int __G3Bridge__getStatus(struct soap *soap, G3Bridge__JobIDList *jobids, G3Brid
 }
 
 
-int __G3Bridge__delete(struct soap *soap, G3Bridge__JobIDList *jobids, struct __G3Bridge__deleteResponse &result G_GNUC_UNUSED)
+int __G3BridgeSubmitter__delete(struct soap *soap, G3BridgeSubmitter__JobIDList *jobids, struct __G3BridgeSubmitter__deleteResponse &result G_GNUC_UNUSED)
 {
 	DBHandler *dbh;
 
@@ -445,7 +448,7 @@ int __G3Bridge__delete(struct soap *soap, G3Bridge__JobIDList *jobids, struct __
 }
 
 
-int __G3Bridge__getOutput(struct soap *soap, G3Bridge__JobIDList *jobids, G3Bridge__OutputList *result)
+int __G3BridgeSubmitter__getOutput(struct soap *soap, G3BridgeSubmitter__JobIDList *jobids, G3BridgeSubmitter__OutputList *result)
 {
 	DBHandler *dbh;
 
@@ -468,7 +471,7 @@ int __G3Bridge__getOutput(struct soap *soap, G3Bridge__JobIDList *jobids, G3Brid
 	for (vector<string>::const_iterator it = jobids->jobid.begin(); it != jobids->jobid.end(); it++)
 	{
 
-		G3Bridge__JobOutput *jout = soap_new_G3Bridge__JobOutput(soap, -1);
+		G3BridgeSubmitter__JobOutput *jout = soap_new_G3BridgeSubmitter__JobOutput(soap, -1);
 		result->output.push_back(jout);
 
 		auto_ptr<Job> job = dbh->getJob(*it);
@@ -483,7 +486,7 @@ int __G3Bridge__getOutput(struct soap *soap, G3Bridge__JobIDList *jobids, G3Brid
 		{
 			string path = job->getOutputPath(*fsit);
 
-			G3Bridge__LogicalFile *lf = soap_new_G3Bridge__LogicalFile(soap, -1);
+			G3BridgeSubmitter__LogicalFile *lf = soap_new_G3BridgeSubmitter__LogicalFile(soap, -1);
 			lf->logicalName = *fsit;
 			lf->URL = calc_output_url(path);
 			jout->output.push_back(lf);
@@ -494,7 +497,7 @@ int __G3Bridge__getOutput(struct soap *soap, G3Bridge__JobIDList *jobids, G3Brid
 	return SOAP_OK;
 }
 
-int __G3Bridge__getFinished(struct soap *soap, string grid, G3Bridge__JobIDList *result)
+int __G3BridgeSubmitter__getFinished(struct soap *soap, string grid, G3BridgeSubmitter__JobIDList *result)
 {
 	DBHandler *dbh;
 
@@ -536,7 +539,7 @@ static void soap_service_handler(void *data, void *user_data G_GNUC_UNUSED)
 
 	try
 	{
-		soap_serve(soap);
+		Submitter_serve(soap);
 	}
 	catch (QMException *e)
 	{
@@ -719,6 +722,7 @@ int main(int argc, char **argv)
 	}
 
 	soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE | SOAP_IO_CHUNK);
+	soap_set_namespaces(&soap, Submitter_namespaces);
 	soap.send_timeout = 60;
 	soap.recv_timeout = 60;
 	/* Give a small accept timeout to detect exit signals quickly */

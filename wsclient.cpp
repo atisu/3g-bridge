@@ -36,8 +36,8 @@
 #include <fstream>
 #include <iostream>
 
-#include "soap/soapH.h"
-#include "soap/G3BridgeSubmitter.nsmap"
+#include "soap/SubmitterH.h"
+#include "soap/Submitter.nsmap"
 
 #include <glib.h>
 
@@ -73,7 +73,7 @@ static char *grid;
 static char *args;
 static char **inputs;
 static char **outputs;
-static G3Bridge__JobIDList jobIDs;
+static G3BridgeSubmitter__JobIDList jobIDs;
 static char *jidfile;
 static int repeat;
 
@@ -112,6 +112,9 @@ static GOptionEntry other_options[] =
 		"job IDs from STDIN", "FILE" },
 	{ NULL }
 };
+
+/* Hack for gSoap */
+struct Namespace namespaces[] = {{ NULL, }};
 
 /**********************************************************************
  * Main program
@@ -250,7 +253,7 @@ static int add_jobid(const char *name, const char *value, void *ptr, GError **er
  */
 static void handle_add(void)
 {
-	G3Bridge__Job job;
+	G3BridgeSubmitter__Job job;
 
 	if (!name || !grid)
 	{
@@ -263,7 +266,7 @@ static void handle_add(void)
 	job.args = args;
 
 	struct soap *soap = soap_new();
-	soap_init(soap);
+	soap_set_namespaces(soap, Submitter_namespaces);
 
 	for (unsigned i = 0; inputs && inputs[i]; i++)
 	{
@@ -283,7 +286,7 @@ static void handle_add(void)
 			exit(EX_USAGE);
 		}
 
-		G3Bridge__LogicalFile *lf = soap_new_G3Bridge__LogicalFile(soap, -1);
+		G3BridgeSubmitter__LogicalFile *lf = soap_new_G3BridgeSubmitter__LogicalFile(soap, -1);
 		lf->logicalName = inputs[i];
 		lf->URL = p;
 		job.inputs.push_back(lf);
@@ -292,8 +295,8 @@ static void handle_add(void)
 	for (unsigned i = 0; outputs && outputs[i]; i++)
 		job.outputs.push_back(outputs[i]);
 
-	G3Bridge__JobIDList IDs;
-	G3Bridge__JobList jList;
+	G3BridgeSubmitter__JobIDList IDs;
+	G3BridgeSubmitter__JobList jList;
 
 	if (repeat < 1)
 		repeat = 1;
@@ -301,7 +304,7 @@ static void handle_add(void)
 	for (int i = 0; i < repeat; i++)
 		jList.job.push_back(&job);
 
-	if (SOAP_OK != soap_call___G3Bridge__submit(soap, endpoint, NULL, &jList, &IDs))
+	if (SOAP_OK != soap_call___G3BridgeSubmitter__submit(soap, endpoint, NULL, &jList, &IDs))
 	{
 		soap_print_fault(soap, stderr);
 		exit(EX_PROTOCOL);
@@ -321,22 +324,22 @@ static void handle_add(void)
  */
 static void handle_status(void)
 {
-	G3Bridge__StatusList resp;
+	G3BridgeSubmitter__StatusList resp;
 	struct {
-		G3Bridge__JobStatus st;
+		G3BridgeSubmitter__JobStatus st;
 		string str;
 	} statToStr[] = {
-		{G3Bridge__JobStatus__UNKNOWN,    "Unknown"   },
-		{G3Bridge__JobStatus__INIT,       "Init"      },
-		{G3Bridge__JobStatus__RUNNING,    "Running"   },
-		{G3Bridge__JobStatus__FINISHED,   "Finished"  },
-		{G3Bridge__JobStatus__TEMPFAILED, "TempFailed"},
-		{G3Bridge__JobStatus__ERROR,      "Error"     }
+		{G3BridgeSubmitter__JobStatus__UNKNOWN,    "Unknown"   },
+		{G3BridgeSubmitter__JobStatus__INIT,       "Init"      },
+		{G3BridgeSubmitter__JobStatus__RUNNING,    "Running"   },
+		{G3BridgeSubmitter__JobStatus__FINISHED,   "Finished"  },
+		{G3BridgeSubmitter__JobStatus__TEMPFAILED, "TempFailed"},
+		{G3BridgeSubmitter__JobStatus__ERROR,      "Error"     }
 	};
 
 	struct soap *soap = soap_new();
-	soap_init(soap);
-	if (SOAP_OK != soap_call___G3Bridge__getStatus(soap, endpoint, NULL, &jobIDs, &resp))
+	soap_set_namespaces(soap, Submitter_namespaces);
+	if (SOAP_OK != soap_call___G3BridgeSubmitter__getStatus(soap, endpoint, NULL, &jobIDs, &resp))
 	{
 		soap_print_fault(soap, stderr);
 		exit(EX_UNAVAILABLE);
@@ -344,7 +347,7 @@ static void handle_status(void)
 
 	for (unsigned i = 0; i < jobIDs.jobid.size(); i++)
 	{
-		G3Bridge__JobStatus st = resp.status.at(i);
+		G3BridgeSubmitter__JobStatus st = resp.status.at(i);
 		cout << jobIDs.jobid.at(i) << " " << statToStr[st].str << endl;
 	}
 
@@ -359,11 +362,11 @@ static void handle_status(void)
  */
 static void handle_delete(void)
 {
-	struct __G3Bridge__deleteResponse resp;
+	struct __G3BridgeSubmitter__deleteResponse resp;
 
 	struct soap *soap = soap_new();
-	soap_init(soap);
-	if (SOAP_OK != soap_call___G3Bridge__delete(soap, endpoint, NULL, &jobIDs, resp))
+	soap_set_namespaces(soap, Submitter_namespaces);
+	if (SOAP_OK != soap_call___G3BridgeSubmitter__delete(soap, endpoint, NULL, &jobIDs, resp))
 	{
 		soap_print_fault(soap, stderr);
 		exit(EX_UNAVAILABLE);
@@ -379,11 +382,11 @@ static void handle_delete(void)
  */
 static void handle_output(void)
 {
-	G3Bridge__OutputList resp;
+	G3BridgeSubmitter__OutputList resp;
 
 	struct soap *soap = soap_new();
-	soap_init(soap);
-	if (SOAP_OK != soap_call___G3Bridge__getOutput(soap, endpoint, NULL, &jobIDs, &resp))
+	soap_set_namespaces(soap, Submitter_namespaces);
+	if (SOAP_OK != soap_call___G3BridgeSubmitter__getOutput(soap, endpoint, NULL, &jobIDs, &resp))
 	{
 		soap_print_fault(soap, stderr);
 		exit(EX_UNAVAILABLE);
@@ -391,11 +394,11 @@ static void handle_output(void)
 
 	for (unsigned i = 0; i < jobIDs.jobid.size(); i++)
 	{
-		G3Bridge__JobOutput *jout = resp.output.at(i);
+		G3BridgeSubmitter__JobOutput *jout = resp.output.at(i);
 		cout << "# Output files for job \"" << jobIDs.jobid.at(i) << "\":" << endl;
 		for (unsigned j = 0; j < jout->output.size(); j++)
 		{
-			G3Bridge__LogicalFile *lf = jout->output.at(j);
+			G3BridgeSubmitter__LogicalFile *lf = jout->output.at(j);
 			cout << lf->logicalName << " " << lf->URL << endl;
 		}
 		cout << endl;
@@ -411,7 +414,7 @@ static void handle_output(void)
  */
 static void handle_finished(void)
 {
-	G3Bridge__JobIDList resp;
+	G3BridgeSubmitter__JobIDList resp;
 
 	if (!grid)
 	{
@@ -420,8 +423,8 @@ static void handle_finished(void)
 	}
 
 	struct soap *soap = soap_new();
-	soap_init(soap);
-	if (SOAP_OK != soap_call___G3Bridge__getFinished(soap, endpoint, NULL, grid, &resp))
+	soap_set_namespaces(soap, Submitter_namespaces);
+	if (SOAP_OK != soap_call___G3BridgeSubmitter__getFinished(soap, endpoint, NULL, grid, &resp))
 	{
 		soap_print_fault(soap, stderr);
 		exit(EX_UNAVAILABLE);

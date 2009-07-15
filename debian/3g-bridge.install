@@ -1,5 +1,6 @@
 debian/tmp/usr/sbin/3g-bridge
 debian/tmp/usr/sbin/wssubmitter
+debian/tmp/usr/sbin/wsmonitor
 debian/tmp/usr/bin/injector
 debian/3g-bridge.conf			usr/share/3g-bridge
 db/schema.sql				usr/share/3g-bridge

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="G3BridgeMonitor"
+		targetNamespace="http://www.edges-grid.eu/wsdl/3GBridgeMonitor.wsdl"
+		xmlns:tns="http://www.edges-grid.eu/wsdl/3GBridgeMonitor.wsdl"
+		xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+		xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+		xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+		xmlns="http://schemas.xmlsoap.org/wsdl/">
+
+	<wsdl:documentation>
+		This is the description of the 3G Bridge monitoring interface.
+	</wsdl:documentation>
+
+	<wsdl:types>
+		<xsd:schema xmlns="http://www.w3.org/2001/XMLSchema"
+				targetNamespace="http://www.edges-grid.eu/wsdl/3GBridgeMonitor.wsdl"
+				elementFormDefault="unqualified"
+				attributeFormDefault="unqualified">
+
+			<xsd:import namespace="http://schemas.xmlsoap.org/soap/encoding/"/>
+
+			<xsd:element name="getRunningJobsRequest" type="xsd:string"/>
+			<xsd:element name="getRunningJobsResponse" type="xsd:unsignedInt"/>
+			<xsd:element name="getWaitingJobsRequest" type="xsd:string"/>
+			<xsd:element name="getWaitingJobsResponse" type="xsd:unsignedInt"/>
+			<xsd:element name="getCPUCountRequest" type="xsd:string"/>
+			<xsd:element name="getCPUCountResponse" type="xsd:unsignedInt"/>
+		</xsd:schema>
+	</wsdl:types>
+
+	<!-- Message elements for "getRunningJobs" -->
+	<wsdl:message name="getRunningJobsRequest">
+		<wsdl:part name="grid" element="tns:getRunningJobsRequest"/>
+	</wsdl:message>
+	<wsdl:message name="getRunningJobsResponse">
+		<wsdl:part name="count" element="tns:getRunningJobsResponse"/>
+	</wsdl:message>
+
+	<!-- Message elements for "getWaitingJobs" -->
+	<wsdl:message name="getWaitingJobsRequest">
+		<wsdl:part name="grid" element="tns:getWaitingJobsRequest"/>
+	</wsdl:message>
+	<wsdl:message name="getWaitingJobsResponse">
+		<wsdl:part name="count" element="tns:getWaitingJobsResponse"/>
+	</wsdl:message>
+
+	<!-- Message elements for "getCPUCount" -->
+	<wsdl:message name="getCPUCountRequest">
+		<wsdl:part name="grid" element="tns:getCPUCountRequest"/>
+	</wsdl:message>
+	<wsdl:message name="getCPUCountResponse">
+		<wsdl:part name="count" element="tns:getCPUCountResponse"/>
+	</wsdl:message>
+
+	<wsdl:portType name="G3BridgeMonitor">
+		<wsdl:operation name="getRunningJobs">
+			<wsdl:documentation>Query the number of running jobs</wsdl:documentation>
+			<wsdl:input message="tns:getRunningJobsRequest"/>
+			<wsdl:output message="tns:getRunningJobsResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="getWaitingJobs">
+			<wsdl:documentation>Query the number of waiting jobs</wsdl:documentation>
+			<wsdl:input message="tns:getWaitingJobsRequest"/>
+			<wsdl:output message="tns:getWaitingJobsResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="getCPUCount">
+			<wsdl:documentation>Query the number of available CPUs</wsdl:documentation>
+			<wsdl:input message="tns:getCPUCountRequest"/>
+			<wsdl:output message="tns:getCPUCountResponse"/>
+		</wsdl:operation>
+	</wsdl:portType>
+
+	<wsdl:binding name="G3BridgeMonitor" type="tns:G3BridgeMonitor">
+		<soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+		<wsdl:operation name="getRunningJobs">
+			<soap:operation soapAction=""/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="getWaitingJobs">
+			<soap:operation soapAction=""/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="getCPUCount">
+			<soap:operation soapAction=""/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+	</wsdl:binding>
+
+	<wsdl:service name="G3BridgeMonitor">
+		<wsdl:documentation>3G Bridge submit service definition</wsdl:documentation>
+		<wsdl:port name="G3BridgeMonitor" binding="tns:G3BridgeMonitor">
+			<soap:address location="http://localhost:8080"/>
+		</wsdl:port>
+	</wsdl:service>
+
+</wsdl:definitions>

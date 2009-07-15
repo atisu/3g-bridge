@@ -16,6 +16,9 @@ bin_PROGRAMS += wsclient
 sbin_PROGRAMS += wssubmitter
 endif
 
+dist_bin_SCRIPTS = wsmonitorclient
+dist_sbin_SCRIPTS = WSMonitor
+
 BACKEND_SOURCES =
 BACKEND_LIBS =
 
@@ -34,7 +37,7 @@ if HAVE_XTREMWEB
 BACKEND_SOURCES += XWHandler.cpp
 endif
 
-SUBDIRS = doc
+SUBDIRS = doc python
 
 noinst_HEADERS = \
 		AlgQueue.h \
@@ -67,21 +70,20 @@ jobwrapper_CPPFLAGS = $(BOINC_CPPFLAGS) $(AM_CPPFLAGS)
 jobwrapper_LDFLAGS = $(BOINC_LDFLAGS) $(AM_LDFLAGS)
 jobwrapper_LDADD = -lboinc_api -lboinc $(GLIB_LIBS) $(MYSQL_LIBS)
 
-WSDL = 3GBridge.wsdl
-TYPEMAP = 3GBridge.typemap
+soap/3GBridgeSubmitter.h: 3GBridgeSubmitter.wsdl 3GBridgeSubmitter.typemap
+	$(WSDL2H) -o $@ -t 3GBridgeSubmitter.typemap 3GBridgeSubmitter.wsdl
 
-# gSOAP-related stuff
-SOAP_HEADER = soap/3GBridge.h
-SOAP_CPP_CORE = soap/soapC.cpp
-SOAP_NS = soap/G3BridgeSubmitter.nsmap
-SOAP_H_FILES = soap/soapH.h soap/soapStub.h
-SOAP_CPP_SRC = $(SOAP_H_FILES) $(SOAP_NS) $(SOAP_CPP_CORE)
+#soap/3GBridgeMonitor.h: 3GBridgeMonitor.wsdl 3GBridgeMonitor.typemap
+#	$(WSDL2H) -o $@ -t 3GBridgeMonitor.typemap 3GBridgeMonitor.wsdl
 
-$(SOAP_HEADER): $(WSDL) $(TYPEMAP)
-	$(WSDL2H) -o$(SOAP_HEADER) -t$(TYPEMAP) $(WSDL)
+soap/SubmitterC.cpp: soap/3GBridgeSubmitter.h
+	$(SOAPCPP2) -x -w -dsoap -n -I$(GSOAP_IMPORT) -pSubmitter $<
 
-$(SOAP_CPP_SRC): $(SOAP_HEADER)
-	$(SOAPCPP2) -x -w -dsoap -I$(GSOAP_IMPORT) $<
+#soap/MonitorC.cpp: soap/3GBridgeMonitor.h
+#	$(SOAPCPP2) -x -w -dsoap -n -I$(GSOAP_IMPORT) -pMonitor $<
+
+#soap/EnvC.cpp: empty.h
+#	$(SOAPCPP2) -x -w -dsoap -n -I$(GSOAP_IMPORT) -pEnv $<
 
 3g_bridge_SOURCES = \
 		AlgQueue.cpp \
@@ -97,22 +99,22 @@ $(SOAP_CPP_SRC): $(SOAP_HEADER)
 
 wssubmitter_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
 wssubmitter_SOURCES = \
-		$(SOAP_HEADER) \
-		$(SOAP_CPP_SRC) \
+		soap/3GSubmitter.h \
+		soap/SubmitterH.h soap/SubmitterStub.h soap/G3BridgeSubmitter.nsmap soap/SubmitterC.cpp \
+		soap/SubmitterServer.cpp \
 		AlgQueue.cpp \
 		DBHandler.cpp \
 		DownloadManager.cpp \
 		Job.cpp \
 		QMException.cpp \
 		Util.c \
-		WSSubmitter.cpp \
-		soap/soapServer.cpp
+		WSSubmitter.cpp
 wssubmitter_LDADD = $(GLIB_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto
 
 wsclient_CPPFALGS = $(GSOAP_CFLAGS)
 wsclient_SOURCES = \
-		$(SOAP_CPP_SRC) \
-		soap/soapClient.cpp \
+		soap/SubmitterH.h soap/SubmitterStub.h soap/G3BridgeSubmitter.nsmap soap/SubmitterC.cpp \
+		soap/SubmitterClient.cpp \
 		wsclient.cpp
 wsclient_LDADD = $(GLIB_LIBS) $(GSOAP_LIBS)
 
@@ -131,8 +133,10 @@ CLEANFILES = master.xml 3g-bridge-package.tar.gz soap/*
 MAINTAINERCLEANFILES = Makefile.in
 
 EXTRA_DIST = \
-		3GBridge.typemap \
-		3GBridge.wsdl \
+		3GBridgeSubmitter.typemap \
+		3GBridgeSubmitter.wsdl \
+		3GBridgeMonitor.typemap \
+		3GBridgeMonitor.wsdl \
 		master.xml.in \
 		3g-bridge.spec \
 		etc/3g-bridge.* \
