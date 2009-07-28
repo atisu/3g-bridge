@@ -17,7 +17,7 @@ sbin_PROGRAMS += wssubmitter
 endif
 
 dist_bin_SCRIPTS = wsmonitorclient
-dist_sbin_SCRIPTS = WSMonitor
+dist_sbin_SCRIPTS = wsmonitor
 
 BACKEND_SOURCES =
 BACKEND_LIBS =
