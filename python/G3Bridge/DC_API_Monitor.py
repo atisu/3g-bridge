@@ -23,7 +23,7 @@ def cached(timeout):
         wrapper.__name__ = func.__name__
         wrapper.__doc__ = func.__doc__
         wrapper.__module__ = func.__module__
-        wrapper.__dict__ = func.__dict__
+        wrapper.__dict__.update(func.__dict__)
 
         return wrapper
     return decorator
@@ -48,14 +48,16 @@ class DC_API_Monitor(GridMonitor):
             e.args += (command,)
             raise e
 
+    def connectdb(self):
+        return MySQLdb.connect(db = self.projectconf.db_name,
+                               host = self.projectconf.__dict__.get("db_host", ""),
+                               user = self.projectconf.__dict__.get("db_user", ""),
+                               passwd = self.projectconf.__dict__.get("db_passwd", ""),
+                               cursorclass = MySQLdb.cursors.DictCursor)
+
     @cached(600)
     def query_jobs(self):
-        dbconn = MySQLdb.connect(db = self.projectconf.db_name,
-                                 host = self.projectconf.__dict__.get("db_host", ""),
-                                 user = self.projectconf.__dict__.get("db_user", ""),
-                                 passwd = self.projectconf.__dict__.get("db_passwd", ""),
-                                 cursorclass = MySQLdb.cursors.DictCursor)
-        cursor = dbconn.cursor()
+        cursor = self.connectdb().cursor()
         self.execute(cursor, "SELECT " +
                              "COUNT(IF(server_state = 2, 1, NULL)) AS unsent, " +
                              "COUNT(IF(server_state = 4, 1, NULL)) AS in_progress " +
@@ -71,13 +73,9 @@ class DC_API_Monitor(GridMonitor):
 
     @cached(600)
     def getCPUCount(self):
-        dbconn = MySQLdb.connect(db = self.projectconf.db_name,
-                                 host = self.projectconf.__dict__.get("db_host", ""),
-                                 user = self.projectconf.__dict__.get("db_user", ""),
-                                 passwd = self.projectconf.__dict__.get("db_passwd", ""))
-        cursor = dbconn.cursor()
-        self.execute(cursor, "SELECT IFNULL(SUM(host.p_ncpus),0) as cpucount " +
+        cursor = self.connectdb().cursor()
+        self.execute(cursor, "SELECT IFNULL(SUM(host.p_ncpus), 0) AS cpus " +
                              "FROM host " +
                              "WHERE host.rpc_time > UNIX_TIMESTAMP() - 24 * 60 * 60")
         result = cursor.fetchone()
-        return result[0]
+        return result["cpus"]
