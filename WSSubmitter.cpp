@@ -290,14 +290,18 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 		vector< pair<string, string> > inputs;
 
 		G3BridgeSubmitter__Job *wsjob = *jobit;
-		Job qmjob((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::PREPARE);
+		Job *qmjob;
+		if (wsjob->inputs.size())
+			qmjob = new Job((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::PREPARE);
+		else
+			qmjob = new Job((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::INIT);
 
 		for (vector<G3BridgeSubmitter__LogicalFile *>::const_iterator inpit = wsjob->inputs.begin(); inpit != wsjob->inputs.end(); inpit++)
 		{
 			G3BridgeSubmitter__LogicalFile *lfn = *inpit;
 
 			string path = calc_input_path(jobid, lfn->logicalName);
-			qmjob.addInput(lfn->logicalName, path);
+			qmjob->addInput(lfn->logicalName, path);
 
 			inputs.push_back(pair<string, string>(lfn->logicalName, lfn->URL));
 		}
@@ -305,10 +309,10 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 		for (vector<string>::const_iterator outit = wsjob->outputs.begin(); outit != wsjob->outputs.end(); outit++)
 		{
 			string path = calc_output_path(jobid, *outit);
-			qmjob.addOutput(*outit, path);
+			qmjob->addOutput(*outit, path);
 		}
 
-		dbh->addJob(qmjob);
+		dbh->addJob(*qmjob);
 		LOG(LOG_INFO, "Job %s: Accepted", jobid);
 
 		result->jobid.push_back(jobid);
