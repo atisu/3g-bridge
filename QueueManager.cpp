@@ -42,6 +42,7 @@
 #ifdef HAVE_XTREMWEB
 #include "XWHandler.h"
 #endif
+#include "NullHandler.h"
 
 #include <map>
 #include <list>
@@ -348,6 +349,7 @@ static void init_grid_handlers(void)
 #ifdef HAVE_XTREMWEB
 	registerPlugin("XTREMWEB", XWHandler::getInstance);
 #endif
+	registerPlugin("NULL", NullHandler::getInstance);
 
 	sections = g_key_file_get_groups(global_config, NULL);
 	for (i = 0; sections && sections[i]; i++)

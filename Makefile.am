@@ -49,6 +49,7 @@ noinst_HEADERS = \
 		DownloadManager.h \
 		XWHandler.h \
 		EGEEHandler.h \
+		NullHandler.h \
 		GridHandler.h \
 		Job.h \
 		QMException.h \
@@ -90,6 +91,7 @@ soap/SubmitterC.cpp: soap/3GBridgeSubmitter.h
 		BackendException.cpp \
 		DBHandler.cpp \
 		GridHandler.cpp \
+		NullHandler.cpp \
 		Job.cpp \
 		QMException.cpp \
 		QueueManager.cpp \
