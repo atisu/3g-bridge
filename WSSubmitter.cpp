@@ -90,6 +90,9 @@ static int kill_daemon;
 /* Command line: Force debug mode */
 static int debug_mode;
 
+/* Prefix for DIME transferred files */
+static char *dime_prefix;
+
 /* Table of the command-line options */
 static GOptionEntry options[] =
 {
@@ -142,6 +145,19 @@ static string calc_output_path(const string &jobid, const string &localName)
 	return make_hashed_dir(output_dir, jobid) + '/' + localName;
 }
 
+static string getdimepath(const string &dimeid)
+{
+	if (!dime_prefix)
+	{
+		uuid_t uuid;
+		dime_prefix = new char[37];
+		uuid_generate(uuid);
+		uuid_unparse(uuid, dime_prefix);
+	}
+	string fname = input_dir + string("/") + dime_prefix + dimeid.substr(0, dimeid.find("="));
+	return fname;
+}
+
 /**********************************************************************
  * Calculate the location where an output file will be stored
  */
@@ -150,6 +166,28 @@ static string calc_output_url(const string path)
 {
 	/* XXX Verify the prefix */
 	return (string)output_url_prefix + "/" + path.substr(strlen(output_dir) + 1);
+}
+
+/**********************************************************************
+ * gSOAP streaming DIME realted functions
+ */
+static void *fdimewriteopen(struct soap *soap, const char *id, const char *type, const char *options)
+{
+	FILE *fd = fopen(getdimepath(id).c_str(), "w");
+	return fd;
+}
+
+static int fdimewrite(struct soap *soap, void *handle, const char *buf, size_t len)
+{
+	fwrite(buf, 1, len, (FILE *)handle);
+	if (ferror((FILE *)handle))
+		return SOAP_FATAL_ERROR;
+	return SOAP_OK;
+}
+
+static void fdimewriteclose(struct soap *soap, void *handle)
+{
+	fclose((FILE *)handle);
 }
 
 /**********************************************************************
@@ -303,7 +341,22 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 			string path = calc_input_path(jobid, lfn->logicalName);
 			qmjob->addInput(lfn->logicalName, path);
 
-			inputs.push_back(pair<string, string>(lfn->logicalName, lfn->URL));
+			if ('/' != lfn->URL[0])
+				inputs.push_back(pair<string, string>(lfn->logicalName, lfn->URL));
+			else
+			{
+				if (jobs->job.size() != 1)
+				{
+					struct soap_multipart *attachment; 
+					for (attachment = soap->dime.list; attachment; attachment = attachment->next)
+						unlink(getdimepath(attachment->id).c_str());
+					LOG(LOG_ERR, "submit: DIME attachments are disabled for multiple jobs");
+					return SOAP_FATAL_ERROR;
+				}
+				string fname = input_dir + string("/") + dime_prefix + lfn->logicalName;
+				link(fname.c_str(), path.c_str());
+				unlink(fname.c_str());
+			}
 		}
 
 		for (vector<string>::const_iterator outit = wsjob->outputs.begin(); outit != wsjob->outputs.end(); outit++)
@@ -734,6 +787,9 @@ int main(int argc, char **argv)
 	soap.max_keep_alive = 100;
 	soap.socket_flags = MSG_NOSIGNAL;
 	soap.bind_flags = SO_REUSEADDR;
+	soap.fdimewriteopen = fdimewriteopen;
+	soap.fdimewrite = fdimewrite;
+	soap.fdimewriteclose = fdimewriteclose;
 
 	SOAP_SOCKET ss = soap_bind(&soap, NULL, port, 100);
 	if (!soap_valid_socket(ss))

@@ -60,7 +60,9 @@ static void handle_status(void);
 static void handle_delete(void);
 static void handle_output(void);
 static void handle_finished(void);
-
+static void *fdimereadopen(struct soap *soap, void *handle, const char *id, const char *type, const char *options);
+static size_t fdimeread(struct soap *soap, void *handle, char *buf, size_t len);
+static void fdimereadclose(struct soap *soap, void *handle);
 
 /**********************************************************************
  * Global variables
@@ -253,6 +255,7 @@ static int add_jobid(const char *name, const char *value, void *ptr, GError **er
  */
 static void handle_add(void)
 {
+	bool dime_set = false;
 	G3BridgeSubmitter__Job job;
 
 	if (!name || !grid)
@@ -263,9 +266,13 @@ static void handle_add(void)
 
 	job.alg = name;
 	job.grid = grid;
-	job.args = args;
+	if (!args)
+		job.args = "";
+	else
+		job.args = args;
 
 	struct soap *soap = soap_new();
+	soap_init1(soap, SOAP_IO_CHUNK);
 	soap_set_namespaces(soap, Submitter_namespaces);
 
 	for (unsigned i = 0; inputs && inputs[i]; i++)
@@ -284,6 +291,26 @@ static void handle_add(void)
 		{
 			cerr << "Input URL is missing for " << inputs[i] << endl;
 			exit(EX_USAGE);
+		}
+
+		if (*p == '/')
+		{
+			if (!dime_set)
+			{
+				soap_set_dime(soap);
+				soap->fdimereadopen = fdimereadopen;
+				soap->fdimeread = fdimeread;
+				soap->fdimereadclose = fdimereadclose;
+				dime_set = true;
+			}
+			struct stat st;
+			if (-1 == stat(p, &st))
+			{
+				cerr << "Unable to stat() file " << p << ": " << strerror(errno) << endl;
+				exit(EX_IOERR);
+			}
+			string idbuf = inputs[i] + string("=") + p;
+			soap_set_dime_attachment(soap, NULL, st.st_size, "application/octet-stream", idbuf.c_str(), 0, NULL);
 		}
 
 		G3BridgeSubmitter__LogicalFile *lf = soap_new_G3BridgeSubmitter__LogicalFile(soap, -1);
@@ -436,4 +463,40 @@ static void handle_finished(void)
 	soap_destroy(soap);
 	soap_end(soap);
 	soap_done(soap);
+}
+
+
+/**
+ * Handle DIME open operation
+ */
+static void *fdimereadopen(struct soap *soap, void *handle, const char *id, const char *type, const char *options)
+{
+	char *p = strchr(id, '=') + 1;
+	FILE *fd = fopen(p, "r");
+	if (!fd)
+	{
+		soap->error = errno;
+		return NULL;
+	}
+	return fd;
+}
+
+/**
+ * Handle DIME data read operation
+ */
+static size_t fdimeread(struct soap *soap, void *handle, char *buf, size_t len)
+{
+	size_t r = fread(buf, 1, len, (FILE *)handle);
+	if (!r)
+		soap->errnum = errno;
+	return r;
+}
+
+
+/**
+ * Handle DIME close operation
+ */
+static void fdimereadclose(struct soap *soap, void *handle)
+{
+	fclose((FILE *)handle);
 }
