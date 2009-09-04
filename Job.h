@@ -183,7 +183,7 @@ public:
 	/**
 	 * Set the Job's status.
 	 * @param nStat the status to set
-	 * @param updateDB indicates that the job's DB status should be updates
+	 * @param updateDB indicates that the job's DB status should be updated
 	 *        as well
 	 * @see status()
 	 */
