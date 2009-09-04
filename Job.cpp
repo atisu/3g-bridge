@@ -92,12 +92,15 @@ void Job::setGridId(const string &sID)
 }
 
 
-void Job::setStatus(JobStatus nStat)
+void Job::setStatus(JobStatus nStat, bool updateDB)
 {
 	if (status == nStat)
 		return;
 
 	status = nStat;
+
+	if (!updateDB)
+		return;
 
 	DBHandler *dbH = DBHandler::get();
 	dbH->updateJobStat(id, status);

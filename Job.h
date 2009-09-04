@@ -183,9 +183,11 @@ public:
 	/**
 	 * Set the Job's status.
 	 * @param nStat the status to set
+	 * @param updateDB indicates that the job's DB status should be updates
+	 *        as well
 	 * @see status()
 	 */
-	void setStatus(JobStatus nStat);
+	void setStatus(JobStatus nStat, bool updateDB = true);
 
 	/**
 	 * Get the Job's status.

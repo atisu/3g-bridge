@@ -319,6 +319,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 
 	for (vector<G3BridgeSubmitter__Job *>::const_iterator jobit = jobs->job.begin(); jobit != jobs->job.end(); jobit++)
 	{
+		bool need_dl = false;
 		uuid_t uuid;
 		char jobid[37];
 
@@ -328,11 +329,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 		vector< pair<string, string> > inputs;
 
 		G3BridgeSubmitter__Job *wsjob = *jobit;
-		Job *qmjob;
-		if (wsjob->inputs.size())
-			qmjob = new Job((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::PREPARE);
-		else
-			qmjob = new Job((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::INIT);
+		Job *qmjob = new Job((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::INIT);
 
 		for (vector<G3BridgeSubmitter__LogicalFile *>::const_iterator inpit = wsjob->inputs.begin(); inpit != wsjob->inputs.end(); inpit++)
 		{
@@ -341,8 +338,10 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 			string path = calc_input_path(jobid, lfn->logicalName);
 			qmjob->addInput(lfn->logicalName, path);
 
-			if ('/' != lfn->URL[0])
+			if ('/' != lfn->URL[0]) {
 				inputs.push_back(pair<string, string>(lfn->logicalName, lfn->URL));
+				need_dl = true;
+			}
 			else
 			{
 				if (jobs->job.size() != 1)
@@ -358,6 +357,9 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 				unlink(fname.c_str());
 			}
 		}
+
+		if (need_dl)
+			qmjob->setStatus(Job::PREPARE, false);
 
 		for (vector<string>::const_iterator outit = wsjob->outputs.begin(); outit != wsjob->outputs.end(); outit++)
 		{
