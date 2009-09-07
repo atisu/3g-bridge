@@ -14,6 +14,31 @@ endif
 if HAVE_GSOAP
 bin_PROGRAMS += wsclient
 sbin_PROGRAMS += wssubmitter
+
+SUBMITTER_SOAP_INTERFACE = \
+		soap/3GBridgeSubmitter.h
+SUBMITTER_SOAP_SOURCES_COMMON = \
+		soap/Submitter.nsmap \
+		soap/SubmitterC.cpp \
+		soap/SubmitterH.h \
+		soap/SubmitterStub.h
+SUBMITTER_SOAP_SOURCES_CLIENT = \
+		$(SUBMITTER_SOAP_SOURCES_COMMON) \
+		soap/SubmitterClient.cpp
+SUBMITTER_SOAP_SOURCES_SERVER = \
+		$(SUBMITTER_SOAP_SOURCES_COMMON) \
+		soap/SubmitterServer.cpp
+
+$(SUBMITTER_SOAP_INTERFACE): 3GBridgeSubmitter.wsdl 3GBridgeSubmitter.typemap
+	$(WSDL2H) -o $@ -t 3GBridgeSubmitter.typemap 3GBridgeSubmitter.wsdl
+
+$(SUBMITTER_SOAP_SOURCES_COMMON): $(SUBMITTER_SOAP_INTERFACE)
+	$(SOAPCPP2) -x -w -dsoap -n -I$(GSOAP_IMPORT) -pSubmitter $<
+
+BUILT_SOURCES = \
+		$(SUBMITTER_SOAP_INTERFACE) \
+		$(SUBMITTER_SOAP_SOURCES_CLIENT) \
+		$(SUBMITTER_SOAP_SOURCES_SERVER)
 endif
 
 dist_bin_SCRIPTS = wsmonitorclient
@@ -71,21 +96,6 @@ jobwrapper_CPPFLAGS = $(BOINC_CPPFLAGS) $(AM_CPPFLAGS)
 jobwrapper_LDFLAGS = $(BOINC_LDFLAGS) $(AM_LDFLAGS)
 jobwrapper_LDADD = -lboinc_api -lboinc $(GLIB_LIBS) $(MYSQL_LIBS)
 
-soap/3GBridgeSubmitter.h: 3GBridgeSubmitter.wsdl 3GBridgeSubmitter.typemap
-	$(WSDL2H) -o $@ -t 3GBridgeSubmitter.typemap 3GBridgeSubmitter.wsdl
-
-#soap/3GBridgeMonitor.h: 3GBridgeMonitor.wsdl 3GBridgeMonitor.typemap
-#	$(WSDL2H) -o $@ -t 3GBridgeMonitor.typemap 3GBridgeMonitor.wsdl
-
-soap/SubmitterC.cpp: soap/3GBridgeSubmitter.h
-	$(SOAPCPP2) -x -w -dsoap -n -I$(GSOAP_IMPORT) -pSubmitter $<
-
-#soap/MonitorC.cpp: soap/3GBridgeMonitor.h
-#	$(SOAPCPP2) -x -w -dsoap -n -I$(GSOAP_IMPORT) -pMonitor $<
-
-#soap/EnvC.cpp: empty.h
-#	$(SOAPCPP2) -x -w -dsoap -n -I$(GSOAP_IMPORT) -pEnv $<
-
 3g_bridge_SOURCES = \
 		AlgQueue.cpp \
 		BackendException.cpp \
@@ -101,9 +111,7 @@ soap/SubmitterC.cpp: soap/3GBridgeSubmitter.h
 
 wssubmitter_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
 nodist_wssubmitter_SOURCES = \
-		soap/3GBridgeSubmitter.h \
-		soap/SubmitterH.h soap/SubmitterStub.h soap/Submitter.nsmap soap/SubmitterC.cpp \
-		soap/SubmitterServer.cpp
+		$(SUBMITTER_SOAP_SOURCES_SERVER)
 wssubmitter_SOURCES = \
 		AlgQueue.cpp \
 		DBHandler.cpp \
@@ -116,8 +124,7 @@ wssubmitter_LDADD = $(GLIB_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto
 
 wsclient_CPPFALGS = $(GSOAP_CFLAGS)
 nodist_wsclient_SOURCES = \
-		soap/SubmitterH.h soap/SubmitterStub.h soap/Submitter.nsmap soap/SubmitterC.cpp \
-		soap/SubmitterClient.cpp
+		$(SUBMITTER_SOAP_SOURCES_CLIENT)
 wsclient_SOURCES = \
 		wsclient.cpp
 wsclient_LDADD = $(GLIB_LIBS) $(GSOAP_LIBS)
