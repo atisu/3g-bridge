@@ -100,10 +100,11 @@ soap/SubmitterC.cpp: soap/3GBridgeSubmitter.h
 3g_bridge_LDADD = $(GLIB_LIBS) $(BACKEND_LIBS) $(MYSQL_LIBS)
 
 wssubmitter_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
-wssubmitter_SOURCES = \
+nodist_wssubmitter_SOURCES = \
 		soap/3GBridgeSubmitter.h \
 		soap/SubmitterH.h soap/SubmitterStub.h soap/Submitter.nsmap soap/SubmitterC.cpp \
-		soap/SubmitterServer.cpp \
+		soap/SubmitterServer.cpp
+wssubmitter_SOURCES = \
 		AlgQueue.cpp \
 		DBHandler.cpp \
 		DownloadManager.cpp \
@@ -114,9 +115,10 @@ wssubmitter_SOURCES = \
 wssubmitter_LDADD = $(GLIB_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto
 
 wsclient_CPPFALGS = $(GSOAP_CFLAGS)
-wsclient_SOURCES = \
+nodist_wsclient_SOURCES = \
 		soap/SubmitterH.h soap/SubmitterStub.h soap/Submitter.nsmap soap/SubmitterC.cpp \
-		soap/SubmitterClient.cpp \
+		soap/SubmitterClient.cpp
+wsclient_SOURCES = \
 		wsclient.cpp
 wsclient_LDADD = $(GLIB_LIBS) $(GSOAP_LIBS)
 
@@ -142,7 +144,8 @@ EXTRA_DIST = \
 		master.xml.in \
 		3g-bridge.spec \
 		etc/3g-bridge.* \
-		doc/*
+		doc/* \
+		soap/.keepme
 
 dist_doc_DATA = \
 		doc/README-BOINC2EGEE \
