@@ -101,8 +101,8 @@ soap/SubmitterC.cpp: soap/3GBridgeSubmitter.h
 
 wssubmitter_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
 wssubmitter_SOURCES = \
-		soap/3GSubmitter.h \
-		soap/SubmitterH.h soap/SubmitterStub.h soap/G3BridgeSubmitter.nsmap soap/SubmitterC.cpp \
+		soap/3GBridgeSubmitter.h \
+		soap/SubmitterH.h soap/SubmitterStub.h soap/Submitter.nsmap soap/SubmitterC.cpp \
 		soap/SubmitterServer.cpp \
 		AlgQueue.cpp \
 		DBHandler.cpp \
@@ -115,7 +115,7 @@ wssubmitter_LDADD = $(GLIB_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto
 
 wsclient_CPPFALGS = $(GSOAP_CFLAGS)
 wsclient_SOURCES = \
-		soap/SubmitterH.h soap/SubmitterStub.h soap/G3BridgeSubmitter.nsmap soap/SubmitterC.cpp \
+		soap/SubmitterH.h soap/SubmitterStub.h soap/Submitter.nsmap soap/SubmitterC.cpp \
 		soap/SubmitterClient.cpp \
 		wsclient.cpp
 wsclient_LDADD = $(GLIB_LIBS) $(GSOAP_LIBS)
@@ -157,7 +157,7 @@ nobase_dist_doc_DATA = \
 dist_sysconf_DATA = etc/3g-bridge.conf
 
 dist-hook:
-	[ `svnversion` != 'exported' ] && svn2cl --group-by-day --authors=AUTHORS --revision HEAD:2153 -o $(distdir)/ChangeLog
+	if [ `svnversion .` != "exported" ]; then svn2cl --group-by-day --authors=AUTHORS --revision HEAD:2153 -o $(distdir)/ChangeLog; fi
 
 package: 3g-bridge-package.tar.gz
 

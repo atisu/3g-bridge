@@ -360,8 +360,8 @@ static void handle_status(void)
 		{G3BridgeSubmitter__JobStatus__INIT,       "Init"      },
 		{G3BridgeSubmitter__JobStatus__RUNNING,    "Running"   },
 		{G3BridgeSubmitter__JobStatus__FINISHED,   "Finished"  },
-		{G3BridgeSubmitter__JobStatus__TEMPFAILED, "TempFailed"},
-		{G3BridgeSubmitter__JobStatus__ERROR,      "Error"     }
+		{G3BridgeSubmitter__JobStatus__ERROR,      "Error"     },
+		{G3BridgeSubmitter__JobStatus__TEMPFAILED, "TempFailed"}
 	};
 
 	struct soap *soap = soap_new();
