@@ -6,7 +6,7 @@
 # X-Start-Before:    
 # X-Stop-After:      
 # Default-Start:     2 3 4 5
-# Default-Stop:      1
+# Default-Stop:      0 1 6
 # Short-Description: Start the 3G-Bridge
 # Description:       Launches the 3G-Bridge
 ### END INIT INFO
@@ -14,14 +14,15 @@
 BRIDGE_DAEMON=/usr/sbin/3g-bridge
 WSSUBMITTER_DAEMON=/usr/sbin/wssubmitter
 
-test -x $BRIDGE_DAEMON || exit 0
-test -x $WSSUBMITTER_DAEMON || exit 0
-
 CONFFILE="/etc/3g-bridge.conf"
 BRIDGE_OPTIONS=""
 WSSUBMITTER_OPTIONS=""
-
+ENABLED="0"
 test -f /etc/default/3g-bridge && . /etc/default/3g-bridge
+
+test -x "$BRIDGE_DAEMON" || exit 0
+test -x "$WSSUBMITTER_DAEMON" || exit 0
+test -r "$CONFFILE" || exit 0
 
 . /lib/lsb/init-functions
 
@@ -34,6 +35,14 @@ WSSUBMITTER_PID=`pidfile wssubmitter`
 
 case "$1" in
 	start)
+		case "$ENABLED" in
+			[1yY]*)
+				;;
+			*)
+				log_warning_msg "The stand-alone 3G bridge is not enabled"
+				exit 0
+				;;
+		esac
 		log_daemon_msg "Starting 3G-Bridge"
 		if [ ! -z "$BRIDGE_PID" ]; then
 			log_progress_msg "3g-bridge"

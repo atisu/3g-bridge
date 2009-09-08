@@ -1,3 +1,6 @@
+# Set this to 1 to launch the 3G bridge at system startup
+ENABLED="0"
+
 # Location of the config file
 CONFFILE="/etc/3g-bridge.conf"
 

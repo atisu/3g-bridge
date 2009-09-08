@@ -7,7 +7,7 @@ if [ -f /usr/share/debconf/confmodule ]; then
 fi
 if [ -f /usr/share/dbconfig-common/dpkg/postrm.mysql ]; then
 	. /usr/share/dbconfig-common/dpkg/postrm.mysql
-	dbc_go 3g-bridge $@
+	dbc_go 3g-bridge "$@"
 fi
 
 CONFFILE=/etc/3g-bridge.conf

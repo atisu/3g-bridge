@@ -1,0 +1,8 @@
+Template: 3g-bridge/enabled
+Type: boolean
+Description: Enable running the 3G Bridge in stand-alone mode?
+ There are two common ways to run the 3G Bridge: either as a stand-alone
+ daemon, or supervised by a BOINC project. Answer yes to this question
+ if you want to configure the 3G Bridge as a stand-alone daemon independent
+ of BOINC; answer no if you would rather run it under the BOINC project's
+ account.
