@@ -24,6 +24,7 @@
  * version of the file, but you are not obligated to do so. If you do not wish to
  * do so, delete this exception statement from your version.
  */
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -40,6 +41,8 @@
 #include <sstream>
 #include <iostream>
 #include <iomanip>
+#include <errno.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <uuid/uuid.h>
@@ -78,50 +81,50 @@ typedef enum {NONE, ERROR, ALL} llevel;
  */
 static int invoke_cmd(const char *exe, const char *const argv[], string *stdoe) throw (BackendException *)
 {
-        int sock[2];
+	int sock[2];
 
-        if (socketpair(AF_UNIX, SOCK_STREAM, 0, sock) == -1)
-                throw new BackendException("socketpair() failed: %s",
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, sock) == -1)
+		throw new BackendException("socketpair() failed: %s",
 			strerror(errno));
 
-        pid_t pid = fork();
-        if (pid)
-        {
-                /* Parent */
-                int status;
-            	char buf[1024];
+	pid_t pid = fork();
+	if (pid)
+	{
+		/* Parent */
+		int status;
+		char buf[1024];
 
-    		close(sock[0]);
+		close(sock[0]);
 		if (stdoe)
 		{
 			*stdoe = "";
-            		while ((status = read(sock[1], buf, sizeof(buf))) > 0)
-                		stdoe->append(buf, status);
+			while ((status = read(sock[1], buf, sizeof(buf))) > 0)
+				stdoe->append(buf, status);
 		}
-            	close(sock[1]);
+		close(sock[1]);
 
-                if (waitpid(pid, &status, 0) == -1)
-                        throw new BackendException("waitpid() failed: %s",
+		if (waitpid(pid, &status, 0) == -1)
+			throw new BackendException("waitpid() failed: %s",
 				strerror(errno));
-                if (WIFSIGNALED(status))
-                        throw new BackendException("Command %s died with "
+		if (WIFSIGNALED(status))
+			throw new BackendException("Command %s died with "
 				"signal %d", exe, WTERMSIG(status));
 
-                return WEXITSTATUS(status);
-        }
+		return WEXITSTATUS(status);
+	}
 
-        /* Child */
-        int fd = open("/dev/null", O_RDWR);
-        dup2(fd, 0);
-        close(fd);
+	/* Child */
+	int fd = open("/dev/null", O_RDWR);
+	dup2(fd, 0);
+	close(fd);
 
-        dup2(sock[0], 1);
-        dup2(sock[0], 2);
-    	close(sock[0]);
-    	close(sock[1]);
+	dup2(sock[0], 1);
+	dup2(sock[0], 2);
+	close(sock[0]);
+	close(sock[1]);
 
-        execvp(exe, (char *const *)argv);
-        _Exit(255);
+	execvp(exe, (char *const *)argv);
+	_Exit(255);
 }
 
 
@@ -321,7 +324,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 			"belonging to job \"%s\"", name.c_str(), cjid);
 		vector<string> srcFiles;
 		vector<string> dstFiles;
-    		for (unsigned j = 0; j < ins->size(); j++)
+		for (unsigned j = 0; j < ins->size(); j++)
 		{
 			string ipath = actJ->getInputPath((*ins)[j]);
 			string rpath = jobprefix + (*ins)[j];
@@ -346,7 +349,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		}
 
 		// Now add outputs
-                jobJDLAd->setAttribute(JDL::STDOUTPUT, actJ->getId()+"std.out");
+		jobJDLAd->setAttribute(JDL::STDOUTPUT, actJ->getId()+"std.out");
 		jobJDLAd->addAttribute(JDL::OUTPUTSB, actJ->getId()+"std.out");
 		jobJDLAd->addAttribute(JDL::OSB_DEST_URI, jobprefix + actJ->getId()+"std.out");
 		jobJDLAd->setAttribute(JDL::STDERROR, actJ->getId()+"std.err");
@@ -392,6 +395,16 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		jdlFname << ".jdl";
 		ofstream jobJDL(jdlFname.str().c_str());
 		jobJDL << jobJDLAd->toString() << endl;
+		if (jobJDL.bad())
+		{
+			LOG(LOG_ERR, "EGEE Plugin (%s): failed to create JDL "
+				"file for job \"%s\": %s", name.c_str(), cjid,
+				strerror(errno));
+			jobJDL.close();
+			actJ->setStatus(Job::TEMPFAILED);
+			cleanJobStorage(actJ);
+			continue;
+		}
 		jobJDL.close();
 		LOG(LOG_DEBUG, "EGEE Plugin (%s): JDL for job \"%s\" is: %s",
 			name.c_str(), cjid, jobJDLAd->toString().c_str());
@@ -445,7 +458,17 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 	}
 
 	// Find out collection's ID
-        ifstream collIDf(collidfile.c_str());
+	ifstream collIDf(collidfile.c_str());
+	if (!collIDf.good())
+	{
+		LOG(LOG_ERR, "EGEE Plugin (%s): failed to open collection "
+			"identifier: %s", name.c_str(), strerror(errno));
+		invoke_cmd("rm", rmargs, NULL);
+		for (JobVector::iterator it = jobs.begin(); it != jobs.end();
+			it++)
+			cleanJobStorage(*it);
+		return;
+	}
 	string collID;
 	do
 	{
@@ -604,7 +627,7 @@ void EGEEHandler::init_ftp_client(globus_ftp_client_handle_t *ftp_handle,
 {
 	globus_result_t result;
 
-        globus_module_activate(GLOBUS_FTP_CLIENT_MODULE);
+	globus_module_activate(GLOBUS_FTP_CLIENT_MODULE);
 
 	result = globus_ftp_client_handleattr_init(ftp_handle_attrs);
 	if (GLOBUS_SUCCESS != result)
@@ -654,7 +677,7 @@ void EGEEHandler::destroy_ftp_client(globus_ftp_client_handle_t *ftp_handle,
 	globus_ftp_client_handleattr_destroy(ftp_handle_attrs);
 	if (rst_pin)
 		globus_ftp_client_restart_plugin_destroy(rst_pin);
-        globus_ftp_client_operationattr_destroy(ftp_op_attrs);
+	globus_ftp_client_operationattr_destroy(ftp_op_attrs);
 	globus_ftp_client_handle_destroy(ftp_handle);
 	globus_cond_destroy(&cond);
 	globus_mutex_destroy(&lock);
@@ -685,19 +708,19 @@ void EGEEHandler::set_globus_err(globus_object_t *error)
 void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const vector<string> &dstFiles) throw(BackendException *)
 {
 	bool transproblem = false;
-        globus_result_t result;
+	globus_result_t result;
 	globus_ftp_client_handle_t ftp_handle;
 	globus_ftp_client_handleattr_t ftp_handle_attrs;
 	globus_ftp_client_operationattr_t ftp_op_attrs;
 	globus_gass_copy_handle_t g_c_h;
-        globus_gass_copy_attr_t sattr, dattr;
-        globus_gass_copy_handleattr_t g_c_h_a;
-        globus_ftp_client_operationattr_t sfa, dfa;
+	globus_gass_copy_attr_t sattr, dattr;
+	globus_gass_copy_handleattr_t g_c_h_a;
+	globus_ftp_client_operationattr_t sfa, dfa;
 	globus_ftp_client_plugin_t rst_pin;
 
-        globus_module_activate(GLOBUS_FTP_CLIENT_MODULE);
+	globus_module_activate(GLOBUS_FTP_CLIENT_MODULE);
 	globus_module_activate(GLOBUS_FTP_CLIENT_RESTART_PLUGIN_MODULE);
-        globus_module_activate(GLOBUS_GASS_COPY_MODULE);
+	globus_module_activate(GLOBUS_GASS_COPY_MODULE);
 	init_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs, &rst_pin);
 
 	if (srcFiles.size() != dstFiles.size())
@@ -708,7 +731,7 @@ void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const ve
 
 	try
 	{
-	        result = globus_gass_copy_handleattr_init(&g_c_h_a);
+		result = globus_gass_copy_handleattr_init(&g_c_h_a);
 		if (GLOBUS_SUCCESS != result)
 		{
 			set_globus_err(globus_error_get(result));
@@ -717,13 +740,13 @@ void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const ve
 		}
 		result |= globus_gass_copy_handleattr_set_ftp_attr(&g_c_h_a,
 			&ftp_handle_attrs);
-	        result |= globus_gass_copy_handle_init(&g_c_h, &g_c_h_a);
+		result |= globus_gass_copy_handle_init(&g_c_h, &g_c_h_a);
 
-	        result |= globus_gass_copy_attr_init(&sattr);
-	        result |= globus_gass_copy_attr_init(&dattr);
+		result |= globus_gass_copy_attr_init(&sattr);
+		result |= globus_gass_copy_attr_init(&dattr);
 
-	        result |= globus_ftp_client_operationattr_init(&sfa);
-    		result |= globus_ftp_client_operationattr_init(&dfa);
+		result |= globus_ftp_client_operationattr_init(&sfa);
+		result |= globus_ftp_client_operationattr_init(&dfa);
 		if (GLOBUS_SUCCESS != result)
 		{
 			set_globus_err(globus_error_get(result));
@@ -731,8 +754,8 @@ void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const ve
 				"failed : %s", globus_errmsg);
 		}
 
-	        result |= globus_gass_copy_attr_set_ftp(&sattr, &sfa);
-	        result |= globus_gass_copy_attr_set_ftp(&dattr, &dfa);
+		result |= globus_gass_copy_attr_set_ftp(&sattr, &sfa);
+		result |= globus_gass_copy_attr_set_ftp(&dattr, &dfa);
 		if (GLOBUS_SUCCESS != result)
 		{
 			set_globus_err(globus_error_get(result));
@@ -753,8 +776,8 @@ void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const ve
 			{
 				transproblem = true;
 				LOG(LOG_ERR, "EGEE Plugin (%s): failed to "
-				"transfer from %s to %s!", name.c_str(), src,
-				dst);
+					"transfer from %s to %s!", name.c_str(),
+					src, dst);
 			}
 		}
 	}
@@ -763,7 +786,8 @@ void EGEEHandler::transfer_files_globus(const vector<string> &srcFiles, const ve
 		globus_ftp_client_operationattr_destroy(&sfa);
 		globus_ftp_client_operationattr_destroy(&dfa);
 		globus_gass_copy_handle_destroy(&g_c_h);
-		destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs, &rst_pin);
+		destroy_ftp_client(&ftp_handle, &ftp_handle_attrs,
+			&ftp_op_attrs, &rst_pin);
 		throw e;
 	}
 	globus_ftp_client_operationattr_destroy(&sfa);
@@ -786,7 +810,7 @@ void EGEEHandler::delete_files_globus(const vector<string> &fileNames, const str
 		globus_ftp_client_handleattr_t ftp_handle_attrs;
 		globus_ftp_client_operationattr_t ftp_op_attrs;
 
-    		globus_module_activate(GLOBUS_FTP_CLIENT_MODULE);
+		globus_module_activate(GLOBUS_FTP_CLIENT_MODULE);
 		init_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
 
 		string fpath = *it;
@@ -801,7 +825,7 @@ void EGEEHandler::delete_files_globus(const vector<string> &fileNames, const str
 			&ftp_op_attrs,
 			(globus_ftp_client_complete_callback_t)handle_finish,
 			NULL);
-    		if (GLOBUS_SUCCESS != result)
+		if (GLOBUS_SUCCESS != result)
 		{
 			set_globus_err(globus_error_get(result));
 			LOG(LOG_WARNING, "EGEE Plugin (%s): failed to remove "
@@ -812,9 +836,9 @@ void EGEEHandler::delete_files_globus(const vector<string> &fileNames, const str
 			continue;
 		}
 		globus_mutex_lock(&lock);
-	        while(!done)
+		while(!done)
 			globus_cond_wait(&cond, &lock);
-    		globus_mutex_unlock(&lock);
+		globus_mutex_unlock(&lock);
 		if (globus_err)
 			LOG(LOG_WARNING, "EGEE Plugin (%s): failed to remove "
 				"file \"%s\": %s", name.c_str(), rname.c_str(),
@@ -831,7 +855,7 @@ void EGEEHandler::create_dir_globus(const string &dirurl) throw (BackendExceptio
 	globus_ftp_client_handleattr_t ftp_handle_attrs;
 	globus_ftp_client_operationattr_t ftp_op_attrs;
 
-        globus_module_activate(GLOBUS_FTP_CLIENT_MODULE);
+	globus_module_activate(GLOBUS_FTP_CLIENT_MODULE);
 	init_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
 
 	result = globus_ftp_client_mkdir(&ftp_handle, dirurl.c_str(),
@@ -848,7 +872,7 @@ void EGEEHandler::create_dir_globus(const string &dirurl) throw (BackendExceptio
 
 	globus_mutex_lock(&lock);
 	while (!done)
-                globus_cond_wait(&cond, &lock);
+		globus_cond_wait(&cond, &lock);
 	globus_mutex_unlock(&lock);
 
 	destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
@@ -866,7 +890,7 @@ void EGEEHandler::remove_dir_globus(const string &dirurl)
 	globus_ftp_client_handleattr_t ftp_handle_attrs;
 	globus_ftp_client_operationattr_t ftp_op_attrs;
 
-        globus_module_activate(GLOBUS_FTP_CLIENT_MODULE);
+	globus_module_activate(GLOBUS_FTP_CLIENT_MODULE);
 	init_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
 
 	result = globus_ftp_client_rmdir(&ftp_handle, dirurl.c_str(),
@@ -884,7 +908,7 @@ void EGEEHandler::remove_dir_globus(const string &dirurl)
 
 	globus_mutex_lock(&lock);
 	while (!done)
-                globus_cond_wait(&cond, &lock);
+		globus_cond_wait(&cond, &lock);
 	globus_mutex_unlock(&lock);
 
 	destroy_ftp_client(&ftp_handle, &ftp_handle_attrs, &ftp_op_attrs);
@@ -950,12 +974,12 @@ string EGEEHandler::getEGEEErrMsg(const BaseException &e)
 	stringstream msg;
 	msg << "EGEE exception caught:" << endl;
 	if (e.ErrorCode)
-    		msg << "  Error code: " << *(e.ErrorCode) << endl;
+		msg << "  Error code: " << *(e.ErrorCode) << endl;
 	if (e.Description)
-    		msg << "  Description: " << *(e.Description) << endl;
+		msg << "  Description: " << *(e.Description) << endl;
 	msg << "  Method name: " << e.methodName << endl;
 	if (e.FaultCause)
-    		for (unsigned i = 0; i < (e.FaultCause)->size(); i++)
+		for (unsigned i = 0; i < (e.FaultCause)->size(); i++)
 			msg << "   FaultCause: " << (*(e.FaultCause))[i] << endl;
 	return msg.str();
 }
@@ -1019,8 +1043,8 @@ void EGEEHandler::getOutputs_real(Job *job)
 
 	try
 	{
-    		vector<string> remFiles;
-	        vector<string> locFiles;
+		vector<string> remFiles;
+		vector<string> locFiles;
 		auto_ptr<vector<string> > outs = job->getOutputs();
 		string jobprefix = string(isb_url) + "/" + job->getId() + "/";
 		string outtpath = string(tmpdir)+"/"+job->getId()+"std.out";
@@ -1038,7 +1062,7 @@ void EGEEHandler::getOutputs_real(Job *job)
 		}
 		try
 		{
-    			transfer_files_globus(remFiles, locFiles);
+			transfer_files_globus(remFiles, locFiles);
 		}
 		catch (BackendException *e)
 		{
@@ -1088,7 +1112,7 @@ void EGEEHandler::createCFG() throw(BackendException *)
 
 	try
 	{
-    		cfg = new ConfigContext("", wmpendp, "");
+		cfg = new ConfigContext("", wmpendp, "");
 	}
 	catch (BaseException &e)
 	{
@@ -1108,17 +1132,17 @@ void EGEEHandler::getProxyInfo(const char *proxyfile, time_t *lifetime)
 	if (!proxyfile)
 		return;
 
-        globus_module_activate(GLOBUS_GSI_CREDENTIAL_MODULE);
+	globus_module_activate(GLOBUS_GSI_CREDENTIAL_MODULE);
 
-        globus_gsi_cred_handle_t handle;
-        globus_gsi_cred_handle_attrs_t attrs;
+	globus_gsi_cred_handle_t handle;
+	globus_gsi_cred_handle_attrs_t attrs;
 
 	try
 	{
 		if (GLOBUS_SUCCESS != globus_gsi_cred_handle_attrs_init(&attrs))
 			throw new BackendException("a");
 
-    		if (GLOBUS_SUCCESS != globus_gsi_cred_handle_init(&handle, attrs))
+		if (GLOBUS_SUCCESS != globus_gsi_cred_handle_init(&handle, attrs))
 			throw new BackendException("a");
 
 		if (GLOBUS_SUCCESS != globus_gsi_cred_read_proxy(handle, proxyfile))
@@ -1150,7 +1174,7 @@ void EGEEHandler::updateJob(Job *job)
 		{"Cancelled", Job::ERROR},
 		{"Aborted", Job::ERROR},
 		{"", Job::INIT}
-        };
+	};
 
 	unsigned tries = 0;
 	string statStr = "";
@@ -1167,8 +1191,8 @@ void EGEEHandler::updateJob(Job *job)
 			glite::lb::Job tJob(jID);
 			tJob.setParam(EDG_WLL_PARAM_X509_PROXY, tmpdir +
 				"/proxy.voms");
-		        glite::lb::JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
-	    		statStr = stat.name();
+			glite::lb::JobStatus stat = tJob.status(tJob.STAT_CLASSADS);
+			statStr = stat.name();
 			statCode = stat.getValInt(glite::lb::JobStatus::DONE_CODE);
 			exitCode = stat.getValInt(glite::lb::JobStatus::EXIT_CODE);
 			tries = 3;
