@@ -1,3 +1,11 @@
+3g-bridge (0.96-1) unstable; urgency=low
+
+  * New upstream release.
+  * Add debconf question to disable stand-alone mode and skip database
+    configuration when stand-alone mode is not wanted.
+
+ -- Gábor Gombás <gombasg@sztaki.hu>  Wed, 09 Sep 2009 09:34:12 +0200
+
 3g-bridge (0.95-1) unstable; urgency=low
 
   * New upstream release.
