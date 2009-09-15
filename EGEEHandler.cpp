@@ -57,6 +57,9 @@
 #include <globus_ftp_client.h>
 #include <globus_gsi_credential.h>
 
+extern "C" {
+#include <myproxy.h>
+}
 
 using namespace std;
 using namespace glite::wms;
@@ -990,6 +993,9 @@ void EGEEHandler::renew_proxy() throw(BackendException *)
 	time_t lifetime;
 	string proxyf = tmpdir + "/proxy";
 	string vproxyf = tmpdir + "/proxy.voms";
+        myproxy_request_t *req;
+        myproxy_socket_attrs_t *attrs;
+        myproxy_response_t *resp;
 
 	getProxyInfo(vproxyf.c_str(), &lifetime);
 	// Do not update proxy if it is valid for at least 6 hrs
@@ -1000,18 +1006,46 @@ void EGEEHandler::renew_proxy() throw(BackendException *)
 
 	LOG(LOG_DEBUG, "EGEE Plugin (%s): about to renew proxy",
 		name.c_str());
-	string cmd = "X509_USER_CERT='" + string(myproxy_authcert) + "' X509_USER_KEY='" + string(myproxy_authkey)
-		+ "' myproxy-logon -s '" + string(myproxy_host) + "' -p '" + string(myproxy_port)
-		+ "' -l '" + string(myproxy_user) + "' -n -t 24 -o '" + proxyf + "' >/dev/null 2>&1";
-	int rv = system(cmd.c_str());
-	if (rv)
-		throw new BackendException("Proxy initialization failed");
+	setenv("X509_USER_CERT", myproxy_authcert, 1);
+	setenv("X509_USER_KEY", myproxy_authkey, 1);
 
-	cmd = "X509_USER_PROXY='" + proxyf + "' voms-proxy-init -voms '" + string(voname)
-		+ "' -noregen -out '" + vproxyf + "' -valid 23:00 >/dev/null 2>&1";
-	rv = system(cmd.c_str());
-	if (-1 == rv)
-		throw new BackendException("Adding VOMS extensions to proxy failed!");
+        req = (myproxy_request_t *)malloc(sizeof(*req));
+        memset(req, 0, sizeof(myproxy_request_t));
+        req->version = strdup(MYPROXY_VERSION);
+        req->command_type = MYPROXY_GET_PROXY;
+        req->proxy_lifetime = 60*60*12;
+        attrs = (myproxy_socket_attrs_t *)malloc(sizeof(*attrs));
+        memset(attrs, 0, sizeof(*attrs));
+        attrs->pshost = strdup(myproxy_host);
+        attrs->psport = atoi(myproxy_port);
+        resp = (myproxy_response_t *)malloc(sizeof(*resp));
+        memset(resp, 0, sizeof(*resp));
+	req->username = strdup(myproxy_user);
+
+        if (myproxy_get_delegation(attrs, req, NULL, resp, (char *)proxyf.c_str()))
+        {
+		myproxy_free(attrs, req, resp);
+                if (verror_is_error())
+			throw new BackendException("Proxy initialization "
+				"failed: " + string(verror_get_string()));
+		else
+			throw new BackendException("Proxy initialization "
+				"failed due to an unknown error");
+        }
+	myproxy_free(attrs, req, resp);
+	unsetenv("X509_USER_CERT");
+	unsetenv("X509_USER_KEY");
+
+	setenv("X509_USER_PROXY", proxyf.c_str(), 1);
+	const char *vpiargs[] = { "voms-proxy-init", "-voms", voname, "-noregen",
+		"-out", vproxyf.c_str(), "-valid", "11:00"};
+	string vpiout;
+	if (invoke_cmd("voms-proxy-init", vpiargs, &vpiout))
+	{
+		unlink(proxyf.c_str());
+		throw new BackendException("Adding VOMS extensions to proxy "
+			"failed: " + vpiout);
+	}
 
 	unlink(proxyf.c_str());
 	setenv("X509_USER_PROXY", vproxyf.c_str(), 1);

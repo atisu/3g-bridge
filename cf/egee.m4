@@ -9,7 +9,7 @@ AC_DEFUN([GLOBUS_CONF], [
 		[Use Globus in @<:@/opt/globus@:>@]),,
 		[with_globus=/opt/globus])
 	EGEE_CPPFLAGS="$EGEE_CPPFLAGS -I${with_globus}/include/gcc32dbgpthr"
-	EGEE_LIBS="$EGEE_LIBS -L${with_globus}/lib -lssl_gcc32dbgpthr -lglobus_ftp_client_gcc32dbgpthr -lglobus_gass_copy_gcc32dbgpthr"
+	EGEE_LIBS="$EGEE_LIBS -L${with_globus}/lib -lmyproxy_gcc32dbgpthr -lssl_gcc32dbgpthr -lglobus_ftp_client_gcc32dbgpthr -lglobus_gass_copy_gcc32dbgpthr"
 ])
 
 AC_DEFUN([CLASSADS_CONF], [
