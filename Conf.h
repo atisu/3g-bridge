@@ -39,6 +39,5 @@
 #define GROUP_BRIDGE		"bridge"
 #define GROUP_WSSUBMITTER	"wssubmitter"
 #define GROUP_WSWATCH		"wswatch"
-#define GROUP_XWDG		"XWDG"
 
 #endif /* CONF_H */
