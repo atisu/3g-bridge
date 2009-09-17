@@ -18,11 +18,11 @@
 
 #include <glib.h>
 
-typedef enum { SYSLOG, LOGFILE, STDOUT } mode;
+typedef enum { SYSLOG, LOGFILE, STDOUT, STDERR } mode;
 
 static char *log_file_name;
 static FILE *log_file;
-static mode log_mode = SYSLOG;
+static mode log_mode = STDERR;
 
 static int log_level = LOG_INFO;
 static int log_facility = LOG_DAEMON;
@@ -124,17 +124,21 @@ void log_init(GKeyFile *config, const char *section)
 	if (!str)
 		goto out;
 
+	/* Default if nothing else is specified */
+	log_mode = SYSLOG;
+
 	if (!g_strcasecmp(str, "stdout"))
 	{
 		log_mode = STDOUT;
-		setvbuf(stdout, NULL, _IOLBF, 1024);
+	}
+	if (!g_strcasecmp(str, "stderr"))
+	{
+		log_mode = STDERR;
 	}
 	else if (!g_strncasecmp(str, "syslog", 6))
 	{
-		log_mode = SYSLOG;
 		if (str[6] == ':')
 			set_facility(str + 7);
-		openlog(section, LOG_PID, log_facility);
 	}
 	else if (!g_strncasecmp(str, "file:", 5) || str[0] == '/')
 	{
@@ -147,14 +151,19 @@ void log_init(GKeyFile *config, const char *section)
 
 		log_file = fopen(path, "a");
 		if (!log_file)
-			logit(LOG_ERR, "Failed to open the log file %s: %s", path, strerror(errno));
-		else
 		{
-			setvbuf(log_file, NULL, _IOLBF, 1024);
-			log_file_name = g_strdup(path);
+			log_mode = STDERR;
+			logit(LOG_ERR, "Failed to open the log file %s: %s", path, strerror(errno));
 		}
+		else
+			log_file_name = g_strdup(path);
 	}
 	g_free(str);
+
+	if (log_file)
+		setvbuf(log_file, NULL, _IOLBF, 1024);
+	if (log_mode == SYSLOG)
+		openlog(section, LOG_PID, log_facility);
 
 out:
 	atexit(log_cleanup);
@@ -183,6 +192,7 @@ void vlogit(int lvl, const char *fmt, va_list ap)
 	char timebuf[37], *msg;
 	struct tm tm;
 	time_t now;
+	FILE *file;
 
 	if (lvl > log_level)
 		return;
@@ -202,10 +212,22 @@ void vlogit(int lvl, const char *fmt, va_list ap)
 		lvl_str = level_str[lvl];
 
 	vasprintf(&msg, fmt, ap);
-	if (log_mode == STDOUT)
-		fprintf(stdout, "%s %s: %s\n", timebuf, lvl_str, msg);
-	else if (log_file)
-		fprintf(log_file, "%s %s: %s\n", timebuf, lvl_str, msg);
+
+	switch (log_mode)
+	{
+		case LOGFILE:
+			file = log_file ? log_file : stderr;
+			break;
+		case STDOUT:
+			file = stdout;
+			break;
+		case STDERR:
+		default:
+			file = stderr;
+			break;
+	}
+
+	fprintf(file, "%s %s: %s\n", timebuf, lvl_str, msg);
 	free(msg);
 }
 
