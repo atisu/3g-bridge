@@ -24,8 +24,8 @@
  * version of the file, but you are not obligated to do so. If you do not wish to
  * do so, delete this exception statement from your version.
  */
-#ifndef EGEEHANDLER_H
-#define EGEEHANDLER_H
+#ifndef EGEE_HANDLER_H
+#define EGEE_HANDLER_H
 
 #include "Job.h"
 #include "GridHandler.h"
@@ -76,15 +76,6 @@ class EGEEHandler : public GridHandler {
 	 * @param job the job to handle
 	 */
 	void poll(Job *job) throw (BackendException *);
-
-	/**
-	 * Get an instance of the plugin. Creates a new instance of the EGEE
-	 * plugin.
-	 * @param config configuration file data
-	 * @param instance name of the plugin instance
-	 * @return pointer to the plugin
-	 */
-	static GridHandler *getInstance(GKeyFile *config, const char *instance);
 
     private:
 
@@ -283,4 +274,4 @@ class EGEEHandler : public GridHandler {
 	void logjob(const string& jobid, const int level, const string& msg);
 };
 
-#endif /* EGEEHANDLER_H */
+#endif /* EGEE_HANDLER_H */

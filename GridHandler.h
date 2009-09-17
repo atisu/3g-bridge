@@ -44,7 +44,7 @@ using namespace std;
 class GridHandler {
 public:
 	/// Initialize GridHandler.
-	GridHandler();
+	GridHandler() {};
 
 	/**
 	 * Constructor using config file and instance name
@@ -52,7 +52,11 @@ public:
 	 * @param instance the name of the instance
 	 * @see name
 	 */
-	GridHandler(GKeyFile *config, const char *instance);
+	GridHandler(GKeyFile *config, const char *instance):name(instance)
+	{
+		last_update.tv_sec = 0;
+		last_update.tv_usec = 0;
+	};
 
 	/// Destructor
 	virtual ~GridHandler() {}
@@ -104,5 +108,14 @@ protected:
 private:
 	struct timeval last_update;
 };
+
+/* Factory function prototype */
+extern "C" typedef GridHandler* (*handler_factory_func)(GKeyFile *config, const char *instance);
+
+/* Name of the factory symbol in the loadable modules */
+#define HANDLER_FACTORY_SYMBOL get_handler_instance
+
+/* Factory function definition for modules */
+#define HANDLER_FACTORY(config, instance) extern "C" GridHandler *HANDLER_FACTORY_SYMBOL(GKeyFile *config, const char *instance)
 
 #endif /* GRIDHANDLER_H */

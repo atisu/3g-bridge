@@ -30,13 +30,7 @@
 
 #include "GridHandler.h"
 
-#include <string.h>
-
-GridHandler::GridHandler()
-{
-	groupByNames = false;
-	memset(&last_update, 0, sizeof(last_update));
-}
+#include <sys/time.h>
 
 void GridHandler::checkUpdate(int interval) throw (BackendException *)
 {

@@ -52,15 +52,6 @@ class XWHandler : public GridHandler {
 	 */
 	void poll(Job *job) throw (BackendException *);
 
-	/**
-	 * Get an instance of the plugin. Creates a new instance of the XW
-	 * plugin.
-	 * @param config configuration file data
-	 * @param instance name of the plugin instance
-	 * @return pointer to the plugin
-	 */
-	static GridHandler *getInstance(GKeyFile *config, const char *instance);
-
     private:
 
 	//TODO make this configurable of course ;-)

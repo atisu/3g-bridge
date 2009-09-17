@@ -28,7 +28,7 @@
 #include <config.h>
 #endif
 
-#include "DCAPIHandlerSingle.h"
+#include "DC-API-Single_handler.h"
 #include "DBHandler.h"
 #include "Job.h"
 #include "Util.h"
@@ -117,7 +117,7 @@ static void result_callback_single(DC_Workunit *wu, DC_Result *result)
  * Class: DCAPIHandler
  */
 
-DCAPIHandlerSingle::DCAPIHandlerSingle(GKeyFile *config, const char *instance)
+DCAPISingleHandler::DCAPISingleHandler(GKeyFile *config, const char *instance)
 {
 	name = instance;
 
@@ -132,12 +132,6 @@ DCAPIHandlerSingle::DCAPIHandlerSingle(GKeyFile *config, const char *instance)
 
 	groupByNames = false;
 }
-
-
-DCAPIHandlerSingle::~DCAPIHandlerSingle()
-{
-}
-
 
 static bool submit_job(Job *job)
 {
@@ -218,7 +212,7 @@ static bool submit_job(Job *job)
 	return true;
 }
 
-void DCAPIHandlerSingle::submitJobs(JobVector &jobs) throw (BackendException *)
+void DCAPISingleHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 {
 	for (JobVector::iterator i = jobs.begin(); i != jobs.end(); i++)
 	{
@@ -227,8 +221,7 @@ void DCAPIHandlerSingle::submitJobs(JobVector &jobs) throw (BackendException *)
 	}
 }
 
-
-void DCAPIHandlerSingle::updateStatus(void) throw (BackendException *)
+void DCAPISingleHandler::updateStatus(void) throw (BackendException *)
 {
 	DBHandler *dbh = DBHandler::get();
 
@@ -256,8 +249,11 @@ void DCAPIHandlerSingle::updateStatus(void) throw (BackendException *)
 		throw new BackendException("DC_processMasterEvents() returned failure");
 }
 
+/**********************************************************************
+ * Factory function
+ */
 
-GridHandler *DCAPIHandlerSingle::getInstance(GKeyFile *config, const char *instance)
+HANDLER_FACTORY(config, instance)
 {
-	return new DCAPIHandlerSingle(config, instance);
+	return new DCAPISingleHandler(config, instance);
 }

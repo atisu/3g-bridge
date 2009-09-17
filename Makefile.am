@@ -64,24 +64,6 @@ BUILT_SOURCES = \
 		$(MONITOR_SOAP_SOURCES_SERVER)
 endif
 
-BACKEND_SOURCES =
-BACKEND_LIBS =
-
-if HAVE_DCAPI
-BACKEND_SOURCES += DCAPIHandler.cpp DCAPIHandlerSingle.cpp
-BACKEND_LIBS += $(DCAPI_MASTER_LIBS)
-endif
-
-if HAVE_EGEE
-BACKEND_SOURCES += EGEEHandler.cpp
-BACKEND_LIBS += $(EGEE_LIBS)
-AM_CPPFLAGS += $(EGEE_CPPFLAGS)
-endif
-
-if HAVE_XTREMWEB
-BACKEND_SOURCES += XWHandler.cpp
-endif
-
 SUBDIRS = doc plugins
 
 noinst_HEADERS = \
@@ -89,12 +71,7 @@ noinst_HEADERS = \
 		BackendException.h \
 		Conf.h \
 		DBHandler.h \
-		DCAPIHandler.h \
-		DCAPIHandlerSingle.h \
 		DownloadManager.h \
-		XWHandler.h \
-		EGEEHandler.h \
-		NullHandler.h \
 		GridHandler.h \
 		Job.h \
 		QMException.h \
@@ -121,13 +98,12 @@ jobwrapper_LDADD = -lboinc_api -lboinc $(GLIB_LIBS) $(MYSQL_LIBS) -luuid
 		BackendException.cpp \
 		DBHandler.cpp \
 		GridHandler.cpp \
-		NullHandler.cpp \
 		Job.cpp \
 		QMException.cpp \
 		QueueManager.cpp \
-		Util.c \
-		$(BACKEND_SOURCES)
-3g_bridge_LDADD = $(GLIB_LIBS) $(BACKEND_LIBS) $(MYSQL_LIBS) -luuid
+		Util.c
+3g_bridge_LDADD = $(GLIB_LIBS) $(GMODULE_LIBS) $(MYSQL_LIBS) -luuid
+3g_bridge_LDFLAGS = -export-dynamic
 
 wssubmitter_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
 nodist_wssubmitter_SOURCES = \

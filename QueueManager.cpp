@@ -32,18 +32,6 @@
 #include "DBHandler.h"
 #include "Util.h"
 
-#ifdef HAVE_DCAPI
-#include "DCAPIHandler.h"
-#include "DCAPIHandlerSingle.h"
-#endif
-#ifdef HAVE_EGEE
-#include "EGEEHandler.h"
-#endif
-#ifdef HAVE_XTREMWEB
-#include "XWHandler.h"
-#endif
-#include "NullHandler.h"
-
 #include <map>
 #include <list>
 #include <string>
@@ -56,6 +44,8 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <gmodule.h>
 
 using namespace std;
 
@@ -85,10 +75,11 @@ static volatile bool reload;
 /* The global configuration */
 static GKeyFile *global_config = NULL;
 
-static GHashTable *plugins;
-
 /* Config: time to sleep when polling for new jobs */
 static int sleep_interval;
+
+/* Config: Location of the plugin directory */
+static char *plugin_dir;
 
 /* Config: min. time between calling the update method of plugins */
 static int update_interval;
@@ -127,6 +118,9 @@ static GOptionEntry options[] =
 /* List of all configured grid handlers */
 static vector<GridHandler *> gridHandlers;
 
+/* Set of loaded plugins */
+static GHashTable *modules;
+
 
 /**********************************************************************
  * Prototypes
@@ -149,21 +143,42 @@ static void sighup_handler(int signal __attribute__((__unused__)))
 	reload = true;
 }
 
-static void registerPlugin(const char *name, plugin_constructor ctor)
+/**********************************************************************
+ * Get a plugin instance by name
+ */
+
+static void close_module(void *ptr)
 {
-	if (!plugins)
-		plugins = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, NULL);
-	g_hash_table_insert(plugins, (void *)name, (void *)ctor);
+	g_module_close((GModule *)ptr);
 }
 
-static GridHandler *getPluginInstance(GKeyFile *config, const char *plugin, const char *instance)
+/* Load the module and get retrieve the address of the factory symbol */
+static handler_factory_func get_factory(const char *handler)
 {
-	if (!plugins)
-		throw new QMException("Unknown grid plugin %s requested", plugin);
-	plugin_constructor ctor = (plugin_constructor)g_hash_table_lookup(plugins, plugin);
-	if (!ctor)
-		throw new QMException("Unknown grid plugin %s requested", plugin);
-	return ctor(config, instance);
+	handler_factory_func fn;
+	GModule *module;
+
+	module = (GModule *)g_hash_table_lookup(modules, handler);
+	if (!module)
+	{
+		char *path = g_strdup_printf("%s/%s_handler.%s", plugin_dir, handler, G_MODULE_SUFFIX);
+		module = g_module_open(path, G_MODULE_BIND_LOCAL);
+		g_free(path);
+		if (!module)
+		{
+			LOG(LOG_ERR, "Failed to load plugin %s_handler: %s", handler, g_module_error());
+			return NULL;
+		}
+		g_hash_table_insert(modules, g_strdup(handler), module);
+	}
+
+	if (!g_module_symbol(module, G_STRINGIFY(HANDLER_FACTORY_SYMBOL), (void **)&fn))
+	{
+		LOG(LOG_ERR, "Failed to initialize plugin %s_handler: %s", handler, g_module_error());
+		return NULL;
+	}
+	LOG(LOG_INFO, "Loaded plugin %s_handler", handler);
+	return fn;
 }
 
 /**********************************************************************
@@ -344,18 +359,6 @@ static void init_grid_handlers(void)
 	char **sections;
 	unsigned int i;
 
-#ifdef HAVE_DCAPI
-	registerPlugin("DC-API", DCAPIHandler::getInstance);
-	registerPlugin("DC-API-SINGLE", DCAPIHandlerSingle::getInstance);
-#endif
-#ifdef HAVE_EGEE
-	registerPlugin("EGEE", EGEEHandler::getInstance);
-#endif
-#ifdef HAVE_XTREMWEB
-	registerPlugin("XTREMWEB", XWHandler::getInstance);
-#endif
-	registerPlugin("NULL", NullHandler::getInstance);
-
 	sections = g_key_file_get_groups(global_config, NULL);
 	for (i = 0; sections && sections[i]; i++)
 	{
@@ -374,7 +377,13 @@ static void init_grid_handlers(void)
 		    g_key_file_get_boolean(global_config, sections[i], "disable", NULL)
 		   )
 			continue;
-		GridHandler *plugin = getPluginInstance(global_config, handler, sections[i]);
+
+		handler_factory_func fn = get_factory(handler);
+		if (!fn)
+			continue;
+		GridHandler *plugin = fn(global_config, sections[i]);
+		if (!fn)
+			continue;
 		gridHandlers.push_back(plugin);
 		LOG(LOG_DEBUG, "Initialized grid %s using %s", sections[i], handler);
 		g_free(handler);
@@ -453,6 +462,17 @@ int main(int argc, char **argv)
 	if (update_interval < 1)
 		update_interval = DEFAULT_UPDATE_INTERVAL;
 
+	plugin_dir = g_key_file_get_string(global_config, GROUP_WSMONITOR, "plugin-dir", &error);
+	if (!plugin_dir || error)
+	{
+		plugin_dir = g_strdup(PLUGINDIR);
+		if (error)
+		{
+			g_error_free(error);
+			error = NULL;
+		}
+	}
+
 	if (debug_mode)
 	{
 		log_init_debug();
@@ -476,6 +496,7 @@ int main(int argc, char **argv)
 	sigaction(SIGHUP, &sa, NULL);
 
 	DBHandler::init(global_config);
+	modules = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, close_module);
 
 	try {
 		init_grid_handlers();
@@ -529,7 +550,9 @@ int main(int argc, char **argv)
 
 	AlgQueue::cleanUp();
 	DBHandler::done();
+	g_hash_table_destroy(modules);
 	g_key_file_free(global_config);
+	g_free(plugin_dir);
 
 	return EX_OK;
 }

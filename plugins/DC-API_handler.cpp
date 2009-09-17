@@ -28,7 +28,7 @@
 #include <config.h>
 #endif
 
-#include "DCAPIHandler.h"
+#include "DC-API_handler.h"
 #include "DBHandler.h"
 #include "Job.h"
 #include "Util.h"
@@ -363,11 +363,6 @@ DCAPIHandler::DCAPIHandler(GKeyFile *config, const char *instance)
 	groupByNames = true;
 }
 
-
-DCAPIHandler::~DCAPIHandler()
-{
-}
-
 static void do_mkdir(const string &path) throw (BackendException *)
 {
 	if (!mkdir(path.c_str(), 0750) || errno == EEXIST)
@@ -570,7 +565,11 @@ void DCAPIHandler::updateStatus(void) throw (BackendException *)
 		throw new BackendException("DC_processMasterEvents() returned failure");
 }
 
-GridHandler *DCAPIHandler::getInstance(GKeyFile *config, const char *instance)
+/**********************************************************************
+ * Factory function
+ */
+
+HANDLER_FACTORY(config, instance)
 {
 	return new DCAPIHandler(config, instance);
 }

@@ -30,7 +30,7 @@
 #endif
 
 #include "DBHandler.h"
-#include "EGEEHandler.h"
+#include "EGEE_handler.h"
 #include "GridHandler.h"
 #include "Job.h"
 #include "Util.h"
@@ -611,11 +611,6 @@ void EGEEHandler::poll(Job *job) throw (BackendException *)
 	}
 }
 
-
-GridHandler *EGEEHandler::getInstance(GKeyFile *config, const char *instance)
-{
-	return new EGEEHandler(config, instance);
-}
 
 
 //
@@ -1391,4 +1386,13 @@ void EGEEHandler::logjob(const string& jobid, const int level, const string& msg
 	strftime(datestr, 255, "%F %T: ", lt);
 	lf << string(datestr) << msg << endl;
 	lf.close();
+}
+
+/**********************************************************************
+ * Factory function
+ */
+
+HANDLER_FACTORY(config, instance)
+{
+	return new EGEEHandler(config, instance);
 }

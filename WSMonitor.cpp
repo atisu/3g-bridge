@@ -60,7 +60,7 @@ static volatile bool reload;
 /* The global configuration */
 static GKeyFile *global_config = NULL;
 
-/* Location of the plugin directory */
+/* Config: Location of the plugin directory */
 static char *plugin_dir;
 
 /* Command line: Location of the config file */

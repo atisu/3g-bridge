@@ -24,25 +24,22 @@
  * version of the file, but you are not obligated to do so. If you do not wish to
  * do so, delete this exception statement from your version.
  */
-#ifndef DCAPIHANDLERSINGLE_H
-#define DCAPIHANDLERSINGLE_H
+#ifndef NULLHANDLER_H
+#define NULLHANDLER_H
 
 #include "Job.h"
 #include "GridHandler.h"
 
-#include <vector>
-
 using namespace std;
 
-class DCAPIHandlerSingle: public GridHandler {
-public:
-	DCAPIHandlerSingle(GKeyFile *config, const char *instance);
-	~DCAPIHandlerSingle();
+
+class NullHandler : public GridHandler {
+    public:
+	NullHandler(GKeyFile *config, const char *instance) throw (BackendException *);
+	~NullHandler() {};
 	void submitJobs(JobVector &jobs) throw (BackendException *);
 	void updateStatus(void) throw (BackendException *);
-	void poll(Job *job) throw (BackendException *) {}
-
-	static GridHandler *getInstance(GKeyFile *config, const char *instance);
+	void poll(Job *job) throw (BackendException *);
 };
 
-#endif /* DCAPIHANDLERSINGLE_H */
+#endif /* NULLHANDLER_H */

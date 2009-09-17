@@ -24,25 +24,68 @@
  * version of the file, but you are not obligated to do so. If you do not wish to
  * do so, delete this exception statement from your version.
  */
-#ifndef DCAPIHANDLER_H
-#define DCAPIHANDLER_H
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
-#include "Job.h"
+#include "DBHandler.h"
+#include "Null_handler.h"
 #include "GridHandler.h"
-
-#include <vector>
+#include "Job.h"
+#include "Util.h"
 
 using namespace std;
 
-class DCAPIHandler: public GridHandler {
-public:
-	DCAPIHandler(GKeyFile *config, const char *instance);
-	~DCAPIHandler();
-	void submitJobs(JobVector &jobs) throw (BackendException *);
-	void updateStatus(void) throw (BackendException *);
-	void poll(Job *job) throw (BackendException *) {}
 
-	static GridHandler *getInstance(GKeyFile *config, const char *instance);
-};
+NullHandler::NullHandler(GKeyFile *config, const char *instance) throw (BackendException *)
+{
+	name = instance;
+	groupByNames = false;
+	LOG(LOG_INFO, "NULL Handler: instance \"%s\" initialized.", name.c_str());
+}
 
-#endif /* DCAPIHANDLER_H */
+
+void NullHandler::submitJobs(JobVector &jobs) throw (BackendException *)
+{
+	if (!jobs.size())
+		return;
+	for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
+	{
+		Job *actJ = *it;
+		actJ->setStatus(Job::RUNNING);
+	}
+	LOG(LOG_DEBUG, "NULL Handler (%s): set %zd jobs' status to RUNNING.",
+		name.c_str(), jobs.size());
+}
+
+
+void NullHandler::updateStatus(void) throw (BackendException *)
+{
+	DBHandler *jobDB = DBHandler::get();
+	jobDB->pollJobs(this, Job::RUNNING, Job::CANCEL);
+	DBHandler::put(jobDB);
+}
+
+
+void NullHandler::poll(Job *job) throw (BackendException *)
+{
+	switch (job->getStatus())
+	{
+		case Job::RUNNING:
+			job->setStatus(Job::FINISHED);
+			LOG(LOG_DEBUG, "NULL Handler (%s): set status of job \"%s\" to FINISHED.",
+				name.c_str(), job->getId().c_str());
+			break;
+		default:
+			break;
+	}
+}
+
+/**********************************************************************
+ * Factory function
+ */
+
+HANDLER_FACTORY(config, instance)
+{
+	return new NullHandler(config, instance);
+}

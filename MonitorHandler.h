@@ -71,6 +71,7 @@ protected:
 	std::string name;
 };
 
+/* Factory function prototype */
 extern "C" typedef MonitorHandler* (*monitor_factory_func)(GKeyFile *config, const char *instance);
 
 /* Name of the factory symbol in the loadable modules */
