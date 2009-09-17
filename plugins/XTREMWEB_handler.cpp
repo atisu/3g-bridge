@@ -217,7 +217,7 @@ void XWHandler::updateJob(Job *job, string status)
 
     string statStr=status;
 
-    LOG(LOG_INFO,"\nStatus Str:%s",statStr.c_str(),"\n");
+    LOG(LOG_INFO,"\nStatus Str:%s\n",statStr.c_str());
     LOG(LOG_INFO, "XWDG Plugin (%s): updating status of job \"%s\" (unique identifier is \"%s\").", name.c_str(), job->getGridId().c_str(), job->getId().c_str());
 
     for (unsigned j = 0; statusRelation[j].XWDGs != ""; j++)
@@ -256,8 +256,8 @@ void XWHandler::poll(Job *job) throw (BackendException *)
     	    retour = xtremwebClient(xwstatus);
 
     	    string status = "ERROR";
-    	    int pos_xwid = retour->rfind("status=\"");
-    	    if ( string::npos != pos_xwid )
+    	    size_t pos_xwid = retour->rfind("status=\"");
+    	    if (string::npos != pos_xwid )
     	    {
 
         	status = retour->substr(pos_xwid+8,retour->length()-1);
@@ -289,7 +289,7 @@ void XWHandler::poll(Job *job) throw (BackendException *)
 
     	    string * retour;
 
-    	    LOG(LOG_INFO,"POLL : s% ,FINISHED\n",xwid.c_str());
+    	    LOG(LOG_INFO,"POLL : %s ,FINISHED\n",xwid.c_str());
     	    xwstatus.type=XWGET;
     	    retour = xtremwebClient(xwstatus);
     	    break;
@@ -302,8 +302,7 @@ void XWHandler::poll(Job *job) throw (BackendException *)
 
 string * xtremwebClient(struct xwcommand xwc)
 {
-    int status, old_stdout, old_stderr, c;
-    int pipe_stdout[2], pipe_stderr[2];
+    int pipe_stdout[2], pipe_stderr[2], c;
     char buffer[1024];
     string * message = new string("");
 
@@ -491,13 +490,13 @@ string * xtremwebClient(struct xwcommand xwc)
 
     }
 
-    int test = wait(NULL);
+    (void)wait(NULL);
     close (pipe_stdout[1]);
     close (pipe_stderr[1]);
     memset(buffer, 0, 1024);
 
     /* Lecture pipes */
-    while (c=read(pipe_stdout[0], buffer, 1024)>0)
+    while ((c=read(pipe_stdout[0], buffer, 1024))>0)
     {
         message->append(buffer);
         memset(buffer, 0, 1024);
