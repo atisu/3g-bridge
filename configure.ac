@@ -211,7 +211,5 @@ dnl Create output files
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile
 		 doc/Makefile
-		 python/Makefile
-		 python/setup.py
 		 3g-bridge.spec])
 AC_OUTPUT

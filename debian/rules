@@ -21,5 +21,4 @@ binary: configure
 	dh $@ --after dh_auto_configure --until dh_auto_install
 	# Install the schema for dbconfig-common
 	cp -p db/schema.sql debian/3g-bridge/usr/share/dbconfig-common/data/3g-bridge/install/mysql
-	(cd python; python setup.py install --root=$(CURDIR)/debian/python-3gbridge)
 	dh $@ --remaining -X.svn

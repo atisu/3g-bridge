@@ -62,7 +62,7 @@ if HAVE_XTREMWEB
 BACKEND_SOURCES += XWHandler.cpp
 endif
 
-SUBDIRS = doc python
+SUBDIRS = doc
 
 noinst_HEADERS = \
 		AlgQueue.h \

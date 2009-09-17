@@ -10,7 +10,7 @@ Package: 3g-bridge
 Section: net
 Priority: extra
 Architecture: any
-Depends: ${shlibs:Depends}, dbconfig-common, ${misc:Depends}, python-3gbridge
+Depends: ${shlibs:Depends}, dbconfig-common, ${misc:Depends}
 Recommends: 3g-bridge-wsclient, mysql-client
 Replaces: 3g-bridge-qm
 Conflicts: 3g-bridge-qm
@@ -22,18 +22,9 @@ Package: 3g-bridge-wsclient
 Section: net
 Priority: extra
 Architecture: any
-Depends: ${shlibs:Depends}, python-3gbridge
+Depends: ${shlibs:Depends}
 Description: A bridge connecting various grid infrastructures
  This package contains the web service clients.
-
-Package: python-3gbridge
-Section: python
-Priority: extra
-Architecture: all
-Depends: ${python:Depends}, python-soaplib, python-cherrypy3, python-mysqldb, python-boinc
-Provides: ${python:Provides}
-Description: A bridge connecting various grid infrastructures
- This package contains the Python components.
 
 Package: 3g-bridge-dbg
 Section: net

@@ -5,6 +5,9 @@ EXTRA_DIST = \
 		G3Bridge/GridMonitor.py \
 		G3Bridge/__init__.py
 
+dist_bin_SCRIPTS = wsmonitorclient
+dist_sbin_SCRIPTS = wsmonitor
+
 all-local:
 	python setup.py build --build-base=$(top_builddir)/py
 
