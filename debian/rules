@@ -17,6 +17,7 @@ binary: configure
 		--localstatedir=/var \
 		--libexecdir=/usr/lib/3g-bridge \
 		--with-dcapi \
+		--with-xtremweb \
 		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)"
 	dh $@ --after dh_auto_configure --until dh_auto_install
 	# Install the schema for dbconfig-common
