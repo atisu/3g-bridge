@@ -43,7 +43,7 @@
 
 using namespace std;
 
-static char *config_file;
+static char *config_file = SYSCONFDIR "/3g-bridge.conf";
 static char *name;
 static char *grid;
 static char **inputs;

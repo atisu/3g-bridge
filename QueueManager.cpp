@@ -94,7 +94,7 @@ static int sleep_interval;
 static int update_interval;
 
 /* Command line: Location of the config file */
-static char *config_file;
+static char *config_file = SYSCONFDIR "/3g-bridge.conf";
 
 /* Command line: If true, run as a daemon in the background */
 static int run_as_daemon = 1;

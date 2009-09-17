@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I cf
 
-AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@ -DRUNDIR='"${localstatedir}/run"' @GSOAP_CFLAGS@
+AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@ -DRUNDIR='"${localstatedir}/run"' -DSYSCONFDIR='"${sysconfdir}"' @GSOAP_CFLAGS@
 
 pkglibexecdir = $(libexecdir)/@PACKAGE@
 
