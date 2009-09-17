@@ -47,10 +47,15 @@ dnl -------------------------------------------------------------------
 dnl glib
 dnl -------------------------------------------------------------------
 
-AM_PATH_GLIB_2_0([2.10.0],,, [gthread gmodule])
+AM_PATH_GLIB_2_0([2.10.0])
 if test "$no_glib" = yes; then
 	AC_MSG_ERROR([glib libraries were not found])
 fi
+
+GMODULE_LIBS=`pkg-config --libs gmodule-2.0`
+GTHREAD_LIBS=`pkg-config --libs gthread-2.0`
+AC_SUBST([GMODULE_LIBS])
+AC_SUBST([GTHREAD_LIBS])
 
 dnl -------------------------------------------------------------------
 dnl DC-API
@@ -136,7 +141,7 @@ dnl -------------------------------------------------------------------
 dnl libuuid
 dnl -------------------------------------------------------------------
 
-AC_CHECK_LIB([uuid], [uuid_parse],, [AC_MSG_ERROR([libuuid was not found])])
+AC_CHECK_LIB([uuid], [uuid_parse], [true], [AC_MSG_ERROR([libuuid was not found])])
 AC_CHECK_HEADER([uuid/uuid.h],, [AC_MSG_ERROR([uuid/uuid.h was not found])])
 
 dnl -------------------------------------------------------------------
