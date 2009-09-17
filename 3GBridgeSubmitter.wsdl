@@ -233,7 +233,7 @@
 	<wsdl:service name="G3BridgeSubmitter">
 		<wsdl:documentation>3G Bridge submit service definition</wsdl:documentation>
 		<wsdl:port name="G3BridgeSubmitter" binding="tns:G3BridgeSubmitter">
-			<soap:address location="http://localhost:8080"/>
+			<soap:address location="http://localhost:8091"/>
 		</wsdl:port>
 	</wsdl:service>
 
