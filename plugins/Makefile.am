@@ -2,7 +2,7 @@ AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@
 AM_LDFLAGS = -module -avoid-version
 AM_LIBADD = @MYSQL_LIBS@ @GLIB_LIBS@
 
-pkglib_LTLIBRARIES = Null_handler.la
+pkglib_LTLIBRARIES = Null_handler.la Null_monitor.la
 
 if HAVE_BOINC
 pkglib_LTLIBRARIES += BOINC_monitor.la
@@ -34,5 +34,7 @@ EGEE_handler_la_CPPFLAGS = @EGEE_CPPFLAGS@ $(AM_CPPFLAGS)
 EGEE_handler_la_LIBADD = @EGEE_LIBS@ $(AM_LIBADD)
 
 Null_handler_la_SOURCES = Null_handler.cpp Null_handler.h
+
+Null_monitor_la_SOURCES = Null_monitor.cpp Null_monitor.h
 
 XTREMWEB_handler_la_SOURCES = XTREMWEB_handler.cpp XTREMWEB_handler.h
