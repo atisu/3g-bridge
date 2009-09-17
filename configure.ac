@@ -7,8 +7,8 @@ AC_CONFIG_MACRO_DIR([cf])
 
 AM_INIT_AUTOMAKE([1.9 foreign no-dist-gzip dist-bzip2])
 
+AC_PROG_LIBTOOL
 AC_PROG_CC
-AC_PROG_CPP
 AC_PROG_CXX
 
 dnl We need sed for substituting the XML templates
@@ -47,7 +47,7 @@ dnl -------------------------------------------------------------------
 dnl glib
 dnl -------------------------------------------------------------------
 
-AM_PATH_GLIB_2_0([2.10.0],,, [gthread])
+AM_PATH_GLIB_2_0([2.10.0],,, [gthread gmodule])
 if test "$no_glib" = yes; then
 	AC_MSG_ERROR([glib libraries were not found])
 fi
@@ -211,5 +211,6 @@ dnl Create output files
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile
 		 doc/Makefile
+		 plugins/Makefile
 		 3g-bridge.spec])
 AC_OUTPUT

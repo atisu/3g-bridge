@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 MTA SZTAKI LPDS
+ * Copyright (C) 2009 MTA SZTAKI LPDS
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,21 +24,38 @@
  * version of the file, but you are not obligated to do so. If you do not wish to
  * do so, delete this exception statement from your version.
  */
-#ifndef CONF_H
-#define CONF_H
 
-#include <glib.h>
+#ifndef BOINC_MONITOR_H
+#define BOINC_MONITOR_H
 
-/*
- * This file holds definitions that are used by multiple components
- */
+#include <time.h>
 
-/* Special groups in the configuration file */
-#define GROUP_DATABASE		"database"
-#define GROUP_DEFAULTS		"defaults"
-#define GROUP_BRIDGE		"bridge"
-#define GROUP_WSSUBMITTER	"wssubmitter"
-#define GROUP_WSWATCH		"wswatch"
-#define GROUP_WSMONITOR		"wsmonitor"
+#include "MonitorHandler.h"
 
-#endif /* CONF_H */
+#include <boinc/sched_config.h>
+#include <mysql.h>
+
+class BOINCMonitor: public MonitorHandler {
+public:
+	BOINCMonitor(GKeyFile *config, const char *instance);
+	~BOINCMonitor();
+
+	unsigned getRunningJobs() throw (BackendException *);
+	unsigned getWaitingJobs() throw (BackendException *);
+	unsigned getCPUCount() throw (BackendException *);
+private:
+	SCHED_CONFIG boinc_config;
+
+	/* We can't use boinc_db because that is a global variable */
+	MYSQL *conn;
+
+	void query_jobs();
+
+	time_t last_job_query;
+	unsigned in_progress, unsent;
+
+	time_t last_cpu_query;
+	unsigned cpus;
+};
+
+#endif /* BOINC_MONITOR_H */

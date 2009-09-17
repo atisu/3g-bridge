@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I cf
 
-AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@ -DRUNDIR='"${localstatedir}/run"' -DSYSCONFDIR='"${sysconfdir}"' @GSOAP_CFLAGS@
+AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@ -DRUNDIR='"${localstatedir}/run"' -DSYSCONFDIR='"${sysconfdir}"' -DPLUGINDIR='"${pkglibdir}"' @GSOAP_CFLAGS@
 
 pkglibexecdir = $(libexecdir)/@PACKAGE@
 
@@ -12,8 +12,8 @@ pkglibexec_PROGRAMS = jobwrapper
 endif
 
 if HAVE_GSOAP
-bin_PROGRAMS += wsclient
-sbin_PROGRAMS += wssubmitter
+bin_PROGRAMS += wsclient wsmonitorclient
+sbin_PROGRAMS += wssubmitter wsmonitor
 
 SUBMITTER_SOAP_INTERFACE = \
 		soap/3GBridgeSubmitter.h
@@ -29,20 +29,40 @@ SUBMITTER_SOAP_SOURCES_SERVER = \
 		$(SUBMITTER_SOAP_SOURCES_COMMON) \
 		soap/SubmitterServer.cpp
 
+MONITOR_SOAP_INTERFACE = \
+		soap/3GBridgeMonitor.h
+MONITOR_SOAP_SOURCES_COMMON = \
+		soap/Monitor.nsmap \
+		soap/MonitorC.cpp \
+		soap/MonitorH.h \
+		soap/MonitorStub.h
+MONITOR_SOAP_SOURCES_CLIENT = \
+		$(MONITOR_SOAP_SOURCES_COMMON) \
+		soap/MonitorClient.cpp
+MONITOR_SOAP_SOURCES_SERVER = \
+		$(MONITOR_SOAP_SOURCES_COMMON) \
+		soap/MonitorServer.cpp
+
 $(SUBMITTER_SOAP_INTERFACE): 3GBridgeSubmitter.wsdl 3GBridgeSubmitter.typemap
 	$(WSDL2H) -o $@ -t 3GBridgeSubmitter.typemap 3GBridgeSubmitter.wsdl
 
 $(SUBMITTER_SOAP_SOURCES_COMMON): $(SUBMITTER_SOAP_INTERFACE)
 	$(SOAPCPP2) -x -w -dsoap -n -I$(GSOAP_IMPORT) -pSubmitter $<
 
+$(MONITOR_SOAP_INTERFACE): 3GBridgeMonitor.wsdl 3GBridgeMonitor.typemap
+	$(WSDL2H) -o $@ -t 3GBridgeMonitor.typemap 3GBridgeMonitor.wsdl
+
+$(MONITOR_SOAP_SOURCES_COMMON): $(MONITOR_SOAP_INTERFACE)
+	$(SOAPCPP2) -x -w -dsoap -n -I$(GSOAP_IMPORT) -pMonitor $<
+
 BUILT_SOURCES = \
 		$(SUBMITTER_SOAP_INTERFACE) \
 		$(SUBMITTER_SOAP_SOURCES_CLIENT) \
-		$(SUBMITTER_SOAP_SOURCES_SERVER)
+		$(SUBMITTER_SOAP_SOURCES_SERVER) \
+		$(MONITOR_SOAP_INTERFACE) \
+		$(MONITOR_SOAP_SOURCES_CLIENT) \
+		$(MONITOR_SOAP_SOURCES_SERVER)
 endif
-
-dist_bin_SCRIPTS = wsmonitorclient
-dist_sbin_SCRIPTS = wsmonitor
 
 BACKEND_SOURCES =
 BACKEND_LIBS =
@@ -62,7 +82,7 @@ if HAVE_XTREMWEB
 BACKEND_SOURCES += XWHandler.cpp
 endif
 
-SUBDIRS = doc
+SUBDIRS = doc plugins
 
 noinst_HEADERS = \
 		AlgQueue.h \
@@ -122,12 +142,28 @@ wssubmitter_SOURCES = \
 		WSSubmitter.cpp
 wssubmitter_LDADD = $(GLIB_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto
 
+wsmonitor_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
+nodist_wsmonitor_SOURCES = \
+		$(MONITOR_SOAP_SOURCES_SERVER)
+wsmonitor_SOURCES = \
+		Util.c \
+		WSMonitor.cpp
+wsmonitor_LDADD = $(GLIB_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto
+wsmonitor_LDFLAGS = -export-dynamic
+
 wsclient_CPPFALGS = $(GSOAP_CFLAGS)
 nodist_wsclient_SOURCES = \
 		$(SUBMITTER_SOAP_SOURCES_CLIENT)
 wsclient_SOURCES = \
 		wsclient.cpp
 wsclient_LDADD = $(GLIB_LIBS) $(GSOAP_LIBS)
+
+wsmonitorclient_CPPFALGS = $(GSOAP_CFLAGS)
+nodist_wsmonitorclient_SOURCES = \
+		$(MONITOR_SOAP_SOURCES_CLIENT)
+wsmonitorclient_SOURCES = \
+		wsmonitorclient.cpp
+wsmonitorclient_LDADD = $(GLIB_LIBS) $(GSOAP_LIBS)
 
 if HAVE_GSOAP
 GSOAP_EDIT = -e '/^@@ WS-START @@/d' -e '/^@@ WS-END @@/d'

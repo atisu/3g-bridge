@@ -25,6 +25,7 @@
 			<xsd:element name="getWaitingJobsResponse" type="xsd:unsignedInt"/>
 			<xsd:element name="getCPUCountRequest" type="xsd:string"/>
 			<xsd:element name="getCPUCountResponse" type="xsd:unsignedInt"/>
+			<xsd:element name="getVersionResponse" type="xsd:string"/>
 		</xsd:schema>
 	</wsdl:types>
 
@@ -52,6 +53,13 @@
 		<wsdl:part name="count" element="tns:getCPUCountResponse"/>
 	</wsdl:message>
 
+	<!-- Message elements for "getVersion" -->
+	<wsdl:message name="getVersionRequest">
+	</wsdl:message>
+	<wsdl:message name="getVersionResponse">
+		<wsdl:part name="version" element="tns:getVersionResponse"/>
+	</wsdl:message>
+
 	<wsdl:portType name="G3BridgeMonitor">
 		<wsdl:operation name="getRunningJobs">
 			<wsdl:documentation>Query the number of running jobs</wsdl:documentation>
@@ -67,6 +75,11 @@
 			<wsdl:documentation>Query the number of available CPUs</wsdl:documentation>
 			<wsdl:input message="tns:getCPUCountRequest"/>
 			<wsdl:output message="tns:getCPUCountResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="getVersion">
+			<wsdl:documentation>Query the server's version string</wsdl:documentation>
+			<wsdl:input message="tns:getVersionRequest"/>
+			<wsdl:output message="tns:getVersionResponse"/>
 		</wsdl:operation>
 	</wsdl:portType>
 
@@ -99,12 +112,21 @@
 				<soap:body use="literal"/>
 			</wsdl:output>
 		</wsdl:operation>
+		<wsdl:operation name="getVersion">
+			<soap:operation soapAction=""/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
 	</wsdl:binding>
 
 	<wsdl:service name="G3BridgeMonitor">
 		<wsdl:documentation>3G Bridge submit service definition</wsdl:documentation>
 		<wsdl:port name="G3BridgeMonitor" binding="tns:G3BridgeMonitor">
-			<soap:address location="http://localhost:8080"/>
+			<soap:address location="http://localhost:8092"/>
 		</wsdl:port>
 	</wsdl:service>
 
