@@ -66,6 +66,13 @@
                 <arg choice="plain"><option>--help</option></arg>
             </group>
         </cmdsynopsis>
+        <cmdsynopsis>
+            <command>injector</command>
+            <group choice="req">
+                <arg choice="plain"><option>-V</option></arg>
+                <arg choice="plain"><option>--version</option></arg>
+            </group>
+        </cmdsynopsis>
     </refsynopsisdiv>
 
     <refsect1>
@@ -135,7 +142,7 @@
 
 		<listitem>
 		    <para>
-			Show a short help text.
+			Show a short help text and exit.
 		    </para>
 		</listitem>
 	    </varlistentry>
@@ -191,6 +198,20 @@
 			are used, as the architecture/operating system where the job will eventually
 			run is not known to the 3G Bridge therefore the meaning and handling of
 			special characters can be confusing.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-V</option></arg>
+			<arg choice="plain"><option>--version</option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Show the command's version and exit.
 		    </para>
 		</listitem>
 	    </varlistentry>

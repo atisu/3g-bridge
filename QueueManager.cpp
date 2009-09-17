@@ -105,6 +105,9 @@ static int kill_daemon;
 /* Command line: Force debug mode */
 static int debug_mode;
 
+/* Command line: Print the version */
+static int get_version;
+
 /* Table of the command-line options */
 static GOptionEntry options[] =
 {
@@ -116,6 +119,8 @@ static GOptionEntry options[] =
 		"Debug mode: don't fork, log to stdout", NULL },
 	{ "kill",	'k',	0,			G_OPTION_ARG_NONE,	&kill_daemon,
 		"Kill the running daemon", NULL },
+	{ "version",		'V',	0,	G_OPTION_ARG_NONE,		&get_version,
+		"Print the version and exit", NULL },
 	{ NULL }
 };
 
@@ -400,6 +405,12 @@ int main(int argc, char **argv)
 	{
 		LOG(LOG_ERR, "Failed to parse the command line options: %s", error->message);
 		exit(EX_USAGE);
+	}
+
+	if (get_version)
+	{
+		cout << PACKAGE_STRING << endl;
+		exit(EX_OK);
 	}
 
 	if (!config_file)

@@ -83,11 +83,40 @@
 		<arg choice="plain"><option>--jidfile <replaceable>FILE</replaceable></option></arg>
             </group>
         </cmdsynopsis>
+	<cmdsynopsis>
+	    <command>wsclient</command>
+            <group choice="req">
+		<arg choice="plain"><option>-e <replaceable>URL</replaceable></option></arg>
+		<arg choice="plain"><option>--endpoint <replaceable>URL</replaceable></option></arg>
+            </group>
+            <group choice="req">
+		<arg choice="plain"><option>-m <replaceable>finished</replaceable></option></arg>
+		<arg choice="plain"><option>--mode <replaceable>finished</replaceable></option></arg>
+            </group>
+        </cmdsynopsis>
+	<cmdsynopsis>
+	    <command>wsclient</command>
+            <group choice="req">
+		<arg choice="plain"><option>-e <replaceable>URL</replaceable></option></arg>
+		<arg choice="plain"><option>--endpoint <replaceable>URL</replaceable></option></arg>
+            </group>
+            <group choice="req">
+		<arg choice="plain"><option>-m <replaceable>version</replaceable></option></arg>
+		<arg choice="plain"><option>--mode <replaceable>version</replaceable></option></arg>
+            </group>
+        </cmdsynopsis>
         <cmdsynopsis>
             <command>wsclient</command>
             <group choice="req">
                 <arg choice="plain"><option>-h</option></arg>
                 <arg choice="plain"><option>--help</option></arg>
+            </group>
+        </cmdsynopsis>
+        <cmdsynopsis>
+            <command>wsclient</command>
+            <group choice="req">
+                <arg choice="plain"><option>-V</option></arg>
+                <arg choice="plain"><option>--version</option></arg>
             </group>
         </cmdsynopsis>
     </refsynopsisdiv>
@@ -159,6 +188,11 @@
 				successful or failed) jobs
 			    </para>
 			</listitem>
+			<listitem>
+			    <para>
+				<literal>version</literal>: query the version of the server
+			    </para>
+			</listitem>
 		    </itemizedlist>
 		</listitem>
 	    </varlistentry>
@@ -172,7 +206,21 @@
 
 		<listitem>
 		    <para>
-			Show a short help text.
+			Show a short help text and exit.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-V</option></arg>
+			<arg choice="plain"><option>--version</option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Show the command's version and exit.
 		    </para>
 		</listitem>
 	    </varlistentry>
@@ -285,11 +333,11 @@
     </refsect1>
 
     <refsect1>
-	<title>OTHER OPTIONS</title>
+	<title>STATUS, DELETE AND OUTPUT OPTIONS</title>
 
 	<para>
-	    If the <option>--mode</option> option is not <literal>add</literal>,
-	    then the following options are available:
+	    If the <option>--mode</option> option is <literal>status</literal>, <literal>delete</literal>
+	    or <literal>output</literal>, then the following options are available:
 	</para>
 
 	<variablelist>
@@ -355,6 +403,11 @@
 	</para>
 	<para>
 	    The <literal>delete</literal> mode generates no output.
+	</para>
+	<para>
+	    If <option>--mode</option> is <literal>version</literal>, then the output is a one-line
+	    string containing the server's version. There are no restrictions about the format of
+	    the version string.
 	</para>
     </refsect1>
 

@@ -47,7 +47,7 @@ using namespace std;
  * Data type definitions
  */
 
-typedef enum { ADD, DELETE, STATUS, OUTPUT, FINISHED } op_mode;
+typedef enum { ADD, DELETE, STATUS, OUTPUT, FINISHED, GET_VERSION } op_mode;
 
 
 /**********************************************************************
@@ -60,6 +60,7 @@ static void handle_status(void);
 static void handle_delete(void);
 static void handle_output(void);
 static void handle_finished(void);
+static void handle_version(void);
 static void *fdimereadopen(struct soap *soap, void *handle, const char *id, const char *type, const char *options);
 static size_t fdimeread(struct soap *soap, void *handle, char *buf, size_t len);
 static void fdimereadclose(struct soap *soap, void *handle);
@@ -78,13 +79,16 @@ static char **outputs;
 static G3BridgeSubmitter__JobIDList jobIDs;
 static char *jidfile;
 static int repeat;
+static int get_version;
 
 static GOptionEntry options[] =
 {
 	{ "endpoint",		'e',	0,	G_OPTION_ARG_STRING,		&endpoint,
 		"Service endpoint", "URL" },
 	{ "mode",		'm',	0,	G_OPTION_ARG_STRING,		&mode,
-		"Operation mode", "(add|status|delete|output|finished)" },
+		"Operation mode", "(add|status|delete|output|finished|version)" },
+	{ "version",		'V',	0,	G_OPTION_ARG_NONE,		&get_version,
+		"Print the version and exit", NULL },
 	{ NULL }
 };
 
@@ -145,6 +149,12 @@ int main(int argc, char **argv)
 		exit(EX_USAGE);
 	}
 
+	if (get_version)
+	{
+		cout << PACKAGE_STRING << endl;
+		exit(EX_OK);
+	}
+
 	if (!mode)
 	{
 		cerr << "Error: no mode selected!" << endl;
@@ -168,6 +178,8 @@ int main(int argc, char **argv)
 		m = OUTPUT;
 	else if (!strncmp(mode, "finished", strlen(mode)))
 		m = FINISHED;
+	else if (!strncmp(mode, "version", strlen(mode)))
+		m = GET_VERSION;
 	else
 	{
 		cerr << "Error: invalid mode specified!" << endl;
@@ -181,6 +193,9 @@ int main(int argc, char **argv)
 			return 0;
 		case FINISHED:
 			handle_finished();
+			return 0;
+		case GET_VERSION:
+			handle_version();
 			return 0;
 		default:
 			break;
@@ -459,6 +474,28 @@ static void handle_finished(void)
 
 	for (unsigned i = 0; i < resp.jobid.size(); i++)
 		cout << resp.jobid.at(i) << endl;
+
+	soap_destroy(soap);
+	soap_end(soap);
+	soap_done(soap);
+}
+
+/**
+ * Query the server's version
+ */
+static void handle_version(void)
+{
+	std::string resp;
+
+	struct soap *soap = soap_new();
+	soap_set_namespaces(soap, Submitter_namespaces);
+	if (SOAP_OK != soap_call___G3BridgeSubmitter__getVersion(soap, endpoint, NULL, resp))
+	{
+		soap_print_fault(soap, stderr);
+		exit(EX_UNAVAILABLE);
+	}
+
+	cout << resp << endl;
 
 	soap_destroy(soap);
 	soap_end(soap);

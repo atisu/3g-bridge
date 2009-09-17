@@ -90,6 +90,9 @@ static int kill_daemon;
 /* Command line: Force debug mode */
 static int debug_mode;
 
+/* Command line: Print the version */
+static int get_version;
+
 /* Prefix for DIME transferred files */
 static char *dime_prefix;
 
@@ -104,6 +107,8 @@ static GOptionEntry options[] =
 		"Debug mode: don't fork, log to stdout", NULL },
 	{ "kill",	'k',	0,			G_OPTION_ARG_NONE,	&kill_daemon,
 		"Kill the running daemon", NULL },
+	{ "version",		'V',	0,	G_OPTION_ARG_NONE,		&get_version,
+		"Print the version and exit", NULL },
 	{ NULL }
 };
 
@@ -586,6 +591,12 @@ int __G3BridgeSubmitter__getFinished(struct soap *soap, string grid, G3BridgeSub
 	return SOAP_OK;
 }
 
+int __G3BridgeSubmitter__getVersion(struct soap *soap, std::string &resp)
+{
+	resp = PACKAGE_STRING;
+	return SOAP_OK;
+}
+
 /**********************************************************************
  * The SOAP thread handler
  */
@@ -660,6 +671,12 @@ int main(int argc, char **argv)
 		exit(EX_USAGE);
 	}
 	g_option_context_free(context);
+
+	if (get_version)
+	{
+		cout << PACKAGE_STRING << endl;
+		exit(EX_OK);
+	}
 
 	if (!config_file)
 	{

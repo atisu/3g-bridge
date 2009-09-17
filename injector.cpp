@@ -49,6 +49,7 @@ static char *grid;
 static char **inputs;
 static char **outputs;
 static char *args;
+static int get_version;
 
 static GOptionEntry options[] =
 {
@@ -64,6 +65,8 @@ static GOptionEntry options[] =
 		"Output file specifications", "NAME:PATH" },
 	{ "params",		'p',	0,	G_OPTION_ARG_STRING,		&args,
 		"Command-line parameters", "ARGS" },
+	{ "version",		'V',	0,	G_OPTION_ARG_NONE,		&get_version,
+		"Print the version and exit", NULL },
 	{ NULL }
 };
 
@@ -83,6 +86,12 @@ int main(int argc, char **argv)
 		exit(EX_USAGE);
 	}
 	g_option_context_free(context);
+
+	if (get_version)
+	{
+		cout << PACKAGE_STRING << endl;
+		exit(EX_OK);
+	}
 
 	if (!config_file)
 	{
