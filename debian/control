@@ -3,8 +3,9 @@ Section: net
 Priority: extra
 Maintainer: Gábor Gombás <gombasg@sztaki.hu>
 Standards-Version: 3.8.1
-Build-Depends: libmysqlclient15-dev | libmysqlclient-dev, libglib2.0-dev, libdcapi-boinc-dev, debhelper (>= 7),
- pkg-config, automake, autoconf, libcurl4-openssl-dev, xsltproc, docbook-xsl, gsoap
+Build-Depends: libmysqlclient15-dev | libmysqlclient-dev, libglib2.0-dev,
+ debhelper (>= 7), pkg-config, automake, autoconf, libtool,
+ libdcapi-boinc-dev, libcurl4-openssl-dev, xsltproc, docbook-xsl, gsoap
 
 Package: 3g-bridge
 Section: net
