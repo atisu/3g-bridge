@@ -7,7 +7,7 @@ pkglibexecdir = $(libexecdir)/@PACKAGE@
 bin_PROGRAMS = injector
 sbin_PROGRAMS = 3g-bridge
 
-if HAVE_BOINC
+if HAVE_JOBWRAPPER
 pkglibexec_PROGRAMS = jobwrapper
 endif
 
@@ -101,7 +101,8 @@ jobwrapper_LDADD = -lboinc_api -lboinc $(GLIB_LIBS) $(MYSQL_LIBS) -luuid
 		Job.cpp \
 		QMException.cpp \
 		QueueManager.cpp \
-		Util.c
+		Util.c \
+		MonitorHandler.h
 3g_bridge_LDADD = $(GLIB_LIBS) $(GMODULE_LIBS) $(MYSQL_LIBS) -luuid
 3g_bridge_LDFLAGS = -export-dynamic
 

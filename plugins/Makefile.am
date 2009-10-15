@@ -4,12 +4,11 @@ AM_LIBADD = @MYSQL_LIBS@ @GLIB_LIBS@
 
 pkglib_LTLIBRARIES = Null_handler.la Null_monitor.la
 
+if HAVE_DCAPI
+pkglib_LTLIBRARIES += DC-API_handler.la DC-API-Single_handler.la
 if HAVE_BOINC
 pkglib_LTLIBRARIES += BOINC_monitor.la
 endif
-
-if HAVE_DCAPI
-pkglib_LTLIBRARIES += DC-API_handler.la DC-API-Single_handler.la
 endif
 
 if HAVE_EGEE

@@ -99,6 +99,14 @@ fi
 AM_CONDITIONAL([HAVE_XTREMWEB], [test "$with_xtremweb" != no])
 
 dnl -------------------------------------------------------------------
+dnl Jobwrapper
+dnl -------------------------------------------------------------------
+
+AC_ARG_WITH([jobwrapper], AS_HELP_STRING([--with-jobwrapper], [Enable Jobwrapper application @<:@no@:>@]),
+	[], [with_jobwrapper=no])
+AM_CONDITIONAL([HAVE_JOBWRAPPER], [test "$with_jobwrapper" != no])
+
+dnl -------------------------------------------------------------------
 dnl gsoap & libcurl
 dnl -------------------------------------------------------------------
 
@@ -175,6 +183,7 @@ if test "${with_boinc}" != no; then
 	AC_SUBST(BOINC_LDFLAGS)
 fi
 AM_CONDITIONAL([HAVE_BOINC], [test "$with_boinc" != no])
+AM_CONDITIONAL([HAVE_JOBWRAPPER], [test "$with_boinc" != no -a "$with_jobwrapper" != no])
 
 dnl ===================================================================
 dnl Tools needed to build the documentation

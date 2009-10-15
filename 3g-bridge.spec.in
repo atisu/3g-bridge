@@ -65,7 +65,7 @@ cd ..
 export PKG_CONFIG_PATH LD_LIBRARY_PATH
 
 # Real build starts here
-%configure --with-egee --with-gsoap=$PWD/gsoap-2.7/installed
+%configure --with-egee --with-gsoap=$PWD/gsoap-2.7/installed --without-dcapi --with-jobwrapper
 make
 
 %install
