@@ -27,7 +27,7 @@ BuildRequires: curl-devel
 The purpose of the 3G bridge application is to create a connection between a
 job source and a grid backend. The 3G bridge communicates with the job
 source via a MySQL database. The job source renders job descriptors in the
-MySQL database. The supported grid backend in this version is EGEE.
+MySQL database. There are different destination grid plugins available.
 
 %package wsclient
 Summary: Generic Grid Grid (3G) bridge wsclient job source.
@@ -38,6 +38,37 @@ The purpose of the 3G bridge application is to create a connection between a
 job source and a grid backend. The 3G bridge communicates with the job
 source via a MySQL database. The job source renders job descriptors in the
 MySQL database. This package contains the web service based job source client.
+
+%package egee-plugin
+Summary: Generic Grid Grid (3G) bridge EGEE submission plugin.
+Group: Grid
+
+%description egee-plugin
+The purpose of the 3G bridge application is to create a connection between a
+job source and a grid backend. The 3G bridge uses grid plugins to submit jobs
+to different grid types. The EGEE plugin allows job sources to run their jobs
+on the EGEE grid.
+
+%package null-plugin
+Summary: Generic Grid Grid (3G) bridge "null" plugin.
+Group: Grid
+
+%description null-plugin
+The purpose of the 3G bridge application is to create a connection between a
+job source and a grid backend. The 3G bridge uses grid plugins to submit jobs
+to different grid types. The "null" plugin simply sets new jobs to running,
+and running jobs to finished. No job execution is performed by this plugin.
+
+%package jobwrapper
+Summary: Generic Grid Grid (3G) bridge jobwrapper application.
+Group: Grid
+
+%description jobwrapper
+The purpose of the 3G bridge application is to create a connection between a
+job source and a grid backend. The jobwrapper application is used in the
+scenario where BOINC is the job source. The jobwrapper is responsible for
+parsing BOINC workunits received by the BOINC jobwrapper client, and put
+them into the 3G bridge database.
 
 %prep
 %setup -q -n %{name}-%{ver} -a 1 -a 2
@@ -102,9 +133,9 @@ fi
 
 %files
 %defattr(-, root, root)
-%{_bindir}/injector
-%{_libexecdir}/3g-bridge/jobwrapper
+ %{_bindir}/injector
 %{_sbindir}/3g-bridge
+%{_sbindir}/wsmonitor
 %{_sbindir}/wssubmitter
 %doc %{_mandir}/man1/injector.1*
 %doc %{_mandir}/man5/3g-bridge.conf.5*
@@ -121,9 +152,32 @@ fi
 %files wsclient
 %defattr(-, root, root)
 %{_bindir}/wsclient
+%{_bindir}/wsmonitorclient
 %doc %{_mandir}/man1/wsclient.1*
 
+%files egee-plugin
+%defattr(-, root, root)
+%{_libdir}/3g-bridge/EGEE_handler.a
+%{_libdir}/3g-bridge/EGEE_handler.la
+%{_libdir}/3g-bridge/EGEE_handler.so
+
+%files null-plugin
+%defattr(-, root, root)
+%{_libdir}/3g-bridge/Null_handler.a
+%{_libdir}/3g-bridge/Null_handler.la
+%{_libdir}/3g-bridge/Null_handler.so
+%{_libdir}/3g-bridge/Null_monitor.a
+%{_libdir}/3g-bridge/Null_monitor.la
+%{_libdir}/3g-bridge/Null_monitor.so
+
+%files jobwrapper
+%defattr(-, root, root)
+%{_libexecdir}/3g-bridge/jobwrapper
+
 %changelog
+* Tue Oct 15 2009 FARKAS Zoltan <zfarkas@sztaki.hu> 0.96r2275-1
+- Separate package for plugins, jobwrapper, and 3G bridge
+
 * Tue May  5 2009 BALATON Zoltan <balaton@sztaki.hu> 0.92r2189-2
 - Added build requires boinc-client-devel
 
