@@ -110,7 +110,7 @@ static void log_cleanup(void)
 void log_init(GKeyFile *config, const char *section)
 {
 	char *str;
-	
+
 	str = g_key_file_get_string(config, section, "log-level", NULL);
 	if (!str)
 		str = g_key_file_get_string(config, GROUP_DEFAULTS, "log-level", NULL);
@@ -260,7 +260,7 @@ int pid_file_create(GKeyFile *config, const char *section)
 	struct flock lck;
 	char *str;
 	int fd;
-	
+
 	str = g_key_file_get_string(config, section, "pid-file", NULL);
 	if (!str)
 		str = g_strdup_printf("%s/%s.pid", RUNDIR, section);

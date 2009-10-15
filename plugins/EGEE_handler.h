@@ -90,7 +90,7 @@ class EGEEHandler : public GridHandler {
 
 	/// Error indicator for GSIFTP operations
 	static bool globus_err;
-	
+
 	/// Error message of GSIFTP operations
 	static char *globus_errmsg;
 

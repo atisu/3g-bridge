@@ -158,7 +158,7 @@ static MonitorHandler *get_instance(const char *grid)
 		LOG(LOG_ERR, "Unknown grid requested: %s", grid);
 		return 0;
 	}
-	
+
 	instance = (MonitorHandler *)g_hash_table_lookup(instances, grid);
 	if (instance)
 		return instance;

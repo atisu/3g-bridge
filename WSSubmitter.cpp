@@ -351,7 +351,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 			{
 				if (jobs->job.size() != 1)
 				{
-					struct soap_multipart *attachment; 
+					struct soap_multipart *attachment;
 					for (attachment = soap->dime.list; attachment; attachment = attachment->next)
 						unlink(getdimepath(attachment->id).c_str());
 					LOG(LOG_ERR, "submit: DIME attachments are disabled for multiple jobs");

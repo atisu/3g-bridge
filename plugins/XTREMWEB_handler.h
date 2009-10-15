@@ -47,7 +47,7 @@ class XWHandler : public GridHandler {
 	 */
 	void updateJob(Job *job, string status);
 	/**
-	 * update a given job. 
+	 * update a given job.
 	 * @param job the job to handle
 	 */
 	void poll(Job *job) throw (BackendException *);
@@ -62,8 +62,8 @@ class XWHandler : public GridHandler {
 
 	//path to the nailgun executable
 	char *ng;
-	
-	
+
+
 };
 
 #endif /* XWHANDLER_H */

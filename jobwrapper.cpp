@@ -85,7 +85,7 @@ static unsigned app_files_num;				// how many files the application has
 static char **app_files;				// what is the name of these files the application thinks
 static char **app_files_real_name;			// what is the REAL name of these files the BOINC store
 
-static unsigned input_files_num;			// the same with input files 
+static unsigned input_files_num;			// the same with input files
 static char **input_files;				// e.g. in.txt
 static char **input_files_real_name;			// e.g. distribute.txt_df4fg4h6h443fnjx3_0
 
@@ -362,7 +362,7 @@ char *parse_cmd_line()
 void read_app_data(void)
 {
         char *res;
-        
+
         if (NULL == (infile = fopen(JOBWRAPPER_CONFIG_FILE, "r")))
         {
                 LOG(LOG_ERR, "Failed to open jobwrapper config file %s: %s\n",

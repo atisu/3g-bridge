@@ -67,7 +67,7 @@ public:
 	virtual unsigned getCPUCount() throw (BackendException *) = 0;
 
 protected:
-	// Name of the monitor handler instance 
+	// Name of the monitor handler instance
 	std::string name;
 };
 

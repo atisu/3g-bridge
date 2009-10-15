@@ -189,7 +189,7 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 		char *tmp = getenv("TMPDIR");
 		tmppath = (tmp ? tmp : "/tmp");
 	}
-		
+
 	snprintf(buf, sizeof(buf), "%s/.egee_%s_XXXXXX", tmppath, instance);
 	if (!mkdtemp(buf))
 		throw new BackendException("EGEE: failed to create temporary "
@@ -436,7 +436,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		{
 			LOG(LOG_ERR, "EGEE Plugin (%s): job submission failed:"
 				"\n%s", name.c_str(), stdoe.c_str());
-			
+
 			const char *rmargs[] = { "rm", "-rf", wdir, NULL };
 			invoke_cmd("rm", rmargs, NULL);
 			for (JobVector::iterator it = jobs.begin();
@@ -1380,7 +1380,7 @@ void EGEEHandler::logjob(const string& jobid, const int level, const string& msg
 			" \"%s\" for writing.", name.c_str(), lfn.c_str());
 		return;
 	}
-	
+
 	time_t curtime = time(NULL);
 	struct tm* lt = localtime(&curtime);
 	strftime(datestr, 255, "%F %T: ", lt);
