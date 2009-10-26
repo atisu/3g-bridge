@@ -64,7 +64,7 @@ dnl -------------------------------------------------------------------
 AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@no@:>@]),
 	[], [with_dcapi=no])
 if test "$with_dcapi" != no; then
-	SZDG_DCAPI_MASTER
+	SZDG_DCAPI_MASTER([], [AC_MSG_ERROR([DC-API master libraries are missing])])
 fi
 if test "$with_dcapi" != no; then
 	AC_DEFINE([HAVE_DCAPI], [1], [Define if DC-API is requested.])
