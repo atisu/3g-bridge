@@ -3,7 +3,7 @@
 <!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
 	"http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" [
 ]>
-<refentry id="3g-bridge.conf.5" revision="5 Mar 2009">
+<refentry id="3g-bridge.conf.5" revision="29 Oct 2009">
     <refentryinfo>
 	<author>
 	    <personname>
@@ -12,7 +12,7 @@
 	    </personname>
 	    <email>gombasg@sztaki.hu</email>
 	</author>
-	<date>5 Mar 2009</date>
+	<date>29 Oct 2009</date>
 	<title>3g-bridge.conf</title>
 	<productname>3G Bridge</productname>
 	<productnumber>@PACKAGE_VERSION@</productnumber>
@@ -339,8 +339,11 @@
 	<title>OPTIONS FOR THE DC-API AND DC-API-SINGLE PLUGINS</title>
 
 	<para>
-	    If a grid definition uses the <literal>DC-API</literal> or the <literal>DC-API-SINGLE</literal>
-	    plugin, then the following values can be specified in the defining group:
+	    The <literal>DC-API</literal> and <literal>DC-API-SINGLE</literal>
+	    plugins handle job submission using DC-API. The <literal>DC-API</literal>
+	    plugin supports batching and requires that the application is
+	    specifically prepared for batching. The <literal>DC-API-SINGLE</literal>
+	    plugin supports any DC-API application.
 	</para>
 	<glosslist>
 	    <glossentry>
@@ -362,8 +365,7 @@
 	<title>OPTIONS FOR THE EGEE PLUGIN</title>
 
 	<para>
-	    If a grid definition uses the <literal>EGEE</literal> plugin, then the following
-	    values can be specified in the defining group:
+	    The <literal>EGEE</literal> plugin handles job submission using gLite.
 	</para>
 	<glosslist>
 	    <glossentry>
@@ -459,8 +461,7 @@
 	<title>OPTIONS FOR THE XTERMWEB PLUGIN</title>
 
 	<para>
-	    If a grid definition uses the <literal>XTREMWEB</literal> plugin, then the following
-	    values can be specified in the defining group:
+	    The <literal>XTREMWEB</literal> plugin handles job submission to XtremWeb.
 	</para>
 	<glosslist>
 	    <glossentry>
@@ -510,10 +511,30 @@ larger results files to download, more time to use.
     </refsect1>
 
     <refsect1>
+	<title>OPTIONS FOR THE BOINC PLUGIN</title>
+
+	<para>
+	    The <literal>BOINC</literal> plugin supports the monitoring of BOINC
+	    projects.
+	</para>
+	<glosslist>
+	    <glossentry>
+		<glossterm><envar>project-dir</envar></glossterm>
+		<glossdef>
+		    <para>
+			The location of the project's root directory.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	</glosslist>
+    </refsect1>
+
+    <refsect1>
 	<title>SEE ALSO</title>
 	<para>
 	    <citerefentry><refentrytitle>3g-bridge</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
 	    <citerefentry><refentrytitle>injector</refentrytitle><manvolnum>1</manvolnum></citerefentry>,
+	    <citerefentry><refentrytitle>wsmonitor</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
 	    <citerefentry><refentrytitle>wssubmitter</refentrytitle><manvolnum>8</manvolnum></citerefentry>
 	</para>
     </refsect1>

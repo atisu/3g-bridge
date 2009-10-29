@@ -3,7 +3,7 @@
 <!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
         "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" [
 ]>
-<refentry id="wssubmitter.8" revision="29 Oct 2009">
+<refentry id="wsmonitor.8" revision="29 Oct 2009">
     <refentryinfo>
         <author>
             <personname>
@@ -13,27 +13,27 @@
             <email>gombasg@sztaki.hu</email>
         </author>
         <date>29 Oct 2009</date>
-        <title>wssubmitter</title>
+        <title>wsmonitor</title>
         <productname>3G Bridge</productname>
         <productnumber>@PACKAGE_VERSION@</productnumber>
     </refentryinfo>
 
     <refmeta>
-        <refentrytitle>wssubmitter</refentrytitle>
+        <refentrytitle>wsmonitor</refentrytitle>
         <manvolnum>8</manvolnum>
         <refmiscinfo>3G Bridge</refmiscinfo>
     </refmeta>
 
     <refnamediv>
-        <refname><command>wssubmitter</command></refname>
+        <refname><command>wsmonitor</command></refname>
         <refpurpose>
-            3G Bridge Web Service submitter interface
+            3G Bridge Web Service monitor interface
         </refpurpose>
     </refnamediv>
 
     <refsynopsisdiv>
 	<cmdsynopsis>
-	    <command>wssubmitter</command>
+	    <command>wsmonitor</command>
 	    <group>
 		<arg choice="plain"><option>-c <replaceable>FILE</replaceable></option></arg>
 		<arg choice="plain"><option>--config <replaceable>FILE</replaceable></option></arg>
@@ -48,21 +48,21 @@
             </group>
         </cmdsynopsis>
         <cmdsynopsis>
-            <command>wssubmitter</command>
+            <command>wsmonitor</command>
             <group choice="req">
                 <arg choice="plain"><option>-k</option></arg>
                 <arg choice="plain"><option>--kill</option></arg>
             </group>
         </cmdsynopsis>
         <cmdsynopsis>
-            <command>wssubmitter</command>
+            <command>wsmonitor</command>
             <group choice="req">
                 <arg choice="plain"><option>-h</option></arg>
                 <arg choice="plain"><option>--help</option></arg>
             </group>
         </cmdsynopsis>
         <cmdsynopsis>
-            <command>wssubmitter</command>
+            <command>wsmonitor</command>
             <group choice="req">
                 <arg choice="plain"><option>-V</option></arg>
                 <arg choice="plain"><option>--version</option></arg>
@@ -73,10 +73,8 @@
     <refsect1>
 	<title>DESCRIPTION</title>
 	<para>
-	    <command>wssubmitter</command> is the web service interface for
-	    submitting jobs to the 3G bridge.  It receives job submission
-	    requests and stores them in the database for being processed by
-	    <command>3g-bridge</command>.
+	    <command>wsmonitor</command> is the web service interface to monitor
+	    grids behind the 3G Bridge.
 	</para>
     </refsect1>
 
@@ -179,7 +177,7 @@
 	<para>
 	    When running as a daemon, receiving a <literal>SIGHUP</literal> signal
 	    causes the daemon to exit. The reason of this behaviour is to enable the
-	    <command>wssubmitter</command> to be supervised by BOINC.
+	    <command>wsmonitor</command> to be supervised by BOINC.
 	</para>
     </refsect1>
 
@@ -195,7 +193,7 @@
 	<para>
 	    <citerefentry><refentrytitle>3g-bridge.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>,
 	    <citerefentry><refentrytitle>3g-bridge</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
-	    <citerefentry><refentrytitle>wsclient</refentrytitle><manvolnum>1</manvolnum></citerefentry>
+	    <citerefentry><refentrytitle>wsmonitorclient</refentrytitle><manvolnum>1</manvolnum></citerefentry>
 	</para>
     </refsect1>
 

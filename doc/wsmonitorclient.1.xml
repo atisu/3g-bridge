@@ -1,0 +1,175 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl" type="text/xsl"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+        "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" [
+]>
+<refentry id="wsmonitorclient.1" revision="29 Oct 2009">
+    <refentryinfo>
+        <author>
+            <personname>
+                <firstname>Gábor</firstname>
+                <surname>Gombás</surname>
+            </personname>
+            <email>gombasg@sztaki.hu</email>
+        </author>
+        <date>29 Oct 2009</date>
+        <title>wsmonitorclient</title>
+        <productname>3G Bridge</productname>
+        <productnumber>@PACKAGE_VERSION@</productnumber>
+    </refentryinfo>
+
+    <refmeta>
+        <refentrytitle>wsmonitorclient</refentrytitle>
+        <manvolnum>1</manvolnum>
+        <refmiscinfo>3G Bridge</refmiscinfo>
+    </refmeta>
+
+    <refnamediv>
+        <refname><command>wsmonitorclient</command></refname>
+        <refpurpose>
+            3G Bridge Web Service monitoring tool
+        </refpurpose>
+    </refnamediv>
+
+    <refsynopsisdiv>
+	<cmdsynopsis>
+	    <command>wsmonitorclient</command>
+            <group choice="req">
+		<arg choice="plain"><option>-e <replaceable>URL</replaceable></option></arg>
+		<arg choice="plain"><option>--endpoint <replaceable>URL</replaceable></option></arg>
+            </group>
+            <group choice="req">
+		<arg choice="plain"><option>-g <replaceable>GRID</replaceable></option></arg>
+		<arg choice="plain"><option>--grid <replaceable>GRID</replaceable></option></arg>
+            </group>
+            <group rep="repeat">
+		<arg choice="plain"><option>-q <replaceable>TYPE</replaceable></option></arg>
+		<arg choice="plain"><option>--query <replaceable>TYPE</replaceable></option></arg>
+            </group>
+        </cmdsynopsis>
+        <cmdsynopsis>
+            <command>wsmonitorclient</command>
+            <group choice="req">
+                <arg choice="plain"><option>-h</option></arg>
+                <arg choice="plain"><option>--help</option></arg>
+            </group>
+        </cmdsynopsis>
+        <cmdsynopsis>
+            <command>wsmonitorclient</command>
+            <group choice="req">
+                <arg choice="plain"><option>-V</option></arg>
+                <arg choice="plain"><option>--version</option></arg>
+            </group>
+        </cmdsynopsis>
+    </refsynopsisdiv>
+
+    <refsect1>
+	<title>DESCRIPTION</title>
+	<para>
+	    <command>wsmonitorclient</command> is a client for querying statistics
+	    about the grids behind the 3G Bridge.
+	</para>
+    </refsect1>
+
+    <refsect1>
+	<title>GENERIC OPTIONS</title>
+	<variablelist>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-e <replaceable>URL</replaceable></option></arg>
+		        <arg choice="plain"><option>--endpoint <replaceable>URL</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			The URL of the web service interface.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-q <replaceable>TYPE</replaceable></option></arg>
+			<arg choice="plain"><option>--query <replaceable>TYPE</replaceable></option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			The query type. Must be one of the following values. If not
+			specified, it defaults to <literal>all</literal>.
+		    </para>
+
+		    <itemizedlist>
+			<listitem>
+			    <para>
+				<literal>running</literal>: number of jobs running
+			    </para>
+			</listitem>
+			<listitem>
+			    <para>
+				<literal>waiting</literal>: number of jobs waiting
+			    </para>
+			</listitem>
+			<listitem>
+			    <para>
+				<literal>cpus</literal>: number of connected CPUs
+			    </para>
+			</listitem>
+			<listitem>
+			    <para>
+				<literal>version</literal>: query the server's version
+			    </para>
+			</listitem>
+			<listitem>
+			    <para>
+				<literal>all</literal>: shorthand for
+				<option>-q running -q waiting -q cpus</option>
+			    </para>
+			</listitem>
+		    </itemizedlist>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-h</option></arg>
+			<arg choice="plain"><option>--help</option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Show a short help text and exit.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-V</option></arg>
+			<arg choice="plain"><option>--version</option></arg>
+		    </group>
+		</term>
+
+		<listitem>
+		    <para>
+			Show the command's version and exit.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	</variablelist>
+    </refsect1>
+
+    <refsect1>
+	<title>SEE ALSO</title>
+	<para>
+	    <citerefentry><refentrytitle>3g-bridge</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
+	    <citerefentry><refentrytitle>wsmonitor</refentrytitle><manvolnum>8</manvolnum></citerefentry>
+	</para>
+    </refsect1>
+
+</refentry>
+<!-- vim: set ai sw=4: -->

@@ -1,4 +1,11 @@
-man_MANS = 3g-bridge.8 3g-bridge.conf.5 injector.1 wsclient.1 wssubmitter.8
+man_MANS = \
+		3g-bridge.8 \
+		3g-bridge.conf.5 \
+		injector.1 \
+		wsclient.1 \
+		wsmonitor.8 \
+		wsmonitorclient.1 \
+		wssubmitter.8
 
 EXTRA_DIST = $(addsuffix .xml,$(man_MANS)) $(addsuffix .in,$(man_MANS))
 DISTCLEANFILES = $(man_MANS)
