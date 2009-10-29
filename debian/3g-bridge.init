@@ -13,15 +13,18 @@
 
 BRIDGE_DAEMON=/usr/sbin/3g-bridge
 WSSUBMITTER_DAEMON=/usr/sbin/wssubmitter
+WSMONITOR_DAEMON=/usr/sbin/wsmonitor
 
 CONFFILE="/etc/3g-bridge.conf"
 BRIDGE_OPTIONS=""
 WSSUBMITTER_OPTIONS=""
+WSMONITOR_OPTIONS=""
 ENABLED="0"
 test -f /etc/default/3g-bridge && . /etc/default/3g-bridge
 
 test -x "$BRIDGE_DAEMON" || exit 0
 test -x "$WSSUBMITTER_DAEMON" || exit 0
+test -x "$WSMONITOR_DAEMON" || exit 0
 test -r "$CONFFILE" || exit 0
 
 . /lib/lsb/init-functions
@@ -32,6 +35,7 @@ pidfile () {
 
 BRIDGE_PID=`pidfile bridge`
 WSSUBMITTER_PID=`pidfile wssubmitter`
+WSMONITOR_PID=`pidfile wsmonitor`
 
 case "$1" in
 	start)
@@ -60,10 +64,22 @@ case "$1" in
 				-- \
 				--config "$CONFFILE" "$WSSUBMITTER_OPTIONS"
 		fi
+		if [ ! -z "$WSMONITOR_PID" ]; then
+			log_progress_msg "wsmonitor"
+			start-stop-daemon --start --quiet \
+				--pidfile "$WSMONITOR_PID" \
+				--exec "$WSMONITOR_DAEMON" \
+				-- \
+				--config "$CONFFILE" "$WSMONITOR_OPTIONS"
+		fi
 		log_end_msg 0
 		;;
 	stop)
 		log_daemon_msg "Stopping 3G-Bridge"
+		if [ ! -z "$WSMONITOR_PID" ]; then
+			log_progress_msg "wsmonitor"
+			$WSMONITOR_DAEMON --config "$CONFFILE" --kill
+		fi
 		if [ ! -z "$WSSUBMITTER_PID" ]; then
 			log_progress_msg "wssubmitter"
 			$WSSUBMITTER_DAEMON --config "$CONFFILE" --kill
@@ -93,6 +109,15 @@ case "$1" in
 				--exec "$WSSUBMITTER_DAEMON" \
 				-- \
 				--config "$CONFFILE" "$WSSUBMITTER_OPTIONS"
+		fi
+		if [ ! -z "$WSMONITOR_PID" ]; then
+			log_progress_msg "wsmonitor"
+			$WSMONITOR_DAEMON --config "$CONFFILE" --kill
+			start-stop-daemon --start --quiet \
+				--pidfile "$WSMONITOR_PID" \
+				--exec "$WSMONITOR_DAEMON" \
+				-- \
+				--config "$CONFFILE" "$WSMONITOR_OPTIONS"
 		fi
 		log_end_msg 0
 		;;
