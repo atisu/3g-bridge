@@ -1,3 +1,9 @@
+3g-bridge (0.96-3) unstable; urgency=low
+
+  * Fix the location of 3g-bridge.conf in master.xml 
+
+ -- Gábor Gombás <gombasg@sztaki.hu>  Mon, 09 Nov 2009 13:23:42 +0100
+
 3g-bridge (0.96-2) unstable; urgency=low
 
   * Add the README file.

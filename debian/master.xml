@@ -11,7 +11,7 @@
 
 	<!-- Data files used by the master -->
 	<files>
-		<file>/etc/3g-bridge.conf</file>
+		<file>/usr/share/3g-bridge/3g-bridge.conf</file>
 		<file>/usr/share/3g-bridge/batch_pack</file>
 		<file>/usr/share/3g-bridge/batch_unpack</file>
 	</files>
