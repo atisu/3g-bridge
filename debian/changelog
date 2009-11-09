@@ -1,3 +1,9 @@
+3g-bridge (0.96-2) unstable; urgency=low
+
+  * Add the README file.
+
+ -- Gábor Gombás <gombasg@sztaki.hu>  Mon, 09 Nov 2009 13:08:16 +0100
+
 3g-bridge (0.96-1) unstable; urgency=low
 
   * New upstream release.

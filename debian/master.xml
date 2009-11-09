@@ -6,9 +6,8 @@
 	<!-- Application name -->
 	<name>3g-bridge</name>
 
-	<!-- Application version. There are no restrictions for the format of
-	     master version numbers -->
-	<version>0.5</version>
+	<!-- Application version -->
+	<version>0.96</version>
 
 	<!-- Data files used by the master -->
 	<files>
@@ -27,7 +26,6 @@
 		</arguments>
 	</daemon>
 
-	<!-- The application manager script will substitute the correct
-	     values for us -->
+	<!-- The application manager script will substitute the correct values for us -->
 	<dcapi-conf>/usr/share/3g-bridge/dc-api.conf</dcapi-conf>
 </master>

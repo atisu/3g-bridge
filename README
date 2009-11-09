@@ -74,6 +74,10 @@ BOINC project user account):
 
 	boinc_appmgr --add /path/to/3g-bridge-package.tar.gz
 
+If you have installed the 3G-Bridge from a Debian package, then you should use:
+
+	boinc_appmgr --add /usr/share/3g-bridge/master.xml
+
 The 3G Bridge is installed into the $HOME/master/3g-bridge directory.
 
 Now you must edit $HOME/master/3g-bridge/3g-bridge.conf:
