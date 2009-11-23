@@ -1,1 +1,3 @@
 usr/share/dbconfig-common/data/3g-bridge/install
+var/lib/3g-bridge/input
+var/lib/3g-bridge/output
