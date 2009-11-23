@@ -57,12 +57,6 @@ using namespace std;
 #define DEFAULT_UPDATE_INTERVAL	10
 
 /**********************************************************************
- * Type definitions
- */
-
-typedef GridHandler *(*plugin_constructor)(GKeyFile *config, const char *instance);
-
-/**********************************************************************
  * Global variables
  */
 
@@ -85,7 +79,7 @@ static char *plugin_dir;
 static int update_interval;
 
 /* Command line: Location of the config file */
-static char *config_file = SYSCONFDIR "/3g-bridge.conf";
+static char *config_file = (char *)SYSCONFDIR "/3g-bridge.conf";
 
 /* Command line: If true, run as a daemon in the background */
 static int run_as_daemon = 1;
@@ -126,7 +120,6 @@ static GHashTable *modules;
  * Prototypes
  */
 
-static unsigned selectSize(AlgQueue *algQ);
 static unsigned selectSizeAdv(AlgQueue *algQ);
 
 /**********************************************************************
@@ -261,59 +254,6 @@ static void do_mainloop()
 /**********************************************************************
  * Batch size calculation routines
  */
-
-/**
- * Determine package size. For CancerGrid, "optimal" package sizes are
- * counted here for the different algorithm queues.
- *
- * @param[in] algQ The algorithm queue to use. No other information is
- *                 needed, as the decision depends only on this
- * @return Determined package size
- */
-#if 0
-static unsigned selectSize(AlgQueue *algQ)
-{
-	unsigned maxPSize = algQ->getPackSize();
-	double tATT = 0, tVB = 0;
-	double vBorder[maxPSize];
-	double pBorder[maxPSize];
-	double vpBorder[maxPSize + 1];
-	vector<processStatistics> *pStats = algQ->getPStats();
-
-	for (unsigned i = 0; i < maxPSize; i++)
-		tATT += pStats->at(i).avgTT;
-
-	if (tATT)
-    		for (unsigned i = 0; i < maxPSize; i++)
-    		{
-            		vBorder[i] = (double)1 - pStats->at(i).avgTT/tATT;
-            		tVB += vBorder[i];
-    		}
-	else
-	{
-    		for (unsigned i = 0; i < maxPSize; i++)
-			vBorder[i] = 1;
-		tVB = maxPSize;
-	}
-
-
-        pBorder[0] = vBorder[0] / tVB;
-        vpBorder[0] = 0;
-        for (unsigned i = 1; i < maxPSize; i++)
-	{
-                pBorder[i] = vBorder[i] / tVB;
-                vpBorder[i] = vpBorder[i-1] + pBorder[i-1];
-        }
-        vpBorder[maxPSize] = 1;
-
-        double rand = (double)random() / RAND_MAX;
-        for (unsigned i = 0; i < maxPSize; i++)
-                if (vpBorder[i] <= rand && rand < vpBorder[i+1])
-                    return i+1;
-
-	return 1;
-}
-#endif
 
 
 /**

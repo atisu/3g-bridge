@@ -79,7 +79,7 @@ static GKeyFile *global_config = NULL;
 static GThreadPool *soap_pool;
 
 /* Command line: Location of the config file */
-static char *config_file = SYSCONFDIR "/3g-bridge.conf";
+static char *config_file = (char *)SYSCONFDIR "/3g-bridge.conf";
 
 /* Command line: If true, run as a daemon in the background */
 static int run_as_daemon = 1;
