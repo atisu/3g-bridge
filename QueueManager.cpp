@@ -115,6 +115,12 @@ static vector<GridHandler *> gridHandlers;
 /* Set of loaded plugins */
 static GHashTable *modules;
 
+/* Saved signal handers */
+static struct sigaction old_sigint;
+static struct sigaction old_sigterm;
+static struct sigaction old_sigquit;
+static struct sigaction old_sighup;
+
 
 /**********************************************************************
  * Prototypes
@@ -126,14 +132,52 @@ static unsigned selectSizeAdv(AlgQueue *algQ);
  * Misc. helper functions
  */
 
-static void sigint_handler(int signal __attribute__((__unused__)))
+static void chain(const struct sigaction *sa, int signal, siginfo_t *info, void *ptr)
 {
-	finish = true;
+	if (sa->sa_flags & SA_SIGINFO)
+	{
+		if (sa->sa_sigaction)
+			sa->sa_sigaction(signal, info, ptr);
+	}
+	else
+	{
+		if (sa->sa_handler)
+			sa->sa_handler(signal);
+	}
 }
 
-static void sighup_handler(int signal __attribute__((__unused__)))
+static void sigint_handler(int signal, siginfo_t *info, void *ptr)
+{
+	struct sigaction *sa;
+
+	finish = true;
+
+	switch (signal)
+	{
+		case SIGINT:
+			sa = &old_sigint;
+			break;
+		case SIGHUP:
+			sa = &old_sighup;
+			break;
+		case SIGTERM:
+			sa = &old_sigterm;
+			break;
+		case SIGQUIT:
+			sa = &old_sigquit;
+			break;
+		default:
+			sa = NULL;
+			break;
+	}
+	if (sa)
+		chain(sa, signal, info, ptr);
+}
+
+static void sighup_handler(int signal, siginfo_t *info, void *ptr)
 {
 	reload = true;
+	chain(&old_sighup, signal, info, ptr);
 }
 
 /**********************************************************************
@@ -424,19 +468,14 @@ int main(int argc, char **argv)
 	if (run_as_daemon && pid_file_create(global_config, GROUP_BRIDGE))
 		exit(EX_OSERR);
 
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = sigint_handler;
-	sigaction(SIGINT, &sa, NULL);
-	sigaction(SIGTERM, &sa, NULL);
-	sigaction(SIGQUIT, &sa, NULL);
-
-	/* BOINC sends SIGHUP when it wants to kill the process */
-	if (run_as_daemon)
-		sa.sa_handler = sighup_handler;
-	sigaction(SIGHUP, &sa, NULL);
-
 	DBHandler::init(global_config);
 	modules = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, close_module);
+
+	if (run_as_daemon)
+	{
+		daemon(0, 0);
+		pid_file_update();
+	}
 
 	try {
 		init_grid_handlers();
@@ -450,11 +489,17 @@ int main(int argc, char **argv)
 		exit(EX_SOFTWARE);
 	}
 
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_sigaction = sigint_handler;
+	sa.sa_flags = SA_SIGINFO;
+	sigaction(SIGINT, &sa, &old_sigint);
+	sigaction(SIGTERM, &sa, &old_sigterm);
+	sigaction(SIGQUIT, &sa, &old_sigquit);
+
+	/* BOINC sends SIGHUP when it wants to kill the process */
 	if (run_as_daemon)
-	{
-		daemon(0, 0);
-		pid_file_update();
-	}
+		sa.sa_sigaction = sighup_handler;
+	sigaction(SIGHUP, &sa, &old_sighup);
 
 	while (!finish)
 	{
