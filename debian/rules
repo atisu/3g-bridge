@@ -18,7 +18,7 @@ binary: configure
 		--libexecdir=/usr/lib/3g-bridge \
 		--with-dcapi \
 		--with-xtremweb \
-		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)"
+		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" JAVA_HOME=/usr/lib/jvm/java-6-openjdk
 	dh $@ --after dh_auto_configure --until dh_auto_install
 	# Install the schema for dbconfig-common
 	cp -p db/schema.sql debian/3g-bridge/usr/share/dbconfig-common/data/3g-bridge/install/mysql

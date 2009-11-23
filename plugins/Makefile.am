@@ -1,8 +1,17 @@
 AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@
-AM_LDFLAGS = -module -avoid-version
+AM_LDFLAGS = -module -avoid-version -export-symbols=symbols.exp
 AM_LIBADD = @MYSQL_LIBS@ @GLIB_LIBS@
+AM_JAVACFLAGS = -g
+EXTRA_DIST = symbols.exp
 
 pkglib_LTLIBRARIES = Null_handler.la Null_monitor.la
+
+CLEANFILES =
+BUILT_SOURCES =
+
+# Override automake defaults
+CLASSPATH_ENV =
+JAVAROOT = $(top_builddir)/plugins
 
 if HAVE_DCAPI
 pkglib_LTLIBRARIES += DC-API_handler.la DC-API-Single_handler.la
@@ -17,6 +26,10 @@ endif
 
 if HAVE_XTREMWEB
 pkglib_LTLIBRARIES += XTREMWEB_handler.la
+endif
+
+if HAVE_JAVA
+pkglib_LTLIBRARIES += Java_handler.la
 endif
 
 BOINC_monitor_la_SOURCES = BOINC_monitor.cpp BOINC_monitor.h
@@ -37,3 +50,31 @@ Null_handler_la_SOURCES = Null_handler.cpp Null_handler.h
 Null_monitor_la_SOURCES = Null_monitor.cpp Null_monitor.h
 
 XTREMWEB_handler_la_SOURCES = XTREMWEB_handler.cpp XTREMWEB_handler.h
+
+Java_handler_la_SOURCES = Java_handler.cpp Java_handler.h
+Java_handler_la_CPPFLAGS = $(JAVA_INC) $(AM_CPPFLAGS) -DJAVA_CLASSPATH='"${javadir}/${JARNAME}"' -DPKGLIBDIR='"${pkglibdir}"'
+
+if HAVE_JAVA
+
+javadir = $(datadir)/java
+java_DATA = $(JARNAME)
+
+JARNAME = 3g-bridge-plugin-$(PACKAGE_VERSION).jar
+
+CLASSDIR = hu/sztaki/lpds/G3Bridge
+JAVA_SRC = \
+		$(CLASSDIR)/GridHandler.java \
+		$(CLASSDIR)/Job.java \
+		$(CLASSDIR)/RuntimeBridgeException.java
+
+noinst_JAVA = $(JAVA_SRC)
+
+JAVA_CLASSES = $(JAVA_SRC:.java=.class)
+JAVA_CLASSNAMES = $(subst /,.,$(JAVA_CLASSES:.class=))
+
+CLEANFILES += $(JAVA_CLASSES) $(JARNAME)
+
+$(JARNAME): classnoinst.stamp
+	$(JAR) -cf $@ $(JAVA_CLASSES)
+
+endif

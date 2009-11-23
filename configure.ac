@@ -153,6 +153,12 @@ AC_CHECK_LIB([uuid], [uuid_parse], [true], [AC_MSG_ERROR([libuuid was not found]
 AC_CHECK_HEADER([uuid/uuid.h],, [AC_MSG_ERROR([uuid/uuid.h was not found])])
 
 dnl -------------------------------------------------------------------
+dnl Java
+dnl -------------------------------------------------------------------
+
+MON_PKG_JAVA
+
+dnl -------------------------------------------------------------------
 dnl BOINC
 dnl -------------------------------------------------------------------
 
