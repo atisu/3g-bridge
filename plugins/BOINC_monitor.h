@@ -37,7 +37,7 @@
 
 class BOINCMonitor: public MonitorHandler {
 public:
-	BOINCMonitor(GKeyFile *config, const char *instance);
+	BOINCMonitor(GKeyFile *config, const char *instance) throw (BackendException *);
 	~BOINCMonitor();
 
 	unsigned getRunningJobs() throw (BackendException *);

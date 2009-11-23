@@ -65,11 +65,10 @@ string g_timefordl; //time in seconds to download results for bridgss
 string g_installdir; //the directory where you have installed 3g bridge
 
 
-XWHandler::XWHandler(GKeyFile *config, const char *instance) throw (BackendException *)
+XWHandler::XWHandler(GKeyFile *config, const char *instance) throw (BackendException *): GridHandler(config, instance)
 {
     LOG(LOG_INFO, "XW Plugin created");
 
-    name = instance;
     groupByNames = false;
     xwclient = g_key_file_get_string(config,instance,"xwclient-dir",NULL);
 

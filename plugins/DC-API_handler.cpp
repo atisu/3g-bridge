@@ -347,7 +347,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
  * Class: DCAPIHandler
  */
 
-DCAPIHandler::DCAPIHandler(GKeyFile *config, const char *instance)
+DCAPIHandler::DCAPIHandler(GKeyFile *config, const char *instance) throw (BackendException *): GridHandler(config, instance)
 {
 	name = instance;
 

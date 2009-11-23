@@ -52,7 +52,7 @@ public:
 	 * @param instance the name of the instance
 	 * @see name
 	 */
-	GridHandler(GKeyFile *config, const char *instance):name(instance)
+	GridHandler(GKeyFile *config, const char *instance): groupByNames(false), name(instance)
 	{
 		last_update.tv_sec = 0;
 		last_update.tv_usec = 0;

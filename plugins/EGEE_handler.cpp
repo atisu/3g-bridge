@@ -136,11 +136,9 @@ static int invoke_cmd(const char *exe, const char *const argv[], string *stdoe) 
 //
 
 
-EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException *)
+EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException *): GridHandler(config, instance)
 {
 	char buf[128];
-
-	name = instance;
 
 	wmpendp = g_key_file_get_string(config, instance, "wmproxy-endpoint",
 		NULL);

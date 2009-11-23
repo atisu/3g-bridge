@@ -37,7 +37,7 @@
  * Plugin implementation
  */
 
-BOINCMonitor::BOINCMonitor(GKeyFile *config, const char *instance)
+BOINCMonitor::BOINCMonitor(GKeyFile *config, const char *instance) throw (BackendException *): MonitorHandler(config, instance)
 {
 	char *projectroot;
 

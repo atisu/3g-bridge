@@ -37,9 +37,8 @@
 using namespace std;
 
 
-NullHandler::NullHandler(GKeyFile *config, const char *instance) throw (BackendException *)
+NullHandler::NullHandler(GKeyFile *config, const char *instance) throw (BackendException *): GridHandler(config, instance)
 {
-	name = instance;
 	groupByNames = false;
 	LOG(LOG_INFO, "NULL Handler: instance \"%s\" initialized.", name.c_str());
 }

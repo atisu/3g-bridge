@@ -36,7 +36,7 @@ using namespace std;
 
 class DCAPIHandler: public GridHandler {
 public:
-	DCAPIHandler(GKeyFile *config, const char *instance);
+	DCAPIHandler(GKeyFile *config, const char *instance) throw (BackendException *);
 	~DCAPIHandler() {};
 	void submitJobs(JobVector &jobs) throw (BackendException *);
 	void updateStatus(void) throw (BackendException *);
