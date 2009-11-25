@@ -7,7 +7,6 @@ public abstract class GridHandler {
 	private boolean usePoll;
 
 	public GridHandler() {
-		nativeObj = 0;
 		usePoll = false;
 	}
 
