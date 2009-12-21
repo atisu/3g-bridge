@@ -39,6 +39,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mysql.h>
+#include <stdio.h>
 
 #include <uuid/uuid.h>
 

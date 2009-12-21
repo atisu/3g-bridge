@@ -7,6 +7,8 @@ AC_CONFIG_MACRO_DIR([cf])
 
 AM_INIT_AUTOMAKE([1.9 foreign no-dist-gzip dist-bzip2])
 
+AC_GNU_SOURCE
+
 AC_PROG_LIBTOOL
 AC_PROG_CC
 AC_PROG_CXX

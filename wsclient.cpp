@@ -508,7 +508,7 @@ static void handle_version(void)
  */
 static void *fdimereadopen(struct soap *soap, void *handle, const char *id, const char *type, const char *options)
 {
-	char *p = strchr(id, '=') + 1;
+	const char *p = strchr(id, '=') + 1;
 	FILE *fd = fopen(p, "r");
 	if (!fd)
 	{

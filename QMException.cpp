@@ -32,6 +32,7 @@
 
 #include <stdarg.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 QMException::QMException(const char *fmt, ...)
 {
