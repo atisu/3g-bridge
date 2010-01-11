@@ -530,6 +530,48 @@ larger results files to download, more time to use.
     </refsect1>
 
     <refsect1>
+	<title>OPTIONS FOR THE JAVA PLUGIN</title>
+
+	<para>
+	    The Java plugin is special as it is not a real plugin but rather an interface for writing plugins
+	    in Java. It has the following configuration options.
+	</para>
+	<glosslist>
+	    <glossentry>
+		<glossterm><envar>classpath</envar></glossterm>
+		<glossdef>
+		    <para>
+			The classpath needed for locating the plugin and its dependencies. The location
+			of the JAR file that contains the hu.sztaki.lpds.G3Bridge package is always added.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>java-home</envar></glossterm>
+		<glossdef>
+		    <para>
+			Location of the Java Runtime Environment (JRE). Defaults to the value of the 
+			<envar>JAVA_HOME</envar> environment variable. The Java plugin searches for the
+			<filename>libjvm.so</filename> library recursively inside this directory.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>java-class</envar></glossterm>
+		<glossdef>
+		    Mandatory. The name of the Java class that implements the plugin functionality. This class must
+		    be a descendant of hu.sztaki.lpds.G3Bridge.GridHandler, and it must have a constructor
+		    taking a single String argument (the name of the plugin instance).
+		</glossdef>
+	    </glossentry>
+	</glosslist>
+	<para>
+	    In addition to the items listed above you can also add configuration items specific to the
+	    plugin implementation here.
+	</para>
+    </refsect1>
+
+    <refsect1>
 	<title>SEE ALSO</title>
 	<para>
 	    <citerefentry><refentrytitle>3g-bridge</refentrytitle><manvolnum>8</manvolnum></citerefentry>,

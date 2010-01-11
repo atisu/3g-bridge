@@ -46,6 +46,7 @@ The list shows the minimum required version.
 - BOINC				6.15		(for the DC-API plugin)
 - DC-API			0.9		(for the DC-API plugin)
 - gLite				3.1		(for the EGEE plugin)
+- Java JDK			6		(for the Java plugin)
 - xsltproc			1.1.16		(for building the documentation)
 - DocBook XSL stylesheets	4.5		(for building the documentation)
 

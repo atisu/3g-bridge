@@ -65,6 +65,8 @@ CLASSDIR = hu/sztaki/lpds/G3Bridge
 JAVA_SRC = \
 		$(CLASSDIR)/GridHandler.java \
 		$(CLASSDIR)/Job.java \
+		$(CLASSDIR)/Logger.java \
+		$(CLASSDIR)/LogLevel.java \
 		$(CLASSDIR)/RuntimeBridgeException.java
 
 noinst_JAVA = $(JAVA_SRC)

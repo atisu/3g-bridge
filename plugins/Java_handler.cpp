@@ -84,6 +84,8 @@ using namespace std;
 	"(Ljava/lang/String;Ljava/lang/String;)V"
 #define SIG_Job_addOutput \
 	"(Ljava/lang/String;Ljava/lang/String;)V"
+#define CLASS_Logger \
+	"hu/sztaki/lpds/G3Bridge/Logger"
 #define CLASS_RuntimeBridgeException \
 	"hu/sztaki/lpds/G3Bridge/RuntimeBridgeException"
 #define CTOR_RuntimeBridgeException \
@@ -121,6 +123,9 @@ typedef jint (*create_vm_func)(JavaVM **pvm, void **penv, void *args);
  */
 
 static char *libjvm_path;
+
+/* This is a small layering violation, but... */
+static GKeyFile *global_config;
 
 
 /**********************************************************************
@@ -330,6 +335,40 @@ static JNINativeMethod JobMethods[] =
 	{(char *)"native_deleteJob",	(char *)"(Ljava/lang/String;)V",			(void *)Job_deleteJob},
 };
 
+static jstring JNICALL GridHandler_getConfig(JNIEnv *env, jclass cls, jstring inststr, jstring keystr)
+{
+	string instance = string_from_java(env, inststr);
+	string key = string_from_java(env, keystr);
+	
+	char *value = g_key_file_get_string(global_config, instance.c_str(), key.c_str(), NULL);
+	jstring valstr;
+	if (value)
+		valstr = env->NewStringUTF(value);
+	else
+		valstr = NULL;
+	g_free(value);
+	return valstr;
+}
+
+static JNINativeMethod GridHandlerMethods[] =
+{
+	{(char *)"native_getConfig",	(char *)"(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",	(void *)GridHandler_getConfig},
+};
+
+static void JNICALL Logger_logit(JNIEnv *env, jclass cls, jint level, jstring msgstr)
+{
+	if (!msgstr || level < 0)
+		return;
+
+	string msg = string_from_java(env, msgstr);
+	logit(level, msg.c_str());
+}
+
+static JNINativeMethod LoggerMethods[] =
+{
+	{(char *)"native_logit",	(char *)"(ILjava/lang/String;)V",					(void *)Logger_logit},
+};
+
 /**********************************************************************
  * Class: JavaHandler
  */
@@ -350,8 +389,33 @@ static string get_classpath(GKeyFile *config, const char *instance)
 	return path;
 }
 
+static void force_load_and_register(JNIEnv *env, const char *className,
+	JNINativeMethod *native_meths, unsigned count)
+{
+	/* http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6493522 */
+	jclass cls = find_class(env, className);
+	if (!cls)
+		throw new BackendException("Plugin initialization failed");
+	jclass clsobj = env->GetObjectClass(cls);
+	jmethodID meth = env->GetMethodID(clsobj, "getConstructors", "()[Ljava/lang/reflect/Constructor;");
+	/* We intentionally leak here */
+	(void)env->CallObjectMethod(cls, meth);
+	env->DeleteLocalRef(clsobj);
+
+	if (!native_meths)
+		return;
+	if (env->RegisterNatives(cls, native_meths, count) < 0)
+	{
+		check_exception(env);
+		throw new BackendException("Failed to register Job methods");
+	}
+}
+
 JavaHandler::JavaHandler(GKeyFile *config, const char *instance) throw (BackendException *): GridHandler(config, instance)
 {
+	jmethodID meth;
+	jclass cls;
+
 	name = instance;
 	groupByNames = false;
 
@@ -379,6 +443,9 @@ JavaHandler::JavaHandler(GKeyFile *config, const char *instance) throw (BackendE
 	if (!create_vm)
 		throw new BackendException("Symbol lookup failed: %s", dlerror());
 
+	/* Remember the configuration */
+	global_config = config;
+
 	/* Set up the JVM options */
 	string classpath = get_classpath(config, instance);
 	JavaVMOption options[] =
@@ -402,34 +469,9 @@ JavaHandler::JavaHandler(GKeyFile *config, const char *instance) throw (BackendE
 		throw new BackendException("Failed to create the Java VM");
 	logit(LOG_INFO, "Java VM created for %s", instance);
 
-	/* http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6493522 */
-	jclass cls = find_class(env, CLASS_GridHandler);
-	if (!cls)
-		throw new BackendException("Class lookup failed");
-	jclass clsobj = env->GetObjectClass(cls);
-	jmethodID meth = env->GetMethodID(clsobj, "getConstructors", "()[Ljava/lang/reflect/Constructor;");
-	/* We intentionally leak here */
-	jobject obj = env->CallObjectMethod(cls, meth);
-	env->DeleteLocalRef(clsobj);
-
-#if 0
-	res = env->RegisterNatives(cls, GridHandlerMethods, G_N_ELEMENTS(GridHandlerMethods));
-	if (res < 0)
-		throw new BackendException("Failed to register GridHandler methods");
-#endif
-
-	cls = find_class(env, CLASS_Job);
-	if (!cls)
-		throw new BackendException("Plugin initialization failed");
-	clsobj = env->GetObjectClass(cls);
-	meth = env->GetMethodID(clsobj, "getConstructors", "()[Ljava/lang/reflect/Constructor;");
-	/* We intentionally leak here */
-	obj = env->CallObjectMethod(cls, meth);
-	env->DeleteLocalRef(clsobj);
-
-	res = env->RegisterNatives(cls, JobMethods, G_N_ELEMENTS(JobMethods));
-	if (res < 0)
-		throw new BackendException("Failed to register Job methods");
+	force_load_and_register(env, CLASS_GridHandler, GridHandlerMethods, G_N_ELEMENTS(GridHandlerMethods));
+	force_load_and_register(env, CLASS_Job, JobMethods, G_N_ELEMENTS(JobMethods));
+	force_load_and_register(env, CLASS_Logger, LoggerMethods, G_N_ELEMENTS(LoggerMethods));
 
 	/* Get the name of the handler class */
 	char *class_name = g_key_file_get_string(config, instance, "java-class", NULL);
@@ -450,7 +492,7 @@ JavaHandler::JavaHandler(GKeyFile *config, const char *instance) throw (BackendE
 		throw new BackendException("Failed to create String");
 	}
 
-	obj = env->NewObject(cls, meth, argstr);
+	jobject obj = env->NewObject(cls, meth, argstr);
 	if (!obj)
 	{
 		env->DeleteLocalRef(cls);
