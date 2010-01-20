@@ -10,3 +10,4 @@ examples/batch_pack			usr/share/3g-bridge
 examples/batch_unpack			usr/share/3g-bridge
 examples/dc-api.conf			usr/share/3g-bridge
 debian/master.xml			usr/share/3g-bridge
+debian/master-ws.xml			usr/share/3g-bridge

@@ -1,3 +1,9 @@
+3g-bridge (0.96-4) unstable; urgency=low
+
+  * Add alternative master-ws.xml to also deploy all web services daemons
+
+ -- BALATON Zoltan <balaton@sztaki.hu>  Wed, 20 Jan 2010 19:11:42 +0100
+
 3g-bridge (0.96-3) unstable; urgency=low
 
   * Fix the location of 3g-bridge.conf in master.xml 

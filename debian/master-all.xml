@@ -1,7 +1,7 @@
 <?xml version="1.0" standalone="no"?>
 <!--
-	Configuration template for the 3G Bridge
-  Deploys only the 3g-bridge daemon
+	Configuration template for the 3G Bridge as used by EDGeS
+	Deploys all three daemons (3g-bridge, wssubmitter, wsmonitor)
 -->
 <master>
 	<!-- Application name -->
@@ -20,6 +20,26 @@
 	<!-- Master daemon definition -->
 	<daemon>
 		<binary>/usr/sbin/3g-bridge</binary>
+		<arguments>
+			<arg>-f</arg>
+			<arg>-c</arg>
+			<arg>${workdir}/3g-bridge.conf</arg>
+		</arguments>
+	</daemon>
+
+	<!-- Web service interface daemon -->
+	<daemon>
+		<binary>/usr/sbin/wssubmitter</binary>
+		<arguments>
+			<arg>-f</arg>
+			<arg>-c</arg>
+			<arg>${workdir}/3g-bridge.conf</arg>
+		</arguments>
+	</daemon>
+
+	<!-- Web service monitor interface daemon -->
+	<daemon>
+		<binary>/usr/sbin/wsmonitor</binary>
 		<arguments>
 			<arg>-f</arg>
 			<arg>-c</arg>
