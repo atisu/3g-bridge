@@ -478,7 +478,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 
 	invoke_cmd("rm", rmargs, NULL);
 
-	LOG(LOG_DEBUG, "EGEE Plugin (%s): collection subitted, now determining "
+	LOG(LOG_DEBUG, "EGEE Plugin (%s): collection submitted, now determining "
 		"EGEE identifiers of nodes", name.c_str());
 
 	// Find out job's ID
