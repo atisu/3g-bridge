@@ -35,6 +35,7 @@
 
 #include <dc.h>
 
+#include <set>
 #include <vector>
 #include <iostream>
 #include <fstream>
@@ -167,8 +168,46 @@ static bool submit_job(Job *job)
 	}
 
 	auto_ptr< vector<string> > inputs = job->getInputs();
+	set<string> inputset;
 	for (vector<string>::iterator it = inputs->begin(); it != inputs->end(); it++)
+		inputset.insert(*it);
+	for (set<string>::iterator it = inputset.begin(); it != inputset.end(); it++)
 	{
+		int slen = (*it).length();
+		if (inputset.end() != inputset.find((*it) + ".md5") && inputset.end() != inputset.find((*it) + ".adics"))
+		{
+			string hashstr;
+			ifstream myfile(job->getInputPath((*it) + ".md5").c_str());
+			getline(myfile, hashstr);
+			hashstr += "\n";
+			myfile.close();
+			if (DC_addWUInput(wu, (*it).c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE, hashstr.c_str()))
+			{
+				LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to add input file \"%s\"",
+					job->getId().c_str(), job->getInputPath(*it).c_str());
+				DC_destroyWU(wu);
+				return false;
+			}
+			continue;
+		}
+		if (".md5" == (*it).substr(slen > 4 ? slen-4 : 0))
+		{
+			string nmd5name = (*it).substr(0, slen-4);
+			if (inputset.end() != inputset.find(nmd5name + ".adics"))
+			{
+				LOG(LOG_DEBUG, "Found an ADICS-related MD5 hash file, skipping.");
+				continue;
+			}
+		}
+		if (".adics" == (*it).substr(slen > 6 ? slen-6 : 0))
+		{
+			string nadicsname = (*it).substr(0, slen-6);
+			if (inputset.end() != inputset.find(nadicsname + ".md5"))
+			{
+				LOG(LOG_DEBUG, "Found an ADICS-related ADICS file, skipping.");
+				continue;
+			}
+		}
 		if (DC_addWUInput(wu, (*it).c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE))
 		{
 			LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to add input file \"%s\"",
