@@ -208,7 +208,7 @@ static bool submit_job(Job *job)
 				continue;
 			}
 		}
-		if (DC_addWUInput(wu, (*it).c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE))
+		if (DC_addWUInput(wu, (*it).c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE, NULL))
 		{
 			LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to add input file \"%s\"",
 				job->getId().c_str(), job->getInputPath(*it).c_str());
