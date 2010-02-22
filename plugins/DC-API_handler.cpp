@@ -493,12 +493,12 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 			throw new BackendException("Out of memory");
 		}
 
-		if (DC_addWUInput(wu, INPUT_NAME, input_name, DC_FILE_VOLATILE, NULL))
+		if (DC_addWUInput(wu, INPUT_NAME, input_name, DC_FILE_VOLATILE))
 		{
 			unlink(input_name);
 			throw new BackendException("Failed to add input file to WU");
 		}
-		if (DC_addWUInput(wu, SCRIPT_NAME, script_name.c_str(), DC_FILE_VOLATILE, NULL))
+		if (DC_addWUInput(wu, SCRIPT_NAME, script_name.c_str(), DC_FILE_VOLATILE))
 			throw new BackendException("Failed to add input file to WU");
 		if (DC_addWUOutput(wu, OUTPUT_NAME))
 			throw new BackendException("Failed to add output file to WU");

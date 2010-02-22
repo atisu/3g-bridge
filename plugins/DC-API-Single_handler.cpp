@@ -177,11 +177,23 @@ static bool submit_job(Job *job)
 		if (inputset.end() != inputset.find((*it) + ".md5") && inputset.end() != inputset.find((*it) + ".adics"))
 		{
 			string hashstr;
-			ifstream myfile(job->getInputPath((*it) + ".md5").c_str());
+			string md5filename = string(job->getInputPath(*it)) + ".md5";
+			ifstream myfile(md5filename.c_str());
 			getline(myfile, hashstr);
 			hashstr += "\n";
 			myfile.close();
-			if (DC_addWUInput(wu, (*it).c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE, hashstr.c_str()))
+
+			string adicsFileContent,adicsGuid;
+			string adicsfilename = string(job->getInputPath(*it)) + ".adics";
+			ifstream adicsfile(adicsfilename.c_str());
+			getline(adicsfile, adicsFileContent);
+			adicsfile.close();
+
+			size_t foundGuid;
+			foundGuid = adicsFileContent.find_last_of("/");
+  			adicsGuid = adicsFileContent.substr(foundGuid+1);
+
+			if (DC_addWUInputAdvanced(wu, (*it).c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE, adicsGuid.c_str(), hashstr.c_str()))
 			{
 				LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to add input file \"%s\"",
 					job->getId().c_str(), job->getInputPath(*it).c_str());
@@ -208,7 +220,7 @@ static bool submit_job(Job *job)
 				continue;
 			}
 		}
-		if (DC_addWUInput(wu, (*it).c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE, NULL))
+		if (DC_addWUInput(wu, (*it).c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE))
 		{
 			LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to add input file \"%s\"",
 				job->getId().c_str(), job->getInputPath(*it).c_str());
