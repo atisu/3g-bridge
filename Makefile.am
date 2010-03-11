@@ -173,6 +173,8 @@ dist_doc_DATA = \
 		master.xml
 nobase_dist_doc_DATA = \
 		db/schema.sql \
+		db/schema-update.sql \
+		db/purge.sql \
 		examples/batch_pack \
 		examples/batch_unpack \
 		examples/dc-api.conf

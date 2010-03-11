@@ -2,7 +2,7 @@ AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@
 AM_LDFLAGS = -module -avoid-version -export-symbols=symbols.exp
 AM_LIBADD = @MYSQL_LIBS@ @GLIB_LIBS@
 AM_JAVACFLAGS = -g
-EXTRA_DIST = symbols.exp
+EXTRA_DIST = symbols.exp $(JAVA_SRC)
 
 pkglib_LTLIBRARIES = Null_handler.la Null_monitor.la
 
@@ -54,13 +54,6 @@ XTREMWEB_handler_la_SOURCES = XTREMWEB_handler.cpp XTREMWEB_handler.h
 Java_handler_la_SOURCES = Java_handler.cpp Java_handler.h
 Java_handler_la_CPPFLAGS = $(JAVA_INC) $(AM_CPPFLAGS) -DJAVA_CLASSPATH='"${javadir}/${JARNAME}"' -DPKGLIBDIR='"${pkglibdir}"'
 
-if HAVE_JAVA
-
-javadir = $(datadir)/java
-java_DATA = $(JARNAME)
-
-JARNAME = 3g-bridge-plugin-$(PACKAGE_VERSION).jar
-
 CLASSDIR = hu/sztaki/lpds/G3Bridge
 JAVA_SRC = \
 		$(CLASSDIR)/GridHandler.java \
@@ -70,6 +63,13 @@ JAVA_SRC = \
 		$(CLASSDIR)/RuntimeBridgeException.java
 
 noinst_JAVA = $(JAVA_SRC)
+
+if HAVE_JAVA
+
+javadir = $(datadir)/java
+java_DATA = $(JARNAME)
+
+JARNAME = 3g-bridge-plugin-$(PACKAGE_VERSION).jar
 
 JAVA_CLASSES = $(JAVA_SRC:.java=.class)
 JAVA_CLASSNAMES = $(subst /,.,$(JAVA_CLASSES:.class=))

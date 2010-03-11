@@ -33,6 +33,8 @@ steps:
 
   3. Create the necessary tables in the database:
      $ mysql -u bridge -p bridge < doc/db/schema.sql
+     or update an existing database:
+     $ mysql -u bridge -p bridge < doc/db/schema-update.sql
 
   4. Configure the bridge:
   
