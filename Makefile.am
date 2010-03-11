@@ -195,7 +195,7 @@ package_contents = \
 		examples/dc-api.conf
 
 if HAVE_GSOAP
-package_contents += wssubmitter
+package_contents += wssubmitter wsmonitor
 endif
 
 3g-bridge-package.tar.gz: $(package_contents)
