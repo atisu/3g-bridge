@@ -193,6 +193,11 @@
 				<literal>version</literal>: query the version of the server
 			    </para>
 			</listitem>
+			<listitem>
+			    <para>
+				<literal>griddata</literal>: query the grid data related to a job
+			    </para>
+			</listitem>
 		    </itemizedlist>
 		</listitem>
 	    </varlistentry>
@@ -333,11 +338,12 @@
     </refsect1>
 
     <refsect1>
-	<title>STATUS, DELETE AND OUTPUT OPTIONS</title>
+	<title>STATUS, DELETE, OUTPUT AND GRIDDATA OPTIONS</title>
 
 	<para>
-	    If the <option>--mode</option> option is <literal>status</literal>, <literal>delete</literal>
-	    or <literal>output</literal>, then the following options are available:
+	    If the <option>--mode</option> option is <literal>status</literal>, <literal>delete</literal>,
+	     <literal>output</literal> or <literal>griddate</literal>, then the following options are
+	     available:
 	</para>
 
 	<variablelist>

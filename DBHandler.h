@@ -155,6 +155,13 @@ class DBHandler {
 	void updateJobGridID(const string &ID, const string &gridID);
 
 	/**
+	 * Update a job's grid data.
+	 * @param ID the job's identifier
+	 * @param gridData the grid data to set
+	 */
+	void updateJobGridData(const string &ID, const string &gridData);
+
+	/**
 	 * Update a job's status.
 	 * @param ID the job's identifier
 	 * @param newstat the status to set
@@ -164,8 +171,9 @@ class DBHandler {
 	/**
 	 * Add a job to the database
 	 * @param job the Job object to add
+	 * @return true is job has been added successfully, false otherwise
 	 */
-	void addJob(Job &job);
+	bool addJob(Job &job);
 
 	/**
 	 * Delete a job from the database

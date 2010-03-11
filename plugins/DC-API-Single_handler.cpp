@@ -253,7 +253,9 @@ static bool submit_job(Job *job)
 	}
 
 	char *wu_id = DC_serializeWU(wu);
+	char *wu_llid = DC_getWUId(wu);
 	job->setGridId(wu_id);
+	job->setGridData(wu_llid);
 	job->setStatus(Job::RUNNING);
 
 	LOG(LOG_INFO, "DC-API: WU %s: Submitted to grid %s (app '%s', job %s)",

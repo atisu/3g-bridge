@@ -213,6 +213,7 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 	const char *grid = res.get_field("grid");
 	const char *args = res.get_field("args");
 	const char *gridid = res.get_field("gridid");
+	const char *griddata = res.get_field("griddata");
 	const char *id = res.get_field("id");
 	const char *stat = res.get_field("status");
 
@@ -240,6 +241,8 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 	auto_ptr<Job> job(new Job(id, alg, grid, args, (Job::JobStatus)i));
 	if (gridid)
 		job->setGridId(gridid);
+	if (griddata)
+		job->setGridData(griddata);
 
 	// Get inputs for job from db
 	DBHandler *dbh = get();
@@ -410,6 +413,12 @@ void DBHandler::updateJobGridID(const string &ID, const string &gridID)
 }
 
 
+void DBHandler::updateJobGridData(const string &ID, const string &gridData)
+{
+	query("UPDATE cg_job SET griddata='%s' WHERE id='%s'", gridData.c_str(), ID.c_str());
+}
+
+
 void DBHandler::updateJobStat(const string &ID, Job::JobStatus newstat)
 {
 	query("UPDATE cg_job SET status='%s' WHERE id='%s'", statToStr(newstat), ID.c_str());
@@ -428,12 +437,12 @@ void DBHandler::deleteBatch(const string &gridId)
 }
 
 
-void DBHandler::addJob(Job &job)
+bool DBHandler::addJob(Job &job)
 {
 	bool success = true;
 
 	if (!query("START TRANSACTION"))
-		return;
+		return false;
 
 	success &= query("INSERT INTO cg_job (id, alg, grid, status, args) VALUES ('%s', '%s', '%s', '%s', '%s')",
 		job.getId().c_str(), job.getName().c_str(), job.getGrid().c_str(),
@@ -458,6 +467,8 @@ void DBHandler::addJob(Job &job)
 		query("COMMIT");
 	else
 		query("ROLLBACK");
+
+	return success;
 }
 
 static void db_thread_cleanup(void *ptr G_GNUC_UNUSED)

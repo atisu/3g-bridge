@@ -47,7 +47,7 @@ using namespace std;
  * Data type definitions
  */
 
-typedef enum { ADD, DELETE, STATUS, OUTPUT, FINISHED, GET_VERSION } op_mode;
+typedef enum { ADD, DELETE, STATUS, GRIDDATA, OUTPUT, FINISHED, GET_VERSION } op_mode;
 
 
 /**********************************************************************
@@ -57,6 +57,7 @@ typedef enum { ADD, DELETE, STATUS, OUTPUT, FINISHED, GET_VERSION } op_mode;
 static int add_jobid(const char *name, const char *value, void *ptr, GError **error);
 static void handle_add(void);
 static void handle_status(void);
+static void handle_griddata(void);
 static void handle_delete(void);
 static void handle_output(void);
 static void handle_finished(void);
@@ -86,7 +87,7 @@ static GOptionEntry options[] =
 	{ "endpoint",		'e',	0,	G_OPTION_ARG_STRING,		&endpoint,
 		"Service endpoint", "URL" },
 	{ "mode",		'm',	0,	G_OPTION_ARG_STRING,		&mode,
-		"Operation mode", "(add|status|delete|output|finished|version)" },
+		"Operation mode", "(add|status|griddata|delete|output|finished|version)" },
 	{ "version",		'V',	0,	G_OPTION_ARG_NONE,		&get_version,
 		"Print the version and exit", NULL },
 	{ NULL }
@@ -172,6 +173,8 @@ int main(int argc, char **argv)
 		m = ADD;
 	else if (!strncmp(mode, "status", strlen(mode)))
 		m = STATUS;
+	else if (!strncmp(mode, "griddata", strlen(mode)))
+		m = GRIDDATA;
 	else if (!strncmp(mode, "delete", strlen(mode)))
 		m = DELETE;
 	else if (!strncmp(mode, "output", strlen(mode)))
@@ -243,6 +246,9 @@ int main(int argc, char **argv)
 			break;
 		case STATUS:
 			handle_status();
+			break;
+		case GRIDDATA:
+			handle_griddata();
 			break;
 		case DELETE:
 			handle_delete();
@@ -391,6 +397,33 @@ static void handle_status(void)
 	{
 		G3BridgeSubmitter__JobStatus st = resp.status.at(i);
 		cout << jobIDs.jobid.at(i) << " " << statToStr[st].str << endl;
+	}
+
+	soap_destroy(soap);
+	soap_end(soap);
+	soap_done(soap);
+}
+
+
+/**
+ * Handle grid data query
+ */
+static void handle_griddata(void)
+{
+	G3BridgeSubmitter__GridDataList resp;
+
+	struct soap *soap = soap_new();
+	soap_set_namespaces(soap, Submitter_namespaces);
+	if (SOAP_OK != soap_call___G3BridgeSubmitter__getGridData(soap, endpoint, NULL, &jobIDs, &resp))
+	{
+		soap_print_fault(soap, stderr);
+		exit(EX_UNAVAILABLE);
+	}
+
+	for (unsigned i = 0; i < jobIDs.jobid.size(); i++)
+	{
+		string griddata = resp.griddata.at(i);
+		cout << jobIDs.jobid.at(i) << " " << griddata << endl;
 	}
 
 	soap_destroy(soap);

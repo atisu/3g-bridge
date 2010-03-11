@@ -26,8 +26,9 @@ CREATE TABLE cg_job (
 	grid		VARCHAR(128)	NOT NULL,	/* Target grid name */
 	alg		VARCHAR(128)	NOT NULL,	/* Algorithm (executable) name */
 	status		CHAR(10)	NOT NULL,	/* Status of job [PREPARE, INIT, RUNNING, FINISHED, ERROR, CANCEL] */
-	gridid		VARCHAR(254),			/* Job's grid identifier */
+	gridid		VARCHAR(2048),			/* Job's grid identifier */
 	args		VARCHAR(254),			/* Command-line arguments to be passed to the algorithm at job execution */
+	griddata	VARCHAR(2048),			/* Grid-related data, such as internal ID, job destination, etc.  */
 	creation_time	TIMESTAMP	NULL DEFAULT CURRENT_TIMESTAMP,	/* Creation time of job descriptor */
 	PRIMARY KEY (id),
 	INDEX (grid, alg),
@@ -42,7 +43,7 @@ CREATE TABLE cg_job (
 CREATE TABLE cg_inputs (
 	id		CHAR(36)	NOT NULL,	/* Unique id of job, foreign key of job.id */
 	localname	VARCHAR(254)	NOT NULL,	/* Basename of the file */
-	path		VARCHAR(254)	NOT NULL,	/* Absolute path of the file */
+	path		VARCHAR(2048)	NOT NULL,	/* Absolute path of the file */
 	PRIMARY KEY ENTRY (id, localname),
 	FOREIGN KEY (id) REFERENCES cg_job(id) ON DELETE CASCADE
 ) TYPE=InnoDB;
@@ -54,7 +55,7 @@ CREATE TABLE cg_inputs (
 CREATE TABLE cg_outputs (
 	id		CHAR(36)	NOT NULL,	/* Job's identifier */
 	localname	VARCHAR(254)	NOT NULL,	/* Basename of the file */
-	path		VARCHAR(254)	NOT NULL,	/* Expected absolute path of the file */
+	path		VARCHAR(2048)	NOT NULL,	/* Expected absolute path of the file */
 	PRIMARY KEY ENTRY (id, localname),
 	FOREIGN KEY (id) REFERENCES cg_job(id) ON DELETE CASCADE
 ) TYPE=InnoDB;
@@ -66,7 +67,7 @@ CREATE TABLE cg_outputs (
 CREATE TABLE cg_download (
 	jobid		CHAR(36)	NOT NULL,	/* Job identifier */
 	localname	VARCHAR(254)	NOT NULL,	/* Name of the input file */
-	url		VARCHAR(254)	NOT NULL,	/* Remote URL */
+	url		VARCHAR(2048)	NOT NULL,	/* Remote URL */
 	next_try	TIMESTAMP	NOT NULL DEFAULT CURRENT_TIMESTAMP,	/* Next download attempt */
 	retries		INT		NOT NULL DEFAULT 0,			/* No. of failed DL attempts */
 	PRIMARY KEY entry (jobid, localname),

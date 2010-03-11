@@ -372,7 +372,13 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 			qmjob->addOutput(*outit, path);
 		}
 
-		dbh->addJob(*qmjob);
+		if (!dbh->addJob(*qmjob))
+		{
+			LOG(LOG_ERR, "Failed to add job, removing any other job added so far within this request.");
+			for (vector<string>::const_iterator idit = result->jobid.begin(); idit != result->jobid.end(); idit++)
+				dbh->deleteJob(*idit);
+			return SOAP_FATAL_ERROR;
+		}
 		LOG(LOG_INFO, "Job %s: Accepted", jobid);
 
 		result->jobid.push_back(jobid);
@@ -561,6 +567,7 @@ int __G3BridgeSubmitter__getOutput(struct soap *soap, G3BridgeSubmitter__JobIDLi
 	return SOAP_OK;
 }
 
+
 int __G3BridgeSubmitter__getFinished(struct soap *soap, string grid, G3BridgeSubmitter__JobIDList *result)
 {
 	DBHandler *dbh;
@@ -591,11 +598,50 @@ int __G3BridgeSubmitter__getFinished(struct soap *soap, string grid, G3BridgeSub
 	return SOAP_OK;
 }
 
+
 int __G3BridgeSubmitter__getVersion(struct soap *soap, std::string &resp)
 {
 	resp = PACKAGE_STRING;
 	return SOAP_OK;
 }
+
+
+int __G3BridgeSubmitter__getGridData(struct soap *soap, G3BridgeSubmitter__JobIDList *jobids, G3BridgeSubmitter__GridDataList *result)
+{
+	DBHandler *dbh;
+
+	try
+	{
+		dbh = DBHandler::get();
+	}
+	catch (QMException *e)
+	{
+		LOG(LOG_ERR, "getGridData: Failed to get a DB handle: %s", e->what());
+		delete(e);
+		return SOAP_FATAL_ERROR;
+	}
+	catch (...)
+	{
+		LOG(LOG_ERR, "getGridData: Failed to get a DB handle: Unknown exception");
+		return SOAP_FATAL_ERROR;
+	}
+
+	for (vector<string>::const_iterator it = jobids->jobid.begin(); it != jobids->jobid.end(); it++)
+	{
+		string griddata = "";
+
+		auto_ptr<Job> job = dbh->getJob(*it);
+		if (!job.get())
+			griddata = "UNKNOWN JOB";
+		else if ("" != job->getGridData())
+			griddata = job->getGridData();
+		result->griddata.push_back(griddata);
+	}
+
+	DBHandler::put(dbh);
+	return SOAP_OK;
+}
+
 
 /**********************************************************************
  * The SOAP thread handler

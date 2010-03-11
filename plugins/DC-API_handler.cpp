@@ -507,6 +507,7 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 			throw new BackendException("WU submission failed");
 
 		char *wu_id = DC_serializeWU(wu);
+		char *wu_llid = DC_getWUId(wu);
 		LOG(LOG_INFO, "DC-API: WU %s: Submitted to grid %s (app '%s', %zd tasks)",
 			wu_id, name.c_str(), algname.c_str(), jobs.size());
 
@@ -515,6 +516,7 @@ void DCAPIHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 			LOG(LOG_INFO, "DC-API: Job %s: Submitted as part of WU %s",
 				(*it)->getId().c_str(), wu_id);
 			(*it)->setGridId(wu_id);
+			(*it)->setGridData(wu_llid);
 			(*it)->setStatus(Job::RUNNING);
 		}
 		free(wu_id);

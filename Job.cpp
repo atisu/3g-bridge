@@ -92,6 +92,16 @@ void Job::setGridId(const string &sID)
 }
 
 
+void Job::setGridData(const string &sData)
+{
+	gridData = sData;
+
+	DBHandler *dbH = DBHandler::get();
+	dbH->updateJobGridData(id, gridData);
+	DBHandler::put(dbH);
+}
+
+
 void Job::setStatus(JobStatus nStat, bool updateDB)
 {
 	if (status == nStat)

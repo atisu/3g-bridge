@@ -181,6 +181,20 @@ public:
 	const string &getGridId() const { return gridId; }
 
 	/**
+	 * Set the Job's grid data.
+	 * @param sData the grid data to set
+	 * @see gridData()
+	 */
+	void setGridData(const string &sData);
+
+	/**
+	 * Get the Job's grid data.
+	 * @see gridData()
+	 * @return the Job's grid data
+	 */
+	const string &getGridData() const { return gridData; }
+
+	/**
 	 * Set the Job's status.
 	 * @param nStat the status to set
 	 * @param updateDB indicates that the job's DB status should be updated
@@ -217,6 +231,9 @@ private:
 
 	/// The Job's grid identifier
 	string gridId;
+
+	/// The Job's grid data
+	string gridData;
 
 	/// Algorithm queue the Job belongs to
 	AlgQueue *algQ;
