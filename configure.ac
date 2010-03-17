@@ -151,13 +151,13 @@ dnl -------------------------------------------------------------------
 dnl BES
 dnl -------------------------------------------------------------------
 
-AC_ARG_WITH([bes], AS_HELP_STRING([--with-bes-libs], [Use BES libs in @<:@none@:>@]),
-	[], [with_bes=none])
+AC_ARG_WITH([bes-libs], AS_HELP_STRING([--with-bes-libs=DIR], [Use BES libs in @<:@DIR@:>@]),
+	[], [with_bes_libs=none])
 no_bes=
-if test "$with_bes" = none; then
+if test "$with_bes_libs" = none; then
 	no_bes=yes
 else
-	BES_LIBS="$with_bes"
+	BES_LIBS="$with_bes_libs"
 	AC_SUBST([BES_LIBS])
 fi
 AM_CONDITIONAL([HAVE_BES], [test "$no_bes" != yes])
