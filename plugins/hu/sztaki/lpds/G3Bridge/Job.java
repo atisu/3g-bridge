@@ -3,6 +3,7 @@ package hu.sztaki.lpds.G3Bridge;
 import java.util.HashMap;
 
 public class Job {
+
 	public static final int PREPARE = 0;
 	public static final int INIT = 1;
 	public static final int RUNNING = 2;
@@ -20,11 +21,12 @@ public class Job {
 	private HashMap<String, String> inputs;
 	private HashMap<String, String> outputs;
 
-	public Job(String id, String name, String grid, String args, int status) {
+	public Job(String id, String name, String grid, String args, String gridid, int status) {
 		this.id = id;
 		this.name = name;
 		this.grid = grid;
 		this.args = args;
+		this.gridId = gridid;
 		this.status = status;
 
 		this.inputs = new HashMap<String, String>();
@@ -40,11 +42,11 @@ public class Job {
 	}
 
 	public String getGrid() {
-		return grid;
+		return gridId;
 	}
 
 	public String getGridId() {
-		return gridId;
+		return gridId; 
 	}
 
 	public String getArgs() {
@@ -90,4 +92,5 @@ public class Job {
 	static private native void native_setStatus(String id, int status);
 
 	static private native void native_deleteJob(String id);
+
 }

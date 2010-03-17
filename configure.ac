@@ -151,7 +151,7 @@ dnl -------------------------------------------------------------------
 dnl BES
 dnl -------------------------------------------------------------------
 
-AC_ARG_WITH([bes], AS_HELP_STRING([--with-bes], [Use BES libs in @<:@none@:>@]),
+AC_ARG_WITH([bes], AS_HELP_STRING([--with-bes-libs], [Use BES libs in @<:@none@:>@]),
 	[], [with_bes=none])
 no_bes=
 if test "$with_bes" = none; then

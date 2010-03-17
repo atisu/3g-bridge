@@ -106,7 +106,9 @@ public class BESHandler extends GridHandler {
 			// create jsdlBuilder
 			jsdlDocBuider = new JsdlDocBuilder(ftpAddress, path, isAnonymous, ftpUser, ftpPsw, wrapperIsNeeded, wrapperBaseFileName, wrapperBaseDir);
 			Logger.logit(LogLevel.INFO, "BES plugin (" + pluginInstance + "): plugin ready for usage. [FTP address] = " + ftpAddress + ", [FTP root dir in local filesystem] = " + path +", [wrapper script needed] = "+ wrapperIsNeeded);
-		} catch (Exception e) {
+		} catch (RuntimeBridgeException e) {
+			Logger.logit(LogLevel.ERROR, "BES plugin (" + pluginInstance + "): runtine exception occured: " + e.getMessage());
+			throw(e);
 		}
 	}
 
@@ -152,8 +154,10 @@ public class BESHandler extends GridHandler {
 				} else {
 					throw new Exception("The answer message from the webservice is empty!");
 				}
+				job.setStatus(Job.RUNNING);
 			} catch (Exception e) {
-				Logger.logit(LogLevel.ERROR, "Failed to submit job.");
+				Logger.logit(LogLevel.ERROR, "Failed to submit job: " + e.getMessage());
+				job.setStatus(Job.ERROR);
 			}
 		}
 	}
@@ -193,8 +197,9 @@ public class BESHandler extends GridHandler {
 		try {
 			EndpointReferenceType epr = EndpointReferenceType.Factory.parse(job.getGridId());
 			besStatus = getClient().getActivityStatus(epr);
+			Logger.logit(LogLevel.DEBUG, "Job's status is: " + besStatus);
 			// if the job is officially finished, but the output files haven't arrived, it is an error
-			if(besStatus == ActivityStateEnumeration.FINISHED && !haveOutputFilesArrived(job)) {
+			if (besStatus == ActivityStateEnumeration.FINISHED && !haveOutputFilesArrived(job)) {
 				//LOG.warn("Finished but maybe files are not here: " + haveOutputFilesArrived(job));
 				besStatus = ActivityStateEnumeration.FAILED;
 			}
@@ -203,6 +208,7 @@ public class BESHandler extends GridHandler {
 		} catch (XmlException e) {
 			throw new RuntimeBridgeException("Could not parse grid ID: " + e.getMessage());
 		} catch (Exception e) {
+			e.printStackTrace();
 			throw new RuntimeBridgeException("Failed to update job status: " + e.getMessage());
 		}
 		job.setStatus(statusRelations.get(besStatus));
@@ -236,8 +242,10 @@ public class BESHandler extends GridHandler {
 	 * @param job
 	 */
 	private boolean haveOutputFilesArrived(Job job) {
+		Logger.logit(LogLevel.DEBUG, "Checking output files...");
 		HashMap<String, String> outputs = job.getOutputs();
 		for (String outputName : outputs.keySet()) {
+			Logger.logit(LogLevel.DEBUG, "Checking output file " + outputs.get(outputName));
 			String outputPath = outputs.get(outputName);
 			File file = new File(outputPath + "/" + outputName);
 			if( !file.exists() ) {

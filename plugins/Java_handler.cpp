@@ -79,7 +79,7 @@ using namespace std;
 #define CLASS_Job \
 	"hu/sztaki/lpds/G3Bridge/Job"
 #define CTOR_Job \
-	"(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V"
+	"(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V"
 #define SIG_Job_addInput \
 	"(Ljava/lang/String;Ljava/lang/String;)V"
 #define SIG_Job_addOutput \
@@ -521,7 +521,7 @@ JavaHandler::~JavaHandler()
 
 static jobject job_to_java(JNIEnv *env, Job *job)
 {
-	jstring idstr, namestr, gridstr, argsstr;
+	jstring idstr, namestr, gridstr, argsstr, grididstr;
 	jmethodID meth;
 	jobject retval;
 	jclass cls;
@@ -530,7 +530,8 @@ static jobject job_to_java(JNIEnv *env, Job *job)
 	namestr = env->NewStringUTF(job->getName().c_str());
 	gridstr = env->NewStringUTF(job->getGrid().c_str());
 	argsstr = env->NewStringUTF(job->getArgs().c_str());
-	if (!idstr || !namestr || !gridstr || !argsstr)
+	grididstr = env->NewStringUTF(job->getGridId().c_str());
+	if (!idstr || !namestr || !gridstr || !argsstr || !grididstr)
 	{
 		check_exception(env);
 		if (idstr)
@@ -541,6 +542,8 @@ static jobject job_to_java(JNIEnv *env, Job *job)
 			env->DeleteLocalRef(gridstr);
 		if (argsstr)
 			env->DeleteLocalRef(argsstr);
+		if (grididstr)
+			env->DeleteLocalRef(grididstr);
 		return 0;
 	}
 
@@ -550,14 +553,16 @@ static jobject job_to_java(JNIEnv *env, Job *job)
 		env->DeleteLocalRef(namestr);
 		env->DeleteLocalRef(gridstr);
 		env->DeleteLocalRef(argsstr);
+		env->DeleteLocalRef(grididstr);
 		return 0;
 	}
 
-	retval = env->NewObject(cls, meth, idstr, namestr, gridstr, argsstr, job->getStatus());
+	retval = env->NewObject(cls, meth, idstr, namestr, gridstr, argsstr, grididstr, job->getStatus());
 	env->DeleteLocalRef(idstr);
 	env->DeleteLocalRef(namestr);
 	env->DeleteLocalRef(gridstr);
 	env->DeleteLocalRef(argsstr);
+	env->DeleteLocalRef(grididstr);
 	if (!retval)
 	{
 		check_exception(env);
