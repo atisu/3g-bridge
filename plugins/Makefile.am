@@ -10,7 +10,6 @@ CLEANFILES =
 BUILT_SOURCES =
 
 # Override automake defaults
-CLASSPATH_ENV =
 JAVAROOT = $(top_builddir)/plugins
 
 if HAVE_DCAPI
@@ -61,6 +60,17 @@ JAVA_SRC = \
 		$(CLASSDIR)/Logger.java \
 		$(CLASSDIR)/LogLevel.java \
 		$(CLASSDIR)/RuntimeBridgeException.java
+
+if HAVE_BES
+
+JAVA_SRC += \
+		$(CLASSDIR)/plugin/bes/BESHandler.java \
+		$(CLASSDIR)/plugin/bes/JsdlDocBuilder.java \
+		$(CLASSDIR)/plugin/bes/WrapperBuilder.java
+
+CLASSPATH_ENV = CLASSPATH=.:$(BES_LIBS)/ogsabes-core-1.3.0.jar:$(BES_LIBS)/ogsabes-types-1.3.0.jar:$(BES_LIBS)/uas-core-1.3.0.jar:$(BES_LIBS)/wsrflite-1.9.0.jar:$(BES_LIBS)/wsrftypes-1.9.0.jar:$(BES_LIBS)/jsdl-xmlbeans-1.6.jar:$(BES_LIBS)/xbean-2.2.0.jar:$(BES_LIBS)/xfire-core-1.2.6.jar:$$CLASSPATH
+
+endif
 
 noinst_JAVA = $(JAVA_SRC)
 

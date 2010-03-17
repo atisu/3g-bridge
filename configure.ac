@@ -148,6 +148,21 @@ fi
 AM_CONDITIONAL([HAVE_GSOAP], [test "$no_gsoap" != yes])
 
 dnl -------------------------------------------------------------------
+dnl BES
+dnl -------------------------------------------------------------------
+
+AC_ARG_WITH([bes], AS_HELP_STRING([--with-bes], [Use BES libs in @<:@none@:>@]),
+	[], [with_bes=none])
+no_bes=
+if test "$with_bes" = none; then
+	no_bes=yes
+else
+	BES_LIBS="$with_bes"
+	AC_SUBST([BES_LIBS])
+fi
+AM_CONDITIONAL([HAVE_BES], [test "$no_bes" != yes])
+
+dnl -------------------------------------------------------------------
 dnl libuuid
 dnl -------------------------------------------------------------------
 

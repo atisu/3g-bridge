@@ -47,6 +47,10 @@ public class Job {
 		return gridId;
 	}
 
+	public String getArgs() {
+		return args;
+	}
+
 	public int getStatus() {
 		return status;
 	}
