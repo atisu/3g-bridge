@@ -62,7 +62,7 @@ public class BESHandler extends GridHandler {
 	// map object describes the connection between BES and 3GBridge statuses
 	private static final Map<ActivityStateEnumeration.Enum, Integer> statusRelations = new HashMap<ActivityStateEnumeration.Enum, Integer>();
 	static {
-		statusRelations.put(ActivityStateEnumeration.PENDING, new Integer(Job.INIT));
+		statusRelations.put(ActivityStateEnumeration.PENDING, new Integer(Job.RUNNING));
 		statusRelations.put(ActivityStateEnumeration.RUNNING, new Integer(Job.RUNNING));
 		statusRelations.put(ActivityStateEnumeration.FINISHED, new Integer(Job.FINISHED));
 		statusRelations.put(ActivityStateEnumeration.CANCELLED, new Integer(Job.ERROR));
@@ -227,6 +227,7 @@ public class BESHandler extends GridHandler {
 		try {
 			epr = EndpointReferenceType.Factory.parse(job.getGridId());
 			getClient().terminateActivity(epr);
+			job.deleteJob();
 		} catch (UnknownActivityIdentifierFault e) {
 			Logger.logit(LogLevel.ERROR, "Unable to cancel job, as no job with the given grid ID does not exist in the BES server.");
 		} catch (XmlException e) {
@@ -245,10 +246,9 @@ public class BESHandler extends GridHandler {
 		Logger.logit(LogLevel.DEBUG, "Checking output files...");
 		HashMap<String, String> outputs = job.getOutputs();
 		for (String outputName : outputs.keySet()) {
-			Logger.logit(LogLevel.DEBUG, "Checking output file " + outputs.get(outputName));
 			String outputPath = outputs.get(outputName);
-			File file = new File(outputPath + "/" + outputName);
-			if( !file.exists() ) {
+			File file = new File(outputPath);
+			if (!file.exists()) {
 				return false;
 			}
 		}

@@ -1,17 +1,20 @@
 package hu.sztaki.lpds.G3Bridge;
 
 public final class LogLevel {
+
 	/* The codes must match the C interface */
-	private static final int SYSLOG_DEBUG = 0;
-	private static final int SYSLOG_INFO = 1;
-	private static final int SYSLOG_NOTICE = 2;
-	private static final int SYSLOG_WARNING = 3;
-	private static final int SYSLOG_ERROR = 4;
-	private static final int SYSLOG_CRITICAL = 5;
+	private static final int SYSLOG_EMERG = 0;
+	private static final int SYSLOG_ALERT = 1;
+	private static final int SYSLOG_CRIT = 2;
+	private static final int SYSLOG_ERR = 3;
+	private static final int SYSLOG_WARNING = 4;
+	private static final int SYSLOG_NOTICE = 5;
+	private static final int SYSLOG_INFO = 6;
+	private static final int SYSLOG_DEBUG = 7;
 
 	/** Names of the log levels. The indexes must match the above codes. */
 	private static final String names[] = {
-		"DEBUG", "INFO", "NOTICE", "WARNING", "ERROR", "CRITICAL"
+		"EMERGENCY", "ALERT", "CRITICAL", "ERROR", "WARNING", "NOTICE", "INFO", "DEBUG"
 	};
 
 	/**
@@ -46,14 +49,28 @@ public final class LogLevel {
 	 * from being performed or completed, but the overall availability of
 	 * the service is not affected.
 	 */
-	public static final LogLevel ERROR = new LogLevel(SYSLOG_ERROR);
+	public static final LogLevel ERROR = new LogLevel(SYSLOG_ERR);
 
 	/**
 	 * Critical error message.
 	 * The message describes a critical condition that affects the general
 	 * availability of the service.
 	 */
-	public static final LogLevel CRITICAL = new LogLevel(SYSLOG_CRITICAL);
+	public static final LogLevel CRITICAL = new LogLevel(SYSLOG_CRIT);
+
+	/**
+	 * Alert error message.
+	 * The message describes an alert condition that affects the general
+	 * availability of the service.
+	 */
+	public static final LogLevel ALERT = new LogLevel(SYSLOG_ALERT);
+
+	/**
+	 * Emergency error message.
+	 * The message describes an emergency condition that affects the general
+	 * availability of the service.
+	 */
+	public static final LogLevel EMERG = new LogLevel(SYSLOG_EMERG);
 
 	/** The internal code of the severity object. */
 	private int code;

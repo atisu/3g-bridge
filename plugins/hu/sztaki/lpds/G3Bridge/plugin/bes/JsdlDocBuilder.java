@@ -1,7 +1,7 @@
 package hu.sztaki.lpds.G3Bridge.plugin.bes;
 
 
-import hu.sztaki.lpds.G3Bridge.Job;
+import hu.sztaki.lpds.G3Bridge.*;
 
 import org.ggf.schemas.jsdl.x2005.x11.jsdl.JobDefinitionDocument;
 import org.ggf.schemas.jsdl.x2005.x11.jsdl.JobDescriptionType;
@@ -81,12 +81,14 @@ public class JsdlDocBuilder {
 		JobDefinitionDocument jobDefDoc = JobDefinitionDocument.Factory.newInstance();;
 		JobDescriptionType jobDescription = jobDefDoc.addNewJobDefinition().addNewJobDescription();
 
-		if(isWrapperNeeded) {
-			job.addInput(wrapperBaseFileName + job.getId(), wrapperBaseDir);
+		if (isWrapperNeeded) {
+			job.addInput(wrapperBaseFileName + job.getId(), wrapperBaseDir + "/" + wrapperBaseFileName + job.getId());
 		}
 
 		buildApplication(jobDescription, job);
 		buildDataStaging(jobDescription, job);
+
+		Logger.logit(LogLevel.DEBUG, "Generated JSDL follows: " + jobDefDoc.toString());
 
 		return jobDefDoc;
 	}
@@ -102,7 +104,7 @@ public class JsdlDocBuilder {
 		HPCProfileApplicationDocument hpcDoc = HPCProfileApplicationDocument.Factory.newInstance();
 		HPCProfileApplicationType hpcType = hpcDoc.addNewHPCProfileApplication();
 
-		if(isWrapperNeeded) {
+		if (isWrapperNeeded) {
 			hpcType.addNewExecutable().setStringValue("/bin/bash");
 			hpcType.addNewArgument().setStringValue(wrapperBaseFileName + job.getId());
 		} else {
@@ -126,18 +128,16 @@ public class JsdlDocBuilder {
 	 * @throws Exception contians file information which is not accessable under ftp root dir
 	 */
 	private void buildDataStaging(JobDescriptionType jobDescription, Job job) throws Exception {
-
 		HashMap<String, String> inputFileList = job.getInputs();
-
-		for(String inputFile : inputFileList.keySet()) {
+		for (String inputFile : inputFileList.keySet()) {
 			DataStagingType dataType = jobDescription.addNewDataStaging();
 			dataType.setFileName(inputFile);
 			dataType.setCreationFlag(CreationFlagEnumeration.OVERWRITE);
 			dataType.setDeleteOnTermination(false);
 			SourceTargetType stt = SourceTargetType.Factory.newInstance();
-			stt.setURI(getFileFTPAddress(inputFileList.get(inputFile), inputFile));
+			stt.setURI(getFileFTPAddress(inputFileList.get(inputFile)));
 			dataType.setSource(stt);
-			if(!isAnonymous) {
+			if (!isAnonymous) {
 				try {
 					XmlObject o;
 					String s = dataType.toString();
@@ -152,15 +152,15 @@ public class JsdlDocBuilder {
 		}
 
 		HashMap<String, String> outputFileList = job.getOutputs();
-		for(String outputFile : outputFileList.keySet()) {
+		for (String outputFile : outputFileList.keySet()) {
 			DataStagingType dataType = jobDescription.addNewDataStaging();
 			dataType.setFileName(outputFile);
 			dataType.setCreationFlag(CreationFlagEnumeration.OVERWRITE);
 			dataType.setDeleteOnTermination(false);
 			SourceTargetType stt = SourceTargetType.Factory.newInstance();
-			stt.setURI(getFileFTPAddress(outputFileList.get(outputFile), outputFile));
+			stt.setURI(getFileFTPAddress(outputFileList.get(outputFile)));
 			dataType.setTarget(stt);
-			if(!isAnonymous) {
+			if (!isAnonymous) {
 				try {
 					XmlObject o;
 					String s = dataType.toString();
@@ -180,20 +180,18 @@ public class JsdlDocBuilder {
 	 * Returns what will be the file's external FTP address, according to the
 	 * ftpBaseDir and ftpAddress member variable values and the parameters.
 	 * @param path path of the file in the local filesystem
-	 * @param filename name of the file
 	 * @return JobDefinitionDocument object
 	 * @throws Exception contains file information which is not accessible under ftp root directory
 	 */
-	private String getFileFTPAddress(String path, String filename) throws Exception {
-		String addr = path + "/" + filename;
-		if (!addr.startsWith(ftpBaseDir)) {
-			throw new Exception("The following input/output file is not under the FTP root dir: " + addr);
+	private String getFileFTPAddress(String path) throws Exception {
+		if (!path.startsWith(ftpBaseDir)) {
+			throw new Exception("The following input/output file is not under the FTP root dir: " + path);
 		}
-		addr = addr.replaceFirst(ftpBaseDir, ftpAddress);
+		path = path.replaceFirst(ftpBaseDir, ftpAddress);
 		if (isAnonymous) {
-			addr = addr.replaceFirst("ftp://", "ftp://anonymous@");
+			path = path.replaceFirst("ftp://", "ftp://anonymous@");
 		}
-		return addr;
+		return path;
 	}
 
 }
