@@ -47,7 +47,7 @@ public class WrapperBuilder {
 
 			String line = "#!/bin/bash\n";
 			line += "chmod 755 " + job.getName() +"\n";
-			line += "./"+ job.getName() +" "+ job.getArgs();
+			line += "LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH ./"+ job.getName() +" "+ job.getArgs();
 
 			writer.write(line);
 		} catch(Exception e) {
