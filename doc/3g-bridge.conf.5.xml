@@ -559,9 +559,11 @@ larger results files to download, more time to use.
 	    <glossentry>
 		<glossterm><envar>java-class</envar></glossterm>
 		<glossdef>
-		    Mandatory. The name of the Java class that implements the plugin functionality. This class must
-		    be a descendant of hu.sztaki.lpds.G3Bridge.GridHandler, and it must have a constructor
-		    taking a single String argument (the name of the plugin instance).
+		    <para>
+			Mandatory. The name of the Java class that implements the plugin functionality. This class must
+			be a descendant of hu.sztaki.lpds.G3Bridge.GridHandler, and it must have a constructor
+			taking a single String argument (the name of the plugin instance).
+		    </para>
 		</glossdef>
 	    </glossentry>
 	</glosslist>
@@ -569,6 +571,161 @@ larger results files to download, more time to use.
 	    In addition to the items listed above you can also add configuration items specific to the
 	    plugin implementation here.
 	</para>
+    </refsect1>
+
+    <refsect1>
+	<title>OPTIONS FOR THE BES PLUGIN</title>
+
+	<para>
+	    The BES (Basic Execution Service) plugin is based on the Java plugin and supports the usage of BES-compatible
+	    resources, such as UNICORE or ARC A-REX services. It has the following configuration options.
+	</para>
+	<glosslist>
+	    <glossentry>
+		<glossterm><envar>classpath</envar></glossterm>
+		<glossdef>
+		    <para>
+			The classpath needed for locating the BES plugin and its dependencies. The location
+			of the JAR file that contains the hu.sztaki.lpds.G3Bridge package is always added.
+			Besides this, all JAR files needed for a BES client have to be enumerated here.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>java-home</envar></glossterm>
+		<glossdef>
+		    <para>
+			Location of the Java Runtime Environment (JRE). Defaults to the value of the 
+			<envar>JAVA_HOME</envar> environment variable. The Java plugin searches for the
+			<filename>libjvm.so</filename> library recursively inside this directory.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>java-class</envar></glossterm>
+		<glossdef>
+		    <para>
+			Mandatory. The name of the Java class that implements the BES plugin functionality. This class must
+			be hu.sztaki.lpds.G3Bridge.plugin.BESHandler for a BES plugin.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>ftpserver.address</envar></glossterm>
+		<glossdef>
+		    <para>
+			The public address of the FTP server where BES resources can download input files from or can
+			upload output files to.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>ftpserver.basedir</envar></glossterm>
+		<glossdef>
+		    <para>
+			The base directory of the FTP server available through <envar>ftpserver.address</envar>.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>ftpserver.anonymous</envar></glossterm>
+		<glossdef>
+		    <para>
+			Boolean value indicating if anonymous FTP access should be used or not. A-REX resources support
+			only this kind of FTP operation. Possible values are true and false.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>ftpserver.username</envar></glossterm>
+		<glossdef>
+		    <para>
+			In case of <envar>ftpserver.anonymous</envar> is false, this value contains the username to
+			log in to the FTP server.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>ftpserver.password</envar></glossterm>
+		<glossdef>
+		    <para>
+			In case of <envar>ftpserver.anonymous</envar> is false, this value contains the password to
+			log in to the FTP server.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>beswebservice.address</envar></glossterm>
+		<glossdef>
+		    <para>
+			This variable contains the URL of the BES service to be used by the plugin.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>beswebservice.ssl.userkey.file</envar></glossterm>
+		<glossdef>
+		    <para>
+			This variable contains the full path of the user key file to be used for connecting to the
+			service in PKCS12 format.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>beswebservice.ssl.userkey.password</envar></glossterm>
+		<glossdef>
+		    <para>
+			This variable contains the password belonging to the user key specified in
+			<envar>beswebservice.ssl.userkey.file</envar>.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>beswebservice.ssl.truststore.file</envar></glossterm>
+		<glossdef>
+		    <para>
+			This variable contains the path to the trusted CA keystore in JKS format.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>beswebservice.ssl.truststore.password</envar></glossterm>
+		<glossdef>
+		    <para>
+			This variable contains the password belonging to the truststore specified in
+			<envar>beswebservice.ssl.truststore.file</envar>.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>beswebservice.wrapperscript.isneeded</envar></glossterm>
+		<glossdef>
+		    <para>
+			This boolean value indicates if a wrapper script should be created for each job.
+			The only taks of this wrapper script is to change the permissions of the executable
+			before its execution.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>beswebservice.wrapperscript.filename</envar></glossterm>
+		<glossdef>
+		    <para>
+			This value contains the filename that should be used for creating wrapper scripts.
+			The created wrapper script always receives the job's identifier as postfix.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>beswebservice.wrapperscript.basedir</envar></glossterm>
+		<glossdef>
+		    <para>
+			This value contains the path where wrapper script should be created. This path must
+			be within the <envar>ftpserver.basedir</envar> directory.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	</glosslist>
     </refsect1>
 
     <refsect1>
