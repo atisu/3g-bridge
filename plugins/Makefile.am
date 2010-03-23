@@ -54,12 +54,18 @@ Java_handler_la_SOURCES = Java_handler.cpp Java_handler.h
 Java_handler_la_CPPFLAGS = $(JAVA_INC) $(AM_CPPFLAGS) -DJAVA_CLASSPATH='"${javadir}/${JARNAME}"' -DPKGLIBDIR='"${pkglibdir}"'
 
 CLASSDIR = hu/sztaki/lpds/G3Bridge
-JAVA_SRC = \
+JAVA_SRC = 
+
+if HAVE_JAVA
+
+JAVA_SRC += \
 		$(CLASSDIR)/GridHandler.java \
 		$(CLASSDIR)/Job.java \
 		$(CLASSDIR)/Logger.java \
 		$(CLASSDIR)/LogLevel.java \
 		$(CLASSDIR)/RuntimeBridgeException.java
+
+endif
 
 if HAVE_BES
 
