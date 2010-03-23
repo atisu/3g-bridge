@@ -480,7 +480,7 @@ int main(int argc, char **argv)
 	try {
 		init_grid_handlers();
 
-		LOG(LOG_DEBUG, "Reading algorithm datas");
+		LOG(LOG_DEBUG, "Reading algorithm data");
 		AlgQueue::load();
 	}
 	catch (QMException *error) {
