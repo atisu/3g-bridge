@@ -702,7 +702,7 @@ larger results files to download, more time to use.
 		<glossdef>
 		    <para>
 			This boolean value indicates if a wrapper script should be created for each job.
-			The only taks of this wrapper script is to change the permissions of the executable
+			The only task of this wrapper script is to change the permissions of the executable
 			before its execution.
 		    </para>
 		</glossdef>
