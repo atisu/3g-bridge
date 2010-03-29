@@ -211,7 +211,10 @@ public class BESHandler extends GridHandler {
 			e.printStackTrace();
 			throw new RuntimeBridgeException("Failed to update job status: " + e.getMessage());
 		}
-		job.setStatus(statusRelations.get(besStatus));
+		if (besStatus != null)
+		    job.setStatus(statusRelations.get(besStatus));
+		else
+		    Logger.logit(LogLevel.WARNING, "Job's status is null for some reason, skipping status update.");
 	}
 
 
