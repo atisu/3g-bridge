@@ -23,10 +23,12 @@ public class WrapperBuilder {
 	// location of the directory contains the generated wrapper script files in the local file system
 	private String wrapperBaseDir;
 
+
 	public WrapperBuilder(String wrapperBaseFileName, String wrapperBaseDir) {
 		this.wrapperBaseFileName = wrapperBaseFileName;
 		this.wrapperBaseDir = wrapperBaseDir;
 	}
+
 
 	/**
 	 * Generates the contents and makes the wrapper script file for the parameter job.
@@ -62,6 +64,19 @@ public class WrapperBuilder {
 			}
 		}
 		Logger.logit(LogLevel.INFO, "BES plugin (" + pluginName + "): wrapper script file is ready for job id = "+job.getId()+", [file location] = " + fullFilePath );
+	}
+
+
+	/**
+	 * Deletes the wrapper file belonging to a job.
+	 * @param job the Job whose wrapper should be removed
+	 */
+	public void deleteWrapper(Job job) {
+		String fullFilePath = wrapperBaseDir + "/" + wrapperBaseFileName + job.getId();
+		try {
+			File file = new File(fullFilePath);
+			file.delete();
+		} catch (Exception e) {}
 	}
 
 }

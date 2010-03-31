@@ -24,7 +24,6 @@ import org.apache.xmlbeans.XmlException;
 public class BESHandler extends GridHandler {
 
 	protected static final String BES_STDOUT_FILENAME = "bes_stdout.log";
-
 	protected static final String BES_STDERR_FILENAME = "bes_stderr.log";
 
 	// client object for the communication with the remote WS
@@ -112,6 +111,7 @@ public class BESHandler extends GridHandler {
 		}
 	}
 
+
 	/**
 	 * Returns the BES client and create it during first calling.
 	 * @return BES client object
@@ -123,6 +123,17 @@ public class BESHandler extends GridHandler {
 		}
 		return client;
 	}
+
+
+	/**
+	 * Report a job's status as failed. Also removes the job's wrapper file.
+	 * @param job the Job to set to ERROR
+	 */
+	private void reportError(Job job) {
+		wrapperBuider.deleteWrapper(job);
+		job.setStatus(Job.ERROR);
+	}
+
 
 	/**
 	 * Submits the list of jobs to the target BES system.
@@ -142,25 +153,25 @@ public class BESHandler extends GridHandler {
 
 				activityDocType.setJobDefinition(jsdlDocBuider.generateJSDLDoc(job).getJobDefinition());
 
-				if(wrapperIsNeeded) {
+				if (wrapperIsNeeded)
 					wrapperBuider.generateWrapperFile(job, pluginInstance);
-				}
 
 				// System.out.print(req); // print out the request jsdl message
 				resp = getClient().createActivity(req);
 
-				if(resp != null) {
+				if (resp != null) {
 					job.setGridId(resp.getCreateActivityResponse().getActivityIdentifier().xmlText());
 				} else {
 					throw new Exception("The answer message from the webservice is empty!");
 				}
 				job.setStatus(Job.RUNNING);
 			} catch (Exception e) {
-				Logger.logit(LogLevel.ERROR, "Failed to submit job: " + e.getMessage());
-				job.setStatus(Job.ERROR);
+				Logger.logit(LogLevel.ERROR, "BES plugin (" + pluginInstance + " ): failed to submit job: " + e.getMessage());
+				reportError(job);
 			}
 		}
 	}
+
 
 	/**
 	 * Updates the status of all jobs connected to this BES plugin.
@@ -197,24 +208,33 @@ public class BESHandler extends GridHandler {
 		try {
 			EndpointReferenceType epr = EndpointReferenceType.Factory.parse(job.getGridId());
 			besStatus = getClient().getActivityStatus(epr);
-			Logger.logit(LogLevel.DEBUG, "Job's status is: " + besStatus);
+			Logger.logit(LogLevel.DEBUG, "BES plugin (" + pluginInstance + "): status of job " + job.getId() + " is: " + besStatus);
 			// if the job is officially finished, but the output files haven't arrived, it is an error
 			if (besStatus == ActivityStateEnumeration.FINISHED && !haveOutputFilesArrived(job)) {
 				//LOG.warn("Finished but maybe files are not here: " + haveOutputFilesArrived(job));
 				besStatus = ActivityStateEnumeration.FAILED;
 			}
+			if (besStatus != null) {
+				job.setStatus(statusRelations.get(besStatus));
+				if (statusRelations.get(besStatus) == Job.FINISHED || statusRelations.get(besStatus) == Job.ERROR)
+					wrapperBuider.deleteWrapper(job);
+			} else {
+				Logger.logit(LogLevel.ERROR, "BES plugin (" + pluginInstance + "): status of job " + job.getId() + " is null for some reason, setting status to ERROR!");
+				reportError(job);
+			}
 		} catch (UnknownActivityIdentifierFault e) {
-			throw new RuntimeBridgeException("Job with the given grid ID does not exist in the BES server.");
+			Logger.logit(LogLevel.ERROR, "BES plugin (" + pluginInstance + "): job " + job.getId() + " doesn't exist on the BES server, setting status to ERROR!");
+			reportError(job);
 		} catch (XmlException e) {
-			throw new RuntimeBridgeException("Could not parse grid ID: " + e.getMessage());
+			Logger.logit(LogLevel.ERROR, "BES plugin (" + pluginInstance + "): couldn't parse grid ID of job " + job.getId() + ", setting status to ERROR!");
+			reportError(job);
 		} catch (Exception e) {
-			e.printStackTrace();
-			throw new RuntimeBridgeException("Failed to update job status: " + e.getMessage());
+			if (e.getMessage() != null)
+				Logger.logit(LogLevel.ERROR, "BES plugin (" + pluginInstance + "): couldn't update status of job " + job.getId() + ": " + e.getMessage());
+			else
+				Logger.logit(LogLevel.ERROR, "BES plugin (" + pluginInstance + "): couldn't update status of job " + job.getId() + " due to an unkown exception.");
+			reportError(job);
 		}
-		if (besStatus != null)
-		    job.setStatus(statusRelations.get(besStatus));
-		else
-		    Logger.logit(LogLevel.WARNING, "Job's status is null for some reason, skipping status update.");
 	}
 
 
@@ -226,17 +246,18 @@ public class BESHandler extends GridHandler {
 	 */
 	private void cancelJob(Job job, boolean clean) {
 		EndpointReferenceType epr = null;
-		Logger.logit(LogLevel.INFO, "About to cancel job.");
+		Logger.logit(LogLevel.INFO, "BES plugin (" + pluginInstance + "): about to cancel job " + job.getId());
 		try {
 			epr = EndpointReferenceType.Factory.parse(job.getGridId());
 			getClient().terminateActivity(epr);
 			job.deleteJob();
+			wrapperBuider.deleteWrapper(job);
 		} catch (UnknownActivityIdentifierFault e) {
-			Logger.logit(LogLevel.ERROR, "Unable to cancel job, as no job with the given grid ID does not exist in the BES server.");
+			Logger.logit(LogLevel.ERROR, "BES plugin (" + pluginInstance + "): unable to cancel job " + job.getId() + ", as no job with the given grid ID does not exist in the BES server.");
 		} catch (XmlException e) {
-			Logger.logit(LogLevel.ERROR, "Unable to cancel job, as could not parse grid ID: " + e.getMessage());
+			Logger.logit(LogLevel.ERROR, "BES plugin (" + pluginInstance + "): unable to cancel job " + job.getId() + ", as could not parse grid ID: " + e.getMessage());
 		} catch (Exception e) {
-			Logger.logit(LogLevel.ERROR, "Unable to cancel job: " + e.getMessage());
+			Logger.logit(LogLevel.ERROR, "BES plugin (" + pluginInstance + "): unable to cancel job " + job.getId() + ": " + e.getMessage());
 		}
 	}
 
@@ -246,7 +267,7 @@ public class BESHandler extends GridHandler {
 	 * @param job
 	 */
 	private boolean haveOutputFilesArrived(Job job) {
-		Logger.logit(LogLevel.DEBUG, "Checking output files...");
+		Logger.logit(LogLevel.DEBUG, "BES plugin (" + pluginInstance + "): checking output files of job " + job.getId());
 		HashMap<String, String> outputs = job.getOutputs();
 		for (String outputName : outputs.keySet()) {
 			String outputPath = outputs.get(outputName);
@@ -280,9 +301,10 @@ public class BESHandler extends GridHandler {
 			throw new Exception("Could not create client for WS ("+wsAddress+"): " + e.getMessage());
 		}
 
-		Logger.logit(LogLevel.INFO, "BES plugin (" + pluginInstance + "): client ready for WS ("+wsAddress+").");
+		Logger.logit(LogLevel.INFO, "BES plugin (" + pluginInstance + "): client ready for WS (" + wsAddress + ").");
 		return client;
 	}
+
 
 	/**
 	 * Creates and returns an IUASSecurityProperties object what contains the
@@ -326,7 +348,7 @@ public class BESHandler extends GridHandler {
 			}
 		}
 		if (errorMsg.length() > 0) {
-			errorMsg = "Could not init BES plugin! The following properties are missing or empty:" + errorMsg;
+			errorMsg = "Could not initialize BES plugin! The following properties are missing or empty:" + errorMsg;
 			throw new RuntimeBridgeException(errorMsg);
 		}
 	}

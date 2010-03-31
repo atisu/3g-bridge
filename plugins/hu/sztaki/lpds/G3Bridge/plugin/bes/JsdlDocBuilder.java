@@ -88,8 +88,6 @@ public class JsdlDocBuilder {
 		buildApplication(jobDescription, job);
 		buildDataStaging(jobDescription, job);
 
-		Logger.logit(LogLevel.DEBUG, "Generated JSDL follows: " + jobDefDoc.toString());
-
 		return jobDefDoc;
 	}
 
