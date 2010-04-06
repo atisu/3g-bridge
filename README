@@ -80,6 +80,12 @@ If you have installed the 3G-Bridge from a Debian package, then you should use:
 
 	boinc_appmgr --add /usr/share/3g-bridge/master.xml
 
+this deploys only the 3g-bridge without the Web Service parts, or
+
+	boinc_appmgr --add /usr/share/3g-bridge/master-ws.xml
+
+which deploys 3g-bridge with the WSSubmitter and WSMonitor components.
+
 The 3G Bridge is installed into the $HOME/master/3g-bridge directory.
 
 Now you must edit $HOME/master/3g-bridge/3g-bridge.conf:
