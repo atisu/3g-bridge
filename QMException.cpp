@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 MTA SZTAKI LPDS
+ * Copyright (C) 2008-2010 MTA SZTAKI LPDS
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,6 +24,7 @@
  * version of the file, but you are not obligated to do so. If you do not wish to
  * do so, delete this exception statement from your version.
  */
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
