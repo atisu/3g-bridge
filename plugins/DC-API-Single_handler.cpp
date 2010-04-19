@@ -64,7 +64,7 @@ static void result_callback_single(DC_Workunit *wu, DC_Result *result)
 	string jobid(tmp);
 	free(tmp);
 
-	LOG(LOG_DEBUG, "DC-API-SINGLE: WU %s: result callback for job id %s", wuid.c_str(), jobid.c_str());
+	LOG(LOG_DEBUG, "DC-API-Single: WU %s: result callback for job id %s", wuid.c_str(), jobid.c_str());
 
 	DBHandler *dbh = DBHandler::get();
 	auto_ptr<Job> job = dbh->getJob(jobid.c_str());
@@ -72,14 +72,14 @@ static void result_callback_single(DC_Workunit *wu, DC_Result *result)
 
 	if (!job.get())
 	{
-		LOG(LOG_ERR, "DC-API-SINGLE: WU %s: No matching job entry in the job database", wuid.c_str());
+		LOG(LOG_ERR, "DC-API-Single: WU %s: No matching job entry in the job database", wuid.c_str());
 		DC_destroyWU(wu);
 		return;
 	}
 
 	if (!result)
 	{
-		LOG(LOG_ERR, "DC-API-SINGLE: WU %s: Failed", wuid.c_str());
+		LOG(LOG_ERR, "DC-API-Single: WU %s: Failed", wuid.c_str());
 		job->setStatus(Job::ERROR);
 		DC_destroyWU(wu);
 		return;
@@ -91,7 +91,7 @@ static void result_callback_single(DC_Workunit *wu, DC_Result *result)
 		tmp = DC_getResultOutput(result, (*it).c_str());
 		if (!tmp)
 		{
-			LOG(LOG_ERR, "DC-API-SINGLE: WU %s: Missing output file %s",
+			LOG(LOG_ERR, "DC-API-Single: WU %s: Missing output file %s",
 				wuid.c_str(), (*it).c_str());
 			job->setStatus(Job::ERROR);
 			DC_destroyWU(wu);
@@ -99,7 +99,7 @@ static void result_callback_single(DC_Workunit *wu, DC_Result *result)
 		}
 		if (link(tmp, job->getOutputPath(*it).c_str()))
 		{
-			LOG(LOG_ERR, "DC-API-SINGLE: WU %s: Failed to link output file %s to %s",
+			LOG(LOG_ERR, "DC-API-Single: WU %s: Failed to link output file %s to %s",
 				wuid.c_str(), tmp, job->getOutputPath(*it).c_str());
 			job->setStatus(Job::ERROR);
 			DC_destroyWU(wu);
@@ -110,7 +110,7 @@ static void result_callback_single(DC_Workunit *wu, DC_Result *result)
 	}
 
 	job->setStatus(Job::FINISHED);
-	LOG(LOG_INFO, "DC-API-SINGLE: WU %s: Result received", wuid.c_str());
+	LOG(LOG_INFO, "DC-API-Single: WU %s: Result received", wuid.c_str());
 	DC_destroyWU(wu);
 }
 
@@ -142,7 +142,7 @@ static bool submit_job(Job *job)
 
 	if (NULL == job->getAlgQueue())
 	{
-		LOG(LOG_ERR, "DC-API-SINGLE: Job %s: unknown algorithm queue",
+		LOG(LOG_ERR, "DC-API-Single: Job %s: unknown algorithm queue",
 			job->getId().c_str());
 		return false;
 	}
@@ -151,7 +151,7 @@ static bool submit_job(Job *job)
 	{
 		if (G_SHELL_ERROR_EMPTY_STRING != error->code)
 		{
-			LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to parse the arguments: %s",
+			LOG(LOG_ERR, "DC-API-Single: Job %s: Failed to parse the arguments: %s",
 				job->getId().c_str(), error->message);
 			g_error_free(error);
 			return false;
@@ -163,7 +163,7 @@ static bool submit_job(Job *job)
 	g_strfreev(argv);
 	if (!wu)
 	{
-		LOG(LOG_ERR, "DC-API-SINGLE: Job %s: DC_createWU() failed", job->getId().c_str());
+		LOG(LOG_ERR, "DC-API-Single: Job %s: DC_createWU() failed", job->getId().c_str());
 		return false;
 	}
 
@@ -195,7 +195,7 @@ static bool submit_job(Job *job)
 
 			if (DC_addWUInputAdvanced(wu, (*it).c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE, adicsGuid.c_str(), hashstr.c_str()))
 			{
-				LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to add input file \"%s\"",
+				LOG(LOG_ERR, "DC-API-Single: Job %s: Failed to add input file \"%s\"",
 					job->getId().c_str(), job->getInputPath(*it).c_str());
 				DC_destroyWU(wu);
 				return false;
@@ -222,12 +222,12 @@ static bool submit_job(Job *job)
 		}
 		if (DC_addWUInput(wu, (*it).c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE))
 		{
-			LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to add input file \"%s\"",
+			LOG(LOG_ERR, "DC-API-Single: Job %s: Failed to add input file \"%s\"",
 				job->getId().c_str(), job->getInputPath(*it).c_str());
 			DC_destroyWU(wu);
 			return false;
 		}
-		LOG(LOG_DEBUG, "DC-API-SINGLE: Input file \"%s\" added to WU of job \"%s\" as \"%s\"",
+		LOG(LOG_DEBUG, "DC-API-Single: Input file \"%s\" added to WU of job \"%s\" as \"%s\"",
 			job->getInputPath(*it).c_str(), job->getId().c_str(), (*it).c_str());
 	}
 
@@ -236,18 +236,18 @@ static bool submit_job(Job *job)
 	{
 		if (DC_addWUOutput(wu, (*it).c_str()))
 		{
-			LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to add output file \"%s\"",
+			LOG(LOG_ERR, "DC-API-Single: Job %s: Failed to add output file \"%s\"",
 				job->getId().c_str(), (*it).c_str());
 			DC_destroyWU(wu);
 			return false;
 		}
-		LOG(LOG_DEBUG, "DC-API-SINGLE: Output file \"%s\" added to WU of job \"%s\"",
+		LOG(LOG_DEBUG, "DC-API-Single: Output file \"%s\" added to WU of job \"%s\"",
 			(*it).c_str(), job->getId().c_str());
 	}
 
 	if (DC_submitWU(wu))
 	{
-		LOG(LOG_ERR, "DC-API-SINGLE: Job %s: Failed to submit", job->getId().c_str());
+		LOG(LOG_ERR, "DC-API-Single: Job %s: Failed to submit", job->getId().c_str());
 		DC_destroyWU(wu);
 		return false;
 	}
@@ -288,7 +288,7 @@ void DCAPISingleHandler::updateStatus(void) throw (BackendException *)
 		wu = DC_deserializeWU(it->c_str());
 		if (wu)
 		{
-			LOG(LOG_DEBUG, "DC-API-SINGLE: WU %s: Cancelling", it->c_str());
+			LOG(LOG_DEBUG, "DC-API-Single: WU %s: Cancelling", it->c_str());
 			DC_cancelWU(wu);
 			DC_destroyWU(wu);
 		}

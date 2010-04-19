@@ -323,7 +323,7 @@
 	    </listitem>
 	    <listitem>
 		<para>
-		    <literal>DC-API-SINGLE</literal>: Submit jobs using DC-API, without batching
+		    <literal>DC-API-Single</literal>: Submit jobs using DC-API, without batching
 		    support. Any DC-API compatible applications can be submitted this way.
 		</para>
 	    </listitem>
@@ -339,10 +339,10 @@
 	<title>OPTIONS FOR THE DC-API AND DC-API-SINGLE PLUGINS</title>
 
 	<para>
-	    The <literal>DC-API</literal> and <literal>DC-API-SINGLE</literal>
+	    The <literal>DC-API</literal> and <literal>DC-API-Single</literal>
 	    plugins handle job submission using DC-API. The <literal>DC-API</literal>
 	    plugin supports batching and requires that the application is
-	    specifically prepared for batching. The <literal>DC-API-SINGLE</literal>
+	    specifically prepared for batching. The <literal>DC-API-Single</literal>
 	    plugin supports any DC-API application.
 	</para>
 	<glosslist>

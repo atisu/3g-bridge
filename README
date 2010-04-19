@@ -137,13 +137,13 @@ executing
 
 If everything is ready, issue "start" to let BOINC launch the 3G Bridge.
 
-Configuring the DC-API and DC-API-SINGLE plugins
+Configuring the DC-API and DC-API-Single plugins
 ------------------------------------------------
 
 	Note: currently these two plugins cannot be used simultaneously in
 	the same 3G Bridge instance
 
-The DC-API-SINGLE plugin does not require any configuration other than what
+The DC-API-Single plugin does not require any configuration other than what
 is normally needed for DC-API client applications.
 
 The DC-API plugin on the other hand requires that applications are prepared
