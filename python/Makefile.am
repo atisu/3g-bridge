@@ -1,6 +1,6 @@
 EXTRA_DIST = \
 		G3Bridge/DC_API_Monitor.py \
-		G3Bridge/DC_API_SINGLE_Monitor.py \
+		G3Bridge/DC_API_Single_Monitor.py \
 		G3Bridge/G3BridgeMonitor.py \
 		G3Bridge/GridMonitor.py \
 		G3Bridge/__init__.py
