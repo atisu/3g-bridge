@@ -178,7 +178,7 @@ static bool submit_job(Job *job)
 		if (".adics" == (*it).substr(slen > 6 ? slen-6 : 0))
 		{
 			string basename = (*it).substr(0, slen-6);
-			set<string>::iterator hashf = inputset.find(basename + ".md5")
+			set<string>::iterator hashf = inputset.find(basename + ".md5");
 			if (inputset.end() != hashf)
 			{
 				LOG(LOG_DEBUG, "Found ADICS-related control files, handling ADICS.");
