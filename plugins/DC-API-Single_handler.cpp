@@ -175,51 +175,41 @@ static bool submit_job(Job *job)
 	for (set<string>::iterator it = inputset.begin(); it != inputset.end(); it++)
 	{
 		int slen = (*it).length();
-		if (inputset.end() != inputset.find((*it) + ".md5") && inputset.end() != inputset.find((*it) + ".adics"))
+		if (".adics" == (*it).substr(slen > 6 ? slen-6 : 0))
 		{
-			string hashstr;
-			string md5filename = string(job->getInputPath(*it)) + ".md5";
-			ifstream myfile(md5filename.c_str());
-			getline(myfile, hashstr);
-			hashstr += "\n";
-			myfile.close();
-
-			string adicsFileContent,adicsGuid;
-			string adicsfilename = string(job->getInputPath(*it)) + ".adics";
-			ifstream adicsfile(adicsfilename.c_str());
-			getline(adicsfile, adicsFileContent);
-			adicsfile.close();
-
-			size_t foundGuid;
-			foundGuid = adicsFileContent.find_last_of("/");
-  			adicsGuid = adicsFileContent.substr(foundGuid+1);
-
-			if (DC_addWUInputAdvanced(wu, (*it).c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE, adicsGuid.c_str(), hashstr.c_str()))
+			string basename = (*it).substr(0, slen-6);
+			set<string>::iterator hashf = inputset.find(basename + ".md5")
+			if (inputset.end() != hashf)
 			{
-				LOG(LOG_ERR, "DC-API-Single: Job %s: Failed to add input file \"%s\"",
-					job->getId().c_str(), job->getInputPath(*it).c_str());
-				DC_destroyWU(wu);
-				return false;
+				LOG(LOG_DEBUG, "Found ADICS-related control files, handling ADICS.");
+
+				string adicsFileContent;
+				ifstream adicsfile(job->getInputPath(*it).c_str());
+				getline(adicsfile, adicsFileContent);
+				adicsfile.close();
+				size_t foundGuid = adicsFileContent.find_last_of("/");
+				string adicsGuid = adicsFileContent.substr(foundGuid+1);
+
+				string hashstr;
+				ifstream hashfile(job->getInputPath(*hashf).c_str());
+				getline(hashfile, hashstr);
+				hashfile.close();
+				hashstr += "\n";
+
+				if (DC_addWUInputAdvanced(wu, basename.c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE, adicsGuid.c_str(), hashstr.c_str()))
+				{
+					LOG(LOG_ERR, "DC-API-Single: Job %s: Failed to add input file \"%s\"",
+						job->getId().c_str(), job->getInputPath(*it).c_str());
+					DC_destroyWU(wu);
+					return false;
+				}
+				continue;
 			}
-			continue;
 		}
 		if (".md5" == (*it).substr(slen > 4 ? slen-4 : 0))
 		{
-			string nmd5name = (*it).substr(0, slen-4);
-			if (inputset.end() != inputset.find(nmd5name + ".adics"))
-			{
-				LOG(LOG_DEBUG, "Found an ADICS-related MD5 hash file, skipping.");
+			if (inputset.end() != inputset.find((*it).substr(0, slen-4) + ".adics"))
 				continue;
-			}
-		}
-		if (".adics" == (*it).substr(slen > 6 ? slen-6 : 0))
-		{
-			string nadicsname = (*it).substr(0, slen-6);
-			if (inputset.end() != inputset.find(nadicsname + ".md5"))
-			{
-				LOG(LOG_DEBUG, "Found an ADICS-related ADICS file, skipping.");
-				continue;
-			}
 		}
 		if (DC_addWUInput(wu, (*it).c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE))
 		{
