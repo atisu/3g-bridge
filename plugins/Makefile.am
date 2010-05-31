@@ -2,7 +2,6 @@ AM_CPPFLAGS = @MYSQL_CPPFLAGS@ @GLIB_CFLAGS@
 AM_LDFLAGS = -module -avoid-version -export-symbols=symbols.exp
 AM_LIBADD = @MYSQL_LIBS@ @GLIB_LIBS@
 AM_JAVACFLAGS = -g
-EXTRA_DIST = symbols.exp $(JAVA_SRC)
 
 pkglib_LTLIBRARIES = Null_handler.la Null_monitor.la
 
@@ -54,40 +53,35 @@ Java_handler_la_SOURCES = Java_handler.cpp Java_handler.h
 Java_handler_la_CPPFLAGS = $(JAVA_INC) $(AM_CPPFLAGS) -DJAVA_CLASSPATH='"${javadir}/${JARNAME}"' -DPKGLIBDIR='"${pkglibdir}"'
 
 CLASSDIR = hu/sztaki/lpds/G3Bridge
-JAVA_SRC = 
-
-if HAVE_JAVA
-
-JAVA_SRC += \
+JAVA_SRC = \
 		$(CLASSDIR)/GridHandler.java \
 		$(CLASSDIR)/Job.java \
 		$(CLASSDIR)/Logger.java \
 		$(CLASSDIR)/LogLevel.java \
 		$(CLASSDIR)/RuntimeBridgeException.java
 
-endif
-
-if HAVE_BES
-
-JAVA_SRC += \
+JAVA_BES_SRC = \
 		$(CLASSDIR)/plugin/bes/BESHandler.java \
 		$(CLASSDIR)/plugin/bes/JsdlDocBuilder.java \
 		$(CLASSDIR)/plugin/bes/WrapperBuilder.java
 
-CLASSPATH_ENV = CLASSPATH=.:$(BES_LIBS)/ogsabes-core-1.3.0.jar:$(BES_LIBS)/ogsabes-types-1.3.0.jar:$(BES_LIBS)/uas-core-1.3.0.jar:$(BES_LIBS)/wsrflite-1.9.0.jar:$(BES_LIBS)/wsrftypes-1.9.0.jar:$(BES_LIBS)/jsdl-xmlbeans-1.6.jar:$(BES_LIBS)/xbean-2.2.0.jar:$(BES_LIBS)/xfire-core-1.2.6.jar:$$CLASSPATH
+EXTRA_DIST = symbols.exp $(JAVA_SRC) $(JAVA_BES_SRC)
 
-endif
+if HAVE_JAVA
 
 noinst_JAVA = $(JAVA_SRC)
 
-if HAVE_JAVA
+if HAVE_BES
+noinst_JAVA += $(JAVA_BES_SRC)
+CLASSPATH_ENV = CLASSPATH=.:$(BES_LIBS)/ogsabes-core-1.3.0.jar:$(BES_LIBS)/ogsabes-types-1.3.0.jar:$(BES_LIBS)/uas-core-1.3.0.jar:$(BES_LIBS)/wsrflite-1.9.0.jar:$(BES_LIBS)/wsrftypes-1.9.0.jar:$(BES_LIBS)/jsdl-xmlbeans-1.6.jar:$(BES_LIBS)/xbean-2.2.0.jar:$(BES_LIBS)/xfire-core-1.2.6.jar:$$CLASSPATH
+endif
 
 javadir = $(datadir)/java
 java_DATA = $(JARNAME)
 
 JARNAME = 3g-bridge-plugin-$(PACKAGE_VERSION).jar
 
-JAVA_CLASSES = $(JAVA_SRC:.java=.class)
+JAVA_CLASSES = $(noinst_JAVA:.java=.class)
 JAVA_CLASSNAMES = $(subst /,.,$(JAVA_CLASSES:.class=))
 
 CLEANFILES += $(JAVA_CLASSES) $(JARNAME)
