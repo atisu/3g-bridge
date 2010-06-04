@@ -102,26 +102,22 @@ static int try_num;					// Resubmission attempts
 static FILE *infile;
 
 static char *wrap_template =
-"#!/bin/bash\n"
-"\n"
-"TID=%s\n"
-"SLOT=%s\n"
-"EXE=\"%s\"\n"
-"OLDWD=\"`pwd`\"\n"
-"rm -rf /tmp/$TID; mkdir -p /tmp/$TID\n"
-"tar zxf $TID.tgz -C /tmp/$TID\n"
-"rm -f $TID.tgz\n"
-"cd /tmp/$TID/slots/$SLOT\n"
-"\"../../$EXE\" \"$@\"\n"
-"RETCODE=$?\n"
-"cd ../..\n"
-"cat slots/$SLOT/$TID.outs | while read outfile; do\n"
-"    tar uf $OLDWD/$TID.out.tar \"$outfile\"\n"
-"done\n"
-"cd \"$OLDWD\"; rm -rf /tmp/$TID\n"
-"gzip -9 $TID.out.tar\n"
-"mv $TID.out.tar.gz $TID.out.tgz\n"
-"exit $RETCODE\n";
+"#!/bin/sh\n\
+TID=\"%s\"\n\
+SLOT=\"slots/%s\"\n\
+EXE=\"%s\"\n\
+OLDWD=\"$PWD\"\n\
+rm -rf \"/tmp/$TID\"\n\
+mkdir -p \"/tmp/$TID\" || exit 100\n\
+trap 'cd \"$OLDWD\"; rm -rf \"/tmp/$TID\"' 0\n\
+tar xzf \"$TID.tgz\" -C \"/tmp/$TID\" || exit 101\n\
+rm -f \"$TID.tgz\"\n\
+cd \"/tmp/$TID/$SLOT\"\n\
+\"../../$EXE\" \"$@\"\n\
+RETCODE=$?\n\
+cd ../..\n\
+tar czf \"$OLDWD/$TID.out.tgz\" -T \"$SLOT/$TID.includes\" || exit 102\n\
+exit $RETCODE\n";
 
 
 extern bool update_app_progress(double cpu_t, double cp_cpu_t);
@@ -149,34 +145,34 @@ void free_config_exit(GKeyFile *kf, GError *error)
 
 void free_files(unsigned num, char **files, char **files_open)
 {
-        unsigned i;
-        if (files)
-        {
-                for (i = 0; i < num; i++)
-                {
-                        if (files && files[i])
-                                free(files[i]);
-                        if (files_open && files_open[i])
-                                free(files_open[i]);
-                }
-                if (files)
-                        free(files);
-                if (files_open)
-                        free(files_open);
-        }
+	unsigned i;
+	if (files)
+	{
+		for (i = 0; i < num; i++)
+		{
+			if (files && files[i])
+				free(files[i]);
+			if (files_open && files_open[i])
+				free(files_open[i]);
+		}
+		if (files)
+			free(files);
+		if (files_open)
+			free(files_open);
+	}
 }
 
 
 void freeup_files()
 {
-        fclose(infile);
-        free_files(   app_files_num,    app_files,    app_files_real_name);
-        free_files( input_files_num,  input_files,  input_files_real_name);
-        free_files(output_files_num, output_files, output_files_real_name);
-        if (exec_path)
-                free(exec_path);
-        if (arguments)
-                free(arguments);
+	fclose(infile);
+	free_files(   app_files_num,    app_files,    app_files_real_name);
+	free_files( input_files_num,  input_files,  input_files_real_name);
+	free_files(output_files_num, output_files, output_files_real_name);
+	if (exec_path)
+		free(exec_path);
+	if (arguments)
+		free(arguments);
 }
 
 
@@ -279,161 +275,177 @@ void init_config(void)
 
 char *parse_app_files()
 {
-        unsigned i;
-        if (1 != fscanf(infile, "app_files_num: %d\n", &app_files_num))
-                return "Failed to parse number of application files!";
+	unsigned i;
+	if (1 != fscanf(infile, "app_files_num: %d\n", &app_files_num))
+		return "Failed to parse number of application files!";
 
-        app_files = (char **)malloc(app_files_num*sizeof(char *));
-        app_files_real_name = (char **)malloc(app_files_num*sizeof(char *));
-        for (i = 0; i < app_files_num; i++)
-                if (2 != fscanf(infile, "%as %as\n", &(app_files_real_name[i]), &(app_files[i])))
-                        return "Failed to parse input file data!";
+	app_files = (char **)malloc(app_files_num*sizeof(char *));
+	app_files_real_name = (char **)malloc(app_files_num*sizeof(char *));
+	for (i = 0; i < app_files_num; i++)
+		if (2 != fscanf(infile, "%as %as\n", &(app_files_real_name[i]), &(app_files[i])))
+			return "Failed to parse input file data!";
 
-        return NULL;
+	return NULL;
 }
 
 
 char *parse_in_files()
 {
-        unsigned i;
-        if (1 != fscanf(infile, "input_files_num: %d\n", &input_files_num))
-                return "Failed to parse number of input files!";
+	unsigned i;
+	if (1 != fscanf(infile, "input_files_num: %d\n", &input_files_num))
+		return "Failed to parse number of input files!";
 
-        input_files = (char **)malloc(input_files_num*sizeof(char *));
-        input_files_real_name = (char **)malloc(input_files_num*sizeof(char *));
-        for (i = 0; i < input_files_num; i++)
-                if (2 != fscanf(infile, "%as %as\n", &(input_files_real_name[i]), &(input_files[i])))
-                        return "Failed to parse input file data!";
+	input_files = (char **)malloc(input_files_num*sizeof(char *));
+	input_files_real_name = (char **)malloc(input_files_num*sizeof(char *));
+	for (i = 0; i < input_files_num; i++)
+		if (2 != fscanf(infile, "%as %as\n", &(input_files_real_name[i]), &(input_files[i])))
+			return "Failed to parse input file data!";
 
-        return NULL;
+	return NULL;
 }
 
 
 char *parse_out_files()
 {
-        unsigned i;
-        if (1 != fscanf(infile, "output_files_num: %d\n", &output_files_num))
-                return "Failed to parse number of output files!";
+	unsigned i;
+	if (1 != fscanf(infile, "output_files_num: %d\n", &output_files_num))
+		return "Failed to parse number of output files!";
 
-        output_files = (char **)malloc(output_files_num*sizeof(char *));
-        output_files_real_name = (char **)malloc(output_files_num*sizeof(char *));
-        for (i = 0; i < output_files_num; i++)
-        {
-                char *fread;
-                if (1 != fscanf(infile, "%as ", &fread))
-                        return(strerror(errno));
-                if (!strcmp(fread, "command_line:"))
-                {
-                        output_files_num = i;
-                        return fread;
-                }
-                output_files_real_name[i] = fread;
-                if (1 != fscanf(infile, "%as\n", &(output_files[i])))
-                        return "Failed to parse output file data!";
-        }
-        return NULL;
+	output_files = (char **)malloc(output_files_num*sizeof(char *));
+	output_files_real_name = (char **)malloc(output_files_num*sizeof(char *));
+	for (i = 0; i < output_files_num; i++)
+	{
+		char *fread;
+		if (1 != fscanf(infile, "%as ", &fread))
+			return(strerror(errno));
+		if (!strcmp(fread, "command_line:"))
+		{
+			output_files_num = i;
+			return fread;
+		}
+		output_files_real_name[i] = fread;
+		if (1 != fscanf(infile, "%as\n", &(output_files[i])))
+			return "Failed to parse output file data!";
+	}
+	return NULL;
 }
 
 
 char *parse_cmd_line()
 {
-        char *p;
-        size_t bsize = 4096;
-        char *cmd_line = (char *)malloc(bsize*sizeof(char));
-        if (1 != fscanf(infile, "%s ", cmd_line))
-                return "Failed to parse command line arguments!";
-        if (strcmp(cmd_line, "command_line:"))
-                return "Failed to parse command line arguments!";
-        if (-1 == getline(&cmd_line, &bsize, infile))
-                return "Failed to parse command line arguments!";
-        if (cmd_line[strlen(cmd_line)-1] == '\n')
-                cmd_line[strlen(cmd_line)-1] = '\0';
+	char *p;
+	size_t bsize = 4096;
+	char *cmd_line = (char *)malloc(bsize*sizeof(char));
+	if (1 != fscanf(infile, "%s ", cmd_line))
+		return "Failed to parse command line arguments!";
+	if (strcmp(cmd_line, "command_line:"))
+		return "Failed to parse command line arguments!";
+	if (-1 == getline(&cmd_line, &bsize, infile))
+		return "Failed to parse command line arguments!";
+	if (cmd_line[strlen(cmd_line)-1] == '\n')
+		cmd_line[strlen(cmd_line)-1] = '\0';
 
-        p = cmd_line;
-        while (*p != ' ' && *p != 0)
-                p++;
-        exec_path = strndup(cmd_line, p-cmd_line);
-        arguments = strdup(p+1);
-        free(cmd_line);
+	p = cmd_line;
+	while (*p != ' ' && *p != 0)
+		p++;
+	exec_path = strndup(cmd_line, p-cmd_line);
+	arguments = strdup(p+1);
+	free(cmd_line);
 
-        return NULL;
+	return NULL;
 }
 
 
 void read_app_data(void)
 {
-        char *res;
+	char *res;
 
-        if (NULL == (infile = fopen(JOBWRAPPER_CONFIG_FILE, "r")))
-        {
-                LOG(LOG_ERR, "Failed to open jobwrapper config file %s: %s\n",
+	if (NULL == (infile = fopen(JOBWRAPPER_CONFIG_FILE, "r")))
+	{
+		LOG(LOG_ERR, "Failed to open jobwrapper config file %s: %s\n",
 			JOBWRAPPER_CONFIG_FILE, strerror(errno));
 		free_exit();
-        }
+	}
 
-        if (NULL != (res = parse_app_files()))
-        {
+	if (NULL != (res = parse_app_files()))
+	{
 		LOG(LOG_ERR, "%s\n", res);
 		free_exit();
-        }
+	}
 
-        if (NULL != (res = parse_in_files()))
-        {
+	if (NULL != (res = parse_in_files()))
+	{
 		LOG(LOG_ERR, "%s\n", res);
 		free_exit();
-        }
+	}
 
-        if (NULL != (res = parse_out_files()))
-        {
-                if (!strcmp(res, "command_line:"))
-                {
-                        free(res);
-                        fseek(infile, -strlen("command_line:")-1, SEEK_CUR);
-                }
-                else
-                {
+	if (NULL != (res = parse_out_files()))
+	{
+		if (!strcmp(res, "command_line:"))
+		{
+			free(res);
+			fseek(infile, -strlen("command_line:")-1, SEEK_CUR);
+		}
+		else
+		{
 			LOG(LOG_ERR, "%s\n", res);
 			free_exit();
-                }
-        }
+		}
+	}
 
-        if (NULL != (res = parse_cmd_line()))
-        {
+	if (NULL != (res = parse_cmd_line()))
+	{
 		LOG(LOG_ERR, "%s\n", res);
 		free_exit();
-        }
+	}
 }
 
 
 string add_to_3g_db(char *slotStr)
 {
 	uuid_t uID;
-	FILE *wrapF, *outF;
-	char sID[37], wrapFname[64], outsFname[64], *wrapStr;
+	FILE *fh;
+	char sID[37], fname[64];
+	char *tmpStr;
 
 	uuid_generate(uID);
 	uuid_unparse(uID, sID);
-	gchar *sargs = g_strescape(arguments, NULL);
-	asprintf(&wrapStr, wrap_template, sID, slotStr, exec_path);
-	sprintf(wrapFname, "%s.sh", sID);
-        sprintf(outsFname, "%s.outs", sID);
-	if (NULL == (wrapF = fopen(wrapFname, "w"))) {
-        	LOG(LOG_ERR, "Unable to open file \"%s\" for writing: %s", wrapFname, strerror(errno));
-		g_free(sargs);
-	        return "";
+
+	if (asprintf(&tmpStr, wrap_template, sID, slotStr, exec_path) == -1) {
+		LOG(LOG_ERR, "Unable to generate wrapper script. Out of memory?");
+		return "";
 	}
-	if (NULL == (outF = fopen(outsFname, "w"))) {
-        	LOG(LOG_ERR, "Unable to open file \"%s\" for writing: %s", outsFname, strerror(errno));
-		g_free(sargs);
-	        return "";
+	sprintf(fname, "%s.sh", sID);
+	if ((fh = fopen(fname, "w")) == NULL) {
+		LOG(LOG_ERR, "Unable to open file \"%s\" for writing: %s", fname, strerror(errno));
+		return "";
 	}
-	fwrite(wrapStr, 1, strlen(wrapStr), wrapF);
+	fwrite(tmpStr, 1, strlen(tmpStr), fh);
+	fclose(fh);
+	free(tmpStr);
+
+	sprintf(fname, "%s.includes", sID);
+	if ((fh = fopen(fname, "w")) == NULL) {
+		LOG(LOG_ERR, "Unable to open file \"%s\" for writing: %s", fname, strerror(errno));
+		return "";
+	}
 	for (unsigned i = 0; i < output_files_num; i++)
-        	fprintf(outF, "%s\n", output_files_real_name[i]);
-	fprintf(outF, "slots\n");
-        fclose(wrapF);
-	fclose(outF);
-        free(wrapStr);
+		fprintf(fh, "%s\n", output_files_real_name[i]);
+	fprintf(fh, "slots\n");
+	fclose(fh);
+
+	if (asprintf(&tmpStr, "%s.excludes\n%s.tgz\n%s.sh\n", sID, sID, sID) == -1) {
+		LOG(LOG_ERR, "Unable to generate excludes file. Out of memory?");
+		return "";
+	}
+	sprintf(fname, "%s.excludes", sID);
+	if ((fh = fopen(fname, "w")) == NULL) {
+		LOG(LOG_ERR, "Unable to open file \"%s\" for writing: %s", fname, strerror(errno));
+		return "";
+	}
+	fwrite(tmpStr, 1, strlen(tmpStr), fh);
+	fclose(fh);
+	free(tmpStr);
 
 	string infiles = "";
 	for (unsigned i = 0; i < input_files_num; i++)
@@ -442,15 +454,16 @@ string add_to_3g_db(char *slotStr)
 		infiles += "\"" + string(app_files_real_name[i]) + "\" ";
 
 	stringstream tcomm;
-	tcomm << "tar zcf " << sID << ".tgz -C ../.. slots/" << slotStr << " " << infiles;
+	tcomm << "tar zcf " << sID << ".tgz -C ../.. -X " << sID << ".excludes slots/" << slotStr << " " << infiles;
 	LOG(LOG_DEBUG, "Creating input tgz for \"%s\" with command \"%s\".", sID, tcomm.str().c_str());
 	system(tcomm.str().c_str());
 
 	LOG(LOG_INFO, "Inserting WU \"%s\" into 3G Bridge DB with identifier \"%s\".", wuname, sID);
 
 	char *query;
-	asprintf(&query, "INSERT INTO cg_job(id, alg, grid, status, args) VALUES (\"%s\",\"%s\",\"%s\",\"%s\",\"%s\")",
-		sID, wrapFname, grid, "PREPARE", sargs);
+	gchar *sargs = g_strescape(arguments, NULL);
+	asprintf(&query, "INSERT INTO cg_job(id, alg, grid, status, args) VALUES (\"%s\",\"%s.sh\",\"%s\",\"%s\",\"%s\")",
+		sID, sID, grid, "PREPARE", sargs);
 	g_free(sargs);
 	LOG(LOG_DEBUG, "MySQL    job insert command is: %s", query);
 	if (mysql_query(conn, query))
@@ -462,8 +475,8 @@ string add_to_3g_db(char *slotStr)
 	}
 	free(query);
 
-	asprintf(&query, "INSERT INTO cg_inputs VALUES(\"%s\",\"%s\",\"%s/%s\")",
-		sID, wrapFname, cwd, wrapFname);
+	asprintf(&query, "INSERT INTO cg_inputs VALUES(\"%s\",\"%s.sh\",\"%s/%s.sh\")",
+		sID, sID, cwd, sID);
 	LOG(LOG_DEBUG, "MySQL  inputs insert command is: %s", query);
 	if (mysql_query(conn, query))
 	{
@@ -588,7 +601,7 @@ int main(int argc, char **argv)
 	// Reading out the needed informations for the job and the 3G bridge
 	read_app_data();
 
-        APP_INIT_DATA aid2;
+	APP_INIT_DATA aid2;
 	FILE *aidf2 = fopen("init_data.xml", "r");
 	parse_init_data_file(aidf2, aid2);
 	fclose(aidf2);
@@ -651,8 +664,8 @@ int main(int argc, char **argv)
 		status = getstat_3g(jobID);
 	}
 
-        LOG(LOG_INFO, "WU \"%s\" finished with status: \"%s\"", wuname, status.c_str());
-        if ("FINISHED" == status) {
+	LOG(LOG_INFO, "WU \"%s\" finished with status: \"%s\"", wuname, status.c_str());
+	if ("FINISHED" == status) {
 		stringstream tcomm;
     		tcomm << "tar zxf " << jobID << ".out.tgz -C ../..";
     		LOG(LOG_DEBUG, "Unpacking output results of WU \"%s\" with command: \"%s\".", wuname, tcomm.str().c_str());
