@@ -1,5 +1,6 @@
 ALTER TABLE cg_job
 	ADD COLUMN	griddata	VARCHAR(2048),
+	ADD COLUMN      tag             VARCHAR(254),
 	CHANGE COLUMN	gridid gridid	VARCHAR(2048);
 
 ALTER TABLE cg_inputs
