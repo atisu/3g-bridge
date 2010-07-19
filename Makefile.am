@@ -85,11 +85,8 @@ if HAVE_XTREMWEB
 BACKEND_SOURCES += plugins/XTREMWEB_handler.cpp
 endif
 
-if HAVE_JAVA
-BACKEND_SOURCES += plugins/Java_handler.cpp
-AM_CPPFLAGS += $(JAVA_INC) -DJAVA_CLASSPATH='"${javadir}/${JARNAME}"' -DPKGLIBDIR='"${pkglibdir}"'
 CLASSDIR = plugins/hu/sztaki/lpds/G3Bridge
-JAVACFLAGS = -d plugins -s plugins
+EXTRA_DIST += $(JAVA_SRC) $(JAVA_BES_SRC)
 JAVA_SRC = \
 		$(CLASSDIR)/GridHandler.java \
 		$(CLASSDIR)/Job.java \
@@ -102,7 +99,11 @@ JAVA_BES_SRC = \
 		$(CLASSDIR)/plugin/bes/JsdlDocBuilder.java \
 		$(CLASSDIR)/plugin/bes/WrapperBuilder.java
 
-EXTRA_DIST += symbols.exp $(JAVA_SRC) $(JAVA_BES_SRC)
+if HAVE_JAVA
+BACKEND_SOURCES += plugins/Java_handler.cpp
+AM_CPPFLAGS += $(JAVA_INC) -DJAVA_CLASSPATH='"${javadir}/${JARNAME}"' -DPKGLIBDIR='"${pkglibdir}"'
+JAVACFLAGS = -d plugins -s plugins
+EXTRA_DIST += symbols.exp
 
 noinst_JAVA = $(JAVA_SRC)
 
@@ -138,6 +139,7 @@ noinst_HEADERS = \
 		plugins/XTREMWEB_handler.h \
 		plugins/Null_handler.h \
 		plugins/EGEE_handler.h \
+		plugins/Java_handler.h \
 		DownloadManager.h \
 		GridHandler.h \
 		Job.h \
