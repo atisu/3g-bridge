@@ -174,6 +174,9 @@ dnl Java
 dnl -------------------------------------------------------------------
 
 MON_PKG_JAVA
+if test -z "$no_java"; then
+	AC_DEFINE([HAVE_JAVA], [1], [Define if Java support is requested.])
+fi
 
 dnl -------------------------------------------------------------------
 dnl BOINC
@@ -188,7 +191,7 @@ if test "${with_boinc}" != no; then
 		with_boinc=/usr
 	fi
 	BOINC_CPPFLAGS="-I${with_boinc}/include/BOINC"
-    	if test "${with_boinc}" != /usr; then
+	if test "${with_boinc}" != /usr; then
 		BOINC_LDFLAGS="-L${with_boinc}/lib"
 	fi
 	save_CPPFLAGS="$CPPFLAGS"

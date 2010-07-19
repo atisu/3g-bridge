@@ -667,10 +667,10 @@ int main(int argc, char **argv)
 	LOG(LOG_INFO, "WU \"%s\" finished with status: \"%s\"", wuname, status.c_str());
 	if ("FINISHED" == status) {
 		stringstream tcomm;
-    		tcomm << "tar zxf " << jobID << ".out.tgz -C ../..";
-    		LOG(LOG_DEBUG, "Unpacking output results of WU \"%s\" with command: \"%s\".", wuname, tcomm.str().c_str());
-    		system(tcomm.str().c_str());
-    		exitcode = 0;
+		tcomm << "tar zxf " << jobID << ".out.tgz -C ../..";
+		LOG(LOG_DEBUG, "Unpacking output results of WU \"%s\" with command: \"%s\".", wuname, tcomm.str().c_str());
+		system(tcomm.str().c_str());
+		exitcode = 0;
 	}
 
 	if ("UNKNOWN" == status)
@@ -683,7 +683,7 @@ int main(int argc, char **argv)
 
 	FILE *f;
 	if (NULL != (f = fopen("boinc_finish_called", "w")))
-    		fclose(f);
+		fclose(f);
 
 	LOG(LOG_INFO, "WU \"%s\" finished with exit code %d", wuname, exitcode);
 	free(wuname);
@@ -693,16 +693,16 @@ int main(int argc, char **argv)
 	parse_init_data_file(aidf, aid);
 	fclose(aidf);
 	for (int i = 0; i < 3; i++) {
-    		boinc_report_app_status(aid.wu_cpu_time, 0, 100);
+		boinc_report_app_status(aid.wu_cpu_time, 0, 100);
 		boinc_sleep(1);
 	}
 
 	char msg_buf[MSG_CHANNEL_SIZE];
 	sprintf(msg_buf,
-    		"<current_cpu_time>%10.4f</current_cpu_time>\n"
-    		"<checkpoint_cpu_time>%.15e</checkpoint_cpu_time>\n"
-    		"<fraction_done>%2.8f</fraction_done>\n",
-    		aid.wu_cpu_time, 0.0, 100.0);
+		"<current_cpu_time>%10.4f</current_cpu_time>\n"
+		"<checkpoint_cpu_time>%.15e</checkpoint_cpu_time>\n"
+		"<fraction_done>%2.8f</fraction_done>\n",
+		aid.wu_cpu_time, 0.0, 100.0);
 	if (app_client_shm)
 		if (app_client_shm->shm)
 			app_client_shm->shm->app_status.send_msg(msg_buf);

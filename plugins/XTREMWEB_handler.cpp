@@ -92,6 +92,12 @@ XWHandler::XWHandler(GKeyFile *config, const char *instance) throw (BackendExcep
 }
 
 
+GridHandler *XWHandler::getInstance(GKeyFile *config, const char *instance)
+{
+    return new XWHandler(config, instance);
+}
+
+
 XWHandler::~XWHandler()
 {
     /*
@@ -502,13 +508,4 @@ string * xtremwebClient(struct xwcommand xwc)
     }
 
     return message;
-}
-
-/**********************************************************************
- * Factory function
- */
-
-HANDLER_FACTORY(config, instance)
-{
-	return new XWHandler(config, instance);
 }

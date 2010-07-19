@@ -767,11 +767,8 @@ void JavaHandler::poll(Job *job) throw (BackendException *)
 		throw new BackendException("Java exception occured");
 }
 
-/**********************************************************************
- * Factory function
- */
 
-HANDLER_FACTORY(config, instance)
+GridHandler *JavaHandler::getInstance(GKeyFile *config, const char *instance)
 {
 	return new JavaHandler(config, instance);
 }

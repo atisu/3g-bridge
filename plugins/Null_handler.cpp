@@ -81,11 +81,8 @@ void NullHandler::poll(Job *job) throw (BackendException *)
 	}
 }
 
-/**********************************************************************
- * Factory function
- */
 
-HANDLER_FACTORY(config, instance)
+GridHandler *NullHandler::getInstance(GKeyFile *config, const char *instance)
 {
-	return new NullHandler(config, instance);
+        return new NullHandler(config, instance);
 }

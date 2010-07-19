@@ -293,11 +293,8 @@ void DCAPISingleHandler::updateStatus(void) throw (BackendException *)
 		throw new BackendException("DC_processMasterEvents() returned failure");
 }
 
-/**********************************************************************
- * Factory function
- */
 
-HANDLER_FACTORY(config, instance)
+GridHandler *DCAPISingleHandler::getInstance(GKeyFile *config, const char *instance)
 {
-	return new DCAPISingleHandler(config, instance);
+        return new DCAPISingleHandler(config, instance);
 }

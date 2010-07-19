@@ -75,6 +75,9 @@ bool EGEEHandler::globus_err;
 char *EGEEHandler::globus_errmsg;
 static const char *tmppath;
 
+static const char *jlogrun = "running";
+static const char *jlogerr = "error";
+static const char *jlogok = "finished";
 
 typedef enum {NONE, ERROR, ALL} llevel;
 
@@ -134,6 +137,11 @@ static int invoke_cmd(const char *exe, const char *const argv[], string *stdoe) 
 //
 // Public methods
 //
+
+GridHandler *EGEEHandler::getInstance(GKeyFile *config, const char *instance)
+{
+        return new EGEEHandler(config, instance);
+}
 
 
 EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException *): GridHandler(config, instance)
@@ -198,6 +206,13 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 	joblogdir = g_key_file_get_string(config, instance, "joblogdir", NULL);
 	if (joblogdir && strlen(joblogdir))
 	{
+		string rundir = string(joblogdir) + "/" + jlogrun;
+		string errdir = string(joblogdir) + "/" + jlogerr;
+		string okdir = string(joblogdir) + "/" + jlogok;
+		mkdir(joblogdir, 0700);
+		mkdir(rundir.c_str(), 0700);
+		mkdir(errdir.c_str(), 0700);
+		mkdir(okdir.c_str(), 0700);
 		char *jl = g_key_file_get_string(config, instance, "joblogs",
 			NULL);
 		if (!strcmp(jl, "error"))
@@ -225,6 +240,7 @@ EGEEHandler::~EGEEHandler()
 	g_free(myproxy_authkey);
 	g_free(myproxy_port);
 	g_free(isb_url);
+	g_free(joblogdir);
 	delete cfg;
 }
 
@@ -986,9 +1002,9 @@ void EGEEHandler::renew_proxy() throw(BackendException *)
 	time_t lifetime;
 	string proxyf = tmpdir + "/proxy";
 	string vproxyf = tmpdir + "/proxy.voms";
-        myproxy_request_t *req;
-        myproxy_socket_attrs_t *attrs;
-        myproxy_response_t *resp;
+	myproxy_request_t *req;
+	myproxy_socket_attrs_t *attrs;
+	myproxy_response_t *resp;
 
 	getProxyInfo(vproxyf.c_str(), &lifetime);
 	// Do not update proxy if it is valid for at least 6 hrs
@@ -1002,36 +1018,41 @@ void EGEEHandler::renew_proxy() throw(BackendException *)
 	setenv("X509_USER_CERT", myproxy_authcert, 1);
 	setenv("X509_USER_KEY", myproxy_authkey, 1);
 
-        req = (myproxy_request_t *)malloc(sizeof(*req));
-        memset(req, 0, sizeof(myproxy_request_t));
-        req->version = strdup(MYPROXY_VERSION);
-        req->command_type = MYPROXY_GET_PROXY;
-        req->proxy_lifetime = 60*60*12;
-        attrs = (myproxy_socket_attrs_t *)malloc(sizeof(*attrs));
-        memset(attrs, 0, sizeof(*attrs));
-        attrs->pshost = strdup(myproxy_host);
-        attrs->psport = atoi(myproxy_port);
-        resp = (myproxy_response_t *)malloc(sizeof(*resp));
-        memset(resp, 0, sizeof(*resp));
+	req = (myproxy_request_t *)malloc(sizeof(*req));
+	memset(req, 0, sizeof(myproxy_request_t));
+	req->version = strdup(MYPROXY_VERSION);
+	req->command_type = MYPROXY_GET_PROXY;
+	req->proxy_lifetime = 60*60*12;
+	attrs = (myproxy_socket_attrs_t *)malloc(sizeof(*attrs));
+	memset(attrs, 0, sizeof(*attrs));
+	attrs->pshost = strdup(myproxy_host);
+	attrs->psport = atoi(myproxy_port);
+	resp = (myproxy_response_t *)malloc(sizeof(*resp));
+	memset(resp, 0, sizeof(*resp));
 	req->username = strdup(myproxy_user);
 
-        if (myproxy_get_delegation(attrs, req, NULL, resp, (char *)proxyf.c_str()))
-        {
+	if (myproxy_get_delegation(attrs, req, NULL, resp, (char *)proxyf.c_str()))
+	{
 		myproxy_free(attrs, req, resp);
-                if (verror_is_error())
+		if (verror_is_error())
 			throw new BackendException("Proxy initialization "
 				"failed: " + string(verror_get_string()));
 		else
 			throw new BackendException("Proxy initialization "
 				"failed due to an unknown error");
-        }
+	}
 	myproxy_free(attrs, req, resp);
 	unsetenv("X509_USER_CERT");
 	unsetenv("X509_USER_KEY");
 
 	setenv("X509_USER_PROXY", proxyf.c_str(), 1);
+
+	char timeleftstr[32];
+	time_t timeleft;
+	getProxyInfo(proxyf.c_str(), &timeleft);
+	snprintf(timeleftstr, 31, "%ld:00", timeleft/(60*60)-1);
 	const char *vpiargs[] = { "voms-proxy-init", "-voms", voname, "-noregen",
-		"-out", vproxyf.c_str(), "-valid", "11:00"};
+		"-out", vproxyf.c_str(), "-vomslife", timeleftstr, "-valid", timeleftstr, NULL};
 	string vpiout;
 	if (invoke_cmd("voms-proxy-init", vpiargs, &vpiout))
 	{
@@ -1102,8 +1123,8 @@ void EGEEHandler::getOutputs_real(Job *job)
 		// If job logging level isn't NONE, preserve stdout and stderr
 		if (jobloglevel != NONE)
 		{
-			string no = string(joblogdir)+"/"+job->getId()+".out";
-			string ne = string(joblogdir)+"/"+job->getId()+".err";
+			string no = string(joblogdir)+"/"+jlogrun+"/"+job->getId()+".out";
+			string ne = string(joblogdir)+"/"+jlogrun+"/"+job->getId()+".err";
 			if (-1 == rename(outtpath.c_str(), no.c_str()))
 				LOG(LOG_WARNING, "Failed to rename stdout: %s", strerror(errno));
 			if (-1 == rename(errtpath.c_str(), ne.c_str()))
@@ -1246,6 +1267,7 @@ void EGEEHandler::updateJob(Job *job)
 					job->getGridId().c_str());
 				cancelJob(job, false);
 				job->setStatus(Job::ERROR);
+				movejoblogs(job->getId(), jlogerr);
 				return;
 			}
 			sleep(5);
@@ -1272,6 +1294,7 @@ void EGEEHandler::updateJob(Job *job)
 					job->getGridId().c_str());
 				cancelJob(job, false);
 				job->setStatus(Job::ERROR);
+				movejoblogs(job->getId(), jlogerr);
 				return;
 			}
 			sleep(5);
@@ -1290,7 +1313,7 @@ void EGEEHandler::updateJob(Job *job)
 	{
 		if (statusRelation[j].EGEEs == statStr)
 		{
-			if (Job::FINISHED == statusRelation[j].jobS)
+			if (Job::FINISHED == statusRelation[j].jobS && glite::lb::JobStatus::DONE_CODE_FAILED != statCode)
 			{
 				LOG(LOG_DEBUG, "EGEE Plugin (%s): exit code of"
 					" EGEE job \"%s\" is: %d", name.c_str(),
@@ -1303,20 +1326,17 @@ void EGEEHandler::updateJob(Job *job)
 						linfo, &linfostr);
 					logjob(job->getId(), ALL, "Detailed job"
 						" logging info: " + linfostr);
+					movejoblogs(job->getId(), jlogerr);
 				}
 				else
 				{
-					if (jobloglevel == ERROR)
+					if (jobloglevel == ERROR || jobloglevel == NONE)
 					{
-						string lfn = joblogdir + string("/") +
-							job->getId() + string(".log");
-						string efn = joblogdir + string("/") +
-							job->getId() + string(".err");
-						string ofn = joblogdir + string("/") +
-							job->getId() + string(".out");
-						unlink(lfn.c_str());
-						unlink(efn.c_str());
-						unlink(ofn.c_str());
+						movejoblogs(job->getId(), "", true);
+					}
+					else
+					{
+						movejoblogs(job->getId(), jlogok);
 					}
 				}
 			}
@@ -1328,6 +1348,14 @@ void EGEEHandler::updateJob(Job *job)
 				logjob(job->getId(), ALL, "Detailed job "
 					"logging info: " + linfostr);
 				cleanJobStorage(job);
+				if (jobloglevel == NONE)
+				{
+					movejoblogs(job->getId(), "", true);
+				}
+				else
+				{
+					movejoblogs(job->getId(), jlogerr);
+				}
 			}
 		}
 	}
@@ -1352,6 +1380,7 @@ void EGEEHandler::cancelJob(Job *job, bool clean)
 	}
 
 	cleanJob(job);
+	movejoblogs(job->getId(), jlogerr);
 
 	if (clean)
 	{
@@ -1369,7 +1398,7 @@ void EGEEHandler::logjob(const string& jobid, const int level, const string& msg
 	if (level < jobloglevel)
 		return;
 
-	string lfn = joblogdir + string("/") + jobid + string(".log");
+	string lfn = joblogdir+string("/")+jlogrun+string("/")+jobid+string(".log");
 	ofstream lf;
 	lf.open(lfn.c_str(), ios::out|ios::app);
 	if (!lf.is_open())
@@ -1386,11 +1415,28 @@ void EGEEHandler::logjob(const string& jobid, const int level, const string& msg
 	lf.close();
 }
 
-/**********************************************************************
- * Factory function
- */
 
-HANDLER_FACTORY(config, instance)
+void EGEEHandler::movejoblogs(const string& jobid, const string& logdir, bool remove)
 {
-	return new EGEEHandler(config, instance);
+	string jprefix = joblogdir + string("/") + jlogrun + string("/") + jobid;
+	string jlog = jprefix + string(".log");
+	string jout = jprefix + string(".out");
+	string jerr = jprefix + string(".err");
+	if (!remove)
+	{
+		string nprefix = joblogdir + string("/") + logdir + string("/") + jobid;
+		string nlog = nprefix + string(".log");
+		string nout = nprefix + string(".out");
+		string nerr = nprefix + string(".err");
+		rename(jlog.c_str(), nlog.c_str());
+		rename(jerr.c_str(), nerr.c_str());
+		rename(jout.c_str(), nout.c_str());
+	}
+	else
+	{
+		LOG(LOG_DEBUG, "Removing log files of job %s", jobid.c_str());
+		unlink(jlog.c_str());
+		unlink(jerr.c_str());
+		unlink(jout.c_str());
+	}
 }

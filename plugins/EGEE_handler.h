@@ -78,6 +78,8 @@ class EGEEHandler : public GridHandler {
 	 */
 	void poll(Job *job) throw (BackendException *);
 
+	static GridHandler *getInstance(GKeyFile *config, const char *instance);
+
     private:
 
 	/// Lock for GSIFTP operations
@@ -273,6 +275,15 @@ class EGEEHandler : public GridHandler {
 	 * @param msg the message to log
 	 */
 	void logjob(const string& jobid, const int level, const string& msg);
+
+	/**
+	 * Move job log messages into the requested location or simply remove them.
+	 * @param jobid the job ID to use
+	 * @param joblog the directory to move to (running/finished/error)
+	 * @param remove simply remove existing logs, do not move them
+	 */
+	void movejoblogs(const string& jobid, const string& joblog, bool remove = false);
+
 };
 
 #endif /* EGEE_HANDLER_H */

@@ -7,6 +7,9 @@ pkglibexecdir = $(libexecdir)/@PACKAGE@
 bin_PROGRAMS = injector
 sbin_PROGRAMS = 3g-bridge
 
+CLEANFILES =
+EXTRA_DIST =
+
 if HAVE_JOBWRAPPER
 pkglibexec_PROGRAMS = jobwrapper
 endif
@@ -64,6 +67,65 @@ BUILT_SOURCES = \
 		$(MONITOR_SOAP_SOURCES_SERVER)
 endif
 
+BACKEND_SOURCES =
+BACKEND_LIBS =
+
+if HAVE_DCAPI
+BACKEND_SOURCES += plugins/DC-API_handler.cpp plugins/DC-API-Single_handler.cpp
+BACKEND_LIBS += $(DCAPI_MASTER_LIBS)
+endif
+
+if HAVE_EGEE
+BACKEND_SOURCES += plugins/EGEE_handler.cpp
+BACKEND_LIBS += $(EGEE_LIBS)
+AM_CPPFLAGS += $(EGEE_CPPFLAGS)
+endif
+
+if HAVE_XTREMWEB
+BACKEND_SOURCES += plugins/XTREMWEB_handler.cpp
+endif
+
+if HAVE_JAVA
+BACKEND_SOURCES += plugins/Java_handler.cpp
+AM_CPPFLAGS += $(JAVA_INC) -DJAVA_CLASSPATH='"${javadir}/${JARNAME}"' -DPKGLIBDIR='"${pkglibdir}"'
+CLASSDIR = plugins/hu/sztaki/lpds/G3Bridge
+JAVACFLAGS = -d plugins -s plugins
+JAVA_SRC = \
+		$(CLASSDIR)/GridHandler.java \
+		$(CLASSDIR)/Job.java \
+		$(CLASSDIR)/Logger.java \
+		$(CLASSDIR)/LogLevel.java \
+		$(CLASSDIR)/RuntimeBridgeException.java
+
+JAVA_BES_SRC = \
+		$(CLASSDIR)/plugin/bes/BESHandler.java \
+		$(CLASSDIR)/plugin/bes/JsdlDocBuilder.java \
+		$(CLASSDIR)/plugin/bes/WrapperBuilder.java
+
+EXTRA_DIST += symbols.exp $(JAVA_SRC) $(JAVA_BES_SRC)
+
+noinst_JAVA = $(JAVA_SRC)
+
+if HAVE_BES
+noinst_JAVA += $(JAVA_BES_SRC)
+JAVACFLAGS += -cp $(BES_LIBS)/\*:$$CLASSPATH
+endif
+
+javadir = $(datadir)/java
+java_DATA = $(JARNAME)
+
+JARNAME = 3g-bridge-plugin-$(PACKAGE_VERSION).jar
+
+JAVA_CLASSES = $(noinst_JAVA:.java=.class)
+JAVA_CLASSNAMES = $(subst /,.,$(JAVA_CLASSES:.class=))
+
+CLEANFILES += $(JAVA_CLASSES) $(JARNAME)
+
+$(JARNAME): classnoinst.stamp
+	cd plugins; $(JAR) -cf ../$@ $(subst plugins/,,$(JAVA_CLASSES)); cd ..
+
+endif
+
 SUBDIRS = doc plugins
 
 noinst_HEADERS = \
@@ -71,6 +133,11 @@ noinst_HEADERS = \
 		BackendException.h \
 		Conf.h \
 		DBHandler.h \
+		plugins/DC-API_handler.h \
+		plugins/DC-API-Single_handler.h \
+		plugins/XTREMWEB_handler.h \
+		plugins/Null_handler.h \
+		plugins/EGEE_handler.h \
 		DownloadManager.h \
 		GridHandler.h \
 		Job.h \
@@ -102,9 +169,10 @@ jobwrapper_LDADD = -lboinc_api -lboinc $(GLIB_LIBS) $(MYSQL_LIBS) -luuid
 		QMException.cpp \
 		QueueManager.cpp \
 		Util.c \
-		MonitorHandler.h
-3g_bridge_LDADD = $(GLIB_LIBS) $(GMODULE_LIBS) $(MYSQL_LIBS) -luuid
-3g_bridge_LDFLAGS = -export-dynamic
+		MonitorHandler.h \
+		plugins/Null_handler.cpp \
+		$(BACKEND_SOURCES)
+3g_bridge_LDADD = $(GLIB_LIBS) $(BACKEND_LIBS) $(MYSQL_LIBS) -luuid
 
 wssubmitter_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
 nodist_wssubmitter_SOURCES = \
@@ -153,10 +221,10 @@ master.xml: master.xml.in
 		$(GSOAP_EDIT) \
 		$< > $@
 
-CLEANFILES = master.xml 3g-bridge-package.tar.gz soap/*
+CLEANFILES += master.xml 3g-bridge-package.tar.gz soap/*
 MAINTAINERCLEANFILES = Makefile.in
 
-EXTRA_DIST = \
+EXTRA_DIST += \
 		3GBridgeSubmitter.typemap \
 		3GBridgeSubmitter.wsdl \
 		3GBridgeMonitor.typemap \
