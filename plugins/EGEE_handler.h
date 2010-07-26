@@ -78,8 +78,6 @@ class EGEEHandler : public GridHandler {
 	 */
 	void poll(Job *job) throw (BackendException *);
 
-	static GridHandler *getInstance(GKeyFile *config, const char *instance);
-
     private:
 
 	/// Lock for GSIFTP operations

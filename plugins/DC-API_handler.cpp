@@ -568,8 +568,11 @@ void DCAPIHandler::updateStatus(void) throw (BackendException *)
 		throw new BackendException("DC_processMasterEvents() returned failure");
 }
 
+/**********************************************************************
+ * Factory function
+ */
 
-GridHandler *DCAPIHandler::getInstance(GKeyFile *config, const char *instance)
+HANDLER_FACTORY(config, instance)
 {
 	return new DCAPIHandler(config, instance);
 }

@@ -67,66 +67,6 @@ BUILT_SOURCES = \
 		$(MONITOR_SOAP_SOURCES_SERVER)
 endif
 
-BACKEND_SOURCES =
-BACKEND_LIBS =
-
-if HAVE_DCAPI
-BACKEND_SOURCES += plugins/DC-API_handler.cpp plugins/DC-API-Single_handler.cpp
-BACKEND_LIBS += $(DCAPI_MASTER_LIBS)
-endif
-
-if HAVE_EGEE
-BACKEND_SOURCES += plugins/EGEE_handler.cpp
-BACKEND_LIBS += $(EGEE_LIBS)
-AM_CPPFLAGS += $(EGEE_CPPFLAGS)
-endif
-
-if HAVE_XTREMWEB
-BACKEND_SOURCES += plugins/XTREMWEB_handler.cpp
-endif
-
-CLASSDIR = plugins/hu/sztaki/lpds/G3Bridge
-EXTRA_DIST += $(JAVA_SRC) $(JAVA_BES_SRC)
-JAVA_SRC = \
-		$(CLASSDIR)/GridHandler.java \
-		$(CLASSDIR)/Job.java \
-		$(CLASSDIR)/Logger.java \
-		$(CLASSDIR)/LogLevel.java \
-		$(CLASSDIR)/RuntimeBridgeException.java
-
-JAVA_BES_SRC = \
-		$(CLASSDIR)/plugin/bes/BESHandler.java \
-		$(CLASSDIR)/plugin/bes/JsdlDocBuilder.java \
-		$(CLASSDIR)/plugin/bes/WrapperBuilder.java
-
-if HAVE_JAVA
-BACKEND_SOURCES += plugins/Java_handler.cpp
-AM_CPPFLAGS += $(JAVA_INC) -DJAVA_CLASSPATH='"${javadir}/${JARNAME}"' -DPKGLIBDIR='"${pkglibdir}"'
-JAVACFLAGS = -d plugins -s plugins
-EXTRA_DIST += symbols.exp
-
-noinst_JAVA = $(JAVA_SRC)
-
-if HAVE_BES
-noinst_JAVA += $(JAVA_BES_SRC)
-JAVACFLAGS += -cp $(BES_LIBS)/\*:$$CLASSPATH
-endif
-
-javadir = $(datadir)/java
-java_DATA = $(JARNAME)
-
-JARNAME = 3g-bridge-plugin-$(PACKAGE_VERSION).jar
-
-JAVA_CLASSES = $(noinst_JAVA:.java=.class)
-JAVA_CLASSNAMES = $(subst /,.,$(JAVA_CLASSES:.class=))
-
-CLEANFILES += $(JAVA_CLASSES) $(JARNAME)
-
-$(JARNAME): classnoinst.stamp
-	cd plugins; $(JAR) -cf ../$@ $(subst plugins/,,$(JAVA_CLASSES)); cd ..
-
-endif
-
 SUBDIRS = doc plugins
 
 noinst_HEADERS = \
@@ -171,10 +111,13 @@ jobwrapper_LDADD = -lboinc_api -lboinc $(GLIB_LIBS) $(MYSQL_LIBS) -luuid
 		QMException.cpp \
 		QueueManager.cpp \
 		Util.c \
-		MonitorHandler.h \
-		plugins/Null_handler.cpp \
-		$(BACKEND_SOURCES)
-3g_bridge_LDADD = $(GLIB_LIBS) $(BACKEND_LIBS) $(MYSQL_LIBS) -luuid
+		MonitorHandler.h
+
+3g_bridge_LDADD = $(GLIB_LIBS) $(GMODULE_LIBS) $(MYSQL_LIBS) -luuid
+if HAVE_EGEE
+3g_bridge_LDADD += $(EGEE_LIBS)
+endif
+3g_bridge_LDFLAGS = -export-dynamic
 
 wssubmitter_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
 nodist_wssubmitter_SOURCES = \
@@ -236,6 +179,8 @@ EXTRA_DIST += \
 		etc/3g-bridge.* \
 		doc/* \
 		soap/.keepme
+
+docdir = ${datadir}/doc/${PACKAGE}
 
 dist_doc_DATA = \
 		doc/README-BOINC2EGEE \

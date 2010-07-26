@@ -45,7 +45,7 @@ The list shows the minimum required version.
 - gsoap				2.7.9l		(for the web service interface)
 - BOINC				6.15		(for the DC-API plugin)
 - DC-API			0.9		(for the DC-API plugin)
-- gLite				3.1		(for the EGEE plugin)
+- gLite				3.2		(for the EGEE plugin)
 - Java JDK			6		(for the Java plugin)
 - Unicore command-line client	6.3.0		(for the BES plugin)
 - xsltproc			1.1.16		(for building the documentation)

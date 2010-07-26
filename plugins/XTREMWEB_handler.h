@@ -52,8 +52,6 @@ class XWHandler : public GridHandler {
 	 */
 	void poll(Job *job) throw (BackendException *);
 
-	static GridHandler *getInstance(GKeyFile *config, const char *instance);
-
     private:
 
 	//TODO make this configurable of course ;-)

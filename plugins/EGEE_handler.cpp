@@ -51,7 +51,7 @@
 #include <glite/jdl/adconverter.h>
 #include <glite/jdl/JDLAttributes.h>
 #include <glite/wms/wmproxyapi/wmproxy_api.h>
-#include <glite/wmsutils/jobid/JobId.h>
+#include <glite/jobid/JobId.h>
 #include <glite/wmsutils/exception/Exception.h>
 #include <globus_gass_copy.h>
 #include <globus_ftp_client.h>
@@ -65,7 +65,7 @@ using namespace std;
 using namespace glite::wms;
 using namespace glite::jdl;
 using namespace glite::wms::wmproxyapi;
-using namespace glite::wmsutils::jobid;
+using namespace glite::jobid;
 
 
 globus_mutex_t EGEEHandler::lock;
@@ -137,11 +137,6 @@ static int invoke_cmd(const char *exe, const char *const argv[], string *stdoe) 
 //
 // Public methods
 //
-
-GridHandler *EGEEHandler::getInstance(GKeyFile *config, const char *instance)
-{
-        return new EGEEHandler(config, instance);
-}
 
 
 EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException *): GridHandler(config, instance)
@@ -1030,6 +1025,7 @@ void EGEEHandler::renew_proxy() throw(BackendException *)
 	resp = (myproxy_response_t *)malloc(sizeof(*resp));
 	memset(resp, 0, sizeof(*resp));
 	req->username = strdup(myproxy_user);
+	myproxy_init_client(attrs);
 
 	if (myproxy_get_delegation(attrs, req, NULL, resp, (char *)proxyf.c_str()))
 	{
@@ -1439,4 +1435,13 @@ void EGEEHandler::movejoblogs(const string& jobid, const string& logdir, bool re
 		unlink(jerr.c_str());
 		unlink(jout.c_str());
 	}
+}
+
+/**********************************************************************
+ * Factory function
+ */
+
+HANDLER_FACTORY(config, instance)
+{
+	return new EGEEHandler(config, instance);
 }
