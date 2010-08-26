@@ -137,6 +137,8 @@ nodist_wsmonitor_SOURCES = \
 		$(MONITOR_SOAP_SOURCES_SERVER)
 wsmonitor_SOURCES = \
 		Util.c \
+		QMException.cpp \
+		BackendException.cpp \
 		WSMonitor.cpp
 wsmonitor_LDADD = $(GLIB_LIBS) $(GMODULE_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto
 wsmonitor_LDFLAGS = -export-dynamic
