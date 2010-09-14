@@ -200,7 +200,7 @@ static handler_factory_func get_factory(const char *handler)
 	if (!module)
 	{
 		char *path = g_strdup_printf("%s/%s_handler.%s", plugin_dir, handler, G_MODULE_SUFFIX);
-		module = g_module_open(path, G_MODULE_BIND_LOCAL);
+		module = g_module_open(path, G_MODULE_BIND_LAZY);
 		g_free(path);
 		if (!module)
 		{
