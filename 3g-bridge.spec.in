@@ -12,16 +12,14 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 BuildRequires: libstdc++-devel
 BuildRequires: glite-wms-wmproxy-api-cpp
 BuildRequires: boinc-client-devel
+# For gSOAP: byacc anc flex
 BuildRequires: byacc
+BuildRequires: flex
 # For libuuid.so:
 BuildRequires: e2fsprogs-devel
-#BuildRequires: glib2 >= 2.6
-# Static glib sources and deps, only needed until glib2 >= 2.6 comes
-# with the distro, at which point it can be shared and a BuildRequires
-Source1: http://ftp.gnome.org/pub/gnome/sources/glib/2.12/glib-2.12.13.tar.bz2
-BuildRequires: pkgconfig >= 0.14
+BuildRequires: glib2-devel >= 2.6
 BuildRequires: gettext
-Source2: http://prdownloads.sourceforge.net/gsoap2/gsoap_2.7.11.tar.gz
+Source1: http://prdownloads.sourceforge.net/gsoap2/gsoap_2.7.11.tar.gz
 BuildRequires: curl-devel
 BuildRequires: jdk
 
@@ -87,19 +85,9 @@ parsing BOINC workunits received by the BOINC jobwrapper client, and put
 them into the 3G bridge database.
 
 %prep
-%setup -q -n %{name}-%{ver} -a 1 -a 2
+%setup -q -n %{name}-%{ver} -a 1
 
 %build
-# Build static glib first, this can also be removed when using system glib
-cd glib-2.12.13
-./configure --host=%{_host} --build=%{_build} --target=%{_target_platform} \
-            --prefix="$PWD/installed" --enable-static --disable-shared
-make
-make install
-PKG_CONFIG_PATH=$PWD/installed/lib/pkgconfig:$PKG_CONFIG_PATH
-LD_LIBRARY_PATH=$PWD/installed/lib:$LD_LIBRARY_PATH
-cd ..
-
 # Build gsoap
 cd gsoap-2.7
 ./configure --host=%{_host} --build=%{_build} --target=%{_target_platform} \
@@ -201,6 +189,10 @@ fi
 %{_libexecdir}/3g-bridge/jobwrapper
 
 %changelog
+* Mon Sep 20 2010 FARKAS Zoltan <zfarkas@sztaki.hu> 1.0-1
+- Move to SL5
+- Update build requirements
+
 * Thu Mar 11 2010 BALATON Zoltan <balaton@sztaki.hu> 0.96r2324-1
 - Add missed man pages
 - Also package the Java plugin
