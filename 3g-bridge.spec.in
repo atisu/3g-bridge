@@ -12,6 +12,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 BuildRequires: libstdc++-devel
 BuildRequires: glite-wms-wmproxy-api-cpp
 BuildRequires: boinc-client-devel
+BuildRequires: byacc
 # For libuuid.so:
 BuildRequires: e2fsprogs-devel
 #BuildRequires: glib2 >= 2.6
