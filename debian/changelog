@@ -1,3 +1,10 @@
+3g-bridge (1.0-1) unstable; urgency=low
+
+  * New Debian release.
+  * Updated 3g-bridge.conf config file.
+
+ -- FARKAS Zoltán <zfarkas@sztaki.hu>  Mon, 20 Sep 2010 08:24:12 +0200
+
 3g-bridge (0.96-4) unstable; urgency=low
 
   * Add alternative master-ws.xml to also deploy all web services daemons

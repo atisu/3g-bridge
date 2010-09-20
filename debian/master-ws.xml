@@ -8,7 +8,7 @@
 	<name>3g-bridge</name>
 
 	<!-- Application version -->
-	<version>0.96</version>
+	<version>1.0</version>
 
 	<!-- Data files used by the master -->
 	<files>
