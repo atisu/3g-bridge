@@ -30,6 +30,10 @@ if HAVE_JAVA
 pkglib_LTLIBRARIES += Java_handler.la
 endif
 
+if HAVE_EC2
+pkglib_LTLIBRARIES += EC2_handler.la
+endif
+
 BOINC_monitor_la_SOURCES = BOINC_monitor.cpp BOINC_monitor.h
 BOINC_monitor_la_LIBADD = -lsched $(AM_LIBADD)
 
@@ -51,6 +55,8 @@ XTREMWEB_handler_la_SOURCES = XTREMWEB_handler.cpp XTREMWEB_handler.h
 
 Java_handler_la_SOURCES = Java_handler.cpp Java_handler.h
 Java_handler_la_CPPFLAGS = $(JAVA_INC) $(AM_CPPFLAGS) -DJAVA_CLASSPATH='"${javadir}/${JARNAME}"' -DPKGLIBDIR='"${pkglibdir}"'
+
+EC2_handler_la_SOURCES = EC2Util.cpp EC2Util.h EC2_handler.cpp EC2_handler.h
 
 CLASSDIR = hu/sztaki/lpds/G3Bridge
 JAVA_SRC = \

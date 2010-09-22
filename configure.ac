@@ -89,6 +89,17 @@ fi
 AM_CONDITIONAL([HAVE_EGEE], [test "$with_egee" != no])
 
 dnl -------------------------------------------------------------------
+dnl EC2
+dnl -------------------------------------------------------------------
+
+AC_ARG_WITH([ec2], AS_HELP_STRING([--with-ec2], [Enable Amazon EC2/ Eucalyptus backend @<:@no@:>@]),
+        [], [with_ec2=no])
+if test "$with_ec2" != no; then
+        AC_DEFINE([HAVE_EC2], [1], [Define if Amazon EC2/ Eucalyptus is requested.])
+fi
+AM_CONDITIONAL([HAVE_EC2], [test "$with_ec2" != no])
+
+dnl -------------------------------------------------------------------
 dnl XtremWeb
 dnl -------------------------------------------------------------------
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009 MTA SZTAKI LPDS
+ * Copyright (C) 2009-2010 MTA SZTAKI LPDS
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,6 +24,7 @@
  * version of the file, but you are not obligated to do so. If you do not wish to
  * do so, delete this exception statement from your version.
  */
+ 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -31,21 +32,22 @@
 #include "EC2Util.h"
 #include "Util.h"
 #include "DBHandler.h"
-#include "GridHandler.h"
-#include "EC2Handler.h"
+#include "EC2_handler.h"
+
 #include <vector>
 #include <iostream>
 #include <fstream>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <time.h>
 #include <cstring>
 #include <cstdlib>
 #include <map>
 #include <vector>
 #include <sstream>
 #include <typeinfo>
+
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <time.h>
 
 
 using namespace std;
@@ -215,13 +217,10 @@ void EC2Handler::updateStatus(void) throw (BackendException *)
     int tries = 1;
     int max_tries = 5;
     string output_text;
-
    
     gchar* commandline = g_strdup_printf("ec2-describe-instances --show-empty-fields --region %s", region.c_str());
     gchar** myargs = g_strsplit(commandline, " ", -1);
     g_free(commandline);
-
-    //const char *command[] = {"ec2-describe-instances", "--show-empty-fields", NULL};
 
     do 
     {
@@ -230,7 +229,6 @@ void EC2Handler::updateStatus(void) throw (BackendException *)
         {
  	        if (tries > max_tries) 
  	        {
- 	            /*throw new BackendException(*/
  	            logit(LOG_DEBUG,"%s::%s(): queriing instances failed: %s",
  	                typeid(*this).name(), __FUNCTION__, output_text.c_str());
                     g_strfreev(myargs);		     
@@ -313,8 +311,6 @@ void EC2Handler::updateJob(Job *job)
 
 void EC2Handler::cleanJob(Job *job)
 {
-    // logit(LOG_DEBUG, "%s::%s(): Called.", typeid(*this).name(), __FUNCTION__);
-
 
 }
 
@@ -371,7 +367,6 @@ void EC2Handler::terminateVMInstance(string instance_id) throw (BackendException
 {
    int result;
    string command_result;
-   //const char *command[] = {"ec2-terminate-instances", instance_id.c_str(), NULL};
    gchar* commandline = g_strdup_printf("ec2-terminate-instances --region %s %s", region.c_str(), instance_id.c_str());
    gchar** myargs = g_strsplit(commandline, " ", -1);
    g_free(commandline);
@@ -388,13 +383,6 @@ void EC2Handler::terminateVMInstance(string instance_id) throw (BackendException
 void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (BackendException *)
 {
     name = instance;
-    /* 
-     * ec2_image (required) 
-     */
-    /*     
-    image =  g_key_file_get_string(config, instance, "ec2_image", NULL);
-    */
-
     /* 
      * ec2_home (required) 
      */
@@ -497,48 +485,6 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
         throw new BackendException("EC2: 'ssh-private-key-id' is not set for %s",
 		    instance);
     logit(LOG_DEBUG, "EC2Handler: 'ssh-private-key-id' is '%s'", ssh_pkey_id.c_str());
-
-
-    /*
-     * state_dir (required)
-     */
-    /*
-    state_dir = g_key_file_get_string(config, instance, "ec2-state-dir", NULL);
-    if (state_dir.empty())
-        throw new BackendException("EC2: 'ec2-state-dir' is not set for %s",
-		    instance);
-    logit(LOG_DEBUG, "EC2Handler: 'ec2-state-dir' is '%s'", state_dir.c_str());
-    */
-    
-    /*
-     * wrapper-script (required)
-     */
-    /*
-    wrapper_script = g_key_file_get_string(config, instance, "wrapper-script", NULL);
-    if (wrapper_script.empty())
-    throw new BackendException("EC2: 'wrapper-script' is not set for %s",
-	    instance);
-    logit(LOG_DEBUG, "EC2Handler: 'wrapper-script' is '%s'", wrapper_script.c_str());
-    ifstream ifile(wrapper_script.c_str(), ifstream::in);
-    if (!(ifile)) 
-    {
-        throw new BackendException("EC2: 'wrapper-script' does not exist: %s",
-  		    wrapper_script.c_str());       
-    }
-    ifile.close();
-    */
-
-    /*
-     * ec2-instance-limit (required)
-     */
-    /*
-    maximum_instances = g_key_file_get_integer(config, instance, "ec2-instance-limit", NULL);
-    if (maximum_instances == 0)
-        throw new BackendException("EC2: 'ec2-instance-limit' is not set for %s",
-		    instance);
-    logit(LOG_DEBUG, "EC2Handler: 'ec2-instance-limit' is '%d'", maximum_instances);
-    */
-
     /* 
      * s3_url (optional) 
      */
@@ -569,7 +515,6 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
         logit(LOG_DEBUG, "EC2Handler: EC2 url is set to %s", ec2url);	        
         g_free(ec2url);
     }
-   
     /*
      * ec2_access_key (optional)
      */
@@ -586,7 +531,6 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
         logit(LOG_DEBUG, "EC2Handler: EC2 access key set");	        
         g_free(ec2acck);
     }
-
     /*
      * ec2_secret_key (optional)
      */
@@ -603,7 +547,6 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
         logit(LOG_DEBUG, "EC2Handler: EC2 secret key set");        
         g_free(ec2seck);
     }
-
     /*
      * user-data (optional)
      */
@@ -612,17 +555,14 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
         throw new BackendException("EC2: 'region' is not set for %s",
 		    instance);
     logit(LOG_DEBUG, "EC2Handler: 'region' is '%s'", region.c_str());
-
-   
     /*
-     * USER-data (optional)
+     * user-data (optional)
      */
     gchar* t_user_data = g_key_file_get_string(config, instance, "user-data", NULL);
     /*
      * user-data-file (optional)
      */
     gchar* t_user_data_file = g_key_file_get_string(config, instance, "user-data-file", NULL);
-    
     if (t_user_data_file != NULL) {
        user_data.append(" -f ");
        user_data.append(t_user_data_file);
@@ -638,7 +578,6 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
     }
     logit(LOG_DEBUG, "%s::%s(): user-data set to '%s'", 
        typeid(*this).name(), __FUNCTION__, user_data.c_str());
-   
     name = instance;
     groupByNames = false;
 }

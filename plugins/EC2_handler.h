@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2008 MTA SZTAKI LPDS 
+ * Copyright (C) 2009-2010 MTA SZTAKI LPDS 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 of the License, or (at your
@@ -23,14 +24,15 @@
  * version of the file, but you are not obligated to do so. If you do not wish to
  * do so, delete this exception statement from your version.
  */
+ 
 #ifndef EC2HANDLER_H
 #define EC2HANDLER_H
 
+#include "GridHandler.h"
+
 #include <map>
 
-
 using namespace std;
-
 
 class EC2Handler: public GridHandler {
 
@@ -56,7 +58,6 @@ class EC2Handler: public GridHandler {
      void terminateVMInstance(string instance_id) throw (BackendException *);
      string execLocalCommand(string local_command) throw (BackendException *);
      void setEnvironment(GKeyFile *config, const char *instance) throw (BackendException *);
-
  };
 
  #endif /* EC2HANDLER_H */

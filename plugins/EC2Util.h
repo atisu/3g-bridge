@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2008 MTA SZTAKI LPDS 
+ * Copyright (C) 2009-2010 MTA SZTAKI LPDS 
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation; either version 2 of the License, or (at your
@@ -23,6 +24,7 @@
  * version of the file, but you are not obligated to do so. If you do not wish to
  * do so, delete this exception statement from your version.
  */
+ 
 #ifndef EC2UTIL_H
 #define EC2UTIL_H
 
