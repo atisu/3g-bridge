@@ -113,10 +113,11 @@ jobwrapper_LDADD = -lboinc_api -lboinc $(GLIB_LIBS) $(MYSQL_LIBS) -luuid
 		Util.c \
 		MonitorHandler.h
 
-3g_bridge_LDADD = $(GLIB_LIBS) $(GMODULE_LIBS) $(MYSQL_LIBS) -luuid
+3g_bridge_LDADD =
 if HAVE_EGEE
 3g_bridge_LDADD += $(EGEE_LIBS)
 endif
+3g_bridge_LDADD += $(GLIB_LIBS) $(GMODULE_LIBS) $(MYSQL_LIBS) -luuid
 3g_bridge_LDFLAGS = -export-dynamic
 
 wssubmitter_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
