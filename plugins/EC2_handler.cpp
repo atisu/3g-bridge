@@ -53,7 +53,7 @@
 using namespace std;
 
 
-EC2Handler::EC2Handler(GKeyFile *config, const char *instance)
+EC2Handler::EC2Handler(GKeyFile *config, const char *instance): GridHandler(config, instance)
 {
     last_updatejob_reply = "";
     user_data = "";
@@ -208,8 +208,6 @@ EC2Handler::~EC2Handler()
 
 void EC2Handler::updateStatus(void) throw (BackendException *)
 {
-    logit(LOG_DEBUG, "%s::%s(): Called.", typeid(*this).name(), __FUNCTION__);
-
     /*
      *  Get status from EC2
      */
@@ -384,17 +382,19 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
 {
     name = instance;
     /* 
-     * ec2_home (required) 
+     * ec2-home (required) 
      */
-    gchar *ec2home = g_key_file_get_string(config, instance, "ec2_home", NULL);
+    gchar *ec2home = g_key_file_get_string(config, instance, "ec2-home", NULL);
     if (ec2home != NULL) 
     {
         if (setenv("EC2_HOME", ec2home, 1) != 0) 
         {
             g_free(ec2home);
-            throw new BackendException("EC2: ec2 home is not set for %s", instance);	            
+            throw new BackendException("%s::%s(): ec2-home is not set for %s",
+                typeid(*this).name(), __FUNCTION__, instance);    
         }
-        logit(LOG_DEBUG, "EC2Handler: the value of EC2_HOME home is %s", ec2home);	            
+        logit(LOG_DEBUG, "%s::%s(): 'ec2-home' is set to '%s'",
+            typeid(*this).name(), __FUNCTION__, ec2home);
         gchar *path = getenv("PATH");
         GString *newpath = g_string_new(NULL);
         g_string_sprintf(newpath, "%s/bin:%s", ec2home, path);
@@ -402,159 +402,168 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
         if (setenv("PATH", newpath->str, 1) != 0) 
         {
             g_string_free(newpath, TRUE);
-            throw new BackendException("EC2: failure of adding ec2 home to path in %s",
-    		    instance);	                
+            throw new BackendException("%s::%s(): failure of adding ec2 home to path in %s",
+    		    instance, typeid(*this).name(), __FUNCTION__);	                
         }
-        logit(LOG_DEBUG, "EC2Handler: the value of PATH is %s", newpath->str);
+        logit(LOG_DEBUG, "%s::%s(): the value of PATH is '%s'",
+            typeid(*this).name(), __FUNCTION__, newpath->str);
         g_string_free(newpath, TRUE);
     }
     /* 
-     * java_home (required) 
+     * java-home (required) 
      */
-    gchar* javahome = g_key_file_get_string(config, instance, "java_home", NULL);
+    gchar* javahome = g_key_file_get_string(config, instance, "java-home", NULL);
     if (javahome != NULL)
     {
         if (setenv("JAVA_HOME", javahome, 1) != 0)
         {
             g_free(javahome);
-            throw new BackendException("EC2: java home is not set for %s",
-    		    instance);	        
+            throw new BackendException("%s::%s(): java home ('java-home') is not set for %s",
+    		    typeid(*this).name(), __FUNCTION__, instance);	        
         }
-        logit(LOG_DEBUG, "EC2Handler: JAVA home is set to %s", javahome);	        
+        logit(LOG_DEBUG, "%s::%s(): 'java-home' is set to '%s'",
+            typeid(*this).name(), __FUNCTION__, javahome);
         g_free(javahome);
     }
     /*
-     * ec2_private_key (required)
+     * ec2-private-key (required)
      */
-    gchar* ec2pk = g_key_file_get_string(config, instance, "ec2_private_key", NULL);    
+    gchar* ec2pk = g_key_file_get_string(config, instance, "ec2-private-key", NULL);    
     if (ec2pk != NULL)
     {
         if (setenv("EC2_PRIVATE_KEY", ec2pk, 1) != 0) 
         {
             g_free(ec2pk);
-            throw new BackendException("EC2: private key path is not set for %s",
-    		    instance);	            
+            throw new BackendException("%s::%s(): private key path ('ec2-private-key') is not set for %s",
+    		    typeid(*this).name(), __FUNCTION__, instance);	            
         }
-        logit(LOG_DEBUG, "EC2Handler: EC2 private key is  %s", ec2pk);	        
+        logit(LOG_DEBUG, "%s::%s(): 'ec2-private-key' is set to '%s'",
+            typeid(*this).name(), __FUNCTION__, ec2pk);
         g_free(ec2pk);
     }
     /*
-     * ec2_cert (required)
+     * ec2-certificate (required)
      */
-    gchar *ec2cert = g_key_file_get_string(config, instance, "ec2_cert", NULL);
+    gchar *ec2cert = g_key_file_get_string(config, instance, "ec2-certificate", NULL);
     if (ec2cert != NULL)
     {
         if (setenv("EC2_CERT", ec2cert, 1) != 0) 
         {
             g_free(ec2cert);
-            throw new BackendException("EC2: ec2 certificate path is not set for %s",
-    		    instance);	    
+            throw new BackendException("%s::%s(): ec2 certificate path ('ec2-certificate')is not set for %s",
+    		    typeid(*this).name(), __FUNCTION__, instance);	    
         }
-        logit(LOG_DEBUG, "EC2Handler: EC2 cert is  %s", ec2cert);	
+        logit(LOG_DEBUG, "%s::%s(): 'ec2-certificate' is set to '%s'",
+            typeid(*this).name(), __FUNCTION__, ec2cert);	
         g_free(ec2cert);
      }
     /*
-     * eucalyptus_cert (optional)
+     * eucalyptus-certificate (not required for Amazon EC2 - required for Eucalyptus)
      */ 
-    gchar *ecert = g_key_file_get_string(config, instance, "eucalyptus_cert", NULL);
+    gchar *ecert = g_key_file_get_string(config, instance, "eucalyptus-certificate", NULL);
     if (ecert != NULL) 
     {
         if(setenv("EUCALYPTUS_CERT",ec2cert, 1) != 0) 
         {
             g_free(ecert);
-            throw new BackendException("EC2: eucalyptus certificate path is not set for %s",
-    		    instance);	                
+            throw new BackendException("%s::%s(): eucalyptus certificate path ('eucalyptus-certificate') is not set for %s",
+    		    typeid(*this).name(), __FUNCTION__, instance);	                
         }
         g_free(ecert);
-        logit(LOG_DEBUG, "EC2Handler: Eucalyptus cert %s", ecert);	
+        logit(LOG_DEBUG, "%s::%s(): 'eucalyptus-certificate' is set to '%s'",
+            typeid(*this).name(), __FUNCTION__, ecert);	
     }
     /*
      * ssh-private-key-path (required)
      */
     ssh_pkey_path = g_key_file_get_string(config, instance, "ssh-private-key-path", NULL);
     if (ssh_pkey_path.empty())
-        throw new BackendException("EC2: 'ssh-private-key-path' is not set for %s",
-		    instance);	    
-    logit(LOG_DEBUG, "EC2Handler: 'ssh-private-key-path' is '%s'", ssh_pkey_path.c_str());
+        throw new BackendException("%s::%s(): 'ssh-private-key-path' is not set for %s",
+		    typeid(*this).name(), __FUNCTION__, instance);	    
+    logit(LOG_DEBUG, "%s::%s(): 'ssh-private-key-path' is '%s'",
+        typeid(*this).name(), __FUNCTION__, ssh_pkey_path.c_str());
 
     /*
      * ssh-private-key-id (required)
      */
     ssh_pkey_id = g_key_file_get_string(config, instance, "ssh-private-key-id", NULL);
     if (ssh_pkey_id.empty())
-        throw new BackendException("EC2: 'ssh-private-key-id' is not set for %s",
-		    instance);
-    logit(LOG_DEBUG, "EC2Handler: 'ssh-private-key-id' is '%s'", ssh_pkey_id.c_str());
+        throw new BackendException("%s::%s(): 'ssh-private-key-id' is not set for %s",
+		    typeid(*this).name(), __FUNCTION__, instance);
+    logit(LOG_DEBUG, "%s::%s(): 'ssh-private-key-id' is '%s'", 
+        typeid(*this).name(), __FUNCTION__, ssh_pkey_id.c_str());
     /* 
-     * s3_url (optional) 
+     * s3-service-url (not required for Amazon EC2 - required for Eucalyptus) 
      */
-    gchar *s3url = g_key_file_get_string(config, instance, "s3_url", NULL);
+    gchar *s3url = g_key_file_get_string(config, instance, "s3-service-url", NULL);
     if (s3url != NULL)
     {
-        if (setenv("S3_URL",s3url, 1) != 0) 
+        if (setenv("S3_URL", s3url, 1) != 0) 
         {
             g_free(s3url);
-            throw new BackendException("EC2: s3 url is not set for %s",
-    		    instance);	                
+            throw new BackendException("%s::%s(): s3 url ('s3-service-url') is not set for %s",
+    		    typeid(*this).name(), __FUNCTION__, instance);	                
         }
-        logit(LOG_DEBUG, "EC2Handler: S3 url is set to %s", s3url);	
+        logit(LOG_DEBUG, "%s::%s(): s3-service-url is set to '%s'", 
+            typeid(*this).name(), __FUNCTION__, s3url);	
         g_free(s3url);
     }
     /*
-     * ec2_url (optional)
+     * ec2-service-url (not required for Amazon EC2 - required for Eucalyptus)
      */
-    gchar *ec2url = g_key_file_get_string(config, instance, "ec2_url", NULL);
+    gchar *ec2url = g_key_file_get_string(config, instance, "ec2-service-url", NULL);
     if (ec2url != NULL) 
     {
         if(setenv("EC2_URL", ec2url, 1) != 0) 
         {
             g_free(ec2url);
-            throw new BackendException("EC2: ec2 url is not set for %s",
-    		    instance);	                
+            throw new BackendException("%s::%s(): ec2 service url ('ec2-sevice-url') is not set for %s",
+    		    typeid(*this).name(), __FUNCTION__, instance);	                
         }
-        logit(LOG_DEBUG, "EC2Handler: EC2 url is set to %s", ec2url);	        
+        logit(LOG_DEBUG, "%s::%s(): ec2-sevice-url is set to %s", 
+            typeid(*this).name(), __FUNCTION__, ec2url);	        
         g_free(ec2url);
     }
     /*
-     * ec2_access_key (optional)
+     * ec2-access-key (not required for Amazon EC2 - required for Eucalyptus)
      */
-    gchar *ec2acck = g_key_file_get_string(config, instance, "ec2_access_key",
+    gchar *ec2acck = g_key_file_get_string(config, instance, "ec2-access-key",
 	    NULL);
     if (ec2acck != NULL)
     {
         if (setenv("EC2_ACCESS_KEY",ec2acck, 1) != 0)
         {
             g_free(ec2acck);
-            throw new BackendException("EC2: ec2 access key path is not set for %s",
-    		    instance);	                
+            throw new BackendException("%s::%s(): ec2 access key path ('ec2-access-key') is not set for %s",
+    		    typeid(*this).name(), __FUNCTION__, instance);	                
         }
-        logit(LOG_DEBUG, "EC2Handler: EC2 access key set");	        
+        logit(LOG_DEBUG, "%s::%s(): ec2-access-key is set", typeid(*this).name(), __FUNCTION__);	        
         g_free(ec2acck);
     }
     /*
-     * ec2_secret_key (optional)
+     * ec2-secret-key (not required for Amazon EC2 - required for Eucalyptus)
      */
-    gchar *ec2seck = g_key_file_get_string(config, instance, "ec2_secret_key",
+    gchar *ec2seck = g_key_file_get_string(config, instance, "ec2-secret-key",
 	    NULL);
     if (ec2seck != NULL)
     {
         if (setenv("EC2_SECRET_KEY",ec2seck, 1) != 0) 
         {
             g_free(ec2seck);
-            throw new BackendException("EC2: ec2 secret key path is not set for %s",
-    		    instance);	                
+            throw new BackendException("%s::%s(): ec2 secret key path ('ec2-secret-key') is not set for %s",
+    		    typeid(*this).name(), __FUNCTION__, instance);	                
         }
-        logit(LOG_DEBUG, "EC2Handler: EC2 secret key set");        
+        logit(LOG_DEBUG, "%s::%s(): ec2-secret-key is set", typeid(*this).name(), __FUNCTION__);        
         g_free(ec2seck);
     }
     /*
-     * user-data (optional)
+     * region (required)
      */
     region = g_key_file_get_string(config, instance, "region", NULL);
     if (region.empty())
-        throw new BackendException("EC2: 'region' is not set for %s",
-		    instance);
-    logit(LOG_DEBUG, "EC2Handler: 'region' is '%s'", region.c_str());
+        throw new BackendException("%s::%s(): 'region' is not set for %s", 
+            typeid(*this).name(), __FUNCTION__, instance);
+    logit(LOG_DEBUG, "%s::%s(): 'region' is '%s'", typeid(*this).name(), __FUNCTION__, region.c_str());
     /*
      * user-data (optional)
      */
@@ -576,9 +585,19 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
 		    typeid(*this).name(), __FUNCTION__);
        user_data = "";
     }
-    logit(LOG_DEBUG, "%s::%s(): user-data set to '%s'", 
+    logit(LOG_DEBUG, "%s::%s(): user specified data is '%s'", 
        typeid(*this).name(), __FUNCTION__, user_data.c_str());
     name = instance;
     groupByNames = false;
+}
+
+
+/**********************************************************************
+ * Factory function
+ */
+
+HANDLER_FACTORY(config, instance)
+{
+	return new EC2Handler(config, instance);
 }
 
