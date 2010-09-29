@@ -352,6 +352,7 @@ static void init_grid_handlers(void)
 		GError *err = NULL;
 
 		handler = g_key_file_get_string(global_config, sections[i], "handler", NULL);
+		g_strstrip(handler);
 		enabled = g_key_file_get_boolean(global_config, sections[i], "enable", &err);
 		if (err) /* It's enabled by default */
 			enabled = TRUE;
@@ -457,6 +458,7 @@ int main(int argc, char **argv)
 			error = NULL;
 		}
 	}
+	g_strstip(plugin_dir);
 
 	if (debug_mode)
 	{

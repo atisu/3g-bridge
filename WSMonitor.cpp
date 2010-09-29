@@ -170,6 +170,7 @@ static MonitorHandler *get_instance(const char *grid)
 		LOG(LOG_ERR, "No handler is defined for grid %s", grid);
 		return 0;
 	}
+	g_strstrip(handler);
 
 	fn = get_factory(handler);
 	g_free(handler);
@@ -301,6 +302,7 @@ int main(int argc, char **argv)
 			error = NULL;
 		}
 	}
+	g_strstrip(plugin_dir);
 
 	if (debug_mode)
 	{

@@ -670,11 +670,14 @@ void DBHandler::init(GKeyFile *config)
 		throw new QMException("Failed to retrieve the database name: %s", error->message);
 	if (!dbname || !strlen(dbname))
 		throw new QMException("The database name is not specified in the configuration file");
+	g_strstip(dbname);
 
 	/* These are not mandatory */
 	host = g_key_file_get_string(config, GROUP_DATABASE, "host", NULL);
 	user = g_key_file_get_string(config, GROUP_DATABASE, "user", NULL);
 	passwd = g_key_file_get_string(config, GROUP_DATABASE, "password", NULL);
+	g_strstrip(host);
+	g_strstrip(user);
 
 	/* max-connections is not mandatory, but if it is present it must be valid */
 	max_connections = g_key_file_get_integer(config, GROUP_DATABASE, "max-connections", &error);

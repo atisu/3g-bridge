@@ -248,16 +248,19 @@ void init_config(void)
 		LOG(LOG_ERR, "Failed to get database name: %s\n", error->message);
 		free_config_exit(kf, error);
 	}
+	g_strstrip(mysql_dbname);
 	mysql_host = g_key_file_get_string(kf, "database", "host", &error);
 	if (!mysql_host) {
 		LOG(LOG_ERR, "Failed to get database host: %s\n", error->message);
 		free_config_exit(kf, error);
 	}
+	g_strstrip(mysql_host);
 	mysql_user = g_key_file_get_string(kf, "database", "user", &error);
 	if (!mysql_user) {
 		LOG(LOG_ERR, "Failed to get database user: %s\n", error->message);
 		free_config_exit(kf, error);
 	}
+	g_strstrip(mysql_user);
 	mysql_pass = g_key_file_get_string(kf, "database", "password", &error);
 	if (!mysql_pass) {
 		LOG(LOG_ERR, "Failed to get database password: %s\n", error->message);
@@ -268,6 +271,7 @@ void init_config(void)
 		LOG(LOG_ERR, "Failed to get %s grid: %s\n", cfgsection, error->message);
 		free_config_exit(kf, error);
 	}
+	g_strstrip(grid);
 
 	g_key_file_free(kf);
 }

@@ -142,7 +142,10 @@ void log_init(GKeyFile *config, const char *section)
 	if (!str)
 		str = g_key_file_get_string(config, GROUP_DEFAULTS, "log-level", NULL);
 	if (str)
+	{
+		g_strstrip(str);
 		set_level(str);
+	}
 	g_free(str);
 
 	str = g_key_file_get_string(config, section, "log-target", NULL);
@@ -150,6 +153,7 @@ void log_init(GKeyFile *config, const char *section)
 		str = g_key_file_get_string(config, GROUP_DEFAULTS, "log-target", NULL);
 	if (!str)
 		goto out;
+	g_strstrip(str);
 
 	/* Default if nothing else is specified */
 	log_mode = SYSLOG;
@@ -291,6 +295,7 @@ int pid_file_create(GKeyFile *config, const char *section)
 	str = g_key_file_get_string(config, section, "pid-file", NULL);
 	if (!str)
 		str = g_strdup_printf("%s/%s.pid", RUNDIR, section);
+	g_strstrip(str);
 
 	fd = open(str, O_RDWR | O_CREAT, 0644);
 	if (fd == -1)
@@ -355,6 +360,7 @@ int pid_file_kill(GKeyFile *config, const char *section)
 	str = g_key_file_get_string(config, section, "pid-file", NULL);
 	if (!str)
 		str = g_strdup_printf("%s/%s.pid", RUNDIR, section);
+	g_strstrip(str);
 
 	fd = open(str, O_RDWR);
 	if (fd == -1)

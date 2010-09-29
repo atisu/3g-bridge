@@ -784,6 +784,7 @@ int main(int argc, char **argv)
 		g_error_free(error);
 		exit(EX_DATAERR);
 	}
+	g_strstrip(input_dir);
 
 	output_dir = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "output-dir", &error);
 	if (!output_dir || error)
@@ -792,6 +793,7 @@ int main(int argc, char **argv)
 		g_error_free(error);
 		exit(EX_DATAERR);
 	}
+	g_strstrip(output_dir);
 
 	output_url_prefix = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "output-url-prefix", &error);
 	if (!output_url_prefix || error)
@@ -800,6 +802,7 @@ int main(int argc, char **argv)
 		g_error_free(error);
 		exit(EX_DATAERR);
 	}
+	g_strstrip(output_url_prefix);
 
 	if (run_as_daemon && pid_file_create(global_config, GROUP_WSSUBMITTER))
 		exit(EX_OSERR);
