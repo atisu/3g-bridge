@@ -341,7 +341,8 @@ static jstring JNICALL GridHandler_getConfig(JNIEnv *env, jclass cls, jstring in
 	string instance = string_from_java(env, inststr);
 	string key = string_from_java(env, keystr);
 	
-	char *value = g_key_file_get_string(global_config, instance.c_str(), key.c_str(), NULL);
+	gchar *value = g_key_file_get_string(global_config, instance.c_str(), key.c_str(), NULL);
+	g_strstrip(value);
 	jstring valstr;
 	if (value)
 		valstr = env->NewStringUTF(value);
@@ -383,6 +384,7 @@ static string get_classpath(GKeyFile *config, const char *instance)
 	p = g_key_file_get_string(config, instance, "classpath", NULL);
 	if (p)
 	{
+		g_strstrip(p);
 		path.push_back(':');
 		path += p;
 		g_free(p);
@@ -428,6 +430,7 @@ JavaHandler::JavaHandler(GKeyFile *config, const char *instance) throw (BackendE
 	char *opt = g_key_file_get_string(config, instance, "java-home", NULL);
 	if (opt)
 	{
+		g_strstrip(opt);
 		lib_handle = try_load_jvm(opt);
 		g_free(opt);
 	}
@@ -478,6 +481,7 @@ JavaHandler::JavaHandler(GKeyFile *config, const char *instance) throw (BackendE
 	char *class_name = g_key_file_get_string(config, instance, "java-class", NULL);
 	if (!class_name)
 		throw new BackendException("Missing handler-class for %s", instance);
+	g_strstrip(class_name);
 	/* Convert foo.bar to foo/bar */
 	for (int i = 0; class_name[i]; i++)
 		if (class_name[i] == '.')

@@ -43,6 +43,7 @@ BOINCMonitor::BOINCMonitor(GKeyFile *config, const char *instance) throw (Backen
 	char *projectroot;
 
 	projectroot = g_key_file_get_string(config, instance, "project-dir", NULL);
+	g_strstrip(projectroot);
 	boinc_config.parse_file(projectroot);
 	g_free(projectroot);
 

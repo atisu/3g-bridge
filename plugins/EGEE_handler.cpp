@@ -182,6 +182,14 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 		throw new BackendException("EGEE: no inputsandbox URL specified"
 			" for %s", instance);
 
+	g_strstrip(wmpendp);
+	g_strstrip(noname);
+	g_strstrip(myproxy_host);
+	g_strstrip(myproxy_authcert);
+	g_strstrip(myproxy_authkey);
+	g_strstrip(myproxy_port);
+	g_strstrip(isb_url);
+
 	globus_errmsg = NULL;
 
 	cfg = 0;

@@ -123,7 +123,8 @@ DCAPISingleHandler::DCAPISingleHandler(GKeyFile *config, const char *instance) t
 {
 	name = instance;
 
-	char *conffile = g_key_file_get_string(config, instance, "dc-api-config", NULL);
+	gchar *conffile = g_key_file_get_string(config, instance, "dc-api-config", NULL);
+	g_strstrip(conffile);
 
 	if (DC_OK != DC_initMaster(conffile ? conffile : NULL))
 		throw new BackendException("Failed to initialize the DC-API");

@@ -71,16 +71,21 @@ XWHandler::XWHandler(GKeyFile *config, const char *instance) throw (BackendExcep
 
     groupByNames = false;
     xwclient = g_key_file_get_string(config,instance,"xwclient-dir",NULL);
+    g_strstrip(xwclient);
 
     g_env= g_key_file_get_string(config,instance,"xwenv",NULL);
+    g_strstrip(g_env);
 
     g_outputpath=g_key_file_get_string(config,instance,"output-dir",NULL);
+    g_strstrip(g_outputpath);
     LOG(LOG_DEBUG,"XW bridge output dir:%s \n",g_outputpath.c_str());
 
     g_timefordl=g_key_file_get_string(config,instance,"xwdltime",NULL);
+    g_strstrip(g_timefordl);
     LOG(LOG_DEBUG,"XW bridge download results time:%s \n",g_timefordl.c_str());
 
     g_installdir=g_key_file_get_string(config,instance,"installdir",NULL);
+    g_strstrip(g_installdir);
     LOG(LOG_DEBUG,"XW bridge installed dirs:%s \n",g_installdir.c_str());
 
     if (!xwclient)
