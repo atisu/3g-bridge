@@ -183,7 +183,7 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 			" for %s", instance);
 
 	g_strstrip(wmpendp);
-	g_strstrip(noname);
+	g_strstrip(voname);
 	g_strstrip(myproxy_host);
 	g_strstrip(myproxy_authcert);
 	g_strstrip(myproxy_authkey);
@@ -542,7 +542,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		while (!events.size() && tries < 3) {
 			try {
 				LOG(LOG_DEBUG, "EGEE Plugin (%s): collecting "
-					"node IDs (attempt %zd of 3)",
+					"node IDs (attempt %d of 3)",
 					name.c_str(), tries);
 				events = ctJob.log();
 				tries++;
@@ -950,7 +950,7 @@ void EGEEHandler::cleanJob(Job *job)
 		catch (BaseException &e)
 		{
 			i++;
-			LOG(LOG_WARNING, "EGEE Plugin (%s): clean attempt %zd "
+			LOG(LOG_WARNING, "EGEE Plugin (%s): clean attempt %d "
 				"failed, EGEE exception follows:\n%s",
 				name.c_str(), i, getEGEEErrMsg(e).c_str());
 		}
@@ -1258,7 +1258,7 @@ void EGEEHandler::updateJob(Job *job)
 			logjob(job->getId(), ERROR, "CLI-based status query:" +
 				gstatstr);
 			LOG(LOG_WARNING, "EGEE Plugin (%s): failed to update "
-				"status of EGEE job \"%s\" (attempt %zd), EGEE "
+				"status of EGEE job \"%s\" (attempt %d), EGEE "
 				"exception follows:\n%s", name.c_str(),
 				job->getGridId().c_str(), ++tries,
 				getEGEEErrMsg(e).c_str());
@@ -1285,7 +1285,7 @@ void EGEEHandler::updateJob(Job *job)
 			logjob(job->getId(), ERROR, "CLI-based status query:" +
 				gstatstr);
 			LOG(LOG_WARNING, "EGEE Plugin (%s): failed to update "
-				"status of EGEE job \"%s\" (attempt %zd), EGEE "
+				"status of EGEE job \"%s\" (attempt %d), EGEE "
 				"exception follows:\n%s", name.c_str(),
 				job->getGridId().c_str(), ++tries,
 				e.dbgMessage().c_str());
