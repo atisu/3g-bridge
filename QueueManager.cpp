@@ -458,7 +458,7 @@ int main(int argc, char **argv)
 			error = NULL;
 		}
 	}
-	g_strstip(plugin_dir);
+	g_strstrip(plugin_dir);
 
 	if (debug_mode)
 	{

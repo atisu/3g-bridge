@@ -670,7 +670,7 @@ void DBHandler::init(GKeyFile *config)
 		throw new QMException("Failed to retrieve the database name: %s", error->message);
 	if (!dbname || !strlen(dbname))
 		throw new QMException("The database name is not specified in the configuration file");
-	g_strstip(dbname);
+	g_strstrip(dbname);
 
 	/* These are not mandatory */
 	host = g_key_file_get_string(config, GROUP_DATABASE, "host", NULL);
