@@ -49,8 +49,6 @@ class EC2Handler: public GridHandler {
      static GridHandler *getInstance(GKeyFile *config, const char *instance);
 
  private:
-     string ssh_pkey_path;
-     string ssh_pkey_id;
      string user_data;
      string region;
      string last_updatejob_reply;

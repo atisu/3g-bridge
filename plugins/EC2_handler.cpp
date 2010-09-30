@@ -73,7 +73,6 @@ void EC2Handler::submitJob(Job *job) throw (BackendException *)
    gchar* ramdisk_id = NULL;
    gchar* instance_type = NULL;
    gchar* group = NULL;
-   gchar* region = NULL;
    GError *error = NULL;
    GOptionContext *context;
    GOptionEntry entries[] = 
@@ -83,7 +82,6 @@ void EC2Handler::submitJob(Job *job) throw (BackendException *)
        {"ramdisk", 'r', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &ramdisk_id, "Ramdisk Image", "ARI"},
        {"instance-type", 't', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &instance_type, "Instance Type", "TYPE"},
        {"group", 'g', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &group, "Security Group", "GROUP"},      
-       {"region", 'r', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &region, "Region", "REGION"},
        {NULL}
    };
    string job_id;
@@ -102,22 +100,27 @@ void EC2Handler::submitJob(Job *job) throw (BackendException *)
    g_free(my_args);
    my_argc = g_strv_length(my_argv);
 
-   context = g_option_context_new("parse arguments");
+   context = g_option_context_new("- Amazon EC2/ Eucalyptus plug-in for 3G-Bridge");
    g_option_context_add_main_entries(context, entries, NULL);
    if (!g_option_context_parse(context, &my_argc, &my_argv, &error))
    {
-       throw new BackendException("%s::%s(): cannot parse job arguments: '%s'", 
-		    typeid(*this).name(), __FUNCTION__, job->getArgs().c_str());
+       job->setStatus(Job::ERROR);
+       logit(LOG_DEBUG, "%s::%s(): cannot parse job arguments: '%s'", 
+           typeid(*this).name(), __FUNCTION__, job->getArgs().c_str());
+       return;
    }
    g_strfreev(my_argv);
+   g_option_context_free(context);
    
    GString* my_arguments = g_string_new(NULL);   
    if (!image_id)
    {
-       /* image_id is mandatory */
+        /* image_id is mandatory */
        job->setStatus(Job::ERROR);
-       throw new BackendException("%s::%s(): AMI is not provided with argument '--image=<AMI>'", 
-		    typeid(*this).name(), __FUNCTION__);       
+       logit(LOG_DEBUG, "%s::%s(): AMI is not provided with argument '--image=<AMI>'", 
+           typeid(*this).name(), __FUNCTION__);       
+       g_string_free(my_arguments, TRUE);
+       return;
    }
    my_arguments = g_string_append(my_arguments, image_id);
    g_free(image_id);       
@@ -141,12 +144,9 @@ void EC2Handler::submitJob(Job *job) throw (BackendException *)
        g_string_append_printf(my_arguments, " --group %s", group);
        g_free(group);
    }
-   if (region)
-   {
-       g_string_append_printf(my_arguments, " --region %s", region);
-       g_free(region);
-   }
 
+   /* region is from config file */
+   g_string_append_printf(my_arguments, " --region %s", region.c_str());
    
    try 
    {
@@ -387,6 +387,7 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
     gchar *ec2home = g_key_file_get_string(config, instance, "ec2-home", NULL);
     if (ec2home != NULL) 
     {
+        g_strstrip(ec2home);
         if (setenv("EC2_HOME", ec2home, 1) != 0) 
         {
             g_free(ec2home);
@@ -415,6 +416,7 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
     gchar* javahome = g_key_file_get_string(config, instance, "java-home", NULL);
     if (javahome != NULL)
     {
+        g_strstrip(javahome);
         if (setenv("JAVA_HOME", javahome, 1) != 0)
         {
             g_free(javahome);
@@ -431,6 +433,7 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
     gchar* ec2pk = g_key_file_get_string(config, instance, "ec2-private-key", NULL);    
     if (ec2pk != NULL)
     {
+        g_strstrip(ec2pk);
         if (setenv("EC2_PRIVATE_KEY", ec2pk, 1) != 0) 
         {
             g_free(ec2pk);
@@ -447,6 +450,7 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
     gchar *ec2cert = g_key_file_get_string(config, instance, "ec2-certificate", NULL);
     if (ec2cert != NULL)
     {
+        g_strstrip(ec2cert);
         if (setenv("EC2_CERT", ec2cert, 1) != 0) 
         {
             g_free(ec2cert);
@@ -463,6 +467,7 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
     gchar *ecert = g_key_file_get_string(config, instance, "eucalyptus-certificate", NULL);
     if (ecert != NULL) 
     {
+        g_strstrip(ecert);
         if(setenv("EUCALYPTUS_CERT",ec2cert, 1) != 0) 
         {
             g_free(ecert);
@@ -473,31 +478,13 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
         logit(LOG_DEBUG, "%s::%s(): 'eucalyptus-certificate' is set to '%s'",
             typeid(*this).name(), __FUNCTION__, ecert);	
     }
-    /*
-     * ssh-private-key-path (required)
-     */
-    ssh_pkey_path = g_key_file_get_string(config, instance, "ssh-private-key-path", NULL);
-    if (ssh_pkey_path.empty())
-        throw new BackendException("%s::%s(): 'ssh-private-key-path' is not set for %s",
-		    typeid(*this).name(), __FUNCTION__, instance);	    
-    logit(LOG_DEBUG, "%s::%s(): 'ssh-private-key-path' is '%s'",
-        typeid(*this).name(), __FUNCTION__, ssh_pkey_path.c_str());
-
-    /*
-     * ssh-private-key-id (required)
-     */
-    ssh_pkey_id = g_key_file_get_string(config, instance, "ssh-private-key-id", NULL);
-    if (ssh_pkey_id.empty())
-        throw new BackendException("%s::%s(): 'ssh-private-key-id' is not set for %s",
-		    typeid(*this).name(), __FUNCTION__, instance);
-    logit(LOG_DEBUG, "%s::%s(): 'ssh-private-key-id' is '%s'", 
-        typeid(*this).name(), __FUNCTION__, ssh_pkey_id.c_str());
     /* 
      * s3-service-url (not required for Amazon EC2 - required for Eucalyptus) 
      */
     gchar *s3url = g_key_file_get_string(config, instance, "s3-service-url", NULL);
     if (s3url != NULL)
     {
+        g_strstrip(s3url);
         if (setenv("S3_URL", s3url, 1) != 0) 
         {
             g_free(s3url);
@@ -514,6 +501,7 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
     gchar *ec2url = g_key_file_get_string(config, instance, "ec2-service-url", NULL);
     if (ec2url != NULL) 
     {
+        g_strstrip(ec2url);
         if(setenv("EC2_URL", ec2url, 1) != 0) 
         {
             g_free(ec2url);
@@ -531,6 +519,7 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
 	    NULL);
     if (ec2acck != NULL)
     {
+        g_strstrip(ec2acck);
         if (setenv("EC2_ACCESS_KEY",ec2acck, 1) != 0)
         {
             g_free(ec2acck);
@@ -547,6 +536,7 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
 	    NULL);
     if (ec2seck != NULL)
     {
+        g_strstrip(ec2seck);
         if (setenv("EC2_SECRET_KEY",ec2seck, 1) != 0) 
         {
             g_free(ec2seck);
@@ -573,20 +563,22 @@ void EC2Handler::setEnvironment(GKeyFile *config, const char *instance) throw (B
      */
     gchar* t_user_data_file = g_key_file_get_string(config, instance, "user-data-file", NULL);
     if (t_user_data_file != NULL) {
-       user_data.append(" -f ");
-       user_data.append(t_user_data_file);
-       g_free(t_user_data_file);
+        g_strstrip(t_user_data_file);
+        user_data.append(" -f ");
+        user_data.append(t_user_data_file);
+        g_free(t_user_data_file);
     } else if (t_user_data != NULL) {
-       user_data.append(" -d ");
-       user_data.append(t_user_data);
-       g_free(t_user_data);
+        g_strstrip(t_user_data);
+        user_data.append(" -d ");
+        user_data.append(t_user_data);
+        g_free(t_user_data);
     } else {
-       logit(LOG_WARNING, "%s::%s(): both 'user-data' and 'user-data-file' are empty", 
+        logit(LOG_WARNING, "%s::%s(): both 'user-data' and 'user-data-file' are empty", 
 		    typeid(*this).name(), __FUNCTION__);
-       user_data = "";
+        user_data = "";
     }
     logit(LOG_DEBUG, "%s::%s(): user specified data is '%s'", 
-       typeid(*this).name(), __FUNCTION__, user_data.c_str());
+        typeid(*this).name(), __FUNCTION__, user_data.c_str());
     name = instance;
     groupByNames = false;
 }
