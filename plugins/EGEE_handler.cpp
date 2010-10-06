@@ -1344,6 +1344,12 @@ void EGEEHandler::updateJob(Job *job)
 					}
 				}
 			}
+			if (Job::FINISHED == statusRelation[j].jobS && glite::lb::JobStatus::DONE_CODE_FAILED == statCode)
+			{
+				LOG(LOG_DEBUG, "EGEE Plugin (%s): job \"%s\" will be rescheduled, ignoring status update",
+					name.c_str(), job->getId().c_str());
+				return;
+			}
 			job->setStatus(statusRelation[j].jobS);
 			if (Job::ERROR == statusRelation[j].jobS)
 			{
