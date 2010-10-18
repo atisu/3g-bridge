@@ -195,7 +195,8 @@ nobase_dist_doc_DATA = \
 		db/purge.sql \
 		examples/batch_pack \
 		examples/batch_unpack \
-		examples/dc-api.conf
+		examples/dc-api.conf \
+		examples/resource-manager.sh
 
 dist_sysconf_DATA = etc/3g-bridge.conf
 
