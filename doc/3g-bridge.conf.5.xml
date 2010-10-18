@@ -780,15 +780,6 @@ larger results files to download, more time to use.
 	    </glossentry>
 
 	    <glossentry>
-		<glossterm><envar>ec2-user-id</envar></glossterm>
-		<glossdef>
-		    <para>
-				Amazon EC2 User ID. Value usually set in the EC2_USER_ID environment variable. Required parameter both for Eucalyptus and Amazon EC2.
-		    </para>
-		</glossdef>
-	    </glossentry>
-
-	    <glossentry>
 		<glossterm><envar>ec2-home</envar></glossterm>
 		<glossdef>
 		    <para>
@@ -807,15 +798,6 @@ larger results files to download, more time to use.
 	    </glossentry>
 
 	    <glossentry>
-		<glossterm><envar>s3-service-url</envar></glossterm>
-		<glossdef>
-		    <para>
-				Service endpoint for Walrus (Amazon S3). Value usually set in the S3_URL environment variable. Only required for Eucalyptus.
-		    </para>
-		</glossdef>
-	    </glossentry>
-
-	    <glossentry>
 		<glossterm><envar>ec2-service-url</envar></glossterm>
 		<glossdef>
 		    <para>
@@ -823,34 +805,6 @@ larger results files to download, more time to use.
 		    </para>
 		</glossdef>
 	    </glossentry>
-
-	    <glossentry>
-		<glossterm><envar>eucalyptus-certificate</envar></glossterm>
-		<glossdef>
-		    <para>
-				Certificate for accessing Eucalyptus services. Value usually set in the EUCALYPTUS_CERT environment variable. Only required for Eucalyptus.
-		    </para>
-		</glossdef>
-	    </glossentry>
-
-	    <glossentry>
-		<glossterm><envar>ec2-access-key</envar></glossterm>
-		<glossdef>
-		    <para>
-				Value usually set in the EC2_ACCESS_KEY environment variable. Only required for Eucalyptus.
-		    </para>
-		</glossdef>
-	    </glossentry>
-
-	    <glossentry>
-		<glossterm><envar>ec2-secret-key</envar></glossterm>
-		<glossdef>
-		    <para>
-				Value usually set in the EC2_SECRET_KEY environment variable. Only required for Eucalyptus.
-		    </para>
-		</glossdef>
-	    </glossentry>
-
 
 
 
