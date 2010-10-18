@@ -1,0 +1,185 @@
+3G Bridge EC2 plug-in: Accessing Amazon EC2/ Eucalyptus resources
+=================================================================
+
+1. How it works
+---------------
+The EC2 plug-in simply allows to start instances through 3G Bridge by 
+submitting jobs to its queue. The job will remain running as long the
+cloud instance is running. To shutdown the instance, simply cancel the
+job.
+
+You need some middleware installed on a VM image (e.g.: BOINC or Condor) 
+to pool the resources. This document does not deal with the assembly of
+such an image, it simply assumes it is available. There are assembled
+images ready to be used deployed on Amazon, read more in 3.3.
+
+
+2. Requirements
+---------------
+  o 3G Bridge obviously
+  o EC2 API Tools 1.3 30349
+  o Java (e.g.: OpenJDK 1.6.0_0)
+  o Amazon EC2 account with credentials downloaded
+	OR
+  o Eucalyptus account with credentials downloaded
+
+
+3. How to use
+-------------
+
+ 3.1. Configuring 3G Bridge
+ ------------------------
+
+  1. configure 3G Bridge by creating a queue for the EC2 plugin in the
+     cg_algqueue table:
+
+     INSERT INTO cg_algqueue (grid, alg, batchsize, statistics) VALUES \
+		("Cloud", "cloud", 1, NULL);
+
+  2. create grid in the 3g-bridge.conf for the plug-in:
+
+	[Cloud]
+	handler = EC2
+	user-data-file = /var/www/userdata.zip
+	region = eu-west-1
+	ec2-certificate = /foo/bar/.ec2/cert-WLEN637UCDGGKHTERUJYEN7EE33WMOX3.pem
+	ec2-private-key = /foo/bar/.ec2/pk-WLEN637UCDGGKHTERUJYEN7EE33WMOX3.pem
+	ec2-home = /foo/bar/apps/ec2/ec2-api-tools-1.3-30349
+	java-home = /usr/
+	
+  3. Add the following to the [Cloud] section of 3g-bridge.conf if using Eucalyptus:
+
+	ec2-service-url = <YOUR_EUCALYPTUS_SERVICE_ENDPOINT>
+	
+  3. Start the 3G Bridge, you should see something similar:
+
+	2010-10-18 13:54:17 INFO: Loaded plugin EC2_handler
+	2010-10-18 13:54:17 DEBUG: 10EC2Handler::parseConfig(): 'region' is 'eu-west-1'
+	2010-10-18 13:54:17 DEBUG: 10EC2Handler::parseConfig(): 'java-home' is '/usr/'
+	2010-10-18 13:54:17 DEBUG: 10EC2Handler::parseConfig(): 'ec2-home' is '/foo/bar/apps/ec2/ec2-api-tools-1.3-30349'
+	2010-10-18 13:54:17 DEBUG: 10EC2Handler::parseConfig(): 'ec2-private-key' is '/foo/bar/.ec2/pk-WLEN637UCDGGKHTERUJYEN7EE33WMOX3.pem'
+	2010-10-18 13:54:17 DEBUG: 10EC2Handler::parseConfig(): 'ec2-certificate' is '/foo/bar/.ec2/cert-WLEN637UCDGGKHTERUJYEN7EE33WMOX3.pem'
+	2010-10-18 13:54:17 DEBUG: 10EC2Handler::parseConfig(): 'ec2-service-url' is not set for Cloud
+	2010-10-18 13:54:17 DEBUG: 10EC2Handler::parseConfig(): user specified data is (with '-f' / '-d' prefix) ' -f /var/www/userdata.zip'
+	2010-10-18 13:54:17 DEBUG: Initialized grid Cloud using EC2
+	2010-10-18 13:54:17 DEBUG: Reading algorithm data
+	2010-10-18 13:54:17 DEBUG: Grid Cloud: added algorithm cloud
+	2010-10-18 13:54:17 [Notice] The subresult callback is not set, subresults will not be reported
+	2010-10-18 13:54:17 [Notice] The message callback is not set, messages will not be reported
+
+  4. That's it. 
+
+ 3.2. Configuring Amazon EC2/ Eucalyptus
+ -------------------------------------
+
+   1. You need to create a security group ('boinc') for the region you 
+      are planning to use, where all started instances will belong to:
+
+	ec2-add-group --region eu-west-1 boinc -d "My BOINC workers on amazon"
+	
+   2. Depending on the middleware, you'll need to open specific port ranges
+      for the security group. E.g. for the Condor image described in the next
+      section:
+
+	ec2-authorize --region eu-west-1 boinc -P tcp -p 40000-41000 -s <CONDOR_CENTRAL_MANAGER>/32 
+	ec2-authorize --region eu-west-1 boinc -P udp -p 40000-41000 -s <CONDOR_CENTRAL_MANAGER>/32
+	ec2-authorize --region eu-west-1 boinc -P udp -p 9618 -s <CONDOR_CENTRAL_MANAGER>/32 
+	ec2-authorize --region eu-west-1 boinc -P tcp -p 9618 -s <CONDOR_CENTRAL_MANAGER>/32
+
+
+3.3. Pre-created images on Amazon EC2
+--------------------------------------
+
+   To simplify things, currently there are 2 public 32 bit images available on 
+   Amazon EC2 (eu-west-1) to be used with the plug-in:
+  
+   o  ami-0bcce67f  -  atisu-worker/debian-5.0-boincworker-v1.4.img.manifest.xml
+   o  ami-44b99330  -  atisu-worker/debian-5.0-condorworker-v5.img.manifest.xml
+
+
+4. Submitting jobs to the Cloud queue
+-------------------------------------
+
+  In 3.1/2. a grid named 'Cloud' was created and in 3.1/1. an algorithm 
+  named 'cloud' for the grid 'Cloud'. We'll use this for the examples below.
+
+  The simplest way to control the Cloud grid is via the injector or 
+  the wsclient of the 3G Bridge, we'll use the injector in the examples.
+	
+  To start an cloud instance the following command can be used:
+
+  ./injector -c 3g-bridge-EC2.conf -a cloud -g Cloud \
+    -p "--image=ami-0bcce67f --instance-type=m1.small --group=boinc" --input=in:in --output=out:out
+
+  To cancel a running job update its status to CANCEL in the 3g-bridge 
+  database:
+
+  UPDATE cg_job set status='CANCEL' where grid='Cloud' and status<>'ERROR' and gridid='<INSTANCE_ID>'
+
+  Note: <INSTANCE_ID> is given my Amazon/ Eucalyptus (e.g.: i-2ff5a858). 
+        It is stored in the 3G Bridge database, cg_job table and gridid 
+        field for each running job.
+
+  The following parameters can be passed as arguments (after "-p" for 
+  the injector):
+
+  --image=<IMAGED_ID>              - Amazon/ Eucalyptus Machine Id (e.g.: ami-0bcce67f)
+  --instance-type=<INSTANCE_TYPE>  - Cloud instance type, e.g.: m1.small, c1.medium
+  --group=<SECURITY_GROUP>         - Name of the security group the instance should belong to (e.g.: 'boinc')
+  --ramdisk=<RAMDISK_ID>           - RAMDISK Id (not-needed)
+  --kernel=<KERNEL_ID>             - Kernel Id (not-needed)
+
+
+5. Remarks
+----------
+
+   5.1. The 'user-data' and  'user-data-file' parameters (3g-bridge.conf)
+   ----------------------------------------------------------------------
+
+   Eucalyptus and Amazon allow to specify supplemental data to be 
+   passed to the instance at creation time.
+
+   'user-data' set in the configuration file is passed as a 
+   string, while the string for 'user-data-file' is interpreted 
+   as a path, and the corresponding file will be passed to the
+   instance.
+
+   5.2 Using the pre-created images - Condor
+   -----------------------------------------
+
+   The Condor image (ami-44b99330 - atisu-worker/debian-5.0-condorworker-v5.img.manifest.xml)
+   requires a Condor pool to connect to (it contains a worker). The IP address of the Central
+   Manager for the pool should be set as 'user-data' in the 3g-bridge.conf.
+
+   Also the TCP/UDP 9618 and 40000-41000 ports should be allowed to connect:
+
+	ec2-authorize --region eu-west-1 boinc -P tcp -p 40000-41000 -s <CONDOR_CENTRAL_MANAGER>/32 
+	ec2-authorize --region eu-west-1 boinc -P udp -p 40000-41000 -s <CONDOR_CENTRAL_MANAGER>/32
+	ec2-authorize --region eu-west-1 boinc -P udp -p 9618 -s <CONDOR_CENTRAL_MANAGER>/32 
+	ec2-authorize --region eu-west-1 boinc -P tcp -p 9618 -s <CONDOR_CENTRAL_MANAGER>/32
+
+
+   5.3 Using the pre-created images - BOINC
+   ----------------------------------------
+
+   The BOINC image (ami-0bcce67f - atisu-worker/debian-5.0-boincworker-v1.4.img.manifest.xml)
+   contains a BOINC client (svn revision r22012). 
+
+   The image can use both the 'user-data' and 'user-data-file' parameters of 3g-bridge.conf (one at a time).
+  
+   When using the 'user-data' parameter, the URL of the boinc project and a BOINC authenticator separated 
+   by a comma should be passed, e.g.:
+
+    user-data = http://foo.bar.com/cloud,116e1f22cb9aedc703111f34e453de
+
+   When using the 'user-data-file', it should point to a .zif file, with the following contents:
+
+    o 'ca-bundle.crt'       - supplementary ssl certificate bundle for the client (optional)
+    o 'pre-boinc-client.sh' - shell script to be executed before the client is started (optional)
+    o 'user-data'           - same data as when using the 'user-data' parameter of the 3g-bridge.conf
+
+   5.4 Sample resource manager: resource-manager.sh
+   ------------------------------------------------
+
+   A sample script for automatically starting and stopping instances 
+   (with a predefined maximum) can be found in examples/ .
