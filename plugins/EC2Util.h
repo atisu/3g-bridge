@@ -33,7 +33,6 @@
 
 using namespace std;
 
-std::string trim(std::string& s,const std::string& drop = " ");
-int invoke_cmd(const char *const argv[], string *stdoe) throw (BackendException *);
+int invoke_cmd(const char *const argv[], const char *const env[], string *stdoe) throw (BackendException *);
 
 #endif /* EC2UTIL_H */

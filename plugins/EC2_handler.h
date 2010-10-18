@@ -49,13 +49,15 @@ class EC2Handler: public GridHandler {
      static GridHandler *getInstance(GKeyFile *config, const char *instance);
 
  private:
-     string user_data;
-     string region;
+     gchar* cf_region;
+     gchar* cf_user_data;
+     gchar** environment_data;
+
      string last_updatejob_reply;
      string createVMInstance(gchar* args) throw (BackendException *);
      void terminateVMInstance(string instance_id) throw (BackendException *);
      string execLocalCommand(string local_command) throw (BackendException *);
-     void setEnvironment(GKeyFile *config, const char *instance) throw (BackendException *);
+     void parseConfig(GKeyFile *config, const char *instance) throw (BackendException *);
  };
 
  #endif /* EC2HANDLER_H */
