@@ -342,8 +342,8 @@
 
 	<para>
 	    If the <option>--mode</option> option is <literal>status</literal>, <literal>delete</literal>,
-	     <literal>output</literal> or <literal>griddate</literal>, then the following options are
-	     available:
+	    <literal>output</literal> or <literal>griddata</literal>, then the following options are
+	    available:
 	</para>
 
 	<variablelist>
@@ -392,7 +392,7 @@
 	    is printed to the standard output. If the <option>--repeat</option> option was also
 	    specified, then the ID of every submitted job is printed, each on a separate line.
 	</para>
-    	<para>
+	<para>
 	    If <option>--mode</option> is <literal>status</literal>, then every line in the output
 	    consists of a job ID, a space, and the status of the job.
 	</para>
@@ -409,6 +409,10 @@
 	</para>
 	<para>
 	    The <literal>delete</literal> mode generates no output.
+	</para>
+	<para>
+	    If <option>--mode</option> is <literal>griddata</literal>, then messages generated
+	    by the destination grid plugin are returned for the job.
 	</para>
 	<para>
 	    If <option>--mode</option> is <literal>version</literal>, then the output is a one-line
