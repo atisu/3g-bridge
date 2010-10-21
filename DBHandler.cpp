@@ -676,8 +676,10 @@ void DBHandler::init(GKeyFile *config)
 	host = g_key_file_get_string(config, GROUP_DATABASE, "host", NULL);
 	user = g_key_file_get_string(config, GROUP_DATABASE, "user", NULL);
 	passwd = g_key_file_get_string(config, GROUP_DATABASE, "password", NULL);
-	g_strstrip(host);
-	g_strstrip(user);
+	if (host)
+		g_strstrip(host);
+	if (user)
+		g_strstrip(user);
 
 	/* max-connections is not mandatory, but if it is present it must be valid */
 	max_connections = g_key_file_get_integer(config, GROUP_DATABASE, "max-connections", &error);
