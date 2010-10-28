@@ -254,8 +254,6 @@ void EC2Handler::updateStatus(void) throw (BackendException *)
      } 
      while (return_value != 0);
 
-     //logit(LOG_DEBUG,"%s::%s(): status update reply was '%s'",
-     //     typeid(*this).name(), __FUNCTION__, output_text.c_str());
 
     /*
      *  update jobs
