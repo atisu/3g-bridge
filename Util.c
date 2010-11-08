@@ -48,7 +48,9 @@
 typedef enum { SYSLOG, LOGFILE, STDOUT, STDERR } mode;
 
 static char *log_file_name;
+static char *mon_log_file_name;
 static FILE *log_file;
+static FILE *mon_log_file;
 static mode log_mode = STDERR;
 
 static int log_level = LOG_INFO;
@@ -131,6 +133,9 @@ static void log_cleanup(void)
 			break;
 	}
 
+	if (mon_log_file)
+		fclose(mon_log_file);
+
 	log_mode = STDOUT;
 }
 
@@ -197,6 +202,24 @@ void log_init(GKeyFile *config, const char *section)
 		openlog(section, LOG_PID, log_facility);
 
 out:
+	str = g_key_file_get_string(config, GROUP_DEFAULTS, "monlog-target", NULL);
+	if (str)
+	{
+		g_strstrip(str);
+		if (!g_strncasecmp(str, "file:", 5) || str[0] == '/')
+		{
+			char *path = str;
+			if (*path != '/')
+				path += 5;
+			mon_log_file = fopen(path, "a");
+			if (mon_log_file)
+				setvbuf(mon_log_file, NULL, _IOLBF, 1024);
+			if (mon_log_file)
+				mon_log_file_name = g_strdup(path);
+		}
+		g_free(str);
+	}
+
 	atexit(log_cleanup);
 }
 
@@ -208,6 +231,12 @@ void log_init_debug(void)
 
 void log_reopen(void)
 {
+	if (mon_log_file)
+	{
+		fclose(mon_log_file);
+		mon_log_file = fopen(mon_log_file_name, "a");
+	}
+
 	if (log_mode != LOGFILE)
 		return;
 
@@ -262,12 +291,41 @@ void vlogit(int lvl, const char *fmt, va_list ap)
 	free(msg);
 }
 
+void vlogit_mon(const char *fmt, va_list ap)
+{
+	char timebuf[37], *msg;
+	struct tm tm;
+	time_t now;
+
+	if (!mon_log_file)
+		return;
+
+	now = time(NULL);
+	localtime_r(&now, &tm);
+
+	strftime(timebuf, sizeof(timebuf), "dt=%F_%T", &tm);
+
+	vasprintf(&msg, fmt, ap);
+
+	fprintf(mon_log_file, "%s %s\n", timebuf, msg);
+	free(msg);
+}
+
 void logit(int lvl, const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
 	vlogit(lvl, fmt, ap);
+	va_end(ap);
+}
+
+void logit_mon(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	vlogit_mon(fmt, ap);
 	va_end(ap);
 }
 

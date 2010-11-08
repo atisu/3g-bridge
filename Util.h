@@ -63,12 +63,26 @@ void log_reopen(void);
 void logit(int lvl, const char *fmt, ...) __attribute__((__format__(printf, 2, 3)));
 
 /**
+ * Print a monitoring-related log message.
+ * @param fmt format string
+ * @param ... arguments matching the format string
+ */
+void logit_mon(const char *fmt, ...);
+
+/**
  * Print a log message.
  * @param lvl the log level
  * @param fmt format string
  * @param ap argument list matching the format string
  */
 void vlogit(int lvl, const char *fmt, va_list ap);
+
+/**
+ * Print a monitoring-related log message.
+ * @param fmt format string
+ * @param ap argument list matching the format string
+ */
+void vlogit_mon(const char *fmt, va_list ap);
 
 /**
  * Create a pid file.

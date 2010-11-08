@@ -381,6 +381,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 			return SOAP_FATAL_ERROR;
 		}
 		LOG(LOG_INFO, "Job %s: Accepted", jobid);
+		logit_mon("event=job_entry job_id=%s application=%s", jobid, qmjob->getName().c_str());
 
 		result->jobid.push_back(jobid);
 

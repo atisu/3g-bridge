@@ -183,6 +183,16 @@
 		    </para>
 		</glossdef>
 	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>monlog-target</envar></glossterm>
+		<glossdef>
+		    <para>
+			Specifies where to send monitoring log messages. Possible value is
+			<literal>file:<replaceable>FILE</replaceable></literal> that writes all messages to
+			the specified <replaceable>FILE</replaceable>.
+		    </para>
+		</glossdef>
+	    </glossentry>
 	</glosslist>
     </refsect1>
 
@@ -355,6 +365,15 @@
 			directory. Note that when running as a daemon, the <command>3g-bridge</command>
 			switches to the root directory, so the default value will not work, and a file
 			with an absolute path name must be specified here.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>project-url</envar></glossterm>
+		<glossdef>
+		    <para>
+			Optional variable for monitoring-related logging when using the BOINC DC-API
+			backend. The value of the variable is added to the monitoring logs.
 		    </para>
 		</glossdef>
 	    </glossentry>

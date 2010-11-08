@@ -54,6 +54,8 @@
 
 using namespace std;
 
+/* Custom project URL defined in config file */
+static gchar *projecturl;
 
 static void result_callback_single(DC_Workunit *wu, DC_Result *result)
 {
@@ -112,6 +114,7 @@ static void result_callback_single(DC_Workunit *wu, DC_Result *result)
 
 	job->setStatus(Job::FINISHED);
 	LOG(LOG_INFO, "DC-API-Single: WU %s: Result received", wuid.c_str());
+	logit_mon("event=job_status job_id=%s status=Finished", job->getId().c_str());
 	DC_destroyWU(wu);
 }
 
@@ -124,7 +127,6 @@ DCAPISingleHandler::DCAPISingleHandler(GKeyFile *config, const char *instance) t
 	name = instance;
 
 	gchar *conffile = g_key_file_get_string(config, instance, "dc-api-config", NULL);
-
 	if (conffile)
 		g_strstrip(conffile);
 
@@ -132,6 +134,10 @@ DCAPISingleHandler::DCAPISingleHandler(GKeyFile *config, const char *instance) t
 		throw new BackendException("Failed to initialize the DC-API");
 
 	g_free(conffile);
+
+	projecturl = g_key_file_get_string(config, instance, "project-url", NULL);
+	if (!projecturl)
+		projecturl = g_strdup("undefined");
 
 	DC_setMasterCb(result_callback_single, NULL, NULL);
 
@@ -217,6 +223,9 @@ static bool submit_job(Job *job)
 
 	LOG(LOG_INFO, "DC-API: WU %s: Submitted to grid %s (app '%s', job %s)",
 		wu_id, job->getGrid().c_str(), algName, job->getId().c_str());
+	logit_mon("event=job_submission job_id=%s job_id_dg=%s output_grid_name=boinc/%s",
+		job->getId().c_str(), wu_id, projecturl);
+	logit_mon("event=job_status job_id=%s status=Running", job->getId().c_str());
 
 	free(wu_id);
 	return true;
