@@ -166,6 +166,7 @@ void log_init(GKeyFile *config, const char *section)
 	if (!g_strcasecmp(str, "stdout"))
 	{
 		log_mode = STDOUT;
+		setvbuf(stdout, NULL, _IOLBF, 1024);
 	}
 	if (!g_strcasecmp(str, "stderr"))
 	{
