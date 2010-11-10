@@ -71,7 +71,7 @@ public:
 	 * @see grid()
 	 * @see status()
 	 */
-	Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status);
+	Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const char *env = NULL);
 
 	/**
 	 * Empty constructor.
@@ -217,6 +217,16 @@ public:
 	 */
 	void deleteJob();
 
+	/**
+	 * Get list of environment variables.
+	 */
+	auto_ptr< vector<string> > getEnvs() const;
+
+	/**
+	 * Get value of environment variable.
+	 */
+	const string &getEnv(const string &name) { return envs[name]; }
+
 private:
 	/// The Job's unique identifier
 	string id;
@@ -254,6 +264,11 @@ private:
 	 * the file on the filesystem.
 	 */
 	map<string, string> outputs;
+
+	/**
+	 * Environment variables assigned to the job.
+	 */
+	map<string, string> envs;
 
 	/// The Job's status.
 	JobStatus status;

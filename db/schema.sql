@@ -30,6 +30,7 @@ CREATE TABLE cg_job (
 	args		VARCHAR(254),			/* Command-line arguments to be passed to the algorithm at job execution */
 	griddata	VARCHAR(2048),			/* Grid-related data, such as internal ID, job destination, etc.  */
 	tag		VARCHAR(254),			/* Tag: identify together belonging jobs (part of a batch, workflow, etc) */
+	env		VARCHAR(2048),			/* Enviroment: semicolon-separated list of ATTR=VALUE pairs */
 	creation_time	TIMESTAMP	NULL DEFAULT CURRENT_TIMESTAMP,	/* Creation time of job descriptor */
 	PRIMARY KEY (id),
 	INDEX (grid, alg),

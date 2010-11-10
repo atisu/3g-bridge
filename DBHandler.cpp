@@ -217,6 +217,7 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 	const char *griddata = res.get_field("griddata");
 	const char *id = res.get_field("id");
 	const char *stat = res.get_field("status");
+	const char *envs = res.get_field("env");
 
 	if (uuid_parse(id, uuid))
 	{

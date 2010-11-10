@@ -40,7 +40,7 @@
 using namespace std;
 
 
-Job::Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status):
+Job::Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const char *env):
 		id(id),name(name),grid(grid),status(status)
 {
 	if (args)
@@ -48,6 +48,38 @@ Job::Job(const char *id, const char *name, const char *grid, const char *args, J
 
 	// Get algorithm queue instance
 	algQ = AlgQueue::getInstance(grid, name);
+
+	// Parse environment
+	if (env)
+	{
+		string senv(env);
+		size_t pos;
+		while (senv.npos != (pos = senv.find_first_of(';')))
+		{
+			if (pos > 0)
+			{
+				string envstr = senv.substr(0, pos);
+				size_t epos = envstr.find_first_of('=');
+				if (epos != envstr.npos)
+				{
+					string att = envstr.substr(0, epos);
+					string val = envstr.substr(epos + 1);
+					envs[att] = val;
+				}
+			}
+			senv = senv.substr(pos + 1);
+		}
+		if (senv.length() > 0)
+		{
+			size_t epos = senv.find_first_of('=');
+			if (epos != senv.npos)
+			{
+				string att = senv.substr(0, epos);
+				string val = senv.substr(epos + 1);
+				envs[att] = val;
+			}
+		}
+	}
 }
 
 
@@ -124,6 +156,16 @@ void Job::deleteJob()
 	DBHandler *dbH = DBHandler::get();
 	dbH->deleteJob(id);
 	DBHandler::put(dbH);
+}
+
+
+auto_ptr< vector<string> > Job::getEnvs() const
+{
+	map<string, string>::const_iterator it;
+	auto_ptr< vector<string> > rval(new vector<string>);
+	for (it = envs.begin(); it != envs.end(); it++)
+		rval->push_back(it->first);
+	return rval;
 }
 
 
