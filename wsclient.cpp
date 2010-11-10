@@ -76,6 +76,7 @@ static char *endpoint;
 static char *name;
 static char *grid;
 static char *args;
+static char *env;
 static char **inputs;
 static char **outputs;
 static G3BridgeSubmitter__JobIDList jobIDs;
@@ -108,6 +109,8 @@ static GOptionEntry add_options[] =
 		"Output file names", "NAME" },
 	{ "repeat",		0,	0,	G_OPTION_ARG_INT,		&repeat,
 		"Repeat the operation this many times", "NUM" },
+	{ "env",		'E',	0,	G_OPTION_ARG_STRING,		&env,
+		"Environment variables for the job", "ENV" },
 	{ NULL }
 };
 
@@ -288,6 +291,8 @@ static void handle_add(void)
 
 	job.alg = name;
 	job.grid = grid;
+	if (env)
+	    job.env = new string(env);
 	if (!args)
 		job.args = "";
 	else
