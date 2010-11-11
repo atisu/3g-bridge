@@ -328,7 +328,6 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 		bool need_dl = false;
 		uuid_t uuid;
 		char jobid[37];
-		const char *env = NULL;
 
 		uuid_generate(uuid);
 		uuid_unparse(uuid, jobid);
@@ -336,9 +335,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 		vector< pair<string, string> > inputs;
 
 		G3BridgeSubmitter__Job *wsjob = *jobit;
-		if (wsjob->env)
-			env = wsjob->env->c_str();
-		Job *qmjob = new Job((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::INIT, env);
+		Job *qmjob = new Job((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::INIT, &(wsjob->env));
 
 		for (vector<G3BridgeSubmitter__LogicalFile *>::const_iterator inpit = wsjob->inputs.begin(); inpit != wsjob->inputs.end(); inpit++)
 		{

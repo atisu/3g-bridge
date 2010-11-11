@@ -217,7 +217,6 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 	const char *griddata = res.get_field("griddata");
 	const char *id = res.get_field("id");
 	const char *stat = res.get_field("status");
-	const char *envs = res.get_field("env");
 
 	if (uuid_parse(id, uuid))
 	{
@@ -271,6 +270,17 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 	res2.use();
 	while (res2.fetch())
 		job->addOutput(res2.get_field(0), res2.get_field(1));
+
+	// Get environment variables fro job from db
+	if (!dbh->query("SELECT name, val FROM cg_env WHERE id = '%s'", id))
+	{
+		job.reset(0);
+		put(dbh);
+		return job;
+	}
+	res2.use();
+	while (res2.fetch())
+		job->addEnv(res2.get_field(0), res2.get_field(1));
 
 	put(dbh);
 	return job;
@@ -457,12 +467,21 @@ bool DBHandler::addJob(Job &job)
 		success &= query("INSERT INTO cg_inputs (id, localname, path) VALUES ('%s', '%s', '%s')",
 			job.getId().c_str(), it->c_str(), path.c_str());
 	}
+
 	files = job.getOutputs();
 	for (vector<string>::const_iterator it = files->begin(); it != files->end(); it++)
 	{
 		string path = job.getOutputPath(*it);
 		success &= query("INSERT INTO cg_outputs (id, localname, path) VALUES ('%s', '%s', '%s')",
 			job.getId().c_str(), it->c_str(), path.c_str());
+	}
+
+	auto_ptr< vector<string> > env = job.getEnvs();
+	for (vector<string>::const_iterator it = env->begin(); it != env->end(); it++)
+	{
+		string val = job.getEnv(*it);
+		success &= query("INSERT INTO cg_env (id, name, val) VALUES ('%s', '%s', '%s')",
+			job.getId().c_str(), it->c_str(), val.c_str());
 	}
 
 	if (success)

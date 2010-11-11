@@ -36,11 +36,10 @@
 #include "Job.h"
 #include "DBHandler.h"
 
-
 using namespace std;
 
 
-Job::Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const char *env):
+Job::Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const vector<string> *env):
 		id(id),name(name),grid(grid),status(status)
 {
 	if (args)
@@ -52,30 +51,15 @@ Job::Job(const char *id, const char *name, const char *grid, const char *args, J
 	// Parse environment
 	if (env)
 	{
-		string senv(env);
-		size_t pos;
-		while (senv.npos != (pos = senv.find_first_of(';')))
+		for (vector<string>::const_iterator it = env->begin();
+			it != env->end(); it++)
 		{
-			if (pos > 0)
+			string ev = *it;
+			size_t epos = ev.find_first_of('=');
+			if (epos != ev.npos)
 			{
-				string envstr = senv.substr(0, pos);
-				size_t epos = envstr.find_first_of('=');
-				if (epos != envstr.npos)
-				{
-					string att = envstr.substr(0, epos);
-					string val = envstr.substr(epos + 1);
-					envs[att] = val;
-				}
-			}
-			senv = senv.substr(pos + 1);
-		}
-		if (senv.length() > 0)
-		{
-			size_t epos = senv.find_first_of('=');
-			if (epos != senv.npos)
-			{
-				string att = senv.substr(0, epos);
-				string val = senv.substr(epos + 1);
+				string att = ev.substr(0, epos);
+				string val = ev.substr(epos + 1);
 				envs[att] = val;
 			}
 		}

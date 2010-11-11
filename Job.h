@@ -71,7 +71,7 @@ public:
 	 * @see grid()
 	 * @see status()
 	 */
-	Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const char *env = NULL);
+	Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const vector<string> *env = NULL);
 
 	/**
 	 * Empty constructor.
@@ -223,9 +223,14 @@ public:
 	auto_ptr< vector<string> > getEnvs() const;
 
 	/**
-	 * Get value of environment variable.
+	 * Get value of an environment variable.
 	 */
 	const string &getEnv(const string &name) { return envs[name]; }
+
+	/**
+	 * Set value of an environment variable.
+	 */
+	void addEnv(const string &name, const string &value) { envs[name] = value; }
 
 private:
 	/// The Job's unique identifier

@@ -30,7 +30,6 @@ CREATE TABLE cg_job (
 	args		VARCHAR(254),			/* Command-line arguments to be passed to the algorithm at job execution */
 	griddata	VARCHAR(2048),			/* Grid-related data, such as internal ID, job destination, etc.  */
 	tag		VARCHAR(254),			/* Tag: identify together belonging jobs (part of a batch, workflow, etc) */
-	env		VARCHAR(2048),			/* Enviroment: semicolon-separated list of ATTR=VALUE pairs */
 	creation_time	TIMESTAMP	NULL DEFAULT CURRENT_TIMESTAMP,	/* Creation time of job descriptor */
 	PRIMARY KEY (id),
 	INDEX (grid, alg),
@@ -47,6 +46,18 @@ CREATE TABLE cg_inputs (
 	localname	VARCHAR(254)	NOT NULL,	/* Basename of the file */
 	path		VARCHAR(2048)	NOT NULL,	/* Absolute path of the file */
 	PRIMARY KEY ENTRY (id, localname),
+	FOREIGN KEY (id) REFERENCES cg_job(id) ON DELETE CASCADE
+) TYPE=InnoDB;
+
+
+/*
+ * Job environment table
+ */
+CREATE TABLE cg_env (
+	id		CHAR(36)	NOT NULL,	/* Unique id of job, foreign key of job.id */
+	name		VARCHAR(254)	NOT NULL,	/* Environment variable name */
+	val		VARCHAR(254)	NOT NULL,	/* Environment variable value */
+	PRIMARY KEY ENTRY (id, name),
 	FOREIGN KEY (id) REFERENCES cg_job(id) ON DELETE CASCADE
 ) TYPE=InnoDB;
 
