@@ -183,8 +183,6 @@ static bool submit_job(Job *job) throw (BackendException *)
 	/* Check for unsupported URLs */
 	DLException *dle = NULL;
 	for (vector<string>::iterator it = inputs->begin(); it != inputs->end(); it++)
-		inputset.insert(*it);
-	for (set<string>::iterator it = inputset.begin(); it != inputset.end(); it++)
 	{
 		FileRef fr = job->getInputRef(*it);
 		string url = fr.getURL();

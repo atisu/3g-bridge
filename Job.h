@@ -72,7 +72,7 @@ public:
 	 * @see grid()
 	 * @see status()
 	 */
-	Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status);
+	Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const vector<string> *env = NULL);
 
 	/**
 	 * Empty constructor.

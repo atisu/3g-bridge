@@ -39,7 +39,7 @@
 using namespace std;
 
 
-Job::Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status):
+Job::Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const vector<string> *env):
 		id(id),name(name),grid(grid),status(status)
 {
 	if (args)
