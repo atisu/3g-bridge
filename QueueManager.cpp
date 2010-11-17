@@ -31,6 +31,7 @@
 
 #include "Conf.h"
 #include "DBHandler.h"
+#include "DLException.h"
 #include "Util.h"
 
 #include <map>
@@ -45,6 +46,7 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #include <gmodule.h>
 
@@ -78,6 +80,9 @@ static char *plugin_dir;
 
 /* Config: min. time between calling the update method of plugins */
 static int update_interval;
+
+/* Config: DB reread trigger file path */
+static char *dbreread_file;
 
 /* Command line: Location of the config file */
 static char *config_file = (char *)SYSCONFDIR "/3g-bridge.conf";
@@ -223,6 +228,34 @@ static handler_factory_func get_factory(const char *handler)
  * Perform required actions for a grid handler
  */
 
+static void addDownload(const DLException *e)
+{
+	if (!dbreread_file)
+	{
+		LOG(LOG_WARNING, "Plugin reported not supported URL, but unable "
+			"to handle as DB reread file not set!");
+		return;
+	}
+	DBHandler *dbh = DBHandler::get();
+	vector<string> lnames = e->getInputs();
+	auto_ptr<Job> job = dbh->getJob(e->getJobId());
+	job->setStatus(Job::PREPARE);
+	for (vector<string>::iterator it = lnames.begin(); it != lnames.end(); it++)
+	{
+		FileRef fr = job->getInputRef(*it);
+		string url = fr.getURL();
+		LOG(LOG_DEBUG, "%s", (*it).c_str());
+		dbh->addDL(job->getId(), *it, url);
+	}
+	DBHandler::put(dbh);
+
+	if (touch(dbreread_file))
+	{
+		LOG(LOG_WARNING, "Failed to touch DB reread trigger file '%s': %s",
+			dbreread_file, strerror(errno));
+	}
+}
+
 static bool runHandler(GridHandler *handler)
 {
 	bool work_done = false;
@@ -241,7 +274,12 @@ static bool runHandler(GridHandler *handler)
 
 			if (!jobs.empty())
 			{
-				handler->submitJobs(jobs);
+				try {
+					handler->submitJobs(jobs);
+				} catch (DLException *e) {
+					addDownload(e);
+					delete e;
+				}
 				work_done = true;
 				jobs.clear();
 			}
@@ -261,7 +299,12 @@ static bool runHandler(GridHandler *handler)
 
 		if (!jobs.empty())
 		{
-			handler->submitJobs(jobs);
+			try {
+				handler->submitJobs(jobs);
+			} catch (DLException *e) {
+				addDownload(e);
+				delete e;
+			}
 			work_done = true;
 			jobs.clear();
 		}
@@ -352,8 +395,8 @@ static void init_grid_handlers(void)
 		GError *err = NULL;
 
 		handler = g_key_file_get_string(global_config, sections[i], "handler", NULL);
-        if (handler)
-		    g_strstrip(handler);
+		if (handler)
+			g_strstrip(handler);
 		enabled = g_key_file_get_boolean(global_config, sections[i], "enable", &err);
 		if (err) /* It's enabled by default */
 			enabled = TRUE;
@@ -460,6 +503,17 @@ int main(int argc, char **argv)
 		}
 	}
 	g_strstrip(plugin_dir);
+
+	dbreread_file = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "dbreread-file", &error);
+	if (!dbreread_file || error)
+	{
+		LOG(LOG_ERR, "Failed to get DB reread file's location: %s",
+			error->message);
+		g_error_free(error);
+		dbreread_file = NULL;
+	}
+	if (dbreread_file)
+		g_strstrip(dbreread_file);
 
 	if (debug_mode)
 	{

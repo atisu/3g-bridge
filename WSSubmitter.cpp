@@ -37,13 +37,17 @@
 #include "Util.h"
 
 #include <string>
+#include <fstream>
 
 #include <sysexits.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <errno.h>
+#include <sys/inotify.h>
+#include <poll.h>
 
 #include <openssl/crypto.h>
+#include <openssl/md5.h>
 #include <curl/curl.h>
 #include <uuid/uuid.h>
 
@@ -66,6 +70,9 @@ static char *output_dir;
 
 /* Configuration: URL prefix to substitute in place of output_dir to make valid download URLs */
 static char *output_url_prefix;
+
+/* Configuration: location of DB reread trigger file */
+static char *dbreread_file;
 
 /* If 'true', exit was requested by a signal */
 static volatile bool finish;
@@ -97,6 +104,9 @@ static int get_version;
 /* Prefix for DIME transferred files */
 static char *dime_prefix;
 
+/* DB reread thread */
+static GThread *dbreread_thread;
+
 /* Table of the command-line options */
 static GOptionEntry options[] =
 {
@@ -115,6 +125,17 @@ static GOptionEntry options[] =
 
 /* Hack for gSoap */
 struct Namespace namespaces[] = {{ NULL, }};
+
+
+/* Temporary struct for DIME */
+typedef struct {
+    FILE *fd;
+    char *path;
+    MD5_CTX md5_ctx;
+    unsigned char digest[16];
+    char digeststr[33];
+} dime_md5;
+
 
 /**********************************************************************
  * Calculate file locations
@@ -151,18 +172,27 @@ static string calc_output_path(const string &jobid, const string &localName)
 	return make_hashed_dir(output_dir, jobid) + '/' + localName;
 }
 
-static string getdimepath(const string &dimeid)
+static string getdimeattid(const string &dimeid)
 {
-	if (!dime_prefix)
-	{
-		uuid_t uuid;
-		dime_prefix = new char[37];
-		uuid_generate(uuid);
-		uuid_unparse(uuid, dime_prefix);
-	}
-	string fname = input_dir + string("/") + dime_prefix + dimeid.substr(0, dimeid.find("="));
+	string attid = dimeid.substr(0, dimeid.find("="));
+	return attid;
+}
+
+static string getdimefname(const string &dimeid)
+{
+	size_t fe = dimeid.find_first_of("=");
+	size_t le = dimeid.find_last_of("=");
+	string fname = dimeid.substr(fe+1, le-fe-1);
 	return fname;
 }
+
+/* dimeid is of format id=fname=url */
+static string getdimepath(const string &dimeid)
+{
+	string fname = input_dir + string("/") + dime_prefix + "_" + getdimefname(dimeid) + "_" + getdimeattid(dimeid);
+	return fname;
+}
+
 
 /**********************************************************************
  * Calculate the location where an output file will be stored
@@ -179,21 +209,92 @@ static string calc_output_url(const string path)
  */
 static void *fdimewriteopen(struct soap *soap, const char *id, const char *type, const char *options)
 {
-	FILE *fd = fopen(getdimepath(id).c_str(), "w");
-	return fd;
+	dime_md5 *tdmd5 = (dime_md5 *)malloc(sizeof(dime_md5));
+	if (!tdmd5)
+	{
+		LOG(LOG_ERR, "DIME: malloc() failed!");
+		return NULL;
+	}
+
+	LOG(LOG_DEBUG, "Path: %s", getdimepath(id).c_str());
+	tdmd5->path = strdup(getdimepath(id).c_str());
+	if (!tdmd5->path)
+	{
+		LOG(LOG_ERR, "DIME: strdup() failed!");
+		free(tdmd5);
+		return NULL;
+	}
+
+	tdmd5->fd = fopen(tdmd5->path, "w");
+	if (!tdmd5->fd)
+	{
+		LOG(LOG_ERR, "DIME: fopen() failed: %s", strerror(errno));
+		free(tdmd5->path);
+		free(tdmd5);
+		return NULL;
+	}
+
+	if (!MD5_Init(&(tdmd5->md5_ctx)))
+	{
+		LOG(LOG_ERR, "DIME: MD5_Init() failed!");
+		free(tdmd5->path);
+		free(tdmd5);
+	}
+
+	return tdmd5;
 }
 
 static int fdimewrite(struct soap *soap, void *handle, const char *buf, size_t len)
 {
-	fwrite(buf, 1, len, (FILE *)handle);
-	if (ferror((FILE *)handle))
+	dime_md5 *tdmd5 = (dime_md5 *)handle;
+
+	if (!tdmd5)
 		return SOAP_FATAL_ERROR;
+
+	fwrite(buf, 1, len, tdmd5->fd);
+	if (ferror(tdmd5->fd))
+	{
+		LOG(LOG_ERR, "DIME: fwrite() failed!");
+		fclose(tdmd5->fd);
+		free(tdmd5->path);
+		free(tdmd5);
+		return SOAP_FATAL_ERROR;
+	}
+
+	if (!MD5_Update(&(tdmd5->md5_ctx), buf, len))
+	{
+		LOG(LOG_ERR, "DIME: MD5_Update() failed!");
+		fclose(tdmd5->fd);
+		free(tdmd5->path);
+		free(tdmd5);
+		return SOAP_FATAL_ERROR;
+	}
+
 	return SOAP_OK;
 }
 
 static void fdimewriteclose(struct soap *soap, void *handle)
 {
-	fclose((FILE *)handle);
+	dime_md5 *tdmd5 = (dime_md5 *)handle;
+
+	if (!tdmd5)
+		return;
+
+	fclose(tdmd5->fd);
+
+	MD5_Final(tdmd5->digest, &(tdmd5->md5_ctx));
+	for (unsigned i = 0; i < 16; i++)
+		sprintf(tdmd5->digeststr+2*i, "%02x", tdmd5->digest[i]);
+
+	string md5fname = tdmd5->path + string(".md5");
+	ofstream md5file(md5fname.c_str(), ios::out | ios::app);
+	if (md5file.is_open())
+	{
+		md5file << tdmd5->digeststr;
+		md5file.close();
+	}
+	free(tdmd5->path);
+	free(tdmd5);
 }
 
 /**********************************************************************
@@ -325,47 +426,71 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 
 	for (vector<G3BridgeSubmitter__Job *>::const_iterator jobit = jobs->job.begin(); jobit != jobs->job.end(); jobit++)
 	{
-		bool need_dl = false;
 		uuid_t uuid;
 		char jobid[37];
 
 		uuid_generate(uuid);
 		uuid_unparse(uuid, jobid);
 
-		vector< pair<string, string> > inputs;
+		vector< pair<string, FileRef> > inputs;
 
 		G3BridgeSubmitter__Job *wsjob = *jobit;
-		Job *qmjob = new Job((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::INIT, &(wsjob->env));
+		Job *qmjob = new Job((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::INIT);
 
 		for (vector<G3BridgeSubmitter__LogicalFile *>::const_iterator inpit = wsjob->inputs.begin(); inpit != wsjob->inputs.end(); inpit++)
 		{
 			G3BridgeSubmitter__LogicalFile *lfn = *inpit;
 
-			string path = calc_input_path(jobid, lfn->logicalName);
-			qmjob->addInput(lfn->logicalName, path);
+			string URL = lfn->URL;
+			string md5 = lfn->md5;
+			string size = lfn->size;
+			string fname = lfn->logicalName;
 
-			if ('/' != lfn->URL[0]) {
-				inputs.push_back(pair<string, string>(lfn->logicalName, lfn->URL));
-				need_dl = true;
+			if ('/' != URL[0])
+			{
+				FileRef a(URL, md5, atoi(size.c_str()));
+				qmjob->addInput(fname, a);
+				inputs.push_back(pair<string, FileRef>(fname, a));
 			}
 			else
 			{
-				if (jobs->job.size() != 1)
+				string md5, dimeid;
+				struct soap_multipart *attachment;
+				for (attachment = soap->dime.list; attachment; attachment = attachment->next)
 				{
-					struct soap_multipart *attachment;
-					for (attachment = soap->dime.list; attachment; attachment = attachment->next)
-						unlink(getdimepath(attachment->id).c_str());
-					LOG(LOG_ERR, "submit: DIME attachments are disabled for multiple jobs");
+					dimeid = attachment->id;
+					if (getdimefname(dimeid) == fname)
+						break;
+				}
+				string path = calc_input_path(jobid, getdimefname(dimeid));
+				string dimepath = getdimepath(dimeid);
+				string md5path = dimepath + ".md5";
+				if (-1 == link(dimepath.c_str(), path.c_str()))
+				{
+					LOG(LOG_ERR, "DC-API-Single: failed to copy input file %s",
+						dimepath.c_str());
+					delete qmjob;
 					return SOAP_FATAL_ERROR;
 				}
-				string fname = input_dir + string("/") + dime_prefix + lfn->logicalName;
-				link(fname.c_str(), path.c_str());
-				unlink(fname.c_str());
+				ifstream md5file(md5path.c_str());
+				if (!md5file.is_open())
+				{
+					LOG(LOG_ERR, "DC-API-Single: failed to open MD5 hash file  %s",
+						md5path.c_str());
+					delete qmjob;
+					return SOAP_FATAL_ERROR;
+				}
+				md5file >> md5;
+				md5file.close();
+				struct stat st;
+				stat(dimepath.c_str(), &st);
+				FileRef a(path, md5, st.st_size);
+				qmjob->addInput(fname, a);
+				inputs.push_back(pair<string, FileRef>(fname, a));
+				unlink(md5path.c_str());
+				unlink(dimepath.c_str());
 			}
 		}
-
-		if (need_dl)
-			qmjob->setStatus(Job::PREPARE, false);
 
 		for (vector<string>::const_iterator outit = wsjob->outputs.begin(); outit != wsjob->outputs.end(); outit++)
 		{
@@ -385,14 +510,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 
 		result->jobid.push_back(jobid);
 
-		/* The downloads can only be started after the job record is in the DB */
-		for (vector< pair<string,string> >::const_iterator it = inputs.begin(); it != inputs.end(); it++)
-		{
-			auto_ptr<DBItem> item(new DBItem(jobid, it->first, it->second));
-			dbh->addDL(jobid, it->first, it->second);
-			DownloadManager::add(item.get());
-			item.release();
-		}
+		delete qmjob;
 	}
 
 	DBHandler::put(dbh);
@@ -695,8 +813,63 @@ static void restart_download(const char *jobid, const char *localName,
 {
 	DBItem *item = new DBItem(jobid, localName, url);
 	item->setRetry(*next, retries);
+	DBHandler *dbh = DBHandler::get();
+	dbh->updateInputPath(jobid, localName, calc_input_path(jobid, localName));
+	DBHandler::put(dbh);
 	DownloadManager::add(item);
 }
+
+static void *run_dbreread(void *data G_GNUC_UNUSED)
+{
+	int fd;
+
+	if (touch(dbreread_file))
+	{
+		LOG(LOG_ERR, "Failed to create DB reread trigger file '%s': %s",
+			dbreread_file, strerror(errno));
+		return NULL;
+	}
+
+	fd = inotify_init();
+	if (-1 == fd)
+	{
+		LOG(LOG_ERR, "Failed to initialize inotify: %s",
+			strerror(errno));
+		return NULL;
+	}
+
+	/* Watch all events, so a simple open() is enough */
+	if (-1 ==inotify_add_watch(fd, dbreread_file, IN_ALL_EVENTS))
+	{
+		LOG(LOG_ERR, "Failed to initialize inotify: %s",
+			strerror(errno));
+		close(fd);
+		return NULL;
+	}
+
+	while (!finish)
+	{
+		int rv;
+		struct pollfd pfd;
+
+		pfd.fd = fd;
+		pfd.events = POLLIN;
+
+		rv = poll(&pfd, 1, 5);
+		if (-1 == rv)
+			LOG(LOG_ERR, "poll() failed: %s", strerror(errno));
+		else
+		{
+			struct inotify_event ev;
+			read(fd, &ev, sizeof(ev));
+			DBHandler *dbh = DBHandler::get();
+			dbh->getAllDLs(restart_download);
+			DBHandler::put(dbh);
+		}
+	}
+	return NULL;
+}
+
 
 /**********************************************************************
  * The main program
@@ -709,6 +882,11 @@ int main(int argc, char **argv)
 	GError *error = NULL;
 	struct sigaction sa;
 	struct soap soap;
+
+	uuid_t uuid;
+	dime_prefix = new char[37];
+	uuid_generate(uuid);
+	uuid_unparse(uuid, dime_prefix);
 
 	/* Parse the command line */
 	context = g_option_context_new("- Web Service interface to the 3G Bridge");
@@ -805,6 +983,15 @@ int main(int argc, char **argv)
 	}
 	g_strstrip(output_url_prefix);
 
+	dbreread_file = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "dbreread-file", &error);
+	if (error)
+	{
+		LOG(LOG_ERR, "Failed to get DB reread file's location: %s",
+			error->message);
+		g_error_free(error);
+		dbreread_file = NULL;
+	}
+
 	if (run_as_daemon && pid_file_create(global_config, GROUP_WSSUBMITTER))
 		exit(EX_OSERR);
 
@@ -846,6 +1033,18 @@ int main(int argc, char **argv)
 		LOG(LOG_ERR, "Fatal: %s", e->what());
 		delete e;
 		exit(EX_SOFTWARE);
+	}
+
+	/* Launch db reread thread */
+	if (dbreread_file)
+	{
+		dbreread_thread = g_thread_create(run_dbreread, NULL, TRUE, &error);
+		if (!dbreread_thread)
+		{
+			LOG(LOG_ERR, "Failed to create DB reread thread: %s",
+				error->message);
+			g_error_free(error);
+		}
 	}
 
 	soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE | SOAP_IO_CHUNK);

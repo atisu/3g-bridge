@@ -44,7 +44,9 @@ CREATE TABLE cg_job (
 CREATE TABLE cg_inputs (
 	id		CHAR(36)	NOT NULL,	/* Unique id of job, foreign key of job.id */
 	localname	VARCHAR(254)	NOT NULL,	/* Basename of the file */
-	path		VARCHAR(2048)	NOT NULL,	/* Absolute path of the file */
+	url		VARCHAR(2048)	NOT NULL,	/* URL of the file or absolute path */
+	md5		CHAR(32),			/* MD5 hash information for the file */
+	filesize	INT,				/* Size of the file in bytes */
 	PRIMARY KEY ENTRY (id, localname),
 	FOREIGN KEY (id) REFERENCES cg_job(id) ON DELETE CASCADE
 ) TYPE=InnoDB;

@@ -247,7 +247,7 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 
 	// Get inputs for job from db
 	DBHandler *dbh = get();
-	if (!dbh->query("SELECT localname, path FROM cg_inputs WHERE id = '%s'", id))
+	if (!dbh->query("SELECT localname, url, md5, filesize FROM cg_inputs WHERE id = '%s'", id))
 	{
 		job.reset(0);
 		put(dbh);
@@ -257,7 +257,10 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 	DBResult res2(dbh);
 	res2.use();
 	while (res2.fetch())
-		job->addInput(res2.get_field(0), res2.get_field(1));
+	{
+		FileRef a(string(res2.get_field(1)), string(res2.get_field(2)), atoi(res2.get_field(3)));
+		job->addInput(res2.get_field(0), a);
+	}
 
 	// Get outputs for job from db
 	if (!dbh->query("SELECT localname, path FROM cg_outputs WHERE id = '%s'", id))
@@ -464,10 +467,10 @@ bool DBHandler::addJob(Job &job)
 	for (vector<string>::const_iterator it = files->begin(); it != files->end(); it++)
 	{
 		string path = job.getInputPath(*it);
-		success &= query("INSERT INTO cg_inputs (id, localname, path) VALUES ('%s', '%s', '%s')",
-			job.getId().c_str(), it->c_str(), path.c_str());
+		FileRef fr = job.getInputRef(*it);
+		success &= query("INSERT INTO cg_inputs (id, localname, url, md5, filesize) VALUES ('%s', '%s', '%s', '%s', '%d')",
+			job.getId().c_str(), it->c_str(), fr.getURL().c_str(), fr.getMD5().c_str(), fr.getSize());
 	}
-
 	files = job.getOutputs();
 	for (vector<string>::const_iterator it = files->begin(); it != files->end(); it++)
 	{
@@ -677,6 +680,16 @@ void DBHandler::getAllDLs(void (*cb)(const char *jobid, const char *localName,
 		next.tv_sec = atol(next_str);
 		cb(jobid, localName, url, &next, atoi(retries_str));
 	}
+}
+
+
+void DBHandler::updateInputPath(const string &jobid, const string &localName,
+		const string &path)
+{
+	query("UPDATE cg_inputs "
+		"SET url = '%s' "
+		"WHERE id = '%s' AND localname = '%s'",
+		path.c_str(), jobid.c_str(), localName.c_str());
 }
 
 void DBHandler::init(GKeyFile *config)

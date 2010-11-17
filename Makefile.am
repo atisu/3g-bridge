@@ -74,6 +74,7 @@ noinst_HEADERS = \
 		BackendException.h \
 		Conf.h \
 		DBHandler.h \
+		FileRef.h \
 		plugins/DC-API_handler.h \
 		plugins/DC-API-Single_handler.h \
 		plugins/XTREMWEB_handler.h \
@@ -84,6 +85,7 @@ noinst_HEADERS = \
 		GridHandler.h \
 		Job.h \
 		QMException.h \
+		DLException.h \
 		Util.h
 
 injector_SOURCES = \
@@ -91,6 +93,7 @@ injector_SOURCES = \
 		AlgQueue.cpp \
 		DBHandler.cpp \
 		Job.cpp \
+		FileRef.cpp \
 		QMException.cpp \
 		Util.c
 injector_LDADD = $(GLIB_LIBS) $(MYSQL_LIBS) -luuid
@@ -108,7 +111,9 @@ jobwrapper_LDADD = -lboinc_api -lboinc $(GLIB_LIBS) $(MYSQL_LIBS) -luuid
 		DBHandler.cpp \
 		GridHandler.cpp \
 		Job.cpp \
+		FileRef.cpp \
 		QMException.cpp \
+		DLException.cpp \
 		QueueManager.cpp \
 		Util.c \
 		MonitorHandler.h
@@ -128,7 +133,9 @@ wssubmitter_SOURCES = \
 		DBHandler.cpp \
 		DownloadManager.cpp \
 		Job.cpp \
+		FileRef.cpp \
 		QMException.cpp \
+		DLException.cpp \
 		Util.c \
 		WSSubmitter.cpp
 wssubmitter_LDADD = $(GLIB_LIBS) $(GTHREAD_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto -luuid
@@ -149,7 +156,7 @@ nodist_wsclient_SOURCES = \
 		$(SUBMITTER_SOAP_SOURCES_CLIENT)
 wsclient_SOURCES = \
 		wsclient.cpp
-wsclient_LDADD = $(GLIB_LIBS) $(GSOAP_LIBS)
+wsclient_LDADD = $(GLIB_LIBS) $(GSOAP_LIBS) -luuid
 
 wsmonitorclient_CPPFALGS = $(GSOAP_CFLAGS)
 nodist_wsmonitorclient_SOURCES = \

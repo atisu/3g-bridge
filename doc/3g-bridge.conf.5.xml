@@ -303,6 +303,15 @@
 		    </para>
 		</glossdef>
 	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>dbreread-file</envar></glossterm>
+		<glossdef>
+		    <para>
+			Location of file used to indicate download table reread. Do not use BOINC reread_db
+			file for this purpose.
+		    </para>
+		</glossdef>
+	    </glossentry>
 	</glosslist>
     </refsect1>
 

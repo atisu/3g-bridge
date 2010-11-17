@@ -29,6 +29,7 @@
 #define JOB_H
 
 #include "AlgQueue.h"
+#include "FileRef.h"
 
 #include <memory>
 #include <string>
@@ -71,7 +72,7 @@ public:
 	 * @see grid()
 	 * @see status()
 	 */
-	Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const vector<string> *env = NULL);
+	Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status);
 
 	/**
 	 * Empty constructor.
@@ -125,7 +126,7 @@ public:
 	 * @param fsyspath location of the file on the filesystem
 	 * @see inputs()
 	 */
-	void addInput(const string &localname, const string &fsyspath);
+	void addInput(const string &localname, const FileRef &fileref);
 
 	/**
 	 * Return vector of input files. Returns a vector of the localnames
@@ -136,12 +137,20 @@ public:
 	auto_ptr< vector<string> > getInputs() const;
 
 	/**
+	 * Get file reference for a file.
+	 * @param localname the localname we're interested in
+	 * @see inputs()
+	 * @return the file reference
+	 */
+	const FileRef &getInputRef(const string localname) { return inputs[localname]; }
+
+	/**
 	 * Get the location of a file on the filesystem.
 	 * @param localname the localname we're interested in
 	 * @see inputs()
 	 * @return the filesystem location of localname
 	 */
-	const string &getInputPath(const string localname) { return inputs[localname]; }
+	const string &getInputPath(const string localname) { return inputs[localname].getURL(); }
 
 	/**
 	 * Add an output file to the job.
@@ -260,7 +269,7 @@ private:
 	 * and the value belonging to a key is the location of the file on the
 	 * filesystem.
 	 */
-	map<string, string> inputs;
+	map<string, FileRef> inputs;
 
 	/**
 	 * Output files belonging to the Job. The variable is a map from

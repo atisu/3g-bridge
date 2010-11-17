@@ -32,6 +32,7 @@
 #include <sysexits.h>
 #include <getopt.h>
 #include <string.h>
+#include <uuid/uuid.h>
 
 #include <vector>
 #include <fstream>
@@ -104,7 +105,7 @@ static GOptionEntry add_options[] =
 	{ "args",		'a',	0,	G_OPTION_ARG_STRING,		&args,
 		"Command-line arguments for the job", "ARGS" },
 	{ "in",			'i',	0,	G_OPTION_ARG_STRING_ARRAY,	&inputs,
-		"Input file specification", "NAME=URL" },
+		"Input file specification", "NAME=URL=MD5HASH=SIZE" },
 	{ "out",		'o',	0,	G_OPTION_ARG_STRING_ARRAY,	&outputs,
 		"Output file names", "NAME" },
 	{ "repeat",		0,	0,	G_OPTION_ARG_INT,		&repeat,
@@ -280,6 +281,8 @@ static int add_jobid(const char *name, const char *value, void *ptr, GError **er
  */
 static void handle_add(void)
 {
+	uuid_t uuid;
+	char tid[37];
 	bool dime_set = false;
 	G3BridgeSubmitter__Job job;
 
@@ -288,6 +291,9 @@ static void handle_add(void)
 		cerr << "Job addition problem: either name or grid undefined!" << endl;
 		exit(EX_USAGE);
 	}
+
+	uuid_generate(uuid);
+	uuid_unparse(uuid, tid);
 
 	job.alg = name;
 	job.grid = grid;
@@ -303,23 +309,45 @@ static void handle_add(void)
 
 	for (unsigned i = 0; inputs && inputs[i]; i++)
 	{
-		char *p;
+		int size = -1;
+		char *url, *md5, *sizestr;
 
-		p = strchr(inputs[i], '=');
-		if (!p)
+		/* Read URL/path from input specs */
+		url = strchr(inputs[i], '=');
+		if (!url)
 		{
 			cerr << "Malformed input definition string: " << inputs[i] << endl;
 			exit(EX_USAGE);
 		}
-
-		*p++ = '\0';
-		if (!strlen(p))
+		*url++ = '\0';
+		if (!strlen(url))
 		{
 			cerr << "Input URL is missing for " << inputs[i] << endl;
 			exit(EX_USAGE);
 		}
 
-		if (*p == '/')
+		/* Read MD5 and size from input specs */
+		md5 = strchr(url, '=');
+		if (md5)
+		{
+			*md5++ = '\0';
+			sizestr = strchr(md5, '=');
+			if (sizestr)
+			{
+				*sizestr++ = '\0';
+				size = strtol(sizestr, NULL, 10);
+				if (errno == ERANGE || (errno != 0 && size == 0))
+				{
+					cerr << "Unable to parse the following size: ";
+					cerr << sizestr << endl;
+					exit(EX_USAGE);
+				}
+			}
+		}
+
+		G3BridgeSubmitter__LogicalFile *lf = soap_new_G3BridgeSubmitter__LogicalFile(soap, -1);
+		/* Handle files sent with DIME */
+		if (*url == '/')
 		{
 			if (!dime_set)
 			{
@@ -330,18 +358,26 @@ static void handle_add(void)
 				dime_set = true;
 			}
 			struct stat st;
-			if (-1 == stat(p, &st))
+			if (-1 == stat(url, &st))
 			{
-				cerr << "Unable to stat() file " << p << ": " << strerror(errno) << endl;
+				cerr << "Unable to stat() file " << url << ": " << strerror(errno) << endl;
 				exit(EX_IOERR);
 			}
-			string idbuf = inputs[i] + string("=") + p;
+			size = st.st_size;
+			asprintf(&sizestr, "%d", size);
+			string idbuf = string(tid) + string("=") + inputs[i] + string("=") + url;
 			soap_set_dime_attachment(soap, NULL, st.st_size, "application/octet-stream", idbuf.c_str(), 0, NULL);
 		}
 
-		G3BridgeSubmitter__LogicalFile *lf = soap_new_G3BridgeSubmitter__LogicalFile(soap, -1);
 		lf->logicalName = inputs[i];
-		lf->URL = p;
+		lf->URL = url;
+		lf->md5 = "";
+		lf->size = "-1";
+		if (md5 && size != -1)
+		{
+			lf->md5 = string(md5);
+			lf->size = string(sizestr);
+		}
 		job.inputs.push_back(lf);
 	}
 
@@ -549,7 +585,7 @@ static void handle_version(void)
  */
 static void *fdimereadopen(struct soap *soap, void *handle, const char *id, const char *type, const char *options)
 {
-	const char *p = strchr(id, '=') + 1;
+	const char *p = strrchr(id, '=') + 1;
 	FILE *fd = fopen(p, "r");
 	if (!fd)
 	{

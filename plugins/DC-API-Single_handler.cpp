@@ -33,6 +33,7 @@
 #include "DBHandler.h"
 #include "Job.h"
 #include "Util.h"
+#include "DLException.h"
 
 #include <dc.h>
 
@@ -144,7 +145,7 @@ DCAPISingleHandler::DCAPISingleHandler(GKeyFile *config, const char *instance) t
 	groupByNames = false;
 }
 
-static bool submit_job(Job *job)
+static bool submit_job(Job *job) throw (BackendException *)
 {
 	GError *error = 0;
 	char **argv = NULL;
@@ -178,20 +179,58 @@ static bool submit_job(Job *job)
 	}
 
 	auto_ptr< vector<string> > inputs = job->getInputs();
-	set<string> inputset;
+
+	/* Check for unsupported URLs */
+	DLException *dle = NULL;
 	for (vector<string>::iterator it = inputs->begin(); it != inputs->end(); it++)
 		inputset.insert(*it);
 	for (set<string>::iterator it = inputset.begin(); it != inputset.end(); it++)
 	{
-		if (DC_addWUInput(wu, (*it).c_str(), job->getInputPath(*it).c_str(), DC_FILE_VOLATILE))
+		FileRef fr = job->getInputRef(*it);
+		string url = fr.getURL();
+		if ("http://" != url.substr(0, 7) && "attic://" != url.substr(0, 8) &&
+			'/' != url[0])
+		{
+			if (!dle)
+				dle = new DLException(job->getId());
+			dle->addInput(*it);
+		}
+	}
+	if (dle)
+	{
+		DC_destroyWU(wu);
+		throw dle;
+	}
+
+	for (vector<string>::iterator it = inputs->begin(); it != inputs->end(); it++)
+	{
+		string lname = *it;
+		FileRef fr = job->getInputRef(lname);
+		string url = fr.getURL();
+		string md5 = fr.getMD5();
+		int size = fr.getSize();
+		
+		if ("http://" == url.substr(0, 7) || "attic://" == url.substr(0, 8))
+		{
+			LOG(LOG_DEBUG, "DC-API-Single: adding remote input file %s to workunit as %s.",
+				url.c_str(), lname.c_str());
+			if (DC_addWUInput(wu, lname.c_str(), url.c_str(), DC_FILE_REMOTE, md5.c_str(), size))
+			{
+				LOG(LOG_ERR, "DC-API-Single: failed to add input file %s to WU of job %s!",
+					lname.c_str(), job->getId().c_str());
+				DC_destroyWU(wu);
+				return false;
+			}
+		}
+		else if (DC_addWUInput(wu, lname.c_str(), job->getInputPath(lname).c_str(), DC_FILE_VOLATILE))
 		{
 			LOG(LOG_ERR, "DC-API-Single: Job %s: Failed to add input file \"%s\"",
-				job->getId().c_str(), job->getInputPath(*it).c_str());
+				job->getId().c_str(), job->getInputPath(lname).c_str());
 			DC_destroyWU(wu);
 			return false;
 		}
 		LOG(LOG_DEBUG, "DC-API-Single: Input file \"%s\" added to WU of job \"%s\" as \"%s\"",
-			job->getInputPath(*it).c_str(), job->getId().c_str(), (*it).c_str());
+			job->getInputPath(lname).c_str(), job->getId().c_str(), lname.c_str());
 	}
 
 	auto_ptr< vector<string> > outputs = job->getOutputs();

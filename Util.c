@@ -503,3 +503,18 @@ int pid_file_kill(GKeyFile *config, const char *section)
 	g_free(str);
 	return EX_UNAVAILABLE;
 }
+
+int touch(const char *fname)
+{
+	FILE *f;
+
+	if (!fname)
+		return -1;
+
+	f = fopen(fname, "w");
+	if (!f)
+		return -1;
+
+	fclose(f);
+	return 0;
+}

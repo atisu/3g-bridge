@@ -101,6 +101,12 @@ void pid_file_update(void);
  */
 int pid_file_kill(GKeyFile *config, const char *section);
 
+/**
+ * Touch a file.
+ * @param fname the file to touch
+ */
+int touch(const char *fname);
+
 #ifdef __cplusplus
 }
 #endif

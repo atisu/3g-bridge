@@ -39,7 +39,7 @@
 using namespace std;
 
 
-Job::Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const vector<string> *env):
+Job::Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status):
 		id(id),name(name),grid(grid),status(status)
 {
 	if (args)
@@ -67,9 +67,9 @@ Job::Job(const char *id, const char *name, const char *grid, const char *args, J
 }
 
 
-void Job::addInput(const string &localname, const string &fsyspath)
+void Job::addInput(const string &localname, const FileRef &fileref)
 {
-	inputs[localname] = fsyspath;
+	inputs[localname] = fileref;
 }
 
 
@@ -81,7 +81,7 @@ void Job::addOutput(const string &localname, const string &fsyspath)
 
 auto_ptr< vector<string> > Job::getInputs() const
 {
-	map<string, string>::const_iterator it;
+	map<string, FileRef>::const_iterator it;
 	auto_ptr< vector<string> > rval(new vector<string>);
 	for (it = inputs.begin(); it != inputs.end(); it++)
 		rval->push_back(it->first);

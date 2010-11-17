@@ -61,7 +61,7 @@ static GOptionEntry options[] =
 	{ "grid",		'g',	0,	G_OPTION_ARG_STRING,		&grid,
 		"Name of the target grid", "NAME" },
 	{ "input",		'i',	0,	G_OPTION_ARG_STRING_ARRAY,	&inputs,
-		"Input file specifications", "NAME:PATH" },
+		"Input file specifications", "NAME:URL:MD5:SIZE" },
 	{ "output",		'o',	0,	G_OPTION_ARG_STRING_ARRAY,	&outputs,
 		"Output file specifications", "NAME:PATH" },
 	{ "params",		'p',	0,	G_OPTION_ARG_STRING,		&args,
@@ -143,14 +143,15 @@ int main(int argc, char **argv)
 
 	for (unsigned i = 0; inputs[i]; i++)
 	{
-		char *p = strchr(inputs[i], ':');
-		if (!p)
+		char *url = strchr(inputs[i], ':');
+		if (!url)
 		{
 			cerr << "Invalid input specification: " << inputs[i] << endl;
 			exit(EX_USAGE);
 		}
-		*p++ = '\0';
-		job.addInput(inputs[i], p);
+		*url++ = '\0';
+		FileRef a(string(url), NULL, -1);
+		job.addInput(inputs[i], a);
 	}
 
 	for (unsigned i = 0; outputs[i]; i++)

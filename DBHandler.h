@@ -249,6 +249,7 @@ class DBHandler {
 		int retries);
 	void getAllDLs(void (*cb)(const char *jobid, const char *localName,
 			const char *url, const struct timeval *next, int retries));
+	void updateInputPath(const string &jobid, const string &localName, const string &path);
 
     protected:
 	/// DBResult friend class.

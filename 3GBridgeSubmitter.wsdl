@@ -36,6 +36,8 @@
 				<xsd:sequence>
 					<xsd:element name="logicalName" type="xsd:string" minOccurs="1" maxOccurs="1"/>
 					<xsd:element name="URL" type="xsd:string" minOccurs="1" maxOccurs="1"/>
+					<xsd:element name="md5" type="xsd:string" minOccurs="1" maxOccurs="1"/>
+					<xsd:element name="size" type="xsd:decimal" minOccurs="1" maxOccurs="1"/>
 				</xsd:sequence>
 			</xsd:complexType>
 
