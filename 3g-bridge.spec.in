@@ -10,18 +10,19 @@ Group: Grid
 Source: %{name}-%{version}.tar.bz2
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 BuildRequires: libstdc++-devel
+BuildRequires: mysql-devel >= 5.0
+BuildRequires: vdt_globus_sdk
 BuildRequires: glite-wms-wmproxy-api-cpp
 BuildRequires: boinc-client-devel
-# For gSOAP: byacc anc flex
-BuildRequires: byacc
-BuildRequires: flex
 # For libuuid.so:
 BuildRequires: e2fsprogs-devel
 BuildRequires: glib2-devel >= 2.6
-BuildRequires: gettext
-Source1: http://prdownloads.sourceforge.net/gsoap2/gsoap_2.7.11.tar.gz
-BuildRequires: curl-devel
+BuildRequires: curl-devel >= 7.12
 BuildRequires: jdk
+Source1: http://prdownloads.sourceforge.net/gsoap2/gsoap_2.7.11.tar.gz
+# For gSOAP: bison and flex
+BuildRequires: bison
+BuildRequires: flex
 
 %description
 The purpose of the 3G bridge application is to create a connection between a
@@ -100,7 +101,8 @@ cd ..
 export PKG_CONFIG_PATH LD_LIBRARY_PATH
 
 # Real build starts here
-%configure --enable-java --with-gsoap=$PWD/gsoap-2.7/installed \
+%configure --with-gsoap=$PWD/gsoap-2.7/installed \
+           --enable-java --with-java-includes=/usr/java/default/include \
            --with-egee --without-dcapi --with-jobwrapper
 make
 
