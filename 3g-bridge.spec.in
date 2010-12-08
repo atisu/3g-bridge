@@ -155,11 +155,21 @@ export PKG_CONFIG_PATH LD_LIBRARY_PATH
 
 # Real build starts here
 %configure --with-gsoap=$PWD/gsoap-2.7/installed \
-%{?_with_java: --enable-java --with-java-includes=/usr/java/default/include} \
-%{?_with_egee: --with-egee} \
-%{?_with_jobwrapper: --with-jobwrapper} \
-%{?_with_xtremweb: --with-xtremweb} \
-%{?_with_ec2: --with-ec2} \
+%if %{_with_java}
+           --enable-java --with-java-includes=/usr/java/default/include \
+%endif
+%if %{_with_egee}
+           --with-egee} \
+%endif
+%if %{_with_jobwrapper}
+           --with-jobwrapper \
+%endif
+%if %{_with_xtremweb}
+           --with-xtremweb \
+%endif
+%if %{_with_ec2}
+           --with-ec2 \
+%endif
            --without-dcapi
 make
 
