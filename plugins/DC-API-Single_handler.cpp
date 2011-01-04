@@ -245,6 +245,14 @@ static bool submit_job(Job *job) throw (BackendException *)
 			(*it).c_str(), job->getId().c_str());
 	}
 
+	//If "SPEQULOS_BATCH_ID" exists among the environment variables, set it as batch of the WU
+	const char *spqbatch = job->getEnv("SPEQULOS_BATCH_ID").c_str();
+	if (strlen(spqbatch)>0)
+	{
+		LOG(LOG_DEBUG, "DC-API-Single: SPEQULOS_BATCH_ID = \"%s\"",spqbatch);
+		DC_setWUBatch(wu,atoi(spqbatch));
+	}
+
 	if (DC_submitWU(wu))
 	{
 		LOG(LOG_ERR, "DC-API-Single: Job %s: Failed to submit", job->getId().c_str());
