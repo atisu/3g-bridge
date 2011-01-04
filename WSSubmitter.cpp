@@ -435,7 +435,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 		vector< pair<string, FileRef> > inputs;
 
 		G3BridgeSubmitter__Job *wsjob = *jobit;
-		Job *qmjob = new Job((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::INIT);
+		Job *qmjob = new Job((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::INIT, &wsjob->env);
 
 		for (vector<G3BridgeSubmitter__LogicalFile *>::const_iterator inpit = wsjob->inputs.begin(); inpit != wsjob->inputs.end(); inpit++)
 		{
