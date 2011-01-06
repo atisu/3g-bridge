@@ -245,12 +245,12 @@ static bool submit_job(Job *job) throw (BackendException *)
 			(*it).c_str(), job->getId().c_str());
 	}
 
-	//If "SPEQULOS_BATCH_ID" exists among the environment variables, set it as batch of the WU
-	const char *spqbatch = job->getEnv("SPEQULOS_BATCH_ID").c_str();
-	if (strlen(spqbatch)>0)
+	//If "_3G_BRIDGE_BATCH_ID" exists among the environment variables, set it as batch of the WU
+	const char *_3gbatch = job->getEnv("_3G_BRIDGE_BATCH_ID").c_str();
+	if (strlen(_3gbatch)>0)
 	{
-		LOG(LOG_DEBUG, "DC-API-Single: SPEQULOS_BATCH_ID = \"%s\"",spqbatch);
-		DC_setWUBatch(wu,atoi(spqbatch));
+		LOG(LOG_DEBUG, "DC-API-Single: _3G_BRIDGE_BATCH_ID = \"%s\"",_3gbatch);
+		DC_setWUBatch(wu,atoi(_3gbatch));
 	}
 
 	if (DC_submitWU(wu))
