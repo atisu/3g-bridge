@@ -1,3 +1,32 @@
+/*
+ * Copyright (C) 2011      LAL, Univ Paris-Sud, IN2P3/CNRS  (Etienne URBAH)
+ * Copyright (C) 2008-2010 MTA SZTAKI LPDS
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * In addition, as a special exception, MTA SZTAKI gives you permission to
+ * link the code of its release of the 3G Bridge with the OpenSSL project's
+ * "OpenSSL" library (or with modified versions of it that use the same
+ * license as the "OpenSSL" library), and distribute the linked executables.
+ * You must obey the GNU General Public License in all respects for all of the
+ * code used other than "OpenSSL". If you modify this file, you may extend
+ * this exception to your version of the file, but you are not obligated to do
+ * so. If you do not wish to do so, delete this exception statement from your
+ * version.
+ */
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -29,487 +58,797 @@
 
 using namespace std;
 
-//#define FAKESUBMIT
+//XW_CLEAN_FORCED adds an preparation call to xwclean
+//This is a workaround to some bug in XtremWeb
+//#define XW_CLEAN_FORCED
 
-//XWFIX add an additional call to xwclean
-//this is a workaround to some bug in XtremWeb
-#define XWFIX
+//#define XW_SLEEP_BEFORE_DOWNLOAD
 
-//string * invoke_cmd(const char *exe,   char * const argv[]);
+//OBSOLETE  string * invoke_cmd(const char * exe,   char * const argv[]);
 
-#define XWSUBMIT 0
-#define XWSTATUS 1
-#define XWDATA   2
-#define XWGET    3
-#define XWCLEAN  4
-
-
-struct xwcommand
+enum xw_command_enumeration
 {
-    int type;
-    string bin;
-    string args;
-    string env;
-    string xwid;
-    string path;
-    string name;
+  XW_CLEAN,
+  XW_DATA,
+  XW_DOWNLOAD,
+  XW_RESULT,
+  XW_RM,
+  XW_STATUS,
+  XW_SUBMIT
 };
 
-
-string * xtremwebClient(struct xwcommand xwc);
-string g_cmdbase;//cmdbase for execution the commands
-string g_env;//a global env parameter
-string g_uuid; //uuid for Bridge jobs
-string g_outputpath;//outputpath foroutput files
-string g_timefordl; //time in seconds to download results for bridgss
-string g_installdir; //the directory where you have installed 3g bridge
-
-
-XWHandler::XWHandler(GKeyFile *config, const char *instance) throw (BackendException *): GridHandler(config, instance)
+struct xw_command_t
 {
-    LOG(LOG_INFO, "XW Plugin created");
+  int    xwcommand;
+  string appname;
+  string appargs;
+  string appenv;
+  string xwjobid;
+  string bridgejobid;
+  string path;
+  string name;
+};
 
-    groupByNames = false;
-    xwclient = g_key_file_get_string(config,instance,"xwclient-dir",NULL);
-    g_strstrip(xwclient);
+struct xw_returned_t
+{
+  int    retcode;
+  string message;
+};
 
-    g_env= g_key_file_get_string(config,instance,"xwenv",NULL);
+//============================================================================
+//  Global variables
+//============================================================================
+string g_xw_client_bin_folder;        // XtremWeb-HEP client binaries folder
+string g_xw_files_folder;             // Folder for XW input and output files
+string g_bridge_output_folder;        // Folder for bridge output files
+int    g_sleep_time_before_download;  // Sleeping time before download in s
+int    g_return_code;                 // Return code of the last command
+//OBSOLETE:  string g_env;                         // a global env parameter
+//OBSOLETE:  string g_bridge_job_id;               // 3G Bridge job id
+//OBSOLETE:  string g_bridge_bin_folder;           // 3G Bridge binaries folder
 
-    g_outputpath=g_key_file_get_string(config,instance,"output-dir",NULL);
-    LOG(LOG_DEBUG,"XW bridge output dir:%s \n",g_outputpath.c_str());
 
-    g_timefordl=g_key_file_get_string(config,instance,"xwdltime",NULL);
-    LOG(LOG_DEBUG,"XW bridge download results time:%s \n",g_timefordl.c_str());
-
-    g_installdir=g_key_file_get_string(config,instance,"installdir",NULL);
-    LOG(LOG_DEBUG,"XW bridge installed dirs:%s \n",g_installdir.c_str());
-
-    if (!xwclient)
-        throw new BackendException("XtremWeb: no XtremWeb client path "
-                                   "specified for %s", instance);
-    cmdbase = string(xwclient) + "/bin/";
-    g_cmdbase=cmdbase;
-
+//============================================================================
+//  Constructor
+//============================================================================
+XWHandler::XWHandler(GKeyFile * config, const char * instance)
+  throw (BackendException *): GridHandler(config, instance)
+{
+  const char * function_name = "XWHandler::XWHandler";
+  
+  LOG(LOG_INFO, "%s(%s)  Plugin creation for instance   '%s'",
+                function_name, name.c_str(), instance);
+  
+  groupByNames = false;
+  
+  //--------------------------------------------------------------------------
+  char * xw_client_folder = g_key_file_get_string(config, instance,
+                                                "xwclient_install_dir", NULL);
+  if ( ! xw_client_folder )
+      throw new BackendException("XWHandler::XWHandler  No XtremWeb client "
+                                 "folder specified for '%s'", instance);
+  g_strstrip(xw_client_folder);
+  LOG(LOG_INFO, "%s(%s)  XW client install folder:      '%s'",
+                function_name, name.c_str(), xw_client_folder);
+  g_xw_client_bin_folder = string(xw_client_folder) + "/bin/";
+  LOG(LOG_INFO, "%s(%s)  XW client binaries folder:     '%s'",
+                function_name, name.c_str(), g_xw_client_bin_folder.c_str());
+  
+  //--------------------------------------------------------------------------
+  //OBSOLETE:  g_env = g_key_file_get_string(config, instance, "xwenv", NULL);
+  
+  //--------------------------------------------------------------------------
+  g_xw_files_folder = g_key_file_get_string(config, instance, "xw_files_dir",
+                                            NULL);
+  LOG(LOG_INFO, "%s(%s)  Folder for XtremWeb files:     '%s'",
+                function_name, name.c_str(), g_xw_files_folder.c_str());
+  
+  //--------------------------------------------------------------------------
+  g_bridge_output_folder = g_key_file_get_string(config, "wssubmitter",
+                                                 "output-dir", NULL);
+  LOG(LOG_INFO, "%s(%s)  3G Bridge output folder:       '%s'",
+                function_name, name.c_str(), g_bridge_output_folder.c_str());
+  
+  //--------------------------------------------------------------------------
+  string sleep_time_before_download  = g_key_file_get_string(config, instance,
+                                       "xw_sleep_time_before_download", NULL);
+  LOG(LOG_INFO, "%s(%s)  Sleeping time before download: '%s'",
+                function_name, name.c_str(),
+                sleep_time_before_download.c_str());
+  g_sleep_time_before_download = atoi(sleep_time_before_download.c_str());
+  
+  //--------------------------------------------------------------------------
+  //OBSOLETE:  g_bridge_bin_folder = g_key_file_get_string(config, instance,
+  //OBSOLETE:                                              "bridge_bin_dir", NULL);
+  //OBSOLETE:  LOG(LOG_INFO, "%s(%s)  3G Bridge binaries folder:     '%s'",
+  //OBSOLETE:                function_name, name.c_str(), g_bridge_bin_folder.c_str());
+  
+  g_return_code = -1;
 }
 
 
+//============================================================================
+//  Destructor
+//============================================================================
 XWHandler::~XWHandler()
 {
-    /*
-      char cmd[PATH_MAX];
-      snprintf(cmd, sizeof(cmd), "rm -rf '%s'", tmpdir.c_str());
-      system(cmd);
-    */
+  const char * function_name = "XWHandler::~XWHandler";
+  
+  LOG(LOG_INFO, "%s(%s)  Successfully called for destruction",
+                function_name, name.c_str());
+  /*
+    char cmd[PATH_MAX];
+    snprintf(cmd, sizeof(cmd), "rm -rf '%s'", tmpdir.c_str());
+    system(cmd);
+  */
 }
 
 
+//============================================================================
+//  Function  xtremwebClient     
+//  @param  xw_command  Struct containing the XtremWeb command type and params
+//  @return             Message displayed by the command
+//
+//  This function executes the command given in parameter,
+//  retrieves the message normally displayed by the command on STDOUT,
+//  and returns a pointer to this message.
+//============================================================================
+string * xtremwebClient(struct xw_command_t xw_command)
+{
+  const char * function_name = "XWHandler  xtremwebClient";
+  string       name = "";
+  
+  string submitpath;
+  string submitparams;
+  
+  LOG(LOG_DEBUG, "%s(%s)  Command type = %d",
+                 function_name, name.c_str(), xw_command.xwcommand);
+  
+  //--------------------------------------------------------------------------
+  // Depending on the XtremWeb command, build the adequate command and params
+  //--------------------------------------------------------------------------
+  switch ( xw_command.xwcommand )
+  {
+    case XW_CLEAN:
+    {
+      submitpath   = g_xw_client_bin_folder + "xwclean";
+      submitparams = "";
+      break;
+    }
+    
+    case XW_DATA:
+    {
+      submitpath   = g_xw_client_bin_folder + "xwdata";
+      submitparams = xw_command.name + " " + xw_command.path;
+      break;
+    }
+    
+    case XW_RM:
+    {
+      submitpath   = g_xw_client_bin_folder + "xwrm";
+      submitparams = xw_command.xwjobid;
+      break;
+    }
+    
+    case XW_STATUS:
+    {
+      submitpath   = g_xw_client_bin_folder + "xwstatus";
+      submitparams = xw_command.xwjobid;
+      break;
+    }
+    
+    case XW_SUBMIT:
+    {
+      submitpath   = g_xw_client_bin_folder + "xwsubmit";
+      submitparams = xw_command.appname + " " + xw_command.appargs + " " +
+                     xw_command.appenv;
+      break;
+    }
+    
+    case XW_DOWNLOAD:
+    {
+      submitpath   = g_xw_client_bin_folder + "xwdownload";
+      submitparams = xw_command.appname + " " + xw_command.appargs + " " +
+                     xw_command.xwjobid + " " + xw_command.appenv;
+      
+      system("pwd");
+      
+      string workdir = g_xw_files_folder;
+      LOG(LOG_DEBUG, "%s(%s)  Executing chdir(%s)",
+                     function_name, name.c_str(), workdir.c_str());
+      chdir(workdir.c_str());
+      
+      break;
+    }
+    
+    case XW_RESULT:
+    {
+      submitpath   = g_xw_client_bin_folder + "xwresults";
+      submitparams = xw_command.xwjobid;
+      
+      char cwd[PATH_MAX];
+      getwd(cwd);
+      LOG(LOG_DEBUG, "%s(%s)  cwd = '%s'",
+                     function_name, name.c_str(), cwd);
+      
+      if  ( strcmp(cwd, g_xw_files_folder.c_str()) != 0 )
+      {
+        string workdir = g_xw_files_folder;
+        LOG(LOG_DEBUG, "%s(%s)  Executing chdir(%s)",
+                       function_name, name.c_str(), workdir.c_str());
+        chdir(workdir.c_str());
+      }
+      
+      break;
+    }
+    
+  }
+  
+  //--------------------------------------------------------------------------
+  // Execute the adequate XtremWeb command, and retrieve the displayed message
+  //--------------------------------------------------------------------------
+  LOG(LOG_DEBUG, "%s(%s)  Command = '%s'  Params = '%s'",
+                 function_name, name.c_str(), submitpath.c_str(),
+                 submitparams.c_str());
+  
+  // Create path and arguments for the command to execute
+  short  command_length = submitpath.length()   + 1;
+  short  params_length  = submitparams.length() + 1;
+  char * command        = new char[command_length];
+  char * params         = new char[params_length];
+  
+  char   shell_path[] = "/bin/sh";
+  char   shell[]      = "sh";
+  char * args[]       = { shell,
+                          strcpy(command, submitpath.c_str()),
+                          strcpy(params,  submitparams.c_str()),
+                          (char *)NULL };
+  LOG(LOG_INFO, "%s(%s)  %s %s %s",
+                function_name, name.c_str(), args[0], args[1], args[2]);
+  
+  // Create pipes permitting to retrieve STDOUT and STDERR of child process
+  int   pipe_stdout[2];
+  int   pipe_stderr[2];
+  pid_t process_id;
+  
+  pipe(pipe_stdout);
+  pipe(pipe_stderr);
+  
+  // Create child process to execute the command
+  xw_returned_t returned_values;
+  process_id = fork();
+  
+  if ( process_id < 0)
+  {
+    LOG(LOG_ERR, "%s(%s)    return_code = %d  for fork()",
+                 function_name, name.c_str(), process_id);
+    returned_values.retcode = process_id;
+    returned_values.message = "FORK ERROR";
+    return new string(returned_values.message);
+  }
+  
+  if ( process_id == 0)
+  {
+    LOG(LOG_DEBUG, "%s(%s)  Child process:  %s %s %s",
+                   function_name, name.c_str(), args[0], args[1], args[2]);
+    
+    close(pipe_stdout[0]);
+    close(pipe_stderr[0]);
+    
+    // Redirect STDOUT and STDERR to pipes
+    dup2(pipe_stdout[1], STDOUT_FILENO);
+    dup2(pipe_stderr[1], STDERR_FILENO);
+    
+    // Execute the above prepared command
+    LOG(LOG_DEBUG, "%s(%s)  Child process:  execv(%s)",
+                   function_name, name.c_str(), shell_path);
+    execv(shell_path, args);
+  }
+  
+  // Wait until child has finished
+  //IF wait(&var) FAILS:  int * stat_loc = new int;
+  (void)wait(&(returned_values.retcode));
+  close(pipe_stdout[1]);
+  close(pipe_stderr[1]);
+  
+  LOG(LOG_DEBUG, "%s(%s)  Return code = x'%X' --> %d",
+                 function_name, name.c_str(), returned_values.retcode,
+                 returned_values.retcode / 256);
+  
+  //IF wait(&var) FAILS:  delete stat_loc;
+  delete params;
+  delete command;
+  
+  // Read pipe to retrieve STDOUT of forked child
+  int         count;
+  const short buffer_size = 1024;
+  char        buffer[buffer_size];
+  
+  memset(buffer, 0, buffer_size);
+  while ( (count=read(pipe_stdout[0], buffer, buffer_size)) > 0 )
+  {
+    (returned_values.message).append(buffer);
+    memset(buffer, 0, buffer_size);
+  }
+  LOG(LOG_DEBUG, "%s(%s)  Displayed message = '%s'",
+                 function_name, name.c_str(),
+                 (returned_values.message).c_str());
+  
+  //--------------------------------------------------------------------------
+  // Retrieve and unzip the ZIP file containing the XtremWeb job results
+  //--------------------------------------------------------------------------
+  if ( (xw_command.xwcommand == XW_DOWNLOAD) ||
+       (xw_command.xwcommand == XW_RESULT)   )
+  {
+    string bridge_job_id = xw_command.bridgejobid;
+    
+#ifdef XW_SLEEP_BEFORE_DOWNLOAD
+    // Sleep some time before download.  Should NOT be necessary.
+    LOG(LOG_DEBUG, "%s(%s)  Job '%s'  Sleeping time before download = %d",
+                   function_name, name.c_str(), bridge_job_id.c_str(),
+                   g_sleep_time_before_download);
+    sleep(g_sleep_time_before_download);//waiting for results file downloaded
+#endif
+    
+    // Folder where to unzip the XtremWeb ZIP file
+    //OBSOLETE:  string output_files_folder = g_bridge_output_folder + "/" +
+    //OBSOLETE:                               bridge_job_id.substr(0, 2) + "/" +
+    //OBSOLETE:                               bridge_job_id + "/";
+    //OBSOLETE:  LOG(LOG_DEBUG, "%s(%s)  Bridge output files folder = '%s'",
+    //OBSOLETE:                 function_name, name.c_str(), output_files_folder.c_str());
+    
+    // Name of ZIP file contains the last 36 characters of XtremWeb job id
+    const size_t xw_id_len = 36;
+    size_t       pos_id    = (xw_command.xwjobid).length() - xw_id_len;
+    LOG(LOG_DEBUG, "%s(%s)  xw_command.xwjobid = '%s'  xw_id_len=%d  "
+                   "pos_id=%d",
+                   function_name, name.c_str(), (xw_command.xwjobid).c_str(),
+                   xw_id_len, pos_id);
+    string xw_zip_file_name = "*_ResultsOf_" +
+                              (xw_command.xwjobid).substr(pos_id, xw_id_len) +
+                              ".zip";
+    
+    //------------------------------------------------------------------------
+    // The XtremWeb ZIP file containing the job results should be in the
+    // XtremWeb file folder.  Rename this ZIP file using the bridge job id.
+    //------------------------------------------------------------------------
+    string zip_command = "mv " + g_xw_files_folder + "/" + xw_zip_file_name +
+                         " "   + g_xw_files_folder + "/" + bridge_job_id +
+                         ".zip";
+    LOG(LOG_DEBUG, "%s(%s)  command = '%s'",
+                   function_name, name.c_str(), zip_command.c_str());
+    
+    returned_values.retcode = system(zip_command.c_str());
+    
+    //------------------------------------------------------------------------
+    // Unzip the ZIP file containing results to the bridge output files folder
+    //------------------------------------------------------------------------
+    if ( returned_values.retcode == 0 )
+    {
+      zip_command = "/usr/bin/unzip -o " + g_xw_files_folder + "/" +
+                    bridge_job_id + ".zip -d " + g_bridge_output_folder +
+                    "/" + bridge_job_id.substr(0, 2) + "/" + bridge_job_id;
+      LOG(LOG_DEBUG, "%s(%s)  command = '%s'",
+                     function_name, name.c_str(), zip_command.c_str());
+      
+      returned_values.retcode = system(zip_command.c_str());
+    }
+    
+    if ( returned_values.retcode != 0 )
+    {
+      LOG(LOG_ERR, "%s(%s)    Job '%s'  return_code = %d  for command '%s'",
+                   function_name, name.c_str(), bridge_job_id.c_str(),
+                   returned_values.retcode, zip_command.c_str());
+      returned_values.message = "UNZIP ERROR";
+    }
+  }
+  
+  g_return_code = returned_values.retcode;
+  return new string(returned_values.message);
+}
+
+
+//============================================================================
+//  Member function  submitJobs
+//============================================================================
 void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 {
-    if (!jobs.size())
-        return;
-
-    LOG(LOG_INFO, "XW Plugin (%s): about to submit %zd jobs.", name.c_str(), jobs.size());
-    unsigned i = 0;
-    for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++, i++)
+  const char * function_name = "XWHandler::submitJobs";
+  
+  LOG(LOG_INFO, "%s(%s)  %d job(s) have to be submitted to XtremWeb",
+                function_name, name.c_str(), jobs.size());
+  
+  if ( jobs.size() < 1 )
+      return;
+  
+  Job *        current_job;
+  const char * bridge_job_id;
+  string       job_app_name;
+  string       job_app_args;
+  string       input_file_paths;
+  string       zip_file_name;
+  string       input_file_name;
+  string       input_file_path;
+  auto_ptr< vector<string> > input_files;
+  string       zip_command;
+  int          return_code;
+  struct xw_command_t xw_submit;
+  string *     xw_displayed_message;
+  size_t       pos_xwid;
+  string       xw_job_id;
+  
+  for ( JobVector::iterator job_iterator = jobs.begin();
+        job_iterator != jobs.end();
+        job_iterator++ )
+  {
+    current_job   = *job_iterator;
+    bridge_job_id = current_job->getId().c_str();
+    job_app_name  = current_job->getName();
+    job_app_args  = current_job->getArgs();
+    
+    //------------------------------------------------------------------------
+    // Retrieve list of input files, and store all of them inside a ZIP
+    //------------------------------------------------------------------------
+    input_file_paths = "";
+    zip_file_name    = g_xw_files_folder + "/" + current_job->getId() +
+                       ".zip";
+    input_files      = current_job->getInputs();
+    for ( unsigned file_number = 0;
+          file_number < input_files->size();
+          file_number++ )
     {
-
-        Job *actJ = *it;
-
-        string submit = cmdbase + "xwsubmit";
-
-        //Separate between application name and args
-        string args = actJ->getArgs();
-        string bin  = actJ->getName();
-
-        string env = "";
-        string filesToZip = "";
-        string zipFile =  "/tmp/" + actJ->getId() + ".zip";
-        auto_ptr< vector<string> > ins = actJ->getInputs();
-        for (unsigned j = 0; j < ins->size(); j++)
-        {
-
-            string fileName= (*ins)[j];
-            string path= actJ->getInputPath((*ins)[j]).c_str();
-            LOG(LOG_INFO," DATA[%s|%s]DATA\n",path.c_str(),fileName.c_str());
-            filesToZip += path;
-        }
-
-        string zip = "zip -j " + zipFile + " " + filesToZip;
-
-        string cmd="/usr/bin/"+zip;
-        LOG(LOG_INFO,"zipping... \n%s",cmd.c_str());
-        system(cmd.c_str());
-
-        LOG(LOG_INFO,"%s zipped \n",zipFile.c_str());
-
-        env = "--xwenv " + zipFile;
-        g_env=env;
-        submit = submit + " " + bin + " " + args + " " + env;
-        //rm zipFile
-        struct xwcommand xwsubmit;
-        xwsubmit.type=XWSUBMIT;
-        xwsubmit.bin=bin;
-        xwsubmit.args=args;
-        xwsubmit.env = env;
-#ifndef FAKESUBMIT
-        string * retour = xtremwebClient(xwsubmit);
-
-#endif
-        LOG(LOG_DEBUG, "XW Plugin: job submitted, now detemining node IDs.");
-
-        // then parse out the result
-        // get the XWID
-
-        int pos_xwid = retour->rfind("xw://");
-        string xwid = retour->substr(pos_xwid,retour->length()-1);
-        //trim xwid
-        size_t endpos = xwid.find_last_not_of(" \t\n");
-        if ( string::npos != endpos )
-            xwid = xwid.substr( 0, endpos+1 );
-        //insert XWID in the database
-        actJ->setGridId(xwid);
-
-        //TODO: put the file
-        //TODO: create the xwenv files
-
-        //change the status of the job
-        actJ->setStatus(Job::RUNNING);
+      input_file_name = (*input_files)[file_number];
+      input_file_path = current_job->getInputPath(input_file_name);
+      LOG(LOG_DEBUG, "%s(%s)  Job '%s'  input_file_name = '%s'  "
+                     "input_file_path = '%s'",
+                     function_name, name.c_str(), bridge_job_id,
+                     input_file_name.c_str(), input_file_path.c_str());
+      input_file_paths += " " + input_file_path;  // Insert blank as separator
     }
-    LOG(LOG_INFO, "XW Plugin: job submission finished.");
+    
+    string zip_command = "/usr/bin/zip -j " + zip_file_name + " " +
+                         input_file_paths;
+    LOG(LOG_DEBUG, "%s(%s)    Job '%s'  %s",
+                   function_name, name.c_str(), bridge_job_id,
+                   zip_command.c_str());
+    
+    return_code = system(zip_command.c_str());
+    LOG(LOG_DEBUG, "%s(%s)    Job '%s'  return_code = %d  for zipping '%s'",
+                   function_name, name.c_str(), bridge_job_id, return_code,
+                   zip_file_name.c_str());
+    
+    if ( return_code != 0 )
+    {
+      LOG(LOG_ERR, "%s(%s)    Job '%s'  return_code = %d  for zipping '%s'",
+                   function_name, name.c_str(), bridge_job_id, return_code,
+                   zip_file_name.c_str());
+      current_job->setStatus(Job::ERROR);
+      return;
+    }
+    
+    //------------------------------------------------------------------------
+    // Submit the job to XtremWeb
+    //------------------------------------------------------------------------
+    //OBSOLETE:  env    = "--xwenv " + zip_file_name;
+    //OBSOLETE:  g_env  = env;
+    //OBSOLETE:  submit = submit + " " + bin + " " + args + env;
+    //rm zip_file_name
+    
+    xw_submit.xwcommand = XW_SUBMIT;
+    xw_submit.appname   = job_app_name;
+    xw_submit.appargs   = job_app_args;
+    xw_submit.appenv    = " --xwenv " + zip_file_name;
+    
+    xw_displayed_message = xtremwebClient(xw_submit);
+    LOG(LOG_DEBUG, "%s(%s)    Job '%s' submitted, xw_displayed_message = '%s'",
+                   function_name, name.c_str(), bridge_job_id,
+                   (*xw_displayed_message).c_str());
+    
+    if ( g_return_code != 0 )
+    {
+      LOG(LOG_ERR, "%s(%s)    Job '%s'  return_code = x'%X' --> %d  for "
+                   "XtremWeb submission",
+                   function_name, name.c_str(), bridge_job_id, g_return_code,
+                   g_return_code / 256);
+      LOG(LOG_ERR, "%s(%s)    Job '%s'  NOT accepted  '%s'",
+                   function_name, name.c_str(), bridge_job_id,
+                   (*xw_displayed_message).c_str());
+      current_job->setStatus(Job::ERROR);
+      return;
+    }
+    
+    //------------------------------------------------------------------------
+    // From the message displayed by XtremWeb, extract the XtremWeb job id
+    //------------------------------------------------------------------------
+    pos_xwid  = xw_displayed_message->find("xw://");
+    if ( pos_xwid == string::npos )
+    {
+      LOG(LOG_ERR, "%s(%s)    Job '%s'  'xw://' NOT found inside message "
+                   "displayed by XtremWeb",
+                   function_name, name.c_str(), bridge_job_id);
+      current_job->setStatus(Job::ERROR);
+      return;
+    }
+    
+    xw_job_id = xw_displayed_message->substr(pos_xwid,
+                               xw_displayed_message->length() - pos_xwid - 1);
+    // Trim xw_job_id
+    size_t pos_end = xw_job_id.find_last_not_of(" \t\n");
+    if ( pos_end != string::npos )
+        xw_job_id = xw_job_id.substr(0, pos_end+1);
+    
+    //------------------------------------------------------------------------
+    // Insert the XtremWeb job id in the database
+    // Set the bridge status of the job to RUNNING
+    //------------------------------------------------------------------------
+    current_job->setGridId(xw_job_id);
+    current_job->setStatus(Job::RUNNING);
+    
+    //TODO ??? put the file
+    //TODO ??? create the xwenv files
+    
+    LOG(LOG_INFO, "%s(%s)    Job '%s'  XtremWeb Job ID = '%s'",
+                  function_name, name.c_str(), bridge_job_id, xw_job_id.c_str());
+  }
+  LOG(LOG_INFO, "%s(%s)  %d job(s) have been submitted to XtremWeb",
+                function_name, name.c_str(), jobs.size());
 }
 
 
+//============================================================================
+//  Member function  updateStatus
+//============================================================================
 void XWHandler::updateStatus(void) throw (BackendException *)
 {
-    LOG(LOG_INFO, "XW Plugin (%s): about to update status of jobs.", name.c_str());
-
-//	createCFG();
-
-    DBHandler *jobDB = DBHandler::get();
-    jobDB->pollJobs(this, Job::RUNNING, Job::CANCEL);
-    DBHandler::put(jobDB);
-
-    LOG(LOG_INFO, "XW Plugin: status update finished.");
+  const char * function_name = "XWHandler::updateStatus";
+  
+  LOG(LOG_DEBUG, "%s(%s)  Updating status of jobs  -  Begin",
+                 function_name, name.c_str());
+  
+  //OBSOLETE:  createCFG();
+  
+  DBHandler *jobDB = DBHandler::get();
+  jobDB->pollJobs(this, Job::RUNNING, Job::CANCEL);
+  DBHandler::put(jobDB);
+  
+  LOG(LOG_DEBUG, "%s(%s)  Updating status of jobs  -  End",
+                 function_name, name.c_str());
 }
 
 
-void XWHandler::updateJob(Job *job, string status)
+//============================================================================
+//  Member function  updateJob
+//============================================================================
+void XWHandler::updateJob(Job * job, string xw_job_current_status)
 {
-    const struct
+  const char * function_name = "XWHandler::updateJob";
+  
+  const struct
+  {
+      string         xw_job_status;
+      Job::JobStatus bridge_job_status;
+  } xw_to_bridge_status_relation[] =
+  {
+    {"WAITING",     Job::RUNNING},
+    {"PENDING",     Job::RUNNING},
+    {"RUNNING",     Job::RUNNING},
+    {"DATAREQUEST", Job::RUNNING},
+    {"AVAILABLE",   Job::RUNNING},
+    {"RUNNING",     Job::RUNNING},
+    {"COMPLETED",   Job::FINISHED},
+    {"ERROR",       Job::ERROR},
+    {"ABORTED",     Job::ERROR},
+    {"LOST",        Job::ERROR},
+    {"UNAVAILABLE", Job::ERROR},
+    {"",            Job::INIT},
+  };
+  
+  LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  '%s'  Updating bridge job status",
+                 function_name, name.c_str(), job->getId().c_str(),
+                 job->getGridId().c_str(), xw_job_current_status.c_str());
+  
+  for ( unsigned xw_status_no = 0;
+        xw_to_bridge_status_relation[xw_status_no].xw_job_status != "";
+        xw_status_no++ )
+  {
+    if ( xw_to_bridge_status_relation[xw_status_no].xw_job_status ==
+         xw_job_current_status )
     {
-        string XWDGs;
-        Job::JobStatus jobS;
-    } statusRelation[] =
-    {
-        {"WAITING", Job::RUNNING},
-        {"PENDING", Job::RUNNING},
-        {"RUNNING", Job::RUNNING},
-        {"DATAREQUEST", Job::RUNNING},
-        {"AVAILABLE", Job::RUNNING},
-        {"RUNNING", Job::RUNNING},
-        {"COMPLETED", Job::FINISHED},
-        {"ERROR", Job::ERROR},
-        {"ABORTED", Job::ERROR},
-        {"LOST", Job::ERROR},
-        {"UNAVAILABLE", Job::ERROR},
-        {"", Job::INIT},
-    };
-
-    string statStr=status;
-
-    LOG(LOG_INFO,"\nStatus Str:%s\n",statStr.c_str());
-    LOG(LOG_INFO, "XWDG Plugin (%s): updating status of job \"%s\" (unique identifier is \"%s\").", name.c_str(), job->getGridId().c_str(), job->getId().c_str());
-
-    for (unsigned j = 0; statusRelation[j].XWDGs != ""; j++)
-    {
-
-        if (statusRelation[j].XWDGs == statStr)
-        {
-// Todo to download resultats when status is "completed".
-
-            job->setStatus(statusRelation[j].jobS);
-            break;
-        }
+      // TODO ??? to download results when status is "completed".
+      
+      job->setStatus(xw_to_bridge_status_relation[xw_status_no].
+                     bridge_job_status);
+      break;
     }
+  }
+  
+  LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  '%s'  Updated bridge job status",
+                function_name, name.c_str(), job->getId().c_str(),
+                job->getGridId().c_str(), xw_job_current_status.c_str());
 }
 
 
-void XWHandler::poll(Job *job) throw (BackendException *)
+//============================================================================
+//  Member function  poll
+//============================================================================
+void XWHandler::poll(Job * job) throw (BackendException *)
 {
-    string xwid="";
-    xwid = job->getGridId();
-    g_uuid = job->getId();
-
-    xwcommand xwstatus;
-    switch (job->getStatus())
+  const char * function_name = "XWHandler::poll";
+  
+  string bridge_job_id = job->getId();
+  string xw_job_id     = job->getGridId();
+  
+  LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)", function_name, name.c_str(),
+                 bridge_job_id.c_str(), xw_job_id.c_str());
+  
+  xw_command_t  xw_command;
+  string *      xw_displayed_message;
+  unsigned char bridge_status = job->getStatus();
+  
+  //--------------------------------------------------------------------------
+  // If the bridge status of the job is CANCEL, delete it from XtremWeb
+  //--------------------------------------------------------------------------
+  if ( bridge_status == Job::CANCEL )
+  {
+    LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  'CANCEL'",
+                  function_name, name.c_str(), bridge_job_id.c_str(),
+                  xw_job_id.c_str());
+    
+    xw_command.xwcommand   = XW_RM;
+    xw_command.xwjobid     = xw_job_id;
+    xw_command.bridgejobid = bridge_job_id;
+    xw_displayed_message   = xtremwebClient(xw_command);
+    
+    //------------------------------------------------------------------------
+    // If and only if successful, update the bridge job status
+    //------------------------------------------------------------------------
+    if ( g_return_code != 0 )
     {
-	case Job::RUNNING:
-	{
-    	    xwstatus.xwid=xwid;
-    	    //we need this to fix an XtremWeb bug
-    	    string * retour;
-#ifdef XWFIX
-    	    xwstatus.type=XWCLEAN;
-    	    retour = xtremwebClient(xwstatus);
+      LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  XtremWeb return code = x'%X' --> "
+                    "%d  -->  3G Bridge status left unchanged",
+                    function_name, name.c_str(), bridge_job_id.c_str(),
+                    xw_job_id.c_str(), g_return_code, g_return_code / 256);
+    }
+    else
+    {
+      LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  successfully removed from "
+                    "XtremWeb",
+                    function_name, name.c_str(), bridge_job_id.c_str(),
+                    xw_job_id.c_str());
+      job->setStatus(Job::ERROR);
+    }
+  }
+  
+  //--------------------------------------------------------------------------
+  // If the bridge status of the job is RUNNING, refresh it from XtremWeb
+  //--------------------------------------------------------------------------
+  if ( bridge_status == Job::RUNNING )
+  {
+    LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  'RUNNING'",
+                  function_name, name.c_str(), bridge_job_id.c_str(),
+                  xw_job_id.c_str());
+    
+#ifdef XW_CLEAN_FORCED
+    //------------------------------------------------------------------------
+    // Force XtremWeb to refresh its cache.
+    // This should NOT be necessary anymore.
+    //------------------------------------------------------------------------
+    xw_command.xwcommand   = XW_CLEAN;
+    xw_displayed_message   = xtremwebClient(xw_command);
 #endif
-    	    xwstatus.type=XWSTATUS;
-    	    retour = xtremwebClient(xwstatus);
-
-    	    string status = "ERROR";
-    	    size_t pos_xwid = retour->rfind("status=\"");
-    	    if (string::npos != pos_xwid )
-    	    {
-
-        	status = retour->substr(pos_xwid+8,retour->length()-1);
-        	//trim xwid
-        	size_t endpos = status.find("\"");
-        	if ( string::npos != endpos )
-            	    status = status.substr( 0, endpos );
-    	    }
-
-    	    LOG(LOG_INFO, "STATUS[ %s ]STATUS",status.c_str());
-
-    	    if (status=="COMPLETED")
-    	    {
-        	xwstatus.xwid=xwid;
-        	//we need this to fix an XtremWeb bug
-
-        	xwstatus.type=XWGET;
-        	retour = xtremwebClient(xwstatus);
-    	    }
-    	    updateJob(job,status);
-
-    	    break;
-	}
-
-	case Job::FINISHED:
-	{
-
-    	    xwstatus.xwid=xwid;
-
-    	    string * retour;
-
-    	    LOG(LOG_INFO,"POLL : %s ,FINISHED\n",xwid.c_str());
-    	    xwstatus.type=XWGET;
-    	    retour = xtremwebClient(xwstatus);
-    	    break;
-	}
+    
+    //------------------------------------------------------------------------
+    // Query job status from XtremWeb
+    //------------------------------------------------------------------------
+    xw_command.xwcommand   = XW_STATUS;
+    xw_command.xwjobid     = xw_job_id;
+    xw_command.bridgejobid = bridge_job_id;
+    xw_displayed_message   = xtremwebClient(xw_command);
+    
+    //------------------------------------------------------------------------
+    // Try to parse the message displayed by XtremWeb
+    //------------------------------------------------------------------------
+    if ( xw_displayed_message->find("ERROR : object not found") !=
+         string::npos )
+    {
+      LOG(LOG_ERR, "%s(%s)    Job '%s' (%s)  NOT found by XtremWeb",
+                   function_name, name.c_str(), bridge_job_id.c_str(),
+                    xw_job_id.c_str());
+      job->setStatus(Job::ERROR);
+      return;
     }
-
-    LOG(LOG_INFO,"POLL : %s \n",xwid.c_str());
+    
+    if ( g_return_code != 0 )
+    {
+      LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  XtremWeb return code = x'%X' --> "
+                    "%d  -->  3G Bridge status left unchanged",
+                    function_name, name.c_str(), bridge_job_id.c_str(),
+                    xw_job_id.c_str(), g_return_code, g_return_code / 256);
+    }
+    else
+    {
+      // Initial value of the 'xw_job_status' variable is the empty string
+      string xw_job_status = "";
+      
+      // Message displayed by XtremWeb should contain:  STATUS='<status>'
+      size_t pos_status = xw_displayed_message->find("STATUS='");
+      if ( pos_status != string::npos )
+      {
+        size_t pos_quote = xw_displayed_message->find("'", (pos_status+8));
+        if ( pos_quote != string::npos )
+          xw_job_status = xw_displayed_message->substr(pos_status + 8,
+                          pos_quote - (pos_status+8) );
+      }
+      
+      //----------------------------------------------------------------------
+      // If relevant, use XtremWeb job status to update bridge job status
+      //----------------------------------------------------------------------
+      if ( xw_job_status == "" )
+      {
+        LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  XtremWeb status NOT found -->"
+                      "3G Bridge status left unchanged",
+                      function_name, name.c_str(), bridge_job_id.c_str(),
+                      xw_job_id.c_str());
+      }
+      else
+      {
+        LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  XtremWeb status = '%s'",
+                      function_name, name.c_str(), bridge_job_id.c_str(),
+                      xw_job_id.c_str(), xw_job_status.c_str());
+      
+        updateJob(job, xw_job_status);
+      
+        // If the XtremWeb status of the job is COMPLETED,
+        //   set its bridge status to FINISHED
+        if ( xw_job_status == "COMPLETED" )
+          bridge_status = Job::FINISHED;
+      }
+    }
+  }
+  
+  //------------------------------------------------------------------------
+  // If the bridge status of the job is FINISHED, retrieve its results
+  // from XtremWeb, and tell the 3G Bridge of the file(s) location
+  //------------------------------------------------------------------------
+  if ( bridge_status == Job::FINISHED )
+  {
+    LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  'FINISHED'",
+                  function_name, name.c_str(), bridge_job_id.c_str(),
+                  xw_job_id.c_str());
+    
+    xw_command.xwcommand   = XW_RESULT;
+    xw_command.xwjobid     = xw_job_id;
+    xw_command.bridgejobid = bridge_job_id;
+    xw_displayed_message   = xtremwebClient(xw_command);
+    
+    if ( g_return_code != 0 )
+    {
+      LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  XtremWeb return code = x'%X' --> "
+                    "%d  -->  3G Bridge status left unchanged",
+                    function_name, name.c_str(), bridge_job_id.c_str(),
+                    xw_job_id.c_str(), g_return_code, g_return_code / 256);
+    }
+    else
+    {
+      LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  Results successfully retrieved "
+                    "from XtremWeb  '%s'",
+                    function_name, name.c_str(), bridge_job_id.c_str(),
+                    xw_job_id.c_str(), (*xw_displayed_message).c_str());
+      string zip_file_name = bridge_job_id + ".zip";
+      string zip_file_path = g_xw_files_folder + zip_file_name;
+      // void Job::addOutput(const string &localname, const string &fsyspath);
+      job->addOutput(zip_file_name.c_str(), zip_file_path.c_str());
+      job->setStatus(Job::ERROR);
+    
+    }
+  }
 }
 
 
-string * xtremwebClient(struct xwcommand xwc)
-{
-    int pipe_stdout[2], pipe_stderr[2], c;
-    char buffer[1024];
-    string * message = new string("");
-
-    /* creation pipes de communication */
-    pipe(pipe_stdout);
-    pipe(pipe_stderr);
-
-    switch (xwc.type)
-    {
-	case XWSUBMIT:
-	{
-    	    string submitpath="";
-    	    submitpath=g_cmdbase + "xwsubmit";
-
-    	    char t[512];
-    	    memset(t,0,512);
-    	    strcpy(t,submitpath.c_str());
-
-    	    LOG(LOG_DEBUG,"t[]=%s\n",t);
-    	    char *  args[] = {  "bash",t,"",  (char*)NULL };
-    	    char tmp[512];
-    	    string submit = xwc.bin + " " + xwc.args + " " + xwc.env;
-    	    args[2] = strcpy(tmp, submit.c_str());
-
-    	    LOG(LOG_INFO,"xwclient : %s %s %s\n", args[0], args[1], args[2]);
-
-    	    if (fork()==0)
-    	    {
-        	close (pipe_stdout[0]);
-        	close (pipe_stderr[0]);
-        	/* redirect to pipe */
-        	dup2(pipe_stdout[1], STDOUT_FILENO);
-        	dup2(pipe_stderr[1], STDERR_FILENO);
-        	execv("/bin/bash",args);
-    	    }
-    	    break;
-	}
-
-	case XWSTATUS:
-        {
-    	    string submitpath="";
-    	    submitpath=g_cmdbase + "xwstatus";
-
-    	    char t[512];
-    	    memset(t,0,512);
-    	    strcpy(t,submitpath.c_str());
-
-    	    LOG(LOG_DEBUG,"t[]=%s\n",t);
-    	    char *  args[] = {  "bash",t,"",  (char*)NULL };
-    	    char tmp[512];
-    	    args[2] = strcpy(tmp, xwc.xwid.c_str());
-
-    	    LOG(LOG_INFO,"xwclient : %s %s %s\n", args[0], args[1], args[2]);
-
-    	    if (fork()==0)
-    	    {
-        	close (pipe_stdout[0]);
-        	close (pipe_stderr[0]);
-        	/* redirect to pipe */
-        	dup2(pipe_stdout[1], STDOUT_FILENO);
-        	dup2(pipe_stderr[1], STDERR_FILENO);
-        	execv("/bin/bash",args);
-    	    }
-    	    break;
-	}
-
-	case XWDATA:
-	{
-	    string submitpath="";
-    	    submitpath=g_cmdbase + "xwdata";
-
-    	    char t[512];
-    	    memset(t,0,512);
-    	    strcpy(t,submitpath.c_str());
-
-    	    LOG(LOG_DEBUG,"t[]=%s\n",t);
-    	    char *  args[] = {  "bash",t,"",  (char*)NULL };
-
-    	    char tmp[512];
-    	    string data = xwc.name + " " + xwc.path;
-    	    args[2] = strcpy(tmp, data.c_str());
-
-    	    LOG(LOG_INFO,"xwclient : %s %s %s\n", args[0], args[1], args[2]);
-
-    	    if (fork()==0)
-    	    {
-        	close (pipe_stdout[0]);
-    		close (pipe_stderr[0]);
-        	/* redirect to pipe */
-        	dup2(pipe_stdout[1], STDOUT_FILENO);
-        	dup2(pipe_stderr[1], STDERR_FILENO);
-        	execv("/bin/bash",args);
-    	    }
-    	    break;
-	}
-
-	case XWCLEAN:
-	{
-    	    string submitpath="";
-    	    submitpath=g_cmdbase + "xwclean";
-
-    	    char t[512];
-    	    memset(t,0,512);
-    	    strcpy(t,submitpath.c_str());
-    	    LOG(LOG_DEBUG,"xwclean t[]=%s\n",t);
-    	    char *  args[] = {  "bash",t,"",  (char*)NULL };
-    	    char tmp[512];
-    	    args[2] = strcpy(tmp, xwc.xwid.c_str());
-    	    LOG(LOG_DEBUG,"xwclient : %s %s %s\n", args[0], args[1], args[2]);
-
-    	    if (fork()==0)
-    	    {
-        	close (pipe_stdout[0]);
-        	close (pipe_stderr[0]);
-        	/* redirect to pipe */
-        	dup2(pipe_stdout[1], STDOUT_FILENO);
-        	dup2(pipe_stderr[1], STDERR_FILENO);
-        	execv("/bin/bash",args);
-    	    }
-    	    break;
-	}
-
-	case XWGET:
-	{
-    	    system("pwd");
-    	    string workdir=g_installdir;
-    	    chdir(workdir.c_str());
-
-    	    LOG(LOG_DEBUG,"chdir : %s \n", workdir.c_str());
-
-    	    string submitpath="";
-    	    submitpath=g_cmdbase + "xwdownload";
-
-    	    char t[512];
-    	    memset(t,0,512);
-    	    strcpy(t,submitpath.c_str());
-    	    LOG(LOG_DEBUG,"t[]=%s\n",t);
-    	    char *  args[] = {"bash",t,"",  (char*)NULL };
-    	    char tmp[512];
-    	    string submit = xwc.bin + " " + xwc.args + " " + xwc.xwid+" "+xwc.env;
-    	    args[2] = strcpy(tmp, submit.c_str());
-    	    LOG(LOG_DEBUG,"xwclient : %s %s %s\n", args[0], args[1], args[2]);
-
-    	    if (fork()==0)
-    	    {
-        	close (pipe_stdout[0]);
-        	close (pipe_stderr[0]);
-        	/* redirect to pipe */
-        	dup2(pipe_stdout[1], STDOUT_FILENO);
-        	dup2(pipe_stderr[1], STDERR_FILENO);
-        	execv("/bin/bash",args);
-    	    }
-    	    int timedl=atoi(g_timefordl.c_str());
-    	    LOG(LOG_DEBUG,"time to dl: %d \n",timedl);
-    	    sleep(timedl);//waiting for results file downloaded
-    	    string uuid=g_uuid;
-
-	    int xwidlen=(xwc.xwid).length();
-	    int idlen=36;
-	    //this xwgridid is generated, the length is fixed to 36
-	    int envlen=xwidlen-idlen;
-	    LOG(LOG_DEBUG,"envlen,idlen: %d %d \n",envlen,idlen);
-
-	    string xwid=xwc.xwid.substr(envlen,idlen);
-    	    string fileToUnzip= "*_ResultsOf_"+xwid+".zip";
-
-    	    string path=g_outputpath+"/"+uuid.substr(0,2)+"/"+uuid+"/";
-
-    	    LOG(LOG_DEBUG,"outputpath : %s \n", path.c_str());
-
-    	    string cmdmv="mv "+fileToUnzip+" "+path;
-
-    	    string unzip = "unzip -o " + path+fileToUnzip;
-    	    string cmdunzip="/usr/bin/"+unzip+" -d "+path;
-
-    	    LOG(LOG_DEBUG,"cmdmv : %s \n", cmdmv.c_str());
-
-    	    system(cmdmv.c_str());
-
-    	    LOG(LOG_DEBUG,"cmdunzip : %s \n", cmdunzip.c_str());
-    	    system(cmdunzip.c_str());
-
-	    break;
-	}
-
-    }
-
-    (void)wait(NULL);
-    close (pipe_stdout[1]);
-    close (pipe_stderr[1]);
-    memset(buffer, 0, 1024);
-
-    /* Lecture pipes */
-    while ((c=read(pipe_stdout[0], buffer, 1024))>0)
-    {
-        message->append(buffer);
-        memset(buffer, 0, 1024);
-    }
-
-    return message;
-}
-
-/**********************************************************************
- * Factory function
- */
-
+//============================================================================
+//  Factory function
+//============================================================================
 HANDLER_FACTORY(config, instance)
 {
-	return new XWHandler(config, instance);
+  return new XWHandler(config, instance);
 }
