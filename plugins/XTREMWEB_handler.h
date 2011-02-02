@@ -54,16 +54,6 @@ class XWHandler : public GridHandler {
 
     private:
 
-	//TODO make this configurable of course ;-)
-	//OBSOLETE:  string cmdbase;
-
-	//path to the XtremWeb Client installation
-	//OBSOLETE:  char* xwclient;
-
-	//path to the nailgun executable
-	//OBSOLETE:  char *ng;
-
-
 };
 
 #endif /* XWHANDLER_H */
