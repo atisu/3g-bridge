@@ -280,6 +280,10 @@ fi
 %endif
 
 %changelog
+* Fri Feb 11 2011 FARKAS Zoltan <zfarkas@sztaki.hu> 1.2-1
+- URL passthrough
+- XtremWeb updates
+
 * Wed Dec  8 2010 BALATON Zoltan <balaton@sztaki.hu> 1.01-1
 - Fix build requirements
 - Build and package all plugins (except DC-API based ones short of DC-API rpm)
