@@ -5,7 +5,7 @@ ALTER TABLE cg_job
 
 ALTER TABLE cg_inputs
 	ADD COLUMN	md5		CHAR(32),
-	ADD COLUMN	size		INT,
+	ADD COLUMN	filesize	INT,
 	CHANGE COLUMN	path url	VARCHAR(2048);
 
 ALTER TABLE cg_outputs
