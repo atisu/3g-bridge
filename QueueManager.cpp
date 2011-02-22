@@ -244,7 +244,6 @@ static void addDownload(const DLException *e)
 	{
 		FileRef fr = job->getInputRef(*it);
 		string url = fr.getURL();
-		LOG(LOG_DEBUG, "%s", (*it).c_str());
 		dbh->addDL(job->getId(), *it, url);
 	}
 	DBHandler::put(dbh);

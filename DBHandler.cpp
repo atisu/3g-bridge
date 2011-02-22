@@ -258,7 +258,9 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 	res2.use();
 	while (res2.fetch())
 	{
-		FileRef a(string(res2.get_field(1)), string(res2.get_field(2)), atoi(res2.get_field(3)));
+		string md5 = (res2.get_field(2) != NULL ? string(res2.get_field(2)) : "");
+		int size = (res2.get_field(3) != NULL ? atoi(res2.get_field(3)) : -1);
+		FileRef a(string(res2.get_field(1)), md5, size);
 		job->addInput(res2.get_field(0), a);
 	}
 

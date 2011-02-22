@@ -838,8 +838,8 @@ static void *run_dbreread(void *data G_GNUC_UNUSED)
 		return NULL;
 	}
 
-	/* Watch all events, so a simple open() is enough */
-	if (-1 ==inotify_add_watch(fd, dbreread_file, IN_ALL_EVENTS))
+	/* Watch only the open event */
+	if (-1 ==inotify_add_watch(fd, dbreread_file, IN_OPEN))
 	{
 		LOG(LOG_ERR, "Failed to initialize inotify: %s",
 			strerror(errno));

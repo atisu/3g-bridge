@@ -186,8 +186,10 @@ static bool submit_job(Job *job) throw (BackendException *)
 	{
 		FileRef fr = job->getInputRef(*it);
 		string url = fr.getURL();
-		if ("http://" != url.substr(0, 7) && "attic://" != url.substr(0, 8) &&
-			'/' != url[0])
+		string md5 = fr.getMD5();
+		int size = fr.getSize();
+		if ("http://" != url.substr(0, 7) && "attic://" != url.substr(0, 8) && '/' != url[0] ||
+			(("http://" == url.substr(0, 7) || "attic://" == url.substr(0, 8)) && (md5 == "" || size == -1)))
 		{
 			if (!dle)
 				dle = new DLException(job->getId());
