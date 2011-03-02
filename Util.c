@@ -42,6 +42,8 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <glib.h>
 
@@ -506,15 +508,15 @@ int pid_file_kill(GKeyFile *config, const char *section)
 
 int touch(const char *fname)
 {
-	FILE *f;
+	int f;
 
 	if (!fname)
 		return -1;
 
-	f = fopen(fname, "w");
-	if (!f)
+	f = open(fname, O_CREAT, S_IRUSR|S_IWUSR);
+	if (-1 == f)
 		return -1;
 
-	fclose(f);
+	close(f);
 	return 0;
 }
