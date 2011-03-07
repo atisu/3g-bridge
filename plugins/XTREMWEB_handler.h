@@ -12,48 +12,69 @@ using namespace std;
 
 
 /**
- * XW handler plugin. Objects of this plugin manage execution of jobs in the
- * XW infrastructure.
+ * XtremWeb handler plugin.
+ * Objects of this plugin manage execution of jobs in the XW infrastructure.
  */
 class XWHandler : public GridHandler {
-    public:
-	/**
-	 * Constructor. Initialize a plugin instance. Uses the configuration
-	 * file and the provided instance name to initialize.
-	 * @param config configuration file data
-	 * @param instance name of the plugin instance
-	 */
-	XWHandler(GKeyFile *config, const char *instance) throw (BackendException *);
-
-	/// Destructor
-	~XWHandler();
-
-	/**
-	 * Submit jobs. Submits a vector of jobs to XW.
-	 * @param jobs jobs to submit
-	 */
-	void submitJobs(JobVector &jobs) throw (BackendException *);
-
-	/**
-	 * Update status of jobs. Updates status of jobs belonging to the
-	 * plugin instance.
-	 */
-	void updateStatus(void) throw (BackendException *);
-
-	/**
-	 * Handle a given job. DBHandler uses this function to perform
-	 * different operations on a job.
-	 * @param job the job to handle
-	 */
-	void updateJob(Job *job, string status);
-	/**
-	 * update a given job.
-	 * @param job the job to handle
-	 */
-	void poll(Job *job) throw (BackendException *);
-
-    private:
-
+  
+  public:
+    /**
+     * Constructor :  Initialize a plugin instance. Uses the configuration
+     * file and the provided instance name to initialize.
+     * @param config    Configuration file data
+     * @param instance  Name of the plugin instance
+     */
+    XWHandler(GKeyFile * config, const char * instance)
+      throw (BackendException *);
+    
+    
+    /// Destructor
+    ~XWHandler();
+    
+    
+    /**
+     * Submit jobs :  Submit a vector of bridge jobs to XtremWeb.
+     * @param jobs  Vector of pointers to bridge jobs to submit
+     */
+    void submitJobs(JobVector & jobs) throw (BackendException *);
+    
+    
+    /**
+     * Update status of bridge jobs :
+     * Request DBHandler::pollJobs() to update the status of all jobs
+     * whose current bridge status is RUNNING or CANCEL.
+     */
+    void updateStatus(void) throw (BackendException *);
+    
+    
+    /**
+     * Poll the status of a given bridge job :
+     * This is used as a callback for DBHandler::pollJobs().
+     * Depending on the bridge status of the job :
+     * - CANCEL :
+     *   Destroy the corresponding XtremWeb job.
+     * - RUNNING :
+     *   Query XtremWeb for the status of the corresponding XtremWeb job.
+     *   If the XtremWeb job is COMPLETED, retrieve the XtremWeb results.
+     *   Update the status of the bridge job accordingly.
+     * @param job  Pointer to the bridge job to poll
+     */
+    void poll(Job * job) throw (BackendException *);
+    
+    
+  private:
+    /**
+     * Update the status of a given bridge job :
+     * - From the XtremWeb status of the job, calculate the new bridge status.
+     * - Store the new bridge status and the XtremWeb message in the database.
+     * @param job            Pointer to the bridge job to update
+     * @param xw_job_status  XtremWeb status of the job
+     * @param xw_message     XtremWeb message associated to the job
+     */
+    void updateJobStatus(Job *          job,
+                         const string & xw_job_status,
+                         const string & xw_message);
+    
 };
 
 #endif /* XWHANDLER_H */

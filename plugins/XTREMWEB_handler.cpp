@@ -63,35 +63,6 @@
 
 using namespace std;
 
-//XW_CLEAN_FORCED adds an preparation call to xwclean
-//This is a workaround to some bug in XtremWeb
-//#define XW_CLEAN_FORCED
-
-//#define XW_SLEEP_BEFORE_DOWNLOAD
-
-enum xw_command_enumeration
-{
-  XW_CLEAN,
-  XW_DOWNLOAD,
-  XW_RESULT,
-  XW_RM,
-  XW_STATUS,
-  XW_SENDDATA,
-  XW_SUBMIT
-};
-
-struct xw_command_t
-{
-  int    xwcommand;
-  string appname;
-  string appargs;
-  string appenv;
-  string xwjobid;
-  string bridgejobid;
-  string path;
-  string name;
-};
-
 struct returned_t
 {
   int    retcode;
@@ -104,6 +75,7 @@ struct returned_t
 //============================================================================
 string g_xw_client_bin_folder;        // XtremWeb-HEP client binaries folder
 string g_xw_files_folder;             // Folder for XW input and output files
+bool   g_xwclean_forced;              // Forced 'xwclean' before 'xwstatus'
 int    g_sleep_time_before_download;  // Sleeping time before download in s
 
 
@@ -121,6 +93,9 @@ int    g_sleep_time_before_download;  // Sleeping time before download in s
 //
 //  Constructor
 //
+//  @param config    Configuration file data
+//  @param instance  Name of the plugin instance
+//
 //============================================================================
 XWHandler::XWHandler(GKeyFile * config, const char * instance)
   throw (BackendException *): GridHandler(config, instance)
@@ -134,30 +109,60 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
   groupByNames = false;
   
   //--------------------------------------------------------------------------
-  // xwclient_install_dir
+  // xw_client_install_prefix
   //--------------------------------------------------------------------------
-  DIR *  directory_stream;
-  string xw_client_folder_str;
+  char * xw_client_install_prefix = g_key_file_get_string(config, instance,
+                                             "xwclient_install_prefix", NULL);
   
-  char * xw_client_folder = g_key_file_get_string(config, instance,
-                                                "xwclient_install_dir", NULL);
-  if ( xw_client_folder )
+  //--------------------------------------------------------------------------
+  // If 'xw_client_install_prefix' is given and seems correct, extract the
+  // root folder and the client prefix from it.  Otherwise, use fixed values.
+  //--------------------------------------------------------------------------
+  string xw_client_install_prefix_str;
+  size_t pos;
+  string xw_root_str;
+  string xw_client_prefix_str;
+  
+  if ( xw_client_install_prefix )
   {
-    g_strstrip(xw_client_folder);
-    xw_client_folder_str = xw_client_folder;
+    g_strstrip(xw_client_install_prefix);
+    xw_client_install_prefix_str = xw_client_install_prefix;
+    pos = xw_client_install_prefix_str.rfind('/');
   }
-  //--------------------------------------------------------------------------
-  // If 'xwclient_install_dir' is not given, search '/opt/xwhep-client-i.j.k'
-  //--------------------------------------------------------------------------
+  
+  if ( xw_client_install_prefix && (pos != 0) &&
+       (pos < (xw_client_install_prefix_str.length() - 1)) )
+  {
+    xw_root_str          = xw_client_install_prefix_str.substr(0, pos - 1);
+    xw_client_prefix_str = xw_client_install_prefix_str.substr(pos + 1);
+  }
   else
   {
-    const char * xw_root              = "/opt";
-    const string xw_client_prefix_str = "xwhep-client-";
+    xw_root_str          = "/opt";
+    xw_client_prefix_str = "xwhep-client-";
+  }
+  
+  const char * xw_root   = xw_root_str.c_str();
+  LOG(LOG_DEBUG, "%s(%s)   XW client root folder:         '%s'     "
+                 "XW client prefix: '%s'", function_name, instance_name,
+                 xw_root, xw_client_prefix_str.c_str());
     
-    size_t       xw_client_prefix_length = xw_client_prefix_str.length();
+  //--------------------------------------------------------------------------
+  //  Reading the directory 'xw_root_str', select the file beginning with
+  //  'xw_client_prefix_str' and ended with the highest version number
+  //--------------------------------------------------------------------------
+  DIR *        directory_stream = opendir(xw_root);
+  string       xw_client_folder_str;
+  
+  if ( ! directory_stream )
+    throw new BackendException("XWHandler::XWHandler  can NOT read folder "
+                               "'%s'", xw_root);
+  else
+  {
     dirent *     directory_entry;
     const char * file_name;
     string       file_name_str;
+    size_t       xw_client_prefix_length = xw_client_prefix_str.length();
     size_t       pos1;
     size_t       pos2;
     string       number_str;
@@ -166,89 +171,81 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
     int          micro = 0;
     int          i, j, k;
     string       xw_file_name_str = "";
-      
-    directory_stream = opendir(xw_root);
-    if ( ! directory_stream )
-      throw new BackendException("XWHandler::XWHandler  can NOT read folder "
-                                 "'%s'", xw_root);
-    else
+    
+    while ( (directory_entry=readdir(directory_stream)) != 0 )
     {
-      while ( (directory_entry=readdir(directory_stream)) != 0 )
+      //LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' found "
+      //               "in '%s'", function_name, instance_name,
+      //               directory_entry->d_name, xw_root);
+      
+      file_name     = directory_entry->d_name;
+      file_name_str = string(file_name);
+      if ( file_name_str.substr(0, xw_client_prefix_length) ==
+           xw_client_prefix_str )
       {
-        //LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' found "
-        //               "in '%s'", function_name, instance_name,
-        //               directory_entry->d_name, xw_root);
+        //LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' "
+        //               "begins with '%s'", function_name, instance_name,
+        //               file_name, xw_client_prefix_str.c_str());
         
-        file_name     = directory_entry->d_name;
-        file_name_str = string(file_name);
-        if ( file_name_str.substr(0, xw_client_prefix_length) ==
-             xw_client_prefix_str )
-        {
-          //LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' "
-          //               "begins with '%s'", function_name, instance_name,
-          //               file_name, xw_client_prefix_str.c_str());
-          
-          pos1 = file_name_str.find_first_of("0123456789");
-          if ( pos1 == string::npos )
-            continue;
-          pos2 = file_name_str.find_first_not_of("0123456789", pos1);
-          if ( pos2 == string::npos )
-            continue;
-          number_str = file_name_str.substr(pos1, pos2 - pos1);
-          i = atoi(number_str.c_str());
-          if ( i < major )
-            continue;
-          LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
-                         "Major = %d",
-                         function_name, instance_name, file_name, i);
-          
-          pos1 = file_name_str.find_first_of("0123456789", pos2);
-          if ( pos1 == string::npos )
-            continue;
-          pos2 = file_name_str.find_first_not_of("0123456789", pos1);
-          if ( pos2 == string::npos )
-            continue;
-          number_str = file_name_str.substr(pos1, pos2 - pos1);
-          j = atoi(number_str.c_str());
-          if ( j < minor )
-            continue;
-          LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
-                         "Minor = %d",
-                         function_name, instance_name, file_name, j);
-          
-          pos1 = file_name_str.find_first_of("0123456789", pos2);
-          if ( pos1 == string::npos )
-            continue;
-          number_str = file_name_str.substr(pos1);
-          k = atoi(number_str.c_str());
-          if ( k < micro )
-            continue;
-          LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
-                         "Micro = %d",
-                         function_name, instance_name, file_name, k);
-          
-          major = i;
-          minor = j;
-          micro = k;
-          xw_file_name_str = file_name_str;
-          LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' is "
-                         "candidate with %d.%d.%d",
-                         function_name, instance_name, file_name, i, j, k);
-        }
+        pos1 = file_name_str.find_first_of("0123456789");
+        if ( pos1 == string::npos )
+          continue;
+        pos2 = file_name_str.find_first_not_of("0123456789", pos1);
+        if ( pos2 == string::npos )
+          continue;
+        number_str = file_name_str.substr(pos1, pos2 - pos1);
+        i = atoi(number_str.c_str());
+        if ( i < major )
+          continue;
+        LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
+                       "Major = %d",
+                       function_name, instance_name, file_name, i);
+        
+        pos1 = file_name_str.find_first_of("0123456789", pos2);
+        if ( pos1 == string::npos )
+          continue;
+        pos2 = file_name_str.find_first_not_of("0123456789", pos1);
+        if ( pos2 == string::npos )
+          continue;
+        number_str = file_name_str.substr(pos1, pos2 - pos1);
+        j = atoi(number_str.c_str());
+        if ( j < minor )
+          continue;
+        LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
+                       "Minor = %d",
+                       function_name, instance_name, file_name, j);
+        
+        pos1 = file_name_str.find_first_of("0123456789", pos2);
+        if ( pos1 == string::npos )
+          continue;
+        number_str = file_name_str.substr(pos1);
+        k = atoi(number_str.c_str());
+        if ( k < micro )
+          continue;
+        LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
+                       "Micro = %d",
+                       function_name, instance_name, file_name, k);
+        
+        major = i;
+        minor = j;
+        micro = k;
+        xw_file_name_str = file_name_str;
+        LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' is "
+                       "candidate with %d.%d.%d",
+                       function_name, instance_name, file_name, i, j, k);
       }
-      closedir(directory_stream);
-      
-      if ( xw_file_name_str == "" )
-        throw new BackendException("XWHandler::XWHandler  can NOT find '%s'",
-                                   xw_client_prefix_str.c_str());
-      
-      xw_client_folder_str = string(xw_root) + "/" + xw_file_name_str;
     }
+    closedir(directory_stream);
+    
+    if ( xw_file_name_str == "" )
+      throw new BackendException("XWHandler::XWHandler  can NOT find '%s'",
+                                 xw_client_prefix_str.c_str());
+    
+    xw_client_folder_str = xw_root_str + "/" + xw_file_name_str;
   }
   
   //--------------------------------------------------------------------------
-  // 'xwclient_install_dir' was given or has been found.
-  // Verify that this is a readable folder.
+  // Verify that 'xwclient_install_dir' is a readable folder.
   //--------------------------------------------------------------------------
   LOG(LOG_INFO, "%s(%s)  XW client install folder:      '%s'",
                 function_name, instance_name, xw_client_folder_str.c_str());
@@ -326,21 +323,28 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
                                "folder '%s'", bridge_output_folder);
   unlink(test_file_path);
   
-#ifdef XW_SLEEP_BEFORE_DOWNLOAD
+  //--------------------------------------------------------------------------
+  // Forced 'xwclean' before 'xwstatus'
+  //--------------------------------------------------------------------------
+  const char * xwclean_forced = g_key_file_get_string(config, instance,
+                                                      "xwclean_forced", NULL);
+  g_xwclean_forced = (xwclean_forced != 0) &&
+                     (strcasecmp(xwclean_forced, "true") == 0);
+  LOG(LOG_INFO, "%s(%s)  'xwclean' before 'xwstatus':   '%s'", function_name,
+                instance_name, (g_xwclean_forced ? "true" : "false"));
+  
   //--------------------------------------------------------------------------
   // xw_sleep_time_before_download
   //--------------------------------------------------------------------------
   const char * sleep_time_before_download = g_key_file_get_string(config,
                              instance, "xw_sleep_time_before_download", NULL);
-  if ( ! sleep_time_before_download )
-    throw new BackendException("XWHandler::XWHandler  No sleeping time "
-                               "before download specified for '%s'",
-                               instance);
+  if ( sleep_time_before_download )
+    g_sleep_time_before_download = atoi(sleep_time_before_download);
+  else
+    g_sleep_time_before_download = 0;
+  LOG(LOG_INFO, "%s(%s)  Sleeping time before download: '%d'",
+                function_name, instance_name, g_sleep_time_before_download);
   
-  LOG(LOG_INFO, "%s(%s)  Sleeping time before download: '%s'", function_name,
-                instance_name, sleep_time_before_download);
-  g_sleep_time_before_download = atoi(sleep_time_before_download);
-#endif
 }
 
 
@@ -361,7 +365,7 @@ XWHandler::~XWHandler()
 
 //============================================================================
 //
-//  Function  TrimEol     
+//  Function  trimEol     
 //  @param  my_string  Reference to a string
 //  @return            void
 //
@@ -369,7 +373,7 @@ XWHandler::~XWHandler()
 //  given in parameter
 //
 //============================================================================
-void TrimEol(string & my_string)
+void trimEol(string & my_string)
 {
   size_t pos_end = my_string.find_last_not_of(" \t\r\n");
   if      ( pos_end == string::npos )
@@ -381,43 +385,63 @@ void TrimEol(string & my_string)
 
 //============================================================================
 //
-//  Function  OutputAndErrorFromCommand     
-//  @param  command_str  String containing the command to execute
-//  @param  params_str   String containing the parameters to the command
-//  @return              Struct containing return code and message displayed
+//  Function  outputAndErrorFromCommand     
+//  @param arg_str_vector  Vector of strings containing the command to execute
+//  @return                Struct containing return code and message displayed
 //
 //  This function executes the command given in parameter, retrieves the
 //  message normally displayed by the command on STDOUT + STDERR, and returns
 //  a structure containing the return code and this message.
 //
+//  Since it does NOT use any quoting, it accepts file names containing blanks
+//  and is less vulnerable to unwanted injections of shell commands.
+//
 //============================================================================
-returned_t OutputAndErrorFromCommand(const string command_str,
-                                     const string params_str)
+returned_t outputAndErrorFromCommand(const auto_ptr< vector<string> > &
+                                           arg_str_vector)
 {
-  const char * function_name = "XWHandler  OutputAndErrorFromCommand";
+  const char * function_name = "XWHandler  outputAndErrorFromCommand";
   const char * instance_name = "";
   
-  const char * command       = command_str.c_str();
-  const char * params        = params_str.c_str();
-  LOG(LOG_DEBUG, "%s(%s)  Command = '%s'  Params = '%s'",
-                 function_name, instance_name, command, params);
+  char         error_buffer[1024];
+  returned_t   returned_values;
   
-  int        pipe_std_out_err[2];
-  pid_t      process_id;
-  int        return_code;
-  returned_t returned_values;
+  size_t arg_str_vector_size = arg_str_vector->size();
+  LOG(LOG_DEBUG, "%s(%s)  Command size = %d",
+                 function_name, instance_name, arg_str_vector_size);
+  
+  if ( arg_str_vector_size < 1 )
+  {
+    sprintf(error_buffer, "Command size = %d  Empty comand is erroneous",
+                          arg_str_vector_size);
+    LOG(LOG_ERR, "%s(%s)  %s", function_name, instance_name, error_buffer);
+    returned_values.retcode = -1;
+    returned_values.message = error_buffer;
+    return returned_values;
+  }
+
+  string command_str = (*arg_str_vector)[0];
+  string args_str    = command_str;
+  for ( vector<string>::iterator arg_iterator =
+                                 (arg_str_vector->begin() + 1);
+        arg_iterator != arg_str_vector->end();
+        arg_iterator++ )
+  { args_str += "' '" + *arg_iterator; }
+  LOG(LOG_DEBUG, "%s(%s)  Command = '%s'",
+                 function_name, instance_name, args_str.c_str());
   
   //--------------------------------------------------------------------------
   //  Create a pipe permitting to retrieve STDOUT and STDERR of child process
   //  Create child process to execute the command
   //--------------------------------------------------------------------------
+  int pipe_std_out_err[2];
+  
   pipe(pipe_std_out_err);
   
-  process_id = fork();
+  pid_t process_id = fork();
   
   if ( process_id < 0)
   {
-    char error_buffer[1024];
     sprintf(error_buffer, "fork() return_code = %d  errno = %d",
                           process_id, errno);
     LOG(LOG_ERR, "%s(%s)  %s", function_name, instance_name, error_buffer);
@@ -437,55 +461,42 @@ returned_t OutputAndErrorFromCommand(const string command_str,
     dup2(pipe_std_out_err[1], STDERR_FILENO);
     
     //------------------------------------------------------------------------
-    char   shell_path[] = "/bin/sh";
-    char   shell[]      = "sh";
+    //  Full path of the command
+    //------------------------------------------------------------------------
+    char * command = new char[command_str.length() + 1];
+    strcpy(command, command_str.c_str());
     
-    if ( command_str.substr(0, g_xw_client_bin_folder.length()) ==
-         g_xw_client_bin_folder )
+    //------------------------------------------------------------------------
+    //  Convert the vector of strings given in parameter into an array of
+    //  character arrays to be passed to 'execv'
+    //------------------------------------------------------------------------
+    char * * args = new char*[arg_str_vector_size + 1];
+    
+    string command_name_str;
+    size_t pos_last_slash = command_str.rfind('/');
+    command_name_str = (pos_last_slash == string::npos) ?
+                       command_str :
+                       command_str.substr(pos_last_slash + 1);
+    args[0] = new char[command_name_str.length() + 1];
+    strcpy(args[0], command_name_str.c_str());
+    
+    for (size_t num = 1;  num < arg_str_vector_size;  num++)
     {
-      //----------------------------------------------------------------------
-      //  Shell scripts are submitted to 'sh' with 2 parameters
-      //----------------------------------------------------------------------
-      size_t command_length = command_str.length() + 1;
-      size_t params_length  = params_str.length()  + 1;
-      char * command_buf    = new char[command_length];
-      char * params_buf     = new char[params_length];
-      
-      char * args[] = { shell,
-                        strcpy(command_buf, command),
-                        strcpy(params_buf,  params),
-                        (char *)NULL };
-      LOG(LOG_DEBUG, "%s(%s)  Child process:  execv(%s)  '%s' '%s' '%s'",
-                     function_name, instance_name, shell_path,
-                     args[0], args[1], args[2]);
-      return_code = execv(shell_path, args);
-      
-      LOG(LOG_DEBUG, "%s(%s)  Child process:  execv(%s)  '%s' '%s' '%s'",
-                     function_name, instance_name, shell_path,
-                     args[0], args[1], args[2]);
-      return_code = execv(shell_path, args);
+      args[num] = new char[(*arg_str_vector)[num].length() + 1];
+      strcpy(args[num], (*arg_str_vector)[num].c_str());
     }
-    else
-    {
-      //----------------------------------------------------------------------
-      //  Binaries are submitted to 'sh -c' with 1 parameter
-      //  (This should also work for shell scripts)
-      //----------------------------------------------------------------------
-      char         option[]          = "-c";
-      string       cmd_params_str    = command_str + " " + params_str;
-      const char * cmd_params        = cmd_params_str.c_str();
-      size_t       cmd_params_length = cmd_params_str.length() + 1;
-      char *       cmd_params_buf    = new char[cmd_params_length];
-      
-      char *       args[] = { shell, option,
-                              strcpy(cmd_params_buf, cmd_params),
-                              (char *)NULL };
-      
-      LOG(LOG_DEBUG, "%s(%s)  Child process:  execv(%s)  '%s' '%s' '%s'",
-                     function_name, instance_name, shell_path,
-                     args[0], args[1], args[2]);
-      return_code = execv(shell_path, args);
-    }
+    args[arg_str_vector_size] = 0;
+    
+    args_str = string(args[0]);
+    for (size_t num = 1;  args[num] != 0;  num++)
+    { args_str += string("' '") + string(args[num]); }
+    LOG(LOG_DEBUG, "%s(%s)  Child process:  execv('%s')  '%s'", function_name,
+                   instance_name, command, args_str.c_str());
+    
+    //------------------------------------------------------------------------
+    //  For command execution, call 'execv', which should NOT return
+    //------------------------------------------------------------------------
+    int return_code = execv(command, args);
     
     LOG(LOG_ERR, "%s(%s)  Child process:  execv return_code = %d  errno = %d",
                  function_name, instance_name, return_code, errno);
@@ -499,7 +510,7 @@ returned_t OutputAndErrorFromCommand(const string command_str,
   close(pipe_std_out_err[1]);
   
   LOG(LOG_DEBUG, "%s(%s)  '%s' return code = x'%X' --> %d",
-                 function_name, instance_name, command,
+                 function_name, instance_name, command_str.c_str(),
                  returned_values.retcode, returned_values.retcode / 256);
   
   //--------------------------------------------------------------------------
@@ -521,7 +532,7 @@ returned_t OutputAndErrorFromCommand(const string command_str,
   //--------------------------------------------------------------------------
   //  Return the structure containing the return code and the message
   //--------------------------------------------------------------------------
-  TrimEol(returned_values.message);
+  trimEol(returned_values.message);
   LOG(LOG_DEBUG, "%s(%s)  Displayed message = '%s'", function_name,
                  instance_name, (returned_values.message).c_str());
   
@@ -531,92 +542,57 @@ returned_t OutputAndErrorFromCommand(const string command_str,
 
 //============================================================================
 //
-//  Function  xtremwebClient     
-//  @param  xw_command  Struct containing the XtremWeb command type and params
-//  @return             Struct containing return code and message displayed
+//  Function  simpleQuotesToDoubleQuotes
+//  @param  input_str   Input string
+//  @return             String with single quotes replaced by double quotes
 //
-//  This function executes the XtremWeb command given in parameter, retrieves
-//  the message normally displayed by the command on STDOUT + STDERR, and
-//  returns a structure containing the return code and this message.
+//  This function returns the string given in parameter with simple quotes
+//  replaced by double quotes.
 //
 //============================================================================
-returned_t xtremwebClient(const xw_command_t xw_command)
+string simpleQuotesToDoubleQuotes(const string & input_str)
 {
-  const char * function_name = "XWHandler  xtremwebClient";
-  const char * instance_name = "";
-  
-  char *       cwd;
-  const char * workdir;
-  
-  LOG(LOG_DEBUG, "%s(%s)  XtremWeb command num = %d",
-                 function_name, instance_name, xw_command.xwcommand);
-  
-  //--------------------------------------------------------------------------
-  //  Depending on the XtremWeb command, build the adequate command and params
-  //  Execute the XtremWeb command, and return the displayed message
-  //--------------------------------------------------------------------------
-  switch ( xw_command.xwcommand )
+  string output_str    = input_str;
+  size_t output_length = output_str.length();
+  size_t pos_quote     = output_str.find("'");
+  while ( pos_quote < output_length )
   {
-    case XW_CLEAN:
-      return OutputAndErrorFromCommand(g_xw_client_bin_folder + "xwclean",
-                                       "");
-    
-    case XW_RM:
-      return OutputAndErrorFromCommand(g_xw_client_bin_folder + "xwrm",
-                                       xw_command.xwjobid);
-    
-    case XW_STATUS:
-      return OutputAndErrorFromCommand(g_xw_client_bin_folder + "xwstatus",
-                                       xw_command.xwjobid);
-    
-    case XW_SENDDATA:
-      return OutputAndErrorFromCommand(g_xw_client_bin_folder + "xwsenddata",
-                                       xw_command.name + " " +
-                                       xw_command.path);
-    
-    case XW_SUBMIT:
-      return OutputAndErrorFromCommand(g_xw_client_bin_folder + "xwsubmit",
-                                       xw_command.appname + " " +
-                                       xw_command.appargs + " " +
-                                       xw_command.appenv);
-    
-    case XW_DOWNLOAD:
-    {
-      workdir     = g_xw_files_folder.c_str();
-      LOG(LOG_DEBUG, "%s(%s)  Executing chdir(%s)",
-                     function_name, instance_name, workdir);
-      chdir(workdir);
-      
-      return OutputAndErrorFromCommand(g_xw_client_bin_folder + "xwdownload",
-                                       xw_command.appname + " " +
-                                       xw_command.appargs + " " +
-                                       xw_command.xwjobid + " " +
-                                       xw_command.appenv);
-    }
-    
-    case XW_RESULT:
-    {
-      cwd = getcwd((char*)NULL, 0);
-      LOG(LOG_DEBUG, "%s(%s)  cwd = '%s'",
-                     function_name, instance_name, cwd);
-      
-      workdir = g_xw_files_folder.c_str();
-      if  ( strcmp(cwd, workdir) != 0 )
-      {
-        LOG(LOG_DEBUG, "%s(%s)  Executing chdir('%s')",
-                       function_name, instance_name, workdir);
-        chdir(workdir);
-      }
-      
-      free(cwd);             // 'cwd' has been dynamically allocated by getcwd
-      
-      return OutputAndErrorFromCommand(g_xw_client_bin_folder + "xwresults",
-                                       xw_command.xwjobid);
-    }
+    output_str[pos_quote] = '"';
+    pos_quote++;
+    if ( pos_quote < output_length )
+      pos_quote = output_str.find("'", pos_quote);
   }
+  return output_str;
+}
+
+
+//============================================================================
+//
+//  Function  logStringVectorToDebug    
+//  @param  function_name   Name of the calling function
+//  @param  instance_name   Name of the instance for the calling function
+//  @param  bridge_job_id   ID of the current bridge job
+//  @param  arg_str_vector  Vector of strings
+//  @return                 NOTHING
+//
+//  This function logs a string vector to debug.
+//
+//============================================================================
+void logStringVectorToDebug(const char *                       function_name,
+                            const char *                       instance_name,
+                            const char *                       bridge_job_id,
+                            const auto_ptr< vector<string> > & arg_str_vector)
+{
+  string args_str = (*arg_str_vector)[0];
   
-  returned_t returned_error = {-1, "XtremWeb command num %d not provisioned"};
-  return returned_error;
+  for ( vector<string>::iterator arg_iterator =
+                                 (arg_str_vector->begin() + 1);
+        arg_iterator != arg_str_vector->end();
+        arg_iterator++ )
+  { args_str += "' '" + *arg_iterator; }
+  
+  LOG(LOG_DEBUG, "%s(%s)  Job '%s'  '%s'", function_name, instance_name,
+                 bridge_job_id, args_str.c_str());
 }
 
 
@@ -626,27 +602,34 @@ returned_t xtremwebClient(const xw_command_t xw_command)
 //  @param  function_name  Name of the calling function
 //  @param  instance_name  Name of the instance for the calling function
 //  @param  bridge_job_id  ID of the current bridge job
-//  @param  job            current bridge job
+//  @param  job            Current bridge job
+//  @param  message        Message to store for the job in the database
 //  @return                NOTHING
 //
-//  This function logs a NOTICE message and sets the status of the bridge job
-//  to ERROR.
+//  This function logs a NOTICE message, sets the status of the bridge job
+//  to ERROR, and stores the message for the job in the database.
 //
 //============================================================================
-void setJobStatusToError(const char * function_name,
-                         const char * instance_name,
-                         const char * bridge_job_id,
-                         Job *        job)
+void setJobStatusToError(const char *   function_name,
+                         const char *   instance_name,
+                         const char *   bridge_job_id,
+                         Job *          job,
+                         const string & message)
 {
   LOG(LOG_NOTICE, "%s(%s)  Job '%s'  Set status of bridge job to 'ERROR'",
                   function_name, instance_name, bridge_job_id);
   job->setStatus(Job::ERROR);
+  job->setGridData(simpleQuotesToDoubleQuotes(message));
 }
 
 
 //============================================================================
 //
 //  Member function  submitJobs
+//
+//  @param jobs  Vector of pointers to bridge jobs to submit
+//
+//  This function submits a vector of bridge jobs to XtremWeb.
 //
 //============================================================================
 void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
@@ -663,13 +646,16 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
   size_t        nb_jobs = 0;
   Job *         job;
   const char *  bridge_job_id;
-  string        input_file_paths_str;
+  bool          b_xw_data_error;
+  auto_ptr< vector<string> > xw_env_str_vector(new vector<string>);
+  auto_ptr< vector<string> > arg_str_vector(new vector<string>);
+  auto_ptr< vector<string> > local_input_file_path_str_vector
+                             (new vector<string>);
+  auto_ptr< vector<string> > input_file_str_vector;
   string        input_file_name_str;
   string        input_file_path_str;
   const char *  input_file_name;
   const char *  input_file_path;
-  auto_ptr< vector<string> > input_files;
-  bool          b_xw_data_error;
   FileRef       input_file_ref;
   string        input_file_md5_str;
   const char *  input_file_md5;
@@ -678,40 +664,49 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
   const char *  xw_data_file_path;
   FILE *        xw_data_file;
   char          xw_data_xml[1024];
-  string        xw_data_id_str;
-  const char *  xw_data_id;
-  string        zip_file_name_str;
-  const char *  zip_file_name;
-  string        zip_command_str;
-  string        zip_params_str;
-  string        job_batch_id_str;
-  string        xw_group_id_str;
-  xw_command_t  xw_submit;
   returned_t    returned_values;
   const char *  returned_message;
-  size_t        pos_xwid;
+  string        xw_data_id_str;
+  size_t        local_input_files_number;
+  string        zip_file_name_str;
+  const char *  zip_file_name;
+  string        job_batch_id_str;
+  string        xw_group_id_str;
+  size_t        pos_xw_id;
   string        xw_job_id_str;
   const char *  xw_job_id;
   
   //------------------------------------------------------------------------
-  // Loop on jobs to be submitted
+  //  Loop on jobs to be submitted
   //------------------------------------------------------------------------
   for ( JobVector::iterator job_iterator = jobs.begin();
         job_iterator != jobs.end();
         job_iterator++ )
   {
-    job               = *job_iterator;
-    bridge_job_id     = (job->getId()).c_str();
-    xw_submit.appenv  = "";
+    job             = *job_iterator;
+    bridge_job_id   = (job->getId()).c_str();
+    
+    b_xw_data_error = false;
+    xw_env_str_vector->clear();
     
     //------------------------------------------------------------------------
-    // Retrieve list of input files
+    //  Retrieve list of input files
     //------------------------------------------------------------------------
-    input_file_paths_str = "";
-    input_files          = job->getInputs();
-    b_xw_data_error      = false;
-    for ( vector<string>::iterator input_file_iterator = input_files->begin();
-          input_file_iterator != input_files->end();
+    arg_str_vector->clear();
+    arg_str_vector->reserve(3);
+    arg_str_vector->push_back(g_xw_client_bin_folder + "xwsenddata");
+    arg_str_vector->push_back(string("--xwxml"));
+    arg_str_vector->push_back(string(""));
+    local_input_file_path_str_vector->clear();
+    
+    input_file_str_vector = job->getInputs();
+    LOG(LOG_DEBUG, "%s(%s)  Job '%s'  Number of input files = %d",
+                   function_name, instance_name, bridge_job_id,
+                   input_file_str_vector->size());
+    
+    for ( vector<string>::iterator input_file_iterator =
+                                   input_file_str_vector->begin();
+          input_file_iterator !=   input_file_str_vector->end();
           input_file_iterator++ )
     {
       input_file_name_str = *input_file_iterator;
@@ -721,24 +716,25 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
       
       if ( input_file_path_str[0] == '/' )
       //----------------------------------------------------------------------
-      // Local files have to be stored together inside a ZIP
+      //  Files beginning with '/' are local files
       //----------------------------------------------------------------------
       {
         LOG(LOG_DEBUG, "%s(%s)  Job '%s'  input_file_name = '%s'  "
                        "input_file_path = '%s'", function_name, instance_name,
                        bridge_job_id, input_file_name, input_file_path);
-        input_file_paths_str += " " + input_file_path_str;
+        local_input_file_path_str_vector->push_back(input_file_path_str);
       }
       else
       //----------------------------------------------------------------------
-      // URLS have to be specified to XtremWeb as data
+      //  URLS have to be specified to XtremWeb as data
       //----------------------------------------------------------------------
       {
-        // Following line works only if URL = schema://server/basename
-        // xw_submit.appenv  = "  --xwenv " + input_file_path_str;
+        //  Following 2 lines work only if URL = schema://server/basename
+        //  xw_env_str_vector.push_back(string("--xwenv"));
+        //  xw_env_str_vector.push_back(input_file_path_str);
         
         //--------------------------------------------------------------------
-        // Get MD5 and size for the URL
+        //  Get MD5 and size for the URL
         //--------------------------------------------------------------------
         input_file_ref        = job->getInputRef(input_file_name_str);
         input_file_md5_str    = input_file_ref.getMD5();
@@ -755,7 +751,7 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
                        input_file_size, xw_data_file_path);
         
         //--------------------------------------------------------------------
-        // Create the XML file describing XtremWeb data
+        //  Create the XML file describing XtremWeb data
         //--------------------------------------------------------------------
         xw_data_file = fopen(xw_data_file_path, "w");
         if ( ! xw_data_file )
@@ -780,14 +776,14 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
         fclose(xw_data_file);
     
         //--------------------------------------------------------------------
-        // Send the data to XtremWeb
+        //  Send the data to XtremWeb
         //--------------------------------------------------------------------
-        xw_submit.xwcommand = XW_SENDDATA;
-        xw_submit.name      = "--xwxml";
-        xw_submit.path      = xw_data_file_path_str ;
-        returned_values     = xtremwebClient(xw_submit);
-        returned_message    = (returned_values.message).c_str();
+        arg_str_vector->back() = xw_data_file_path_str;
+        logStringVectorToDebug(function_name, instance_name, bridge_job_id,
+                               arg_str_vector);
         
+        returned_values  = outputAndErrorFromCommand(arg_str_vector);
+        returned_message = (returned_values.message).c_str();
         LOG(LOG_DEBUG,"%s(%s)  Job '%s'  Data '%s' sent.  XtremWeb displayed "
                       "message = '%s'", function_name, instance_name,
                       bridge_job_id, input_file_name, returned_message);
@@ -806,10 +802,10 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
         unlink(xw_data_file_path);
         
         //--------------------------------------------------------------------
-        // From the message displayed by XtremWeb, extract the DATA id
+        //  From the message displayed by XtremWeb, extract the DATA id
         //--------------------------------------------------------------------
-        pos_xwid = (returned_values.message).find("xw://");
-        if ( pos_xwid == string::npos )
+        pos_xw_id = (returned_values.message).find("xw://");
+        if ( pos_xw_id == string::npos )
         {
           LOG(LOG_NOTICE, "%s(%s)  Job '%s'  'xw://' NOT found inside "
                           "message displayed by XtremWeb",
@@ -818,37 +814,52 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
           break;
         }
         
-        xw_data_id_str = (returned_values.message).substr(pos_xwid,
-                               (returned_values.message).length() - pos_xwid);
-        TrimEol(xw_data_id_str);
-        xw_data_id = xw_data_id_str.c_str();
-        xw_submit.appenv  = "  --xwenv " + xw_data_id_str;
+        xw_data_id_str = (returned_values.message).substr(pos_xw_id,
+                              (returned_values.message).length() - pos_xw_id);
+        trimEol(xw_data_id_str);
+        xw_env_str_vector->push_back(string("--xwenv"));
+        xw_env_str_vector->push_back(xw_data_id_str);
       }
     }
     
     if ( b_xw_data_error )
     {
-      setJobStatusToError(function_name, instance_name, bridge_job_id, job);
+      setJobStatusToError(function_name, instance_name, bridge_job_id, job,
+                          returned_values.message);
       break;
     }
     
     //------------------------------------------------------------------------
-    // Store all local input files inside a ZIP
+    //  If there is exactly 1 local input file, pass it as parameter of
+    //  '--xwenv'
     //------------------------------------------------------------------------
-    if ( input_file_paths_str.length() > 0 )
+    local_input_files_number = local_input_file_path_str_vector->size();
+    if ( local_input_files_number == 1 )
+    {
+      xw_env_str_vector->push_back(string("--xwenv"));
+      xw_env_str_vector->push_back((*local_input_file_path_str_vector)[0]);
+    }
+    
+    //------------------------------------------------------------------------
+    //  If there is more than 1 local input file, store them all inside a ZIP
+    //------------------------------------------------------------------------
+    else if ( local_input_files_number >  1 )
     {
       zip_file_name_str = g_xw_files_folder + "/" + bridge_job_id + ".zip";
       zip_file_name     = zip_file_name_str.c_str();
-      zip_command_str   = "/usr/bin/zip";
-      zip_params_str    = "-v -j " + zip_file_name_str + " " +
-                          input_file_paths_str;
+      arg_str_vector->clear();
+      arg_str_vector->reserve(4 + local_input_files_number);
+      arg_str_vector->push_back(string("/usr/bin/zip"));
+      arg_str_vector->push_back(string("-v"));
+      arg_str_vector->push_back(string("-j"));
+      arg_str_vector->push_back(zip_file_name_str);
+      arg_str_vector->insert(arg_str_vector->end(),
+                             local_input_file_path_str_vector->begin(),
+                             local_input_file_path_str_vector->end());
+      logStringVectorToDebug(function_name, instance_name, bridge_job_id,
+                             arg_str_vector);
       
-      LOG(LOG_DEBUG, "%s(%s)  Job '%s'  %s %s",
-                     function_name, instance_name, bridge_job_id,
-                     zip_command_str.c_str(), zip_params_str.c_str());
-      
-      returned_values  = OutputAndErrorFromCommand(zip_command_str,
-                                                   zip_params_str);
+      returned_values  = outputAndErrorFromCommand(arg_str_vector);
       returned_message = (returned_values.message).c_str();
       LOG(LOG_DEBUG, "%s(%s)  Job '%s'  return_code = x'%x' --> %d  for "
                      "zipping '%s'  ZIP displayed message = '%s'",
@@ -863,11 +874,13 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
                      function_name, instance_name, bridge_job_id,
                      returned_values.retcode, returned_values.retcode / 256,
                      zip_file_name, returned_message);
-        setJobStatusToError(function_name, instance_name, bridge_job_id, job);
+        setJobStatusToError(function_name, instance_name, bridge_job_id, job,
+                            returned_values.message);
         break;
       }
       
-      xw_submit.appenv += "  --xwenv " + zip_file_name_str;
+      xw_env_str_vector->push_back(string("--xwenv"));
+      xw_env_str_vector->push_back(zip_file_name_str);
     }
     
     //------------------------------------------------------------------------
@@ -879,18 +892,26 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     {
       LOG(LOG_DEBUG, "%s(%s)  Job '%s'  Job batch id = '%s'", function_name,
                      instance_name, bridge_job_id, job_batch_id_str.c_str());
-      xw_group_id_str   = job_batch_id_str;
-      xw_submit.appenv += "  --xwgroup " + xw_group_id_str;
+      xw_group_id_str = job_batch_id_str;
+      xw_env_str_vector->push_back(string("--xwgroup"));
+      xw_env_str_vector->push_back(xw_group_id_str);
     }
     
     //------------------------------------------------------------------------
     // Submit the job to XtremWeb
     //------------------------------------------------------------------------
-    xw_submit.xwcommand = XW_SUBMIT;
-    xw_submit.appname   = job->getName();
-    xw_submit.appargs   = job->getArgs();
-    returned_values     = xtremwebClient(xw_submit);
-    returned_message    = (returned_values.message).c_str();
+    arg_str_vector->clear();
+    arg_str_vector->reserve(3 + xw_env_str_vector->size());
+    arg_str_vector->push_back(g_xw_client_bin_folder + "xwsubmit");
+    arg_str_vector->push_back(job->getName());
+    arg_str_vector->push_back(job->getArgs());
+    arg_str_vector->insert(arg_str_vector->end(), xw_env_str_vector->begin(),
+                                                  xw_env_str_vector->end());
+    logStringVectorToDebug(function_name, instance_name, bridge_job_id,
+                           arg_str_vector);
+    
+    returned_values  = outputAndErrorFromCommand(arg_str_vector);
+    returned_message = (returned_values.message).c_str();
     
     LOG(LOG_DEBUG,"%s(%s)  Job '%s' submitted.  XtremWeb displayed message "
                   "= '%s'", function_name, instance_name, bridge_job_id,
@@ -903,26 +924,28 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
                       "= '%s'", function_name, instance_name, bridge_job_id,
                       returned_values.retcode, returned_values.retcode / 256,
                       returned_message);
-      setJobStatusToError(function_name, instance_name, bridge_job_id, job);
+      setJobStatusToError(function_name, instance_name, bridge_job_id, job,
+                          returned_values.message);
       break;
     }
     
     //------------------------------------------------------------------------
     // From the message displayed by XtremWeb, extract the XtremWeb job id
     //------------------------------------------------------------------------
-    pos_xwid = (returned_values.message).find("xw://");
-    if ( pos_xwid == string::npos )
+    pos_xw_id = (returned_values.message).find("xw://");
+    if ( pos_xw_id == string::npos )
     {
       LOG(LOG_NOTICE, "%s(%s)  Job '%s'  'xw://' NOT found inside message "
                       "displayed by XtremWeb",
                       function_name, instance_name, bridge_job_id);
-      setJobStatusToError(function_name, instance_name, bridge_job_id, job);
+      setJobStatusToError(function_name, instance_name, bridge_job_id, job,
+                          returned_values.message);
       break;
     }
     
-    xw_job_id_str = (returned_values.message).substr(pos_xwid,
-                               (returned_values.message).length() - pos_xwid);
-    TrimEol(xw_job_id_str);
+    xw_job_id_str = (returned_values.message).substr(pos_xw_id,
+                              (returned_values.message).length() - pos_xw_id);
+    trimEol(xw_job_id_str);
     xw_job_id = xw_job_id_str.c_str();
     
     //------------------------------------------------------------------------
@@ -952,6 +975,9 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 //
 //  Member function  updateStatus
 //
+//  This function requests DBHandler::pollJobs() to update the status of all
+//  jobs whose current bridge status is RUNNING or CANCEL.
+//
 //============================================================================
 void XWHandler::updateStatus(void) throw (BackendException *)
 {
@@ -974,12 +1000,23 @@ void XWHandler::updateStatus(void) throw (BackendException *)
 
 //============================================================================
 //
-//  Member function  updateJob
+//  Member function  updateJobStatus
+//
+//  @param job            Pointer to the bridge job to update
+//  @param xw_job_status  XtremWeb status of the job
+//  @param xw_message     XtremWeb message associated to the job
+//
+//  This function updates the status of a given bridge job :
+//  - From the XtremWeb status of the job, calculate the new bridge status.
+//  - Store the new bridge status and the XtremWeb message in the database.
+//    ATTENTION: For DB, simple quotes must be changed to something else.
 //
 //============================================================================
-void XWHandler::updateJob(Job * job, string xw_job_current_status)
+void XWHandler::updateJobStatus(Job *          job,
+                                const string & xw_job_current_status,
+                                const string & xw_message)
 {
-  const char * function_name = "XWHandler::updateJob";
+  const char * function_name = "XWHandler::updateJobStatus";
   const char * instance_name = name.c_str();
   
   const struct
@@ -1002,13 +1039,15 @@ void XWHandler::updateJob(Job * job, string xw_job_current_status)
     {"",            Job::INIT},
   };
   
-  const char * bridge_job_id = (job->getId()).c_str();
-  const char * xw_job_id     = (job->getGridId()).c_str();
-  const char * xw_job_status = xw_job_current_status.c_str();
+  const char *         bridge_job_id         = (job->getId()).c_str();
+  const char *         xw_job_id             = (job->getGridId()).c_str();
+  const char *         xw_job_status         = xw_job_current_status.c_str();
+  const Job::JobStatus bridge_job_old_status = job->getStatus();
   
   LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  XtremWeb job status = '%s'  "
-                 "Updating bridge job status", function_name, instance_name,
-                 bridge_job_id, xw_job_id, xw_job_status);
+                 "Bridge job old status = %d has perhaps to be updated",
+                 function_name, instance_name, bridge_job_id, xw_job_id,
+                 xw_job_status, bridge_job_old_status);
   
   for ( unsigned xw_status_no = 0;
         xw_to_bridge_status_relation[xw_status_no].xw_job_status != "";
@@ -1017,21 +1056,67 @@ void XWHandler::updateJob(Job * job, string xw_job_current_status)
     if ( xw_to_bridge_status_relation[xw_status_no].xw_job_status ==
          xw_job_current_status )
     {
-      job->setStatus(xw_to_bridge_status_relation[xw_status_no].
-                     bridge_job_status);
+      Job::JobStatus bridge_job_new_status =
+                 xw_to_bridge_status_relation[xw_status_no].bridge_job_status;
+      
+      if ( bridge_job_new_status != bridge_job_old_status )
+      {
+        string xw_date_str = "";
+        
+        //--------------------------------------------------------------------
+        //  Try to extract the completion date of the XtremWeb job.
+        //  Initial value of the 'xw_date_str' variable is the empty string.
+        //--------------------------------------------------------------------
+        if ( (xw_job_current_status == "COMPLETED") ||
+             (xw_job_current_status == "ERROR")     ||
+             (xw_job_current_status == "ABORTED")   )
+        {
+          const char * date_header = "COMPLETEDDATE='";
+          size_t pos_date          = xw_message.find(date_header);
+          if ( pos_date != string::npos )
+          {
+            pos_date += strlen(date_header);
+            size_t pos_quote = xw_message.find("'", pos_date);
+            if ( pos_quote != string::npos )
+              xw_date_str = xw_message.substr(pos_date, pos_quote - pos_date);
+          }
+        }
+        
+        LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  XtremWeb job status = '%s'  "
+                      "Bridge job new status = %d  Completed date = '%s'",
+                      function_name, instance_name, bridge_job_id, xw_job_id,
+                      xw_job_status, bridge_job_new_status,
+                      xw_date_str.c_str());
+        job->setStatus(bridge_job_new_status);
+        job->setGridData(simpleQuotesToDoubleQuotes(xw_message));
+        
+        LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  XtremWeb job status = '%s'  "
+                       "Bridge job new status = %d successfully stored",
+                       function_name, instance_name, bridge_job_id, xw_job_id,
+                       xw_job_status, bridge_job_new_status);
+      }
       break;
     }
   }
   
-  LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  XtremWeb job status = '%s'  "
-                "Updated bridge job status", function_name, instance_name,
-                bridge_job_id, xw_job_id, xw_job_status);
 }
 
 
 //============================================================================
 //
 //  Member function  poll
+//
+//  @param job  Pointer to the bridge job to poll
+//
+//  This function polls the status of a given bridge job :
+//  It is used as a callback for DBHandler::pollJobs().
+//  Depending on the bridge status of the job :
+//  - CANCEL :
+//    Destroy the corresponding XtremWeb job.
+//  - RUNNING :
+//    Query XtremWeb for the status of the corresponding XtremWeb job.
+//    If the XtremWeb job is COMPLETED, retrieve the XtremWeb results.
+//    Update the status of the bridge job accordingly.
 //
 //============================================================================
 void XWHandler::poll(Job * job) throw (BackendException *)
@@ -1048,26 +1133,30 @@ void XWHandler::poll(Job * job) throw (BackendException *)
   LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)",
                  function_name, instance_name, bridge_job_id, xw_job_id);
 
+  auto_ptr< vector<string> > arg_str_vector(new vector<string>);
   returned_t    returned_values;
   const char *  returned_message;
-  xw_command_t  xw_command;
   unsigned char bridge_status = job->getStatus();
   
   //--------------------------------------------------------------------------
-  // If the bridge status of the job is CANCEL, delete it from XtremWeb
+  //  If the bridge status of the job is CANCEL, delete it from XtremWeb
   //--------------------------------------------------------------------------
   if ( bridge_status == Job::CANCEL )
   {
     LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  Bridge job status = 'CANCEL'",
                   function_name, instance_name, bridge_job_id, xw_job_id);
     
-    xw_command.xwcommand   = XW_RM;
-    xw_command.xwjobid     = xw_job_id_str;
-    xw_command.bridgejobid = bridge_job_id_str;
-    returned_values        = xtremwebClient(xw_command);
+    arg_str_vector->clear();
+    arg_str_vector->reserve(2);
+    arg_str_vector->push_back(g_xw_client_bin_folder + "xwrm");
+    arg_str_vector->push_back(xw_job_id_str);
+    logStringVectorToDebug(function_name, instance_name, bridge_job_id,
+                           arg_str_vector);
+    
+    returned_values = outputAndErrorFromCommand(arg_str_vector);
     
     //------------------------------------------------------------------------
-    // If and only if cancellation is successful, update the bridge job status
+    //  Only if cancellation is successful, update the bridge job status
     //------------------------------------------------------------------------
     if ( returned_values.retcode != 0 )
     {
@@ -1081,44 +1170,54 @@ void XWHandler::poll(Job * job) throw (BackendException *)
       LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  successfully removed from "
                     "XtremWeb",
                     function_name, instance_name, bridge_job_id, xw_job_id);
-      setJobStatusToError(function_name, instance_name, bridge_job_id, job);
+      setJobStatusToError(function_name, instance_name, bridge_job_id, job,
+                          returned_values.message);
     }
   }
   
   //--------------------------------------------------------------------------
-  // If the bridge status of the job is RUNNING, refresh it from XtremWeb
+  //  If the bridge status of the job is RUNNING, refresh it from XtremWeb
   //--------------------------------------------------------------------------
   if ( bridge_status == Job::RUNNING )
   {
     LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  Bridge job status = 'RUNNING'",
                   function_name, instance_name, bridge_job_id, xw_job_id);
     
-#ifdef XW_CLEAN_FORCED
     //------------------------------------------------------------------------
-    // Force XtremWeb to refresh its cache.
-    // This should NOT be necessary anymore.
+    //  Force XtremWeb to refresh its cache.
+    //  This should NOT be necessary anymore.
     //------------------------------------------------------------------------
-    xw_command.xwcommand          = XW_CLEAN;
-    string * xw_displayed_message = xtremwebClient(xw_command);
-#endif
+    if ( g_xwclean_forced )
+    {
+      arg_str_vector->clear();
+      arg_str_vector->push_back(g_xw_client_bin_folder + "xwclean");
+      logStringVectorToDebug(function_name, instance_name, bridge_job_id,
+                             arg_str_vector);
+      returned_values = outputAndErrorFromCommand(arg_str_vector);
+    }
     
     //------------------------------------------------------------------------
-    // Query job status from XtremWeb
+    //  Query job status from XtremWeb
     //------------------------------------------------------------------------
-    xw_command.xwcommand   = XW_STATUS;
-    xw_command.xwjobid     = xw_job_id_str;
-    xw_command.bridgejobid = bridge_job_id_str;
-    returned_values        = xtremwebClient(xw_command);
+    arg_str_vector->clear();
+    arg_str_vector->reserve(2);
+    arg_str_vector->push_back(g_xw_client_bin_folder + "xwstatus");
+    arg_str_vector->push_back(xw_job_id_str);
+    logStringVectorToDebug(function_name, instance_name, bridge_job_id,
+                           arg_str_vector);
+    
+    returned_values = outputAndErrorFromCommand(arg_str_vector);
     
     //------------------------------------------------------------------------
-    // Try to parse the message displayed by XtremWeb
+    //  Try to parse the message displayed by XtremWeb
     //------------------------------------------------------------------------
     if ( (returned_values.message).find("ERROR : object not found") !=
          string::npos )
     {
       LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  NOT found by XtremWeb",
                       function_name, instance_name, bridge_job_id, xw_job_id);
-      setJobStatusToError(function_name, instance_name, bridge_job_id, job);
+      setJobStatusToError(function_name, instance_name, bridge_job_id, job,
+                          returned_values.message);
       return;
     }
     
@@ -1131,21 +1230,27 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     }
     else
     {
-      // Initial value of the 'xw_job_status' variable is the empty string
+      // Initial value of the 'xw_job_status_str' variable is the empty string
       string xw_job_status_str = "";
       
-      // Message displayed by XtremWeb should contain:  STATUS='<status>'
-      size_t pos_status = (returned_values.message).find("STATUS='");
+      //----------------------------------------------------------------------
+      //  Message displayed by XtremWeb should contain:  STATUS='<status>'
+      //----------------------------------------------------------------------
+      const char * status_header = "STATUS='";
+      string       xw_message    = returned_values.message;
+      size_t       pos_status    = xw_message.find(status_header);
+      size_t       pos_quote     = 0;
       if ( pos_status != string::npos )
       {
-        size_t pos_quote = (returned_values.message).find("'",pos_status + 8);
+        pos_status += strlen(status_header);
+        pos_quote   = xw_message.find("'", pos_status);
         if ( pos_quote != string::npos )
-          xw_job_status_str = (returned_values.message).substr(pos_status + 8,
-                              pos_quote - (pos_status+8) );
+          xw_job_status_str = xw_message.substr(pos_status,
+                                                pos_quote - pos_status );
       }
       
       //----------------------------------------------------------------------
-      // If relevant, use XtremWeb job status to update bridge job status
+      //  If relevant, use XtremWeb job status to update bridge job status
       //----------------------------------------------------------------------
       if ( xw_job_status_str == "" )
       {
@@ -1155,14 +1260,21 @@ void XWHandler::poll(Job * job) throw (BackendException *)
       }
       else
       {
-        LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  XtremWeb status = '%s'",
-                      function_name, instance_name, bridge_job_id, xw_job_id,
-                      xw_job_status_str.c_str());
+        //--------------------------------------------------------------------
+        //  Store the xtremWeb message inside the 'griddata' attribute of the
+        //  bridge job
+        //--------------------------------------------------------------------
+        xw_message = xw_message.substr(xw_message.find_first_not_of(' '));
+        LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  XtremWeb job status = '%s'",
+                      function_name, instance_name, bridge_job_id,
+                      xw_job_id, xw_job_status_str.c_str());
       
-        updateJob(job, xw_job_status_str);
+        updateJobStatus(job, xw_job_status_str, xw_message);
       
-        // If the XtremWeb status of the job is COMPLETED,
-        //   set its bridge status to FINISHED
+        //--------------------------------------------------------------------
+        //  If the XtremWeb status of the job is COMPLETED,
+        //    set its bridge status to FINISHED
+        //--------------------------------------------------------------------
         if ( xw_job_status_str == "COMPLETED" )
           bridge_status = Job::FINISHED;
       }
@@ -1170,18 +1282,44 @@ void XWHandler::poll(Job * job) throw (BackendException *)
   }
   
   //--------------------------------------------------------------------------
-  // If the bridge status of the job is FINISHED, retrieve its results
-  // from XtremWeb, and extract the output files required by the bridge
+  //  If the bridge status of the job is FINISHED, retrieve its results
+  //  from XtremWeb, and extract the output files required by the bridge
   //--------------------------------------------------------------------------
   if ( bridge_status == Job::FINISHED )
   {
     LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  Bridge job status = 'FINISHED'",
                   function_name, instance_name, bridge_job_id, xw_job_id);
     
-    xw_command.xwcommand   = XW_RESULT;
-    xw_command.xwjobid     = xw_job_id_str;
-    xw_command.bridgejobid = bridge_job_id_str;
-    returned_values        = xtremwebClient(xw_command);
+    //------------------------------------------------------------------------
+    //  If the current folder is not the folder for XtremWeb output files,
+    //  go there.
+    //------------------------------------------------------------------------
+    char * cwd = getcwd((char*)NULL, 0);
+    LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  cwd = '%s'", function_name, 
+                  instance_name, bridge_job_id, xw_job_id, cwd);
+    
+    const char * workdir = g_xw_files_folder.c_str();
+    if  ( strcmp(cwd, workdir) != 0 )
+    {
+      LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  Executing chdir('%s')",
+                     function_name, instance_name, bridge_job_id, xw_job_id,
+                     workdir);
+      chdir(workdir);
+    }
+    
+    free(cwd);               // 'cwd' has been dynamically allocated by getcwd
+    
+    //------------------------------------------------------------------------
+    //  Retrieve the results of the XtremWeb job
+    //------------------------------------------------------------------------
+    arg_str_vector->clear();
+    arg_str_vector->reserve(2);
+    arg_str_vector->push_back(g_xw_client_bin_folder + "xwresults");
+    arg_str_vector->push_back(xw_job_id_str);
+    logStringVectorToDebug(function_name, instance_name, bridge_job_id,
+                           arg_str_vector);
+    
+    returned_values = outputAndErrorFromCommand(arg_str_vector);
     
     if ( returned_values.retcode != 0 )
     {
@@ -1197,100 +1335,95 @@ void XWHandler::poll(Job * job) throw (BackendException *)
                     function_name, instance_name, bridge_job_id, xw_job_id,
                     (returned_values.message).c_str());
     
-#ifdef XW_SLEEP_BEFORE_DOWNLOAD
-      // Sleep some time before download.  Should NOT be necessary.
-      LOG(LOG_DEBUG, "%s(%s)  Job '%s'  Sleeping time before download = %d",
-                     function_name, instance_name, bridge_job_id,
-                     g_sleep_time_before_download);
-      sleep(g_sleep_time_before_download);
-#endif
+      //  Sleep some time before download.  Should NOT be necessary.
+      if ( g_sleep_time_before_download > 0 )
+      {
+        LOG(LOG_DEBUG, "%s(%s)  Job '%s'  Sleeping time before download = %d",
+                       function_name, instance_name, bridge_job_id,
+                       g_sleep_time_before_download);
+        sleep(g_sleep_time_before_download);
+      }
       
-      // Name of ZIP file contains XtremWeb job id after last '/'
+      //  Name of ZIP file contains XtremWeb job id after last '/'
       size_t pos_id = xw_job_id_str.rfind('/') + 1;
       LOG(LOG_DEBUG, "%s(%s)  xw_job_id = '%s'  pos_id=%d  xw_id_len=%d",
                      function_name, instance_name, xw_job_id, pos_id,
                      xw_job_id_str.length() - pos_id);
-      string xw_zip_file_name = "*_ResultsOf_" +
-       xw_job_id_str.substr(pos_id, xw_job_id_str.length() - pos_id) + ".zip";
+      
+      string xw_job_uid_str   = xw_job_id_str.substr(pos_id,
+                                             xw_job_id_str.length() - pos_id);
+      string xw_zip_file_name_str = "*_ResultsOf_" + xw_job_uid_str + ".zip";
+      string xw_zip_file_path_str = g_xw_files_folder +
+                                    "/ResultsOf_" + xw_job_uid_str + ".zip";
       
       //----------------------------------------------------------------------
-      // The XtremWeb ZIP file containing the job results should be in the
-      // XtremWeb file folder.  Rename this ZIP file using the bridge job id.
+      //  The XtremWeb ZIP file containing the job results should be in the
+      //  XtremWeb file folder.  Rename this ZIP file with a shorter name.
       //----------------------------------------------------------------------
-      string       zip_command_str;
-      string       zip_params_str;
-      const char * zip_command;
-      const char * zip_params;
+      arg_str_vector->clear();
+      arg_str_vector->reserve(3);
+      arg_str_vector->push_back(string("/bin/sh"));
+      arg_str_vector->push_back(string("-c"));
+      arg_str_vector->push_back(string("/bin/mv  ") + g_xw_files_folder +
+                                "/"  + xw_zip_file_name_str +
+                                "  " + xw_zip_file_path_str);
+      logStringVectorToDebug(function_name, instance_name, bridge_job_id,
+                             arg_str_vector);
       
-      zip_command_str = "/bin/mv";
-      zip_params_str  = g_xw_files_folder + "/" + xw_zip_file_name +  " "  +
-                        g_xw_files_folder + "/" + bridge_job_id + ".zip";
-      zip_command     = zip_command_str.c_str();
-      zip_params      = zip_params_str.c_str();
-      LOG(LOG_DEBUG, "%s(%s)  command = '%s %s'",
-                     function_name, instance_name, zip_command, zip_params);
-      
-      returned_values  = OutputAndErrorFromCommand(zip_command_str,
-                                                   zip_params_str);
+      returned_values  = outputAndErrorFromCommand(arg_str_vector);
       returned_message = (returned_values.message).c_str();
       LOG(LOG_DEBUG, "%s(%s)  Job '%s'  return_code = x'%X' --> %d  for "
-                     "command '%s %s'  Displayed message = '%s'",
+                     "command '%s'  Displayed message = '%s'",
                      function_name, instance_name, bridge_job_id,
                      returned_values.retcode, returned_values.retcode / 256,
-                     zip_command, zip_params, returned_message);
+                     "/bin/mv", returned_message);
       
       if ( returned_values.retcode == 0 )
       {
       //----------------------------------------------------------------------
-      // Get the list of bridge ouptut files to be extracted from the XtremWeb
-      // ZIP file to the bridge output files folder.
-      // We suppose that all output files have to go to the same folder,
-      // otherwise we would have to generate 1 unzip command per output file.
+      //  Get the list of bridge ouptut files to be extracted from the
+      //  XtremWeb ZIP file to the bridge output files folder.
+      //  We suppose that all output files have to go to the same folder,
+      //  otherwise we would have to generate 1 unzip command per output file.
       //----------------------------------------------------------------------
-      string output_file_path;
-      
-      zip_command_str = "/usr/bin/unzip";
-      zip_params_str  = "-o " + g_xw_files_folder + "/" + bridge_job_id +
-                        ".zip ";
-      
       auto_ptr< vector<string> > output_file_names = job->getOutputs();
-      for ( vector<string>::iterator file_iterator =
-              output_file_names->begin();
-            file_iterator != output_file_names->end();
-            file_iterator++ )
-      {
-        zip_params_str   += *file_iterator + " " ;
-        output_file_path  = job->getOutputPath(*file_iterator);
-      }
+      arg_str_vector->clear();
+      arg_str_vector->reserve(5 + output_file_names->size());
+      arg_str_vector->push_back(string("/usr/bin/unzip"));
+      arg_str_vector->push_back(string("-o"));
+      arg_str_vector->push_back(xw_zip_file_path_str);
+      arg_str_vector->insert(arg_str_vector->end(),
+                             output_file_names->begin(),
+                             output_file_names->end());
+      arg_str_vector->push_back(string("-d"));
+      string output_file_path = job->getOutputPath(output_file_names->back());
+      size_t pos_last_slash   = output_file_path.rfind('/');
+      arg_str_vector->push_back(output_file_path.substr(0, pos_last_slash));
       
-      size_t pos_last_slash = output_file_path.rfind('/');
-      zip_params_str += "-d " + output_file_path.substr(0, pos_last_slash);
-      zip_command     = zip_command_str.c_str();
-      zip_params      = zip_params_str.c_str();
-      LOG(LOG_DEBUG, "%s(%s)  command = '%s %s'",
-                     function_name, instance_name, zip_command, zip_params);
+      logStringVectorToDebug(function_name, instance_name, bridge_job_id,
+                             arg_str_vector);
       
       //----------------------------------------------------------------------
-      // Extract the bridge output files from the ZIP file containing results
+      //  Extract the bridge output files from the ZIP file containing results
       //----------------------------------------------------------------------
-      returned_values  = OutputAndErrorFromCommand(zip_command_str,
-                                                   zip_params_str);
+      returned_values  = outputAndErrorFromCommand(arg_str_vector);
       returned_message = (returned_values.message).c_str();
       LOG(LOG_DEBUG, "%s(%s)  Job '%s'  return_code = x'%X' --> %d  for "
-                     "command '%s %s'  Displayed message = '%s'",
+                     "command '%s'  Displayed message = '%s'",
                      function_name, instance_name, bridge_job_id,
                      returned_values.retcode, returned_values.retcode / 256,
-                     zip_command, zip_params, returned_message);
+                     "/usr/bin/unzip", returned_message);
       }
       
       if ( returned_values.retcode != 0 )
       {
         LOG(LOG_ERR, "%s(%s)  Job '%s'  return_code = x'%X' --> %d  for "
-                     "command '%s %s'  Displayed message = '%s'",
+                     "command '%s'  Displayed message = '%s'",
                      function_name, instance_name, bridge_job_id,
                      returned_values.retcode, returned_values.retcode / 256,
-                     zip_command, zip_params, returned_message);
-        setJobStatusToError(function_name, instance_name, bridge_job_id, job);
+                     "/usr/bin/unzip", returned_message);
+        setJobStatusToError(function_name, instance_name, bridge_job_id, job,
+                            returned_values.message);
       }
       
       logit_mon("event=job_status job_id=%s status=Finished", bridge_job_id);
