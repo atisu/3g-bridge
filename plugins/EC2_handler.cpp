@@ -65,113 +65,114 @@ EC2Handler::EC2Handler(GKeyFile *config, const char *instance): GridHandler(conf
 
 void EC2Handler::submitJob(Job *job) throw (BackendException *)
 {
-   logit(LOG_DEBUG, "%s::%s() called.", typeid(*this).name(), __FUNCTION__);
+    logit(LOG_DEBUG, "%s::%s() called.", typeid(*this).name(), __FUNCTION__);
 
-   gchar *my_args;
-   gchar** my_argv;
-   int my_argc;
-   gchar* image_id = NULL;
-   gchar* kernel_id = NULL;
-   gchar* ramdisk_id = NULL;
-   gchar* instance_type = NULL;
-   gchar* group = NULL;
-   GError *error = NULL;
-   GOptionContext *context;
-   GOptionEntry entries[] = 
-   {
-       {"image", 'i', 0, G_OPTION_ARG_STRING, &image_id, "Machine Image", "AMI"},
-       {"kernel", 'k', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &kernel_id, "Kernel Image", "AKI"},       
-       {"ramdisk", 'r', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &ramdisk_id, "Ramdisk Image", "ARI"},
-       {"instance-type", 't', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &instance_type, "Instance Type", "TYPE"},
-       {"group", 'g', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &group, "Security Group", "GROUP"},      
-       {NULL}
-   };
-   string job_id;
+    gchar *my_args;
+    gchar** my_argv;
+    int my_argc;
+    gchar* image_id = NULL;
+    gchar* kernel_id = NULL;
+    gchar* ramdisk_id = NULL;
+    gchar* instance_type = NULL;
+    gchar* group = NULL; 
+    GError *error = NULL;
+    GOptionContext *context;
+    GOptionEntry entries[] = 
+    {
+        {"image", 'i', 0, G_OPTION_ARG_STRING, &image_id, "Machine Image", "AMI"},
+        {"kernel", 'k', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &kernel_id, "Kernel Image", "AKI"},       
+        {"ramdisk", 'r', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &ramdisk_id, "Ramdisk Image", "ARI"},
+        {"instance-type", 't', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &instance_type, "Instance Type", "TYPE"},
+        {"group", 'g', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &group, "Security Group", "GROUP"},     
+        {NULL}
+    };
+    string job_id;
 
-   /* Parse command line arguments
-    *
-    * Format should look like: image=<IMAGE_ID>,kernel=<KERNEL_ID>,ramdisk=<RAMDISK_ID>,size=<INSTANCE_SIZE>,group=<SECURITY_GROUP>
-    * 'image' is required, everything else is optional.
-    * name is ignored but must be the first element in an argv array
-    * (Documentation states: A side-effect of calling g_option_context_parse
-    * is that g_set_prgname() will be called. We may not want this...)
-    */
+    /* Parse command line arguments
+     *
+     * Format should look like: image=<IMAGE_ID>,kernel=<KERNEL_ID>,ramdisk=<RAMDISK_ID>,size=<INSTANCE_SIZE>,group=<SECURITY_GROUP>,
+     * 'image' is required, everything else is optional.
+     * name is ignored but must be the first element in an argv array
+     * (Documentation states: A side-effect of calling g_option_context_parse
+     * is that g_set_prgname() will be called. We may not want this...)
+     */
 
-   my_args = g_strjoin(" ", job->getName().c_str(), job->getArgs().c_str(), NULL);
-   my_argv = g_strsplit(my_args, " ", -1);
-   g_free(my_args);
-   my_argc = g_strv_length(my_argv);
+    my_args = g_strjoin(" ", job->getName().c_str(), job->getArgs().c_str(), NULL);
+    my_argv = g_strsplit(my_args, " ", -1);
+    g_free(my_args);
+    my_argc = g_strv_length(my_argv);
 
-   context = g_option_context_new("- Amazon EC2/ Eucalyptus plug-in for 3G-Bridge");
-   g_option_context_add_main_entries(context, entries, NULL);
-   if (!g_option_context_parse(context, &my_argc, &my_argv, &error))
-   {
-       job->setStatus(Job::ERROR);
-       logit(LOG_DEBUG, "%s::%s(): cannot parse job arguments: '%s'", 
-           typeid(*this).name(), __FUNCTION__, job->getArgs().c_str());
-       return;
-   }
-   g_strfreev(my_argv);
-   g_option_context_free(context);
+    context = g_option_context_new("- EC2 REST/ SOAP API plug-in for 3G Bridge");
+    g_option_context_add_main_entries(context, entries, NULL);
+    if (!g_option_context_parse(context, &my_argc, &my_argv, &error))
+    {
+        job->setStatus(Job::ERROR);
+        logit(LOG_DEBUG, "%s::%s(): cannot parse job arguments: '%s'", 
+            typeid(*this).name(), __FUNCTION__, job->getArgs().c_str());
+        return;
+    }
+    g_strfreev(my_argv);
+    g_option_context_free(context);
    
-   GString* my_arguments = g_string_new(NULL);   
-   if (!image_id)
-   {
+    GString* my_arguments = g_string_new(NULL);   
+    if (!image_id)
+    {
         /* image_id is mandatory */
-       job->setStatus(Job::ERROR);
-       logit(LOG_DEBUG, "%s::%s(): AMI is not provided with argument '--image=<AMI>'", 
-           typeid(*this).name(), __FUNCTION__);       
-       g_string_free(my_arguments, TRUE);
-       g_free(image_id);
-       g_free(kernel_id);
-       g_free(ramdisk_id);
-       g_free(instance_type);
-       g_free(group);
-       return;
-   }
-   my_arguments = g_string_append(my_arguments, image_id);
-   g_free(image_id);       
-   if (kernel_id)
-   {
-       g_string_append_printf(my_arguments, " --kernel %s", kernel_id);
-       g_free(kernel_id);
-   }
-   if (ramdisk_id)
-   {
-       g_string_append_printf(my_arguments, " --ramdisk %s", ramdisk_id);       
-       g_free(ramdisk_id);
-   }
-   if (instance_type)
-   {
-       g_string_append_printf(my_arguments, " --instance-type %s", instance_type);       
-       g_free(instance_type);       
-   }
-   if (group)
-   {
-       g_string_append_printf(my_arguments, " --group %s", group);
-       g_free(group);
-   }
+        job->setStatus(Job::ERROR);
+        logit(LOG_DEBUG, "%s::%s(): AMI is not provided with argument '--image=<AMI>'", 
+            typeid(*this).name(), __FUNCTION__);       
+        g_string_free(my_arguments, TRUE);
+        g_free(image_id);
+        g_free(kernel_id);
+        g_free(ramdisk_id);
+        g_free(instance_type);
+        g_free(group);
+        return;
+    }
+    my_arguments = g_string_append(my_arguments, image_id);
+    g_free(image_id);       
+    if (kernel_id)
+    {
+        g_string_append_printf(my_arguments, " --kernel %s", kernel_id);
+        g_free(kernel_id);
+    }
+    if (ramdisk_id)
+    {
+        g_string_append_printf(my_arguments, " --ramdisk %s", ramdisk_id);       
+        g_free(ramdisk_id);
+    }
+    if (instance_type)
+    {
+        g_string_append_printf(my_arguments, " --instance-type %s", instance_type);       
+        g_free(instance_type);       
+    }
+    if (group)
+    {
+        g_string_append_printf(my_arguments, " --group %s", group);
+        g_free(group);
+    }
 
-   /* region is from config file */
-   g_string_append_printf(my_arguments, " --region %s", cf_region);
+    /* region is from config file depending on the tool type*/
+    if (ec2_tool_type == EC2_API_TOOLS) 
+        g_string_append_printf(my_arguments, " --region %s", cf_region);
    
-   try 
-   {
-       job_id = createVMInstance(my_arguments->str);
-   } 
-   catch (BackendException *e) 
-   {
-       // job failed now, try later
-       job->setStatus(Job::TEMPFAILED);
-       logit(LOG_DEBUG, "%s::%s(): Cannot create new instance: %s", 
-           typeid(*this).name(), __FUNCTION__, e->what());
-       delete e;
-       g_string_free(my_arguments, TRUE);
-       return;
-   }
-   g_string_free(my_arguments, TRUE);
-   job->setGridId(job_id);
-   job->setStatus(Job::RUNNING);
+    try 
+    {
+        job_id = createVMInstance(my_arguments->str);
+    } 
+    catch (BackendException *e) 
+    {
+        // job failed now, try later
+        job->setStatus(Job::TEMPFAILED);
+        logit(LOG_DEBUG, "%s::%s(): Cannot create new instance: %s", 
+            typeid(*this).name(), __FUNCTION__, e->what());
+        delete e;
+        g_string_free(my_arguments, TRUE);
+        return;
+    }
+    g_string_free(my_arguments, TRUE);
+    job->setGridId(job_id);
+    job->setStatus(Job::RUNNING);
 }
 
 
@@ -226,10 +227,21 @@ void EC2Handler::updateStatus(void) throw (BackendException *)
     int tries = 1;
     int max_tries = 5;
     string output_text;
-   
-    gchar* commandline = g_strdup_printf("ec2-describe-instances --show-empty-fields --region %s", cf_region);
-    gchar** myargs = g_strsplit(commandline, " ", -1);
-    g_free(commandline);
+    gchar** myargs;
+    gchar* commandline;
+
+    if (ec2_tool_type == EC2_API_TOOLS) 
+    {
+	    commandline = g_strdup_printf("ec2-describe-instances --show-empty-fields --region %s", cf_region);
+	    myargs = g_strsplit(commandline, " ", -1);
+        g_free(commandline);
+    } 
+    else 
+    {
+	    commandline = g_strdup_printf("euca-describe-instances");
+        myargs = g_strsplit(commandline, " ", 1);
+        g_free(commandline);
+    }
 
     do 
     {
@@ -241,27 +253,26 @@ void EC2Handler::updateStatus(void) throw (BackendException *)
  	            logit(LOG_DEBUG,"%s::%s(): queriing instances failed: %s",
  	                typeid(*this).name(), __FUNCTION__, output_text.c_str());
                     g_strfreev(myargs);		     
-                    return;
+                return;
  	        }        
- 	        logit(LOG_DEBUG, "%s::%s(): queriing instances failed, retrying (%d of %d)", 
- 	            typeid(*this).name(), __FUNCTION__, tries, max_tries);
+ 	        logit(LOG_DEBUG, "%s::%s(): queriing instances failed error code %d, retrying (%d of %d)", 
+ 	            typeid(*this).name(), __FUNCTION__, return_value, tries, max_tries);
             tries++; 
-         } 
-         else 
-         {
+        } 
+        else 
+        {
              last_updatejob_reply = output_text;
-         }
-     } 
-     while (return_value != 0);
-
+        }
+    } 
+    while (return_value != 0);
 
     /*
      *  update jobs
      */
-   DBHandler *jobDB = DBHandler::get();
-   jobDB->pollJobs(this, Job::RUNNING, Job::CANCEL);
-   DBHandler::put(jobDB);
-   g_strfreev(myargs);
+    DBHandler *jobDB = DBHandler::get();
+    jobDB->pollJobs(this, Job::RUNNING, Job::CANCEL);
+    DBHandler::put(jobDB);
+    g_strfreev(myargs);
 }
 
 
@@ -336,7 +347,11 @@ string EC2Handler::createVMInstance(gchar* args) throw (BackendException *)
     string output_text;
     string instance_id;
 
-    gchar* commandline = g_strdup_printf("ec2-run-instances %s %s", args, cf_user_data);
+    gchar* commandline;
+    if (ec2_tool_type == EC2_API_TOOLS) 
+        commandline = g_strdup_printf("ec2-run-instances %s %s", args, cf_user_data);
+    else 
+        commandline = g_strdup_printf("euca-run-instances %s %s", args, cf_user_data);
     gchar** myargs = g_strsplit(commandline, " ", -1);
     g_free(commandline);
  
@@ -345,10 +360,10 @@ string EC2Handler::createVMInstance(gchar* args) throw (BackendException *)
     if (invoke_cmd(myargs, environment_data, &output_text) != 0) 
     {
         g_strfreev(myargs);
-        throw new BackendException("%s::%s(): running instances failed: (ec2-run-instances %s %s) %s",
-		    typeid(*this).name(), __FUNCTION__, 
-		    args, cf_user_data,
-		    output_text.c_str());
+        throw new BackendException("%s::%s(): running instances failed: (e*-run-instances %s %s) %s",
+            typeid(*this).name(), __FUNCTION__, 
+            args, cf_user_data,
+            output_text.c_str());
     }
     g_strfreev(myargs);
    
@@ -375,18 +390,23 @@ string EC2Handler::createVMInstance(gchar* args) throw (BackendException *)
 
 void EC2Handler::terminateVMInstance(string instance_id) throw (BackendException *)
 {
-   int result;
-   string command_result;
-   gchar* commandline = g_strdup_printf("ec2-terminate-instances --region %s %s", cf_region, instance_id.c_str());
-   gchar** myargs = g_strsplit(commandline, " ", -1);
-   g_free(commandline);
+    int result;
+    string command_result;
+    gchar* commandline;
+    if (ec2_tool_type == EC2_API_TOOLS) 
+        commandline = g_strdup_printf("ec2-terminate-instances --region %s %s", cf_region, instance_id.c_str());
+    else 
+        commandline = g_strdup_printf("euca-terminate-instances %s", instance_id.c_str());
+    gchar** myargs = g_strsplit(commandline, " ", -1);
+    g_free(commandline);
    
-   result = invoke_cmd(myargs, environment_data, &command_result);
-   g_strfreev(myargs);
-   if (result != 0) {
-      throw new BackendException("%s::%s(): could not terminate instance '%s'", 
-        typeid(*this).name(), __FUNCTION__, instance_id.c_str());
-   }  
+    result = invoke_cmd(myargs, environment_data, &command_result);
+    g_strfreev(myargs);
+    if (result != 0) 
+    {
+        throw new BackendException("%s::%s(): could not terminate instance '%s'", 
+            typeid(*this).name(), __FUNCTION__, instance_id.c_str());
+    }  
 }
 
 
@@ -396,22 +416,62 @@ void EC2Handler::parseConfig(GKeyFile *config, const char *instance) throw (Back
     gchar*   config_value;
 
     /*
-     * region (required) - non-environment variable
+     * ec2-tool-type (required) - non-environment variable
      */
-    cf_region = g_key_file_get_string(config, instance, "region", NULL);
-    if (cf_region == NULL) {
+
+    config_value = g_key_file_get_string(config, instance, "ec2-tool-type", NULL);
+    if (config_value == NULL) 
+    {
         g_string_free(environment, TRUE);
-        throw new BackendException("%s::%s(): 'region' is not set for %s", 
+        throw new BackendException("%s::%s(): 'ec2-tool-type' is not set for %s", 
             typeid(*this).name(), __FUNCTION__, instance);
     }
-    g_strstrip(cf_region);
-    logit(LOG_DEBUG, "%s::%s(): 'region' is '%s'", typeid(*this).name(), __FUNCTION__, cf_region);
+    g_strstrip(config_value);
+    logit(LOG_DEBUG, "%s::%s(): 'ec2-tool-type' is '%s'", typeid(*this).name(), __FUNCTION__, config_value);
+
+    /*
+     * check ec2 tool type
+     */
+
+	int i = strcmp(config_value, "ec2-api-tools");
+	if (i == 0)
+    {
+	    ec2_tool_type = EC2_API_TOOLS;
+	} 
+    else
+    {
+	    i = strcmp(config_value, "euca2ools");
+		if (i == 0)
+			ec2_tool_type = EUCA2OOLS;
+	}
+
+    /* free up */
+    g_free(config_value);
+
+    /*
+     * region (required if tool type is ec2-api-tools) - non-environment variable
+     */
+    
+    if (ec2_tool_type == EC2_API_TOOLS)
+    {
+        cf_region = g_key_file_get_string(config, instance, "region", NULL);
+        if (cf_region == NULL) 
+        {
+            g_string_free(environment, TRUE);
+            throw new BackendException("%s::%s(): 'region' is not set for %s", 
+                typeid(*this).name(), __FUNCTION__, instance);
+        }
+        g_strstrip(cf_region);
+        logit(LOG_DEBUG, "%s::%s(): 'region' is '%s'", typeid(*this).name(), __FUNCTION__, cf_region);
+    }
 
     /* 
-     * java-home (required) 
+     * java-home (required. cjreyn: not sure this is for euca2ools but consider it a requisit anyway.) 
      */
+
     config_value = g_key_file_get_string(config, instance, "java-home", NULL);
-    if (config_value == NULL) {
+    if (config_value == NULL) 
+    {
         g_string_free(environment, TRUE);
         throw new BackendException("%s::%s(): 'java-home' is not set for %s", 
             typeid(*this).name(), __FUNCTION__, instance);        
@@ -422,27 +482,33 @@ void EC2Handler::parseConfig(GKeyFile *config, const char *instance) throw (Back
     g_free(config_value);
 
     /* 
-     * ec2-home (required) 
+     * ec2-home (required if tool type is ec2-api-tools) 
      */
-    config_value = g_key_file_get_string(config, instance, "ec2-home", NULL);
-    if (config_value == NULL) {
-        g_string_free(environment, TRUE);
-        throw new BackendException("%s::%s(): 'ec2-home' is not set for %s", 
-            typeid(*this).name(), __FUNCTION__, instance);        
+
+    if (ec2_tool_type == EC2_API_TOOLS)
+    {
+        config_value = g_key_file_get_string(config, instance, "ec2-home", NULL);
+        if (config_value == NULL) 
+        {
+            g_string_free(environment, TRUE);
+            throw new BackendException("%s::%s(): 'ec2-home' is not set for %s", 
+                typeid(*this).name(), __FUNCTION__, instance);        
+        }
+        g_strstrip(config_value);
+        g_string_append_printf(environment, " EC2_HOME=%s", config_value);
+        logit(LOG_DEBUG, "%s::%s(): 'ec2-home' is '%s'", typeid(*this).name(), __FUNCTION__, config_value);
+        /* add ec2-home to path */
+        gchar *path = getenv("PATH");
+        g_string_append_printf(environment, " PATH=%s/bin:%s", config_value, path);
+        g_free(config_value);
     }
-    g_strstrip(config_value);
-    g_string_append_printf(environment, " EC2_HOME=%s", config_value);
-    logit(LOG_DEBUG, "%s::%s(): 'ec2-home' is '%s'", typeid(*this).name(), __FUNCTION__, config_value);
-    /* add ec2-home to path */
-    gchar *path = getenv("PATH");
-    g_string_append_printf(environment, " PATH=%s/bin:%s", config_value, path);
-    g_free(config_value);
     
     /*
      * ec2-private-key (required)
      */
     config_value = g_key_file_get_string(config, instance, "ec2-private-key", NULL);    
-    if (config_value == NULL) {
+    if (config_value == NULL) 
+    {
         g_string_free(environment, TRUE);
         throw new BackendException("%s::%s(): 'ec2-private-key' is not set for %s", 
             typeid(*this).name(), __FUNCTION__, instance);
@@ -456,7 +522,8 @@ void EC2Handler::parseConfig(GKeyFile *config, const char *instance) throw (Back
      * ec2-certificate (required)
      */
     config_value = g_key_file_get_string(config, instance, "ec2-certificate", NULL);
-    if (config_value == NULL) {
+    if (config_value == NULL) 
+    {
         g_string_free(environment, TRUE);
         throw new BackendException("%s::%s(): 'ec2-certificate' is not set for %s", 
             typeid(*this).name(), __FUNCTION__, instance);
@@ -466,19 +533,60 @@ void EC2Handler::parseConfig(GKeyFile *config, const char *instance) throw (Back
     logit(LOG_DEBUG, "%s::%s(): 'ec2-certificate' is '%s'", typeid(*this).name(), __FUNCTION__, config_value);
     g_free(config_value);
 
+
+    /* 
+     * ec2-access-key (required if tool type is euca2ools) 
+     */
+    if (ec2_tool_type == EUCA2OOLS)
+    {
+        config_value = g_key_file_get_string(config, instance, "ec2-access-key", NULL);
+        if (config_value == NULL) 
+        {
+            g_string_free(environment, TRUE);
+            throw new BackendException("%s::%s(): 'ec2-access-key' is not set for %s", 
+                typeid(*this).name(), __FUNCTION__, instance);        
+        }
+        g_strstrip(config_value);
+        g_string_append_printf(environment, " EC2_ACCESS_KEY=%s", config_value);
+        logit(LOG_DEBUG, "%s::%s(): 'ec2-access-key' is '%s'", typeid(*this).name(), __FUNCTION__, config_value);
+        g_free(config_value);
+    }
+
+    /* 
+     * ec2-secret-key (required if tool type is euca2ools) 
+     */
+    if (ec2_tool_type == EUCA2OOLS)
+    {
+        config_value = g_key_file_get_string(config, instance, "ec2-secret-key", NULL);
+        if (config_value == NULL) 
+        {
+            g_string_free(environment, TRUE);
+            throw new BackendException("%s::%s(): 'ec2-secret-key' is not set for %s", 
+                typeid(*this).name(), __FUNCTION__, instance);        
+        }
+        g_strstrip(config_value);
+        g_string_append_printf(environment, " EC2_SECRET_KEY=%s", config_value);
+        logit(LOG_DEBUG, "%s::%s(): 'ec2-secret-key' is not printed in the log!", typeid(*this).name(), __FUNCTION__);
+        g_free(config_value);
+    }
+
+
     /*
-     * ec2-service-url (not required for Amazon EC2 - required for Eucalyptus)
+     * ec2-service-url (not required for Amazon EC2 - required for Eucalyptus or Openstack)
      */
     config_value = g_key_file_get_string(config, instance, "ec2-service-url", NULL);
-    if (config_value != NULL) {
+    if (config_value != NULL) 
+    {
         g_strstrip(config_value);
         g_string_append_printf(environment, " EC2_URL=%s", config_value);
         logit(LOG_DEBUG, "%s::%s(): 'ec2-service-url' is '%s'", typeid(*this).name(), __FUNCTION__, config_value);
         g_free(config_value);
-    } else
+    } 
+    else
         logit(LOG_DEBUG, "%s::%s(): 'ec2-service-url' is not set for %s", 
             typeid(*this).name(), __FUNCTION__, instance);
 
+   
     /*
      * user-data (optional)
      */
@@ -487,15 +595,20 @@ void EC2Handler::parseConfig(GKeyFile *config, const char *instance) throw (Back
      * user-data-file (optional)
      */
     gchar* t_user_data_file = g_key_file_get_string(config, instance, "user-data-file", NULL);
-    if (t_user_data_file != NULL) {
+    if (t_user_data_file != NULL) 
+    {
         g_strstrip(t_user_data_file);
         cf_user_data = g_strdup_printf(" -f %s", t_user_data_file);
         g_free(t_user_data_file);
-    } else if (t_user_data != NULL) {
+    } 
+    else if (t_user_data != NULL) 
+    {
         g_strstrip(t_user_data);
         cf_user_data = g_strdup_printf(" -d %s", t_user_data);
         g_free(t_user_data);
-    } else {
+    } 
+    else 
+    {
         logit(LOG_WARNING, "%s::%s(): both 'user-data' and 'user-data-file' are empty", 
 		    typeid(*this).name(), __FUNCTION__);
         cf_user_data = g_strdup_printf(" ");
@@ -519,6 +632,6 @@ void EC2Handler::parseConfig(GKeyFile *config, const char *instance) throw (Back
 
 HANDLER_FACTORY(config, instance)
 {
-	return new EC2Handler(config, instance);
+    return new EC2Handler(config, instance);
 }
 

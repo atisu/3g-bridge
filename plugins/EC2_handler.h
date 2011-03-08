@@ -31,6 +31,8 @@
 #include "GridHandler.h"
 
 #include <map>
+#define EC2_API_TOOLS 0
+#define EUCA2OOLS 1
 
 using namespace std;
 
@@ -52,8 +54,9 @@ class EC2Handler: public GridHandler {
      gchar* cf_region;
      gchar* cf_user_data;
      gchar** environment_data;
-     string last_updatejob_reply;
+     int ec2_tool_type;
 
+     string last_updatejob_reply;
      string createVMInstance(gchar* args) throw (BackendException *);
      void terminateVMInstance(string instance_id) throw (BackendException *);
      void parseConfig(GKeyFile *config, const char *instance) throw (BackendException *);
