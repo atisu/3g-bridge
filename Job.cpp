@@ -119,6 +119,16 @@ void Job::setGridData(const string &sData)
 }
 
 
+void Job::setTag(const string &sTag)
+{
+	tag = new string(sTag);
+
+	DBHandler *dbH = DBHandler::get();
+	dbH->updateJobTag(id, sTag);
+	DBHandler::put(dbH);
+}
+
+
 void Job::setStatus(JobStatus nStat, bool updateDB)
 {
 	if (status == nStat)

@@ -205,6 +205,20 @@ public:
 	const string &getGridData() const { return gridData; }
 
 	/**
+	 * Set the Job's tag.
+	 * @param sTag the tag to set
+	 * @see tag()
+	 */
+	void setTag(const string &sTag);
+
+	/**
+	 * Get the Job's tag.
+	 * @see tag()
+	 * @return pointer to the Job's tag or NULL if tag hasn't been set
+	 */
+	const string *getTag() const { return tag; }
+
+	/**
 	 * Set the Job's status.
 	 * @param nStat the status to set
 	 * @param updateDB indicates that the job's DB status should be updated
@@ -259,6 +273,9 @@ private:
 
 	/// The Job's grid data
 	string gridData;
+
+	/// The Job's tag
+	string *tag;
 
 	/// Algorithm queue the Job belongs to
 	AlgQueue *algQ;

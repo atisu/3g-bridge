@@ -217,6 +217,7 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 	const char *griddata = res.get_field("griddata");
 	const char *id = res.get_field("id");
 	const char *stat = res.get_field("status");
+	const char *tag = res.get_field("tag");
 
 	if (uuid_parse(id, uuid))
 	{
@@ -244,6 +245,8 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 		job->setGridId(gridid);
 	if (griddata)
 		job->setGridData(griddata);
+	if (tag)
+		job->setTag(tag);
 
 	// Get inputs for job from db
 	DBHandler *dbh = get();
@@ -436,6 +439,12 @@ void DBHandler::updateJobGridData(const string &ID, const string &gridData)
 }
 
 
+void DBHandler::updateJobTag(const string &ID, const string &tag)
+{
+	query("UPDATE cg_job SET tag='%s' WHERE id='%s'", tag.c_str(), ID.c_str());
+}
+
+
 void DBHandler::updateJobStat(const string &ID, Job::JobStatus newstat)
 {
 	query("UPDATE cg_job SET status='%s' WHERE id='%s'", statToStr(newstat), ID.c_str());
@@ -461,9 +470,14 @@ bool DBHandler::addJob(Job &job)
 	if (!query("START TRANSACTION"))
 		return false;
 
-	success &= query("INSERT INTO cg_job (id, alg, grid, status, args) VALUES ('%s', '%s', '%s', '%s', '%s')",
-		job.getId().c_str(), job.getName().c_str(), job.getGrid().c_str(),
-		statToStr(job.getStatus()), job.getArgs().c_str());
+	if (job.getTag())
+		success &= query("INSERT INTO cg_job (id, alg, grid, status, args, tag) VALUES ('%s', '%s', '%s', '%s', '%s', '%s')",
+			job.getId().c_str(), job.getName().c_str(), job.getGrid().c_str(),
+			statToStr(job.getStatus()), job.getArgs().c_str(), job.getTag()->c_str());
+	else
+		success &= query("INSERT INTO cg_job (id, alg, grid, status, args) VALUES ('%s', '%s', '%s', '%s', '%s')",
+			job.getId().c_str(), job.getName().c_str(), job.getGrid().c_str(),
+			statToStr(job.getStatus()), job.getArgs().c_str());
 
 	auto_ptr< vector<string> > files = job.getInputs();
 	for (vector<string>::const_iterator it = files->begin(); it != files->end(); it++)

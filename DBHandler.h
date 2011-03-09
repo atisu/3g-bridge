@@ -163,6 +163,13 @@ class DBHandler {
 	void updateJobGridData(const string &ID, const string &gridData);
 
 	/**
+	 * Update a job's tag.
+	 * @param ID the job's identifier
+	 * @param tag the tag to set
+	 */
+	void updateJobTag(const string &ID, const string &tag);
+
+	/**
 	 * Update a job's status.
 	 * @param ID the job's identifier
 	 * @param newstat the status to set

@@ -77,6 +77,7 @@ static char *endpoint;
 static char *name;
 static char *grid;
 static char *args;
+static char *tag;
 static char **env;
 static char **inputs;
 static char **outputs;
@@ -112,6 +113,8 @@ static GOptionEntry add_options[] =
 		"Repeat the operation this many times", "NUM" },
 	{ "env",		'E',	0,	G_OPTION_ARG_STRING_ARRAY,	&env,
 		"Environment variables for the job", "NAME=VALUE" },
+	{ "tag",		't',	0,	G_OPTION_ARG_STRING,		&tag,
+		"Command-line arguments for the job", "ARGS" },
 	{ NULL }
 };
 
@@ -302,6 +305,9 @@ static void handle_add(void)
 		job.args = "";
 	else
 		job.args = args;
+
+	if (tag)
+		job.tag = new string(tag);
 
 	struct soap *soap = soap_new();
 	soap_init1(soap, SOAP_IO_CHUNK);
