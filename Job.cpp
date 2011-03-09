@@ -45,6 +45,8 @@ Job::Job(const char *id, const char *name, const char *grid, const char *args, J
 	if (args)
 		this->args = args;
 
+	tag = NULL;
+
 	// Get algorithm queue instance
 	algQ = AlgQueue::getInstance(grid, name);
 
@@ -64,6 +66,13 @@ Job::Job(const char *id, const char *name, const char *grid, const char *args, J
 			}
 		}
 	}
+}
+
+
+Job::~Job()
+{
+	if (tag)
+		delete tag;
 }
 
 

@@ -82,7 +82,7 @@ public:
 	/**
 	 * The Job destructor.
 	 */
-	~Job() {};
+	~Job();
 
 	/**
 	 * Return the Job's unique identifier.
