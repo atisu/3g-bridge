@@ -28,32 +28,99 @@
 #ifndef FILEREF_H
 #define FILEREF_H
 
-#include "AlgQueue.h"
-
-#include <memory>
 #include <string>
-#include <vector>
-#include <map>
 
 using namespace std;
 
-
+/**
+ * File reference class. The FileRef class can be used to store a file reference in 3G Bridge. A file
+ * reference consists of the followings: the URL of the file, the MD5 hash of
+ * the file, and the size of the file.
+ *
+ * @author Zoltán Farkas <zfarkas@sztaki.hu>
+ */
 class FileRef {
 public:
-	FileRef(const string &url, const string &md5, const int size);
-	//FileRef(const FileRef &fileref);
+	/**
+	 * Constructor.
+	 * This constructor initializes the FileRef object using the specified
+	 * URL, MD5 hash and size information.
+	 * @param url the URL of the file reference
+	 * @param md5 the MD5 hash of the referenced file
+	 * @param size the size of the referenced file
+	 * @see f_url
+	 * @see f_md5
+	 * @see f_size
+	 */
+	FileRef(const string &url, const char *md5 = NULL, const off_t size = -1);
+
+	/**
+	 * Default constructor.
+	 * Default empty constructor for the FileRef class.
+	 */
 	FileRef() {};
+
+	/**
+	 * Destructor.
+	 * Destructor for the FileRef class.
+	 */
 	~FileRef();
-	const string &getURL() const { return url; }
-	const string getMD5() const { return md5; }
-	const int getSize() const { return size; }
-	void setMD5(const string &md5);
-	void setSize(const int size);
+
+	/**
+	 * Get file reference's URL.
+	 * This function returns the URL belonging to the file reference.
+	 * @see f_url
+	 * @return URL of the referenced file
+	 */
+	const string &getURL() const { return f_url; }
+
+	/**
+	 * Get referenced file's MD5 hash.
+	 * This function returns the MD5 hash belonging to the referenced file.
+	 * @see f_md5
+	 * @return MD5 hash of the referenced file
+	 */
+	const char *getMD5() const { return f_md5; }
+
+	/**
+	 * Get referenced file's size.
+	 * This function returns the size of the referenced file.
+	 * @see f_size
+	 * @return size of the referenced file
+	 */
+	const off_t getSize() const { return f_size; }
+
+	/**
+	 * Set referenced file's MD5 hash.
+	 * This function sets the MD5 hash belonging to the referenced file.
+	 * @see f_md5
+	 * @param md5 the new MD5 hash to use
+	 */
+	void setMD5(const char *md5);
+
+	/**
+	 * Set referenced file's size.
+	 * This function sets the size belonging to the referenced file.
+	 * @see size
+	 * @param size the new size to use
+	 */
+	void setSize(const off_t size);
 
 private:
-	int size;
-	string url;
-	string md5;
+	/**
+	 * URL of the referenced file.
+	 */
+	string f_url;
+
+	/**
+	 * MD5 hash of the referenced file.
+	 */
+	char *f_md5;
+
+	/**
+	 * Size of the referenced file.
+	 */
+	off_t f_size;
 };
 
 

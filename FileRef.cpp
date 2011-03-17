@@ -26,42 +26,39 @@
  */
 
 #include "FileRef.h"
-#include <iostream>
 
-using namespace std;
+#include <cstring>
 
-FileRef::FileRef(const string &url, const string &md5, const int size):size(size)
+FileRef::FileRef(const string &url, const char *md5, const off_t size):f_size(size)
 {
-	this->url = string(url);
-	this->md5 = string(md5);
-}
+	/// Copy url into f_url.
+	f_url = string(url);
 
-/*
-FileRef::FileRef(const FileRef &fileref)
-{
-	this->url = fileref.url;
-	this->
-	if (fileref.md5)
-	{
-		cout << "Ez van: " << *(fileref.md5) << endl;
-		this->md5 = new string(*(fileref.md5));
-	}
-	this->size = fileref.size;
+	/// Copy md5 into a newly allocated buffer in f_mdt (assuming md5 is
+	/// not NULL).
+	f_md5 = md5 ? strdup(md5) : md5;
 }
-*/
 
 FileRef::~FileRef()
 {
-//	if (md5)
-//		delete md5;
+	/// Free any memory allocated in f_md5.
+	if (f_md5)
+		delete f_md5;
 }
 
-void FileRef::setMD5(const string &md5)
+void FileRef::setMD5(const char *md5)
 {
-	this->md5 = string(md5);
+	/// Free any memory allocated in f_md5.
+	if (f_md5)
+		delete f_md5;
+
+	/// Copy md5 into a newly allocated buffer in f_mdt (assuming md5 is
+	/// not NULL).
+	f_md5 = md5 ? strdup(md5) : md5;
 }
 
-void FileRef::setSize(const int size)
+void FileRef::setSize(const off_t size)
 {
-	this->size = size;
+	/// Set f_size to provided size.
+	f_size = size;
 }

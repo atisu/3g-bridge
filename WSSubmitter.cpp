@@ -445,13 +445,13 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 			G3BridgeSubmitter__LogicalFile *lfn = *inpit;
 
 			string URL = lfn->URL;
-			string md5 = lfn->md5;
-			string size = lfn->size;
+			string *md5 = lfn->md5;
+			string *size = lfn->size;
 			string fname = lfn->logicalName;
 
 			if ('/' != URL[0])
 			{
-				FileRef a(URL, md5, atoi(size.c_str()));
+				FileRef a(URL, md5 ? md5->c_str() : NULL, size ? atoi(size->c_str()) : -1);
 				qmjob->addInput(fname, a);
 				inputs.push_back(pair<string, FileRef>(fname, a));
 			}
@@ -487,7 +487,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 				md5file.close();
 				struct stat st;
 				stat(dimepath.c_str(), &st);
-				FileRef a(path, md5, st.st_size);
+				FileRef a(path, md5.c_str(), st.st_size);
 				qmjob->addInput(fname, a);
 				inputs.push_back(pair<string, FileRef>(fname, a));
 				unlink(md5path.c_str());

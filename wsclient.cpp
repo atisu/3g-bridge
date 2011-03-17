@@ -377,12 +377,12 @@ static void handle_add(void)
 
 		lf->logicalName = inputs[i];
 		lf->URL = url;
-		lf->md5 = "";
-		lf->size = "-1";
+		lf->md5 = NULL;
+		lf->size = NULL;
 		if (md5 && size != -1)
 		{
-			lf->md5 = string(md5);
-			lf->size = string(sizestr);
+			lf->md5 = new string(md5);
+			lf->size = new string(sizestr);
 		}
 		job.inputs.push_back(lf);
 	}
