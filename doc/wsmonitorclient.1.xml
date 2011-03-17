@@ -50,6 +50,7 @@
         <cmdsynopsis>
             <command>wsmonitorclient</command>
             <group choice="req">
+                <arg choice="plain"><option>-?</option></arg>
                 <arg choice="plain"><option>-h</option></arg>
                 <arg choice="plain"><option>--help</option></arg>
             </group>
@@ -135,6 +136,7 @@
 	    <varlistentry>
 		<term>
 		    <group choice="plain">
+			<arg choice="plain"><option>-?</option></arg>
 			<arg choice="plain"><option>-h</option></arg>
 			<arg choice="plain"><option>--help</option></arg>
 		    </group>
