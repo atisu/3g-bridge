@@ -36,7 +36,7 @@ FileRef::FileRef(const string &url, const char *md5, const off_t size):f_size(si
 
 	/// Copy md5 into a newly allocated buffer in f_mdt (assuming md5 is
 	/// not NULL).
-	f_md5 = md5 ? strdup(md5) : md5;
+	f_md5 = md5 ? strdup(md5) : NULL;
 }
 
 FileRef::~FileRef()
@@ -54,7 +54,7 @@ void FileRef::setMD5(const char *md5)
 
 	/// Copy md5 into a newly allocated buffer in f_mdt (assuming md5 is
 	/// not NULL).
-	f_md5 = md5 ? strdup(md5) : md5;
+	f_md5 = md5 ? strdup(md5) : NULL;
 }
 
 void FileRef::setSize(const off_t size)

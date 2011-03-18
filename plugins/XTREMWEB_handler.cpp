@@ -407,12 +407,12 @@ returned_t outputAndErrorFromCommand(const auto_ptr< vector<string> > &
   returned_t   returned_values;
   
   size_t arg_str_vector_size = arg_str_vector->size();
-  LOG(LOG_DEBUG, "%s(%s)  Command size = %d",
+  LOG(LOG_DEBUG, "%s(%s)  Command size = %ld",
                  function_name, instance_name, arg_str_vector_size);
   
   if ( arg_str_vector_size < 1 )
   {
-    sprintf(error_buffer, "Command size = %d  Empty comand is erroneous",
+    sprintf(error_buffer, "Command size = %ld  Empty comand is erroneous",
                           arg_str_vector_size);
     LOG(LOG_ERR, "%s(%s)  %s", function_name, instance_name, error_buffer);
     returned_values.retcode = -1;
@@ -637,7 +637,7 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
   const char * function_name = "XWHandler::submitJobs";
   const char * instance_name = name.c_str();
   
-  LOG(LOG_INFO, "%s(%s)  Number of job(s) to be submitted to XtremWeb :  %d",
+  LOG(LOG_INFO, "%s(%s)  Number of job(s) to be submitted to XtremWeb :  %ld",
                 function_name, instance_name, jobs.size());
   
   if ( jobs.size() < 1 )
@@ -700,7 +700,7 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     local_input_file_path_str_vector->clear();
     
     input_file_str_vector = job->getInputs();
-    LOG(LOG_DEBUG, "%s(%s)  Job '%s'  Number of input files = %d",
+    LOG(LOG_DEBUG, "%s(%s)  Job '%s'  Number of input files = %ld",
                    function_name, instance_name, bridge_job_id,
                    input_file_str_vector->size());
     
@@ -710,7 +710,7 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
           input_file_iterator++ )
     {
       input_file_name_str = *input_file_iterator;
-      input_file_path_str = job->getInputPath(input_file_name_str);
+      input_file_path_str = job->getInputRef(input_file_name_str).getURL();
       input_file_name     = input_file_name_str.c_str();
       input_file_path     = input_file_path_str.c_str();
       
@@ -966,7 +966,7 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     nb_jobs++;
   }
   LOG(LOG_INFO, "%s(%s)  Number of job(s) successfully submitted to "
-                "XtremWeb :  %d / %d",
+                "XtremWeb :  %ld / %ld",
                 function_name, instance_name, nb_jobs, jobs.size());
 }
 
@@ -1346,7 +1346,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
       
       //  Name of ZIP file contains XtremWeb job id after last '/'
       size_t pos_id = xw_job_id_str.rfind('/') + 1;
-      LOG(LOG_DEBUG, "%s(%s)  xw_job_id = '%s'  pos_id=%d  xw_id_len=%d",
+      LOG(LOG_DEBUG, "%s(%s)  xw_job_id = '%s'  pos_id=%ld  xw_id_len=%ld",
                      function_name, instance_name, xw_job_id, pos_id,
                      xw_job_id_str.length() - pos_id);
       

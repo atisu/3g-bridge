@@ -473,18 +473,28 @@ bool DBHandler::addJob(Job &job)
 		return false;
 
 	if (job.getTag())
+	{
+		char *tag = job.getTag() ? escape_string(job.getTag()->c_str()) : NULL;
+		char *args = escape_string(job.getArgs().c_str());
+		char *name = escape_string(job.getName().c_str());
 		success &= query("INSERT INTO cg_job (id, alg, grid, status, args, tag) VALUES ('%s', '%s', '%s', '%s', '%s', '%s')",
-			job.getId().c_str(), job.getName().c_str(), job.getGrid().c_str(),
-			statToStr(job.getStatus()), job.getArgs().c_str(), job.getTag()->c_str());
+			job.getId().c_str(), name, job.getGrid().c_str(), statToStr(job.getStatus()), args, tag);
+		free(name);
+		free(args);
+		if (tag)
+			free(tag);
+	}
 	else
+	{
 		success &= query("INSERT INTO cg_job (id, alg, grid, status, args) VALUES ('%s', '%s', '%s', '%s', '%s')",
 			job.getId().c_str(), job.getName().c_str(), job.getGrid().c_str(),
 			statToStr(job.getStatus()), job.getArgs().c_str());
+	}
 
 	auto_ptr< vector<string> > files = job.getInputs();
 	for (vector<string>::const_iterator it = files->begin(); it != files->end(); it++)
 	{
-		string path = job.getInputPath(*it);
+		string path = job.getInputRef(*it).getURL();
 		FileRef fr = job.getInputRef(*it);
 		if (fr.getMD5())
 			success &= query("INSERT INTO cg_inputs (id, localname, url, md5, filesize) VALUES ('%s', '%s', '%s', '%s', '%ld')",
@@ -779,4 +789,15 @@ void DBHandler::done()
 		g_mutex_free(db_lock);
 		g_cond_free(db_signal);
 	}
+}
+
+char *DBHandler::escape_string(const char *input)
+{
+	if (input == NULL)
+		return NULL;
+
+	int inlen = strlen(input);
+	char *dbuf = (char *)malloc(2*inlen+1);
+	mysql_real_escape_string(conn, dbuf, input, inlen);
+	return dbuf;
 }

@@ -590,7 +590,7 @@ static jobject job_to_java(JNIEnv *env, Job *job)
 		jstring lfnstr, pathstr;
 
 		lfnstr = env->NewStringUTF((*it).c_str());
-		pathstr = env->NewStringUTF(job->getInputPath(*it).c_str());
+		pathstr = env->NewStringUTF(job->getInputRef(*it).getURL().c_str());
 		if (!lfnstr || !pathstr)
 		{
 			check_exception(env);

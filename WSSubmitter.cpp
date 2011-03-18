@@ -356,7 +356,7 @@ void DBItem::finished()
 	{
 		struct stat st;
 
-		string path = job->getInputPath(*it);
+		string path = (job->getInputRef(*it)).getURL();
 		if (stat(path.c_str(), &st))
 			job_ready = false;
 	}
@@ -388,7 +388,7 @@ void DBItem::failed()
 	/* Abort the download of the other input files */
 	auto_ptr< vector<string> > inputs = job->getInputs();
 	for (vector<string>::const_iterator it = inputs->begin(); it != inputs->end(); it++)
-		DownloadManager::abort(job->getInputPath(*it));
+		DownloadManager::abort((job->getInputRef(*it)).getURL());
 }
 
 void DBItem::setRetry(const struct timeval &when, int retries)
@@ -607,7 +607,7 @@ int __G3BridgeSubmitter__delete(struct soap *soap, G3BridgeSubmitter__JobIDList 
 		auto_ptr< vector<string> > files = job->getInputs();
 		for (vector<string>::const_iterator fsit = files->begin(); fsit != files->end(); fsit++)
 		{
-			string path = job->getInputPath(*fsit);
+			string path = (job->getInputRef(*fsit)).getURL();
 			DownloadManager::abort(path);
 			unlink(path.c_str());
 		}

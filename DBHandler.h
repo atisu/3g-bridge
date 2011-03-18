@@ -295,6 +295,15 @@ class DBHandler {
 	 * Check the connection and reconnect if neccessary.
 	 */
 	void check(void);
+
+	/**
+	 * Escape string for safe insert.
+	 * The function creates the correctly escaped version of the string for
+	 * a safe insert or update.
+	 * @param input the input string to escape
+	 * @return a newly allocated memory buffer containing the escaped string
+	 */
+	char *escape_string(const char *input);
 };
 
 

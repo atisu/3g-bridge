@@ -40,8 +40,14 @@ using namespace std;
 
 
 /**
- * Class of job informations. The Job class holds every information related to
- * an entry in the cg_job table.
+ * Class of job informations. The Job class holds every information related to a
+ * job in the 3G Bridge: the identifier, the application's name, the destination
+ * plugin's name, the command-line arguments, the identifier in the destination
+ * grid, destination-related data, set of input files, set of output files, tag,
+ * environment variables, and the job's status.
+ *
+ * @author Gábor Gombás <gombasg@sztaki.hu>
+ * @author Zoltán Farkas <zfarkas@sztaki.hu>
  */
 class Job {
 public:
@@ -50,263 +56,325 @@ public:
 	 * The JobStatus enumerates the possible job status values.
 	 */
 	enum JobStatus {
-		PREPARE,	/**< Enum value for the PREPARE status. */
-		INIT,		/**< Enum value for the INIT status. */
-		RUNNING,	/**< Enum value for the RUNNING status. */
-		FINISHED,	/**< Enum value for the FINISHED status. */
-		ERROR,		/**< Enum value for the ERROR status. */
-		TEMPFAILED,	/**< Enum value for the TEMPFAILED status. */
-		CANCEL		/**< Enum value for the CANCEL status. */
+		PREPARE,	/**< Enum value for the PREPARE status, used to
+				     indicate that the job is in its preparation
+				     phase. */
+		INIT,		/**< Enum value for the INIT status, used to
+				     indicate that the job is ready for
+				     execution. */
+		RUNNING,	/**< Enum value for the RUNNING status, used to
+				     indicate that the job is running. */
+		FINISHED,	/**< Enum value for the FINISHED status, used to
+				     indicate that the job has finished, and
+				     results have been fetched. */
+		ERROR,		/**< Enum value for the ERROR status, used to
+				     indicate that some error has occured. */
+		TEMPFAILED,	/**< Enum value for the TEMPFAILED status, used
+				     to indicate that the job has failed due to
+				     a temorary error. */
+		CANCEL		/**< Enum value for the CANCEL status, used to
+				     indicate the user's intention to cancel the
+				     execution of the job, and to remove the
+				     job. */
 	};
 
 	/**
-	 * The Job constructor. Creates a Job object.
-	 * @param id the Job's unique identifier.
-	 * @param name the name of the executable.
-	 * @param grid destination grid name to use.
+	 * Constructor of a Job object.
+	 * This constructor is used to create an initial Job object by filling
+	 * in the main attributes: the job's identifier, the application's name,
+	 * the destination grid, the command-line arguments, the job's status,
+	 * and possible environment variables. Other properties have to be set
+	 * using the relevant function.
+	 * @param id the job's unique identifier.
+	 * @param name the name of the executable/application.
+	 * @param grid destination grid/plugin name to use.
 	 * @param args command-line arguments.
 	 * @param status status of the job.
-	 * @see id()
-	 * @see name()
-	 * @see args()
-	 * @see grid()
-	 * @see status()
+	 * @param env environment variables for the job.
+	 * @see id
+	 * @see name
+	 * @see args
+	 * @see grid
+	 * @see status
+	 * @see envs
 	 */
 	Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const vector<string> *env = NULL);
 
 	/**
-	 * Empty constructor.
+	 * Default constructor.
+	 * Default empty constructor for the Job class.
 	 */
 	Job() {};
 
 	/**
-	 * The Job destructor.
+	 * Destructor
+	 * Destructor for the Job class.
 	 */
 	~Job();
 
 	/**
-	 * Return the Job's unique identifier.
-	 * @see id()
-	 * @return The Job's unique identifier
+	 * Get the job's unique identifier.
+	 * This function returns the job's unique internal identifier.
+	 * @see id
+	 * @return the job's unique identifier
 	 */
 	const string &getId() const { return id; }
 
 	/**
-	 * Return the Job's name.
-	 * @see name()
-	 * @return The Job's name
+	 * Get the job's application/executable.
+	 * This function returns the application (or executable) name belonging
+	 * to the job.
+	 * @see name
+	 * @return application's/executable's name
 	 */
 	const string &getName() const { return name; }
 
 	/**
-	 * Return the Job's grid.
+	 * Get the job's destination grid/plugin
+	 * This function returns the destination grid/plugin of the job.
 	 * @see grid()
-	 * @return The Job's grid
+	 * @return The job's grid
 	 */
 	const string &getGrid() const { return grid; }
 
 	/**
-	 * Return the Job arguments.
-	 * @see args()
-	 * @return The Job's arguments
+	 * Get the job's command-line arguments.
+	 * This function returns the command-line arguments assigned to the job
+	 * or NULL if no command-line arguments have been set.
+	 * @see args
+	 * @return the Job's command-line arguments
 	 */
 	const string &getArgs() const { return args; }
 
 	/**
-	 * Return the Job's algorithm queue.
-	 * @see algQ()
-	 * @see AlgQueue()
-	 * @return The Job's algorithm queue
+	 * Get the job's algorithm queue.
+	 * This function returns the pointer to the algorithm queue the job
+	 * belongs to.
+	 * @see algQ
+	 * @see AlgQueue
+	 * @return the Job's algorithm queue
 	 */
 	AlgQueue *getAlgQueue() { return algQ; }
 
 	/**
-	 * Add an input file to the job.
-	 * @param localname name of the file as the Job tries to open it
-	 * @param fsyspath location of the file on the filesystem
-	 * @see inputs()
+	 * Add an input file reference to the job.
+	 * This function can be used to add an input file reference to the job
+	 * through a FileRef object.
+	 * @see inputs
+	 * @see FileRef
+	 * @param localname name of the file as the job tries to open it
+	 * @param fileref the file reference belonging to the file
 	 */
 	void addInput(const string &localname, const FileRef &fileref);
 
 	/**
-	 * Return vector of input files. Returns a vector of the localnames
-	 * belonging to the input files.
-	 * @see inputs()
-	 * @return vector of localnames
+	 * Get list of input files.
+	 * This function returns a vector of the input file local names
+	 * belonging to the job
+	 * @see inputs
+	 * @return vector of input file local names
 	 */
 	auto_ptr< vector<string> > getInputs() const;
 
 	/**
-	 * Get file reference for a file.
-	 * @param localname the localname we're interested in
-	 * @see inputs()
-	 * @return the file reference
+	 * Get file reference for an input file
+	 * This function returns the file reference object belonging to an input
+	 * file.
+	 * @see inputs
+	 * @see FileRef
+	 * @param localname the local name to get the reference for
+	 * @return the file reference belonging to the local name
 	 */
 	const FileRef &getInputRef(const string localname) { return inputs[localname]; }
 
 	/**
-	 * Get the location of a file on the filesystem.
-	 * @param localname the localname we're interested in
-	 * @see inputs()
-	 * @return the filesystem location of localname
-	 */
-	const string &getInputPath(const string localname) { return inputs[localname].getURL(); }
-
-	/**
 	 * Add an output file to the job.
-	 * @param localname name of the file as the Job tries to open it
+	 * This function adds an output file to the job.
+	 * @see outputs
+	 * @param localname name of the file as the job tries to open it
 	 * @param fsyspath expected location of the file on the filesystem
-	 * @see outputs()
 	 */
 	void addOutput(const string &localname, const string &fsyspath);
 
 	/**
-	 * Return vector of output files. Returns a vector of the localnames
-	 * belonging to the output files.
-	 * @see outputs()
-	 * @return vector of localnames
+	 * Get list of output files.
+	 * This function returns a vector of the output file local names
+	 * belonging to the job.
+	 * @see outputs
+	 * @return vector of output file local names
 	 */
 	auto_ptr< vector<string> > getOutputs() const;
 
 	/**
 	 * Get the expected location of a file on the filesystem.
-	 * @param localname the localname we're interested in
-	 * @see outputs()
-	 * @return the expected filesystem location of localname
+	 * This function returns the expected path of and output file on the
+	 * filesystem.
+	 * @see outputs
+	 * @param localname the local name to get the path for
+	 * @return the expected filesystem location of the output file
 	 */
 	const string &getOutputPath(const string localname) { return outputs[localname]; }
 
 	/**
-	 * Set the Job's grid identifier.
+	 * Set the job's grid identifier.
+	 * This function sets the job's grid identifier.
+	 * @see gridId
 	 * @param sId the grid identifier to set
-	 * @see gridId()
 	 */
 	void setGridId(const string &sId);
 
 	/**
-	 * Get the Job's grid identifier.
-	 * @see gridId()
-	 * @return the Job's grid identifier
+	 * Get the job's grid identifier.
+	 * This function returns the job's current grid identifier.
+	 * @see gridId
+	 * @return the job's grid identifier
 	 */
 	const string &getGridId() const { return gridId; }
 
 	/**
-	 * Set the Job's grid data.
+	 * Set the job's grid data.
+	 * This function sets the job's grid data.
+	 * @see gridData
 	 * @param sData the grid data to set
-	 * @see gridData()
 	 */
 	void setGridData(const string &sData);
 
 	/**
-	 * Get the Job's grid data.
-	 * @see gridData()
-	 * @return the Job's grid data
+	 * Get the job's grid data.
+	 * This function returns the job's current grid data.
+	 * @see gridData
+	 * @return the job's grid data
 	 */
 	const string &getGridData() const { return gridData; }
 
 	/**
-	 * Set the Job's tag.
+	 * Set the job's tag.
+	 * This function sets the job's tag.
+	 * @see tag
 	 * @param sTag the tag to set
-	 * @see tag()
 	 */
 	void setTag(const string &sTag);
 
 	/**
-	 * Get the Job's tag.
-	 * @see tag()
-	 * @return pointer to the Job's tag or NULL if tag hasn't been set
+	 * Get the job's tag.
+	 * This function returns the job's current tag
+	 * @see tag
+	 * @return pointer to the job's tag or NULL if tag hasn't been set
 	 */
 	const string *getTag() const { return tag; }
 
 	/**
-	 * Set the Job's status.
+	 * Set the job's status.
+	 * This function sets the job's status, and optionally also performs the
+	 * database update.
+	 * @see status
 	 * @param nStat the status to set
 	 * @param updateDB indicates that the job's DB status should be updated
 	 *        as well
-	 * @see status()
 	 */
 	void setStatus(JobStatus nStat, bool updateDB = true);
 
 	/**
-	 * Get the Job's status.
-	 * @see status()
-	 * @return the Job's status
+	 * Get the job's status.
+	 * This function returns the job's current status.
+	 * @see status
+	 * @return the job's status
 	 */
 	JobStatus getStatus() const { return status; }
 
 	/**
-	 * Delete the Job from the database. Removes the entry belonging to
-	 * the Job from the database.
+	 * Delete the Job from the database.
+	 * This function removes the entry belonging to the job from the
+	 * database.
 	 */
 	void deleteJob();
 
 	/**
 	 * Get list of environment variables.
+	 * This function returns the list of environment variables set for the
+	 * job.
+	 * @see envs
+	 * @return vector of defined environment variables
 	 */
 	auto_ptr< vector<string> > getEnvs() const;
 
 	/**
 	 * Get value of an environment variable.
+	 * This function returns the value of an environment variable.
+	 * @see envs
+	 * @param name the name of the environment variable to get
+	 * @return value of the specified environment variable
 	 */
 	const string &getEnv(const string &name) { return envs[name]; }
 
 	/**
 	 * Set value of an environment variable.
+	 * This function sets the value of an environment variable.
+	 * @see envs
+	 * @param name the environment variable to set
+	 * @param value the value to use
 	 */
 	void addEnv(const string &name, const string &value) { envs[name] = value; }
 
 private:
-	/// The Job's unique identifier
+	/// The job's unique identifier.
 	string id;
 
-	/// The Job executables's name
+	/// The executable/application name belonging to the job.
 	string name;
 
-	/// Command-line arguments of the Job
-	string args;
-
-	/// The Job's destination grid
+	/// The destination grid/plugin of the job.
 	string grid;
 
-	/// The Job's grid identifier
+	/// Command-line arguments of the job.
+	string args;
+
+	/// The grid identifier of the job.
 	string gridId;
 
-	/// The Job's grid data
+	/// The grid data of the job.
 	string gridData;
 
-	/// The Job's tag
+	/// The tag of the job.
 	string *tag;
 
-	/// Algorithm queue the Job belongs to
+	/// The Algorithm queue the job belongs to.
 	AlgQueue *algQ;
 
 	/**
-	 * Input files belonging to the Job. The variable is a map from strings
-	 * to strings, where the map key is the localname of the input files,
-	 * and the value belonging to a key is the location of the file on the
-	 * filesystem.
+	 * Input files belonging to the Job.
+	 * The variable is a map from strings to strings, where the map key is
+	 * the localname of the input files, and the value belonging to a key is
+	 * the file reference describing properties of the file.
+	 * @see FileRef
 	 */
 	map<string, FileRef> inputs;
 
 	/**
-	 * Output files belonging to the Job. The variable is a map from
-	 * strings to strings, where the map key is the localname of the output
-	 * files, and the value belonging to a key is the expected location of
-	 * the file on the filesystem.
+	 * Output files belonging to the Job.
+	 * The variable is a map from strings to strings, where the map key is
+	 * the localname of the output files, and the value belonging to a key
+	 * is the expected location of the file on the filesystem.
 	 */
 	map<string, string> outputs;
 
 	/**
 	 * Environment variables assigned to the job.
+	 * The variable is a map from strings to strings, where the map key is
+	 * the name of the environment variable, and the value belonging to a
+	 * key is the value of the given environment variable.
 	 */
 	map<string, string> envs;
 
-	/// The Job's status.
+	/// Status of the job.
 	JobStatus status;
 };
 
 
-/// The JobVector class used to hold a vector of Job objects.
+/**
+ * The JobVector class used to hold a vector of Job objects.
+ * The JobVector class is based on the std::vector<Job> class.
+ */
 class JobVector: public vector<Job *> {
 public:
 	/// Initialize the JobVector object.
