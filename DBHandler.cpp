@@ -431,19 +431,25 @@ void DBHandler::updateAlgQStat(const char *gridId, unsigned pSize, unsigned pTim
 
 void DBHandler::updateJobGridID(const string &ID, const string &gridID)
 {
-	query("UPDATE cg_job SET gridid='%s' WHERE id='%s'", gridID.c_str(), ID.c_str());
+	char *gridid = escape_string(gridID.c_str());
+	query("UPDATE cg_job SET gridid='%s' WHERE id='%s'", gridid, ID.c_str());
+	free(gridid);
 }
 
 
 void DBHandler::updateJobGridData(const string &ID, const string &gridData)
 {
-	query("UPDATE cg_job SET griddata='%s' WHERE id='%s'", gridData.c_str(), ID.c_str());
+	char *griddata = escape_string(gridData.c_str());
+	query("UPDATE cg_job SET griddata='%s' WHERE id='%s'", griddata, ID.c_str());
+	free(griddata);
 }
 
 
 void DBHandler::updateJobTag(const string &ID, const string &tag)
 {
-	query("UPDATE cg_job SET tag='%s' WHERE id='%s'", tag.c_str(), ID.c_str());
+	char *ctag = escape_string(tag.c_str());
+	query("UPDATE cg_job SET tag='%s' WHERE id='%s'", ctag, ID.c_str());
+	free(ctag);
 }
 
 
@@ -472,35 +478,42 @@ bool DBHandler::addJob(Job &job)
 	if (!query("START TRANSACTION"))
 		return false;
 
+	char *args = escape_string(job.getArgs().c_str());
+	char *name = escape_string(job.getName().c_str());
 	if (job.getTag())
 	{
 		char *tag = escape_string(job.getTag()->c_str());
-		char *args = escape_string(job.getArgs().c_str());
-		char *name = escape_string(job.getName().c_str());
 		success &= query("INSERT INTO cg_job (id, alg, grid, status, args, tag) VALUES ('%s', '%s', '%s', '%s', '%s', '%s')",
 			job.getId().c_str(), name, job.getGrid().c_str(), statToStr(job.getStatus()), args, tag);
-		free(name);
-		free(args);
 		free(tag);
 	}
 	else
 	{
 		success &= query("INSERT INTO cg_job (id, alg, grid, status, args) VALUES ('%s', '%s', '%s', '%s', '%s')",
-			job.getId().c_str(), job.getName().c_str(), job.getGrid().c_str(),
-			statToStr(job.getStatus()), job.getArgs().c_str());
+			job.getId().c_str(), name, job.getGrid().c_str(), statToStr(job.getStatus()), args);
 	}
+	free(name);
+	free(args);
 
 	auto_ptr< vector<string> > files = job.getInputs();
 	for (vector<string>::const_iterator it = files->begin(); it != files->end(); it++)
 	{
 		string path = job.getInputRef(*it).getURL();
 		FileRef fr = job.getInputRef(*it);
+		char *url = escape_string(fr.getURL().c_str());
 		if (fr.getMD5())
+		{
+			char *md5 = escape_string(fr.getMD5());
 			success &= query("INSERT INTO cg_inputs (id, localname, url, md5, filesize) VALUES ('%s', '%s', '%s', '%s', '%ld')",
-				job.getId().c_str(), it->c_str(), fr.getURL().c_str(), fr.getMD5(), fr.getSize());
+				job.getId().c_str(), it->c_str(), url, md5, fr.getSize());
+			free(md5);
+		}
 		else
+		{
 			success &= query("INSERT INTO cg_inputs (id, localname, url, filesize) VALUES ('%s', '%s', '%s', '%ld')",
-				job.getId().c_str(), it->c_str(), fr.getURL().c_str(), fr.getSize());
+				job.getId().c_str(), it->c_str(), url, fr.getSize());
+		}
+		free(url);
 	}
 	files = job.getOutputs();
 	for (vector<string>::const_iterator it = files->begin(); it != files->end(); it++)
@@ -514,8 +527,12 @@ bool DBHandler::addJob(Job &job)
 	for (vector<string>::const_iterator it = env->begin(); it != env->end(); it++)
 	{
 		string val = job.getEnv(*it);
+		char *envn = escape_string(it->c_str());
+		char *envv = escape_string(val.c_str());
 		success &= query("INSERT INTO cg_env (id, name, val) VALUES ('%s', '%s', '%s')",
-			job.getId().c_str(), it->c_str(), val.c_str());
+			job.getId().c_str(), envn, envv);
+		free(envv);
+		free(envn);
 	}
 
 	if (success)
@@ -717,10 +734,12 @@ void DBHandler::getAllDLs(void (*cb)(const char *jobid, const char *localName,
 void DBHandler::updateInputPath(const string &jobid, const string &localName,
 		const string &path)
 {
+	char *url = escape_string(path.c_str());
 	query("UPDATE cg_inputs "
 		"SET url = '%s' "
 		"WHERE id = '%s' AND localname = '%s'",
-		path.c_str(), jobid.c_str(), localName.c_str());
+		url, jobid.c_str(), localName.c_str());
+	free(url);
 }
 
 void DBHandler::init(GKeyFile *config)
