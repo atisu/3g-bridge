@@ -390,7 +390,7 @@ static void emit_job(Job *job, const string &basedir, ofstream &script, const st
 	auto_ptr< vector<string> > inputs = job->getInputs();
 	for (vector<string>::const_iterator it = inputs->begin(); it != inputs->end(); it++)
 	{
-		string src = job->getInputPath(*it);
+		string src = (job->getInputRef(*it)).getURL();
 		string dst = input_path + "/" + *it;
 
 		/* First, try to create a hard link; if that fails, do a copy */

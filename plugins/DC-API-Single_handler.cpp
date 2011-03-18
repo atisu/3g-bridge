@@ -222,15 +222,15 @@ static bool submit_job(Job *job) throw (BackendException *)
 				return false;
 			}
 		}
-		else if (DC_addWUInput(wu, lname.c_str(), job->getInputPath(lname).c_str(), DC_FILE_VOLATILE))
+		else if (DC_addWUInput(wu, lname.c_str(), url.c_str(), DC_FILE_VOLATILE))
 		{
 			LOG(LOG_ERR, "DC-API-Single: Job %s: Failed to add input file \"%s\"",
-				job->getId().c_str(), job->getInputPath(lname).c_str());
+				job->getId().c_str(), url.c_str());
 			DC_destroyWU(wu);
 			return false;
 		}
 		LOG(LOG_DEBUG, "DC-API-Single: Input file \"%s\" added to WU of job \"%s\" as \"%s\"",
-			job->getInputPath(lname).c_str(), job->getId().c_str(), lname.c_str());
+			url.c_str(), job->getId().c_str(), lname.c_str());
 	}
 
 	auto_ptr< vector<string> > outputs = job->getOutputs();
