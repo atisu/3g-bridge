@@ -474,7 +474,7 @@ bool DBHandler::addJob(Job &job)
 
 	if (job.getTag())
 	{
-		char *tag = job.getTag() ? escape_string(job.getTag()->c_str()) : NULL;
+		char *tag = escape_string(job.getTag()->c_str());
 		char *args = escape_string(job.getArgs().c_str());
 		char *name = escape_string(job.getName().c_str());
 		success &= query("INSERT INTO cg_job (id, alg, grid, status, args, tag) VALUES ('%s', '%s', '%s', '%s', '%s', '%s')",
