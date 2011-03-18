@@ -346,7 +346,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		vector<string> dstFiles;
 		for (unsigned j = 0; j < ins->size(); j++)
 		{
-			string ipath = actJ->getInputPath((*ins)[j]);
+			string ipath = (actJ->getInputRef((*ins)[j])).getURL();
 			string rpath = jobprefix + (*ins)[j];
 			srcFiles.push_back("file://" + ipath);
 			dstFiles.push_back(rpath);
