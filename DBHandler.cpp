@@ -481,8 +481,7 @@ bool DBHandler::addJob(Job &job)
 			job.getId().c_str(), name, job.getGrid().c_str(), statToStr(job.getStatus()), args, tag);
 		free(name);
 		free(args);
-		if (tag)
-			free(tag);
+		free(tag);
 	}
 	else
 	{
