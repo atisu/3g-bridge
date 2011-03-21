@@ -7,8 +7,8 @@
 <!ENTITY bull   "&#8226;">
 ]>
 
-<refentry id="3g-bridge.xtremweb-plugin.7" revision="18 Mar 2011">
-  
+<refentry id="3g-bridge.plugin-xtremweb.7" revision="18 Mar 2011">
+
   <refentryinfo>
     <author>
       <personname>
@@ -18,20 +18,20 @@
       <email>urbah@lal.in2p3.fr</email>
     </author>
     <date>18 Mar 2011</date>
-    <title>3g-bridge.xtremweb-plugin</title>
+    <title>3g-bridge.plugin-xtremweb</title>
     <productname>3G Bridge - XtremWeb plugin</productname>
     <productnumber>@PACKAGE_VERSION@</productnumber>
   </refentryinfo>
   
   <refmeta>
-    <refentrytitle>3g-bridge.xtremweb-plugin</refentrytitle>
+    <refentrytitle>3g-bridge.plugin-xtremweb</refentrytitle>
     <manvolnum>7</manvolnum>
     <refmiscinfo>3G Bridge :  XtremWeb Plugin Technical 
                  Documentation</refmiscinfo>
   </refmeta>
   
   <refnamediv>
-    <refname>3g-bridge.xtremweb-plugin</refname>
+    <refname>3g-bridge.plugin-xtremweb</refname>
     <refpurpose>3G Bridge :  XtremWeb Plugin Technical 
                 Documentation</refpurpose>
   </refnamediv>

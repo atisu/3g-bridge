@@ -6,7 +6,7 @@ man_MANS = \
 		wsmonitor.8 \
 		wsmonitorclient.1 \
 		wssubmitter.8 \
-		3g-bridge.xtremweb-plugin.7
+		3g-bridge.plugin-xtremweb.7
 
 EXTRA_DIST = $(addsuffix .xml,$(man_MANS)) $(addsuffix .in,$(man_MANS))
 DISTCLEANFILES = $(man_MANS)
