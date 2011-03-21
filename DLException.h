@@ -35,22 +35,32 @@
 
 /**
  * Download Exception class.
+ * The DLException class can be used by grid plugins during job submission
+ * to indicate input file handling problems towards the Queue Manager. If a
+ * plugin is unable to handle an input file URL during a job's submission
+ * in its submitJobs() method, the plugin has to throw an instance of this
+ * exception.
  */
 class DLException: public BackendException
 {
 public:
-	/// Create a new exception
-	DLException() { tjobid = ""; };
-
 	/**
-	 * Create a new exception using a job ID
-	 * @param jobid the job identifier
+	 * Create a new exception using a job ID.
+	 * This costructor creates a new DLException using the provided
+	 * job identifier.
+	 * @see tjobid
+	 * @param jobid the job identifier to create the DLException for
 	 */
 	DLException(const std::string &jobid):tjobid(jobid) {};
 
 	/**
-	 * Add input file localnames to exception
-	 * @param lname the problematic file's localname
+	 * Add input file local name to exception.
+	 * This function can be used to add a problematic input's local
+	 * name to the exception. The Queue Manager will iterate through
+	 * inputs added using this method, and instruct the Download
+	 * Manager to download them.
+	 * @see localnames
+	 * @param lname the problematic file's local name
 	 */
 	void addInput(const std::string &lname);
 
@@ -58,23 +68,32 @@ public:
 	~DLException() throw () {};
 
 	/**
-	 * Get job identifier
+	 * Get job identifier.
+	 * This function returns the identifier of the job the DLException
+	 * belongs to.
+	 * @see tjobid
+	 * @return the assigned job's identifier
 	 */
 	const std::string getJobId() const { return tjobid; };
 
 	/**
-	 * Get problematic input list
+	 * Get problematic input list.
+	 * This function returns the list of problematic input file local
+	 * names.
+	 * @see localnames
+	 * @return vector of problematic input files' local names
 	 */
 	const std::vector<std::string> getInputs() const { return localnames; };
 
 	/**
-	 * Return the reason of the exception
+	 * Return the reason of the exception.
+	 * The function returns a textual representation of the DLException.
 	 * @return reason message
 	 */
 	const char *what() const throw ();
 
 protected:
-	/// The problematic job's ID
+	/// The problematic job's identifier
 	std::string tjobid;
 
 	/// The problematic input files' local names

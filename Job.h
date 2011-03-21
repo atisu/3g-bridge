@@ -381,6 +381,7 @@ public:
 	JobVector() { vector<Job *>(); }
 
 	/**
+	 * JobVector destructor.
 	 * Destroy the JobVector object. Clears the vector of Job objects.
 	 */
 	~JobVector() { clear(); }
