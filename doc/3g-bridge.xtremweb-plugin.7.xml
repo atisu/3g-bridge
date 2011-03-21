@@ -1,0 +1,561 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="http://docbook.sourceforge.net/release/xsl/current/manpages/docbook.xsl" type="text/xsl"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN"
+	"http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" [
+<!ENTITY nbsp   "&#160;">
+<!ENTITY eacute "&#233;">
+<!ENTITY bull   "&#8226;">
+]>
+
+<refentry id="3g-bridge.xtremweb-plugin.7" revision="18 Mar 2011">
+  
+  <refentryinfo>
+    <author>
+      <personname>
+        <firstname>Etienne</firstname>
+        <surname>Urbah</surname>
+      </personname>
+      <email>urbah@lal.in2p3.fr</email>
+    </author>
+    <date>18 Mar 2011</date>
+    <title>3g-bridge.xtremweb-plugin</title>
+    <productname>3G Bridge - XtremWeb plugin</productname>
+    <productnumber>@PACKAGE_VERSION@</productnumber>
+  </refentryinfo>
+  
+  <refmeta>
+    <refentrytitle>3g-bridge.xtremweb-plugin</refentrytitle>
+    <manvolnum>7</manvolnum>
+    <refmiscinfo>3G Bridge :  XtremWeb Plugin Technical 
+                 Documentation</refmiscinfo>
+  </refmeta>
+  
+  <refnamediv>
+    <refname>3g-bridge.xtremweb-plugin</refname>
+    <refpurpose>3G Bridge :  XtremWeb Plugin Technical 
+                Documentation</refpurpose>
+  </refnamediv>
+  
+  <refsection>
+    <title>Description</title>
+    <para>
+      For the <application>XtremWeb-HEP</application> plugin of the 3G 
+      Bridge, this file provides&nbsp;:
+      <itemizedlist>
+        <listitem><para>A Glossary,</para></listitem>
+        <listitem><para>An Introduction on the Environment and 
+                        Architecture,</para></listitem>
+        <listitem><para>The Installation and Operation 
+                        Manual.</para></listitem>
+      </itemizedlist>
+    </para>
+  </refsection>
+  
+  
+  <refsection>
+    <title>Glossary</title>
+    <glosslist>
+      <glossentry>
+        <glossterm>API</glossterm>
+        <glossdef><para>Application Programming Interface</para></glossdef>
+      </glossentry>
+      <glossentry>
+        <glossterm>CLI</glossterm>
+        <glossdef><para>Command Line Interface</para></glossdef>
+      </glossentry>
+      <glossentry>
+        <glossterm>DG</glossterm>
+        <glossdef>
+          <para>Desktop Grid&nbsp;:&nbsp; Loose opportunistic grid using 
+                idle computing resources (often desktop computers owned 
+                by volunteers).</para>
+          <para>No single desktop resource can guarantee any QoS, but a 
+                large desktop grid as a whole can provide a guaranteed 
+                QoS.</para>
+          <para>Trust is based on the certification of applications.</para>
+          <para>Most often, computing resources PULL jobs from desktop 
+                grid servers.</para>
+        </glossdef>
+      </glossentry>
+      <glossentry>
+        <glossterm>SG</glossterm>
+        <glossdef>
+          <para>Service Grid&nbsp;:&nbsp; Federation of managed computing 
+                resources, offering a guaranteed Quality of Service 
+                according to a Service Level Agreement.</para>
+          <para>Trust is based on the Authentication of Users and 
+                Resources.</para>
+          <para>Often, grid Users PUSH jobs to Computing Resources, but 
+                pilot jobs PULL jobs from dedicated servers.</para>
+        </glossdef>
+      </glossentry>
+      <glossentry>
+        <glossterm>DCI</glossterm>
+        <glossdef><para>Distributed Computing Infrastructure (Grid or 
+                        Cloud)</para>
+        </glossdef>
+      </glossentry>
+      <glossentry>
+        <glossterm>3G Bridge</glossterm>
+        <glossdef><para>Bridge developed by the European EDGeS and EDGI 
+                        projects to bridge Grid and Cloud DCIs which are 
+                        intrinsically not interoperable</para>
+        </glossdef>
+      </glossentry>
+      <glossentry>
+        <glossterm>XtremWeb</glossterm>
+        <glossdef><para>Prototype of grid middleware developed at 
+                        INRIA</para>
+        </glossdef>
+      </glossentry>
+      <glossentry>
+        <glossterm>LAL</glossterm>
+        <glossdef><para>Laboratoire de l'Acc&eacute;l&eacute;rateur 
+                        Lin&eacute;aire&nbsp;:&nbsp; 
+                        French research institute managed in collaboration 
+                        between CNRS IN2P3 and Univ. Paris Sud.</para>
+        </glossdef>
+      </glossentry>
+      <glossentry>
+        <glossterm>XtremWeb-HEP</glossterm>
+        <glossdef><para>XtremWeb for High Energy Physics :  Robust grid 
+                        middleware based on XtremWeb, and developed at LAL 
+                        for usage on Desktop Grids and Service Grids.</para>
+        </glossdef>
+      </glossentry>
+    </glosslist>
+  </refsection>
+  
+  
+  <refsection>
+    <title>Introduction on the Environment and Architecture</title>
+  
+    <refsection>
+      <title>The 3G Bridge</title>
+      <para>The 3G Bridge is developed by the European EDGeS and EDGI 
+            projects in order to bridge various Grid and Cloud DCIs 
+            which are intrinsically not interoperable.</para>
+      <para>
+         This 3G Bridge has a modular design, with&nbsp;:
+        <itemizedlist>
+          <listitem><para>A database and a queue manager at the 
+                          core,</para></listitem>
+          <listitem><para>Job handlers to receive input jobs and work 
+                          units from submitting DCIs,</para></listitem>
+          <listitem><para>Plugins to submit jobs and work units to 
+                          target DCIs.</para></listitem>
+        </itemizedlist>
+      </para>
+    </refsection>
+    
+    <refsection>
+      <title>The <application>XtremWeb-HEP</application> grid 
+             middleware</title>
+      <para>
+        <application>XtremWeb-HEP</application> is a grid middleware based 
+        on the XtremWeb prototype developed by INRIA.
+      </para>
+      <para>
+        <application>XtremWeb-HEP</application> is developed at LAL as a 
+        robust middleware for usage on Desktop Grids and Service Grids.&nbsp; 
+        In particular, it provides following features&nbsp;:
+        <glosslist>
+          <glossentry>
+            <glossterm>User management</glossterm>
+            <glossdef><para>In order to power Service Grids and to 
+                            interoperate with other Service Grids, 
+                            <application>XtremWeb-HEP</application> manages 
+                            users, authenticates them, and authorizes actions 
+                            on <application>XtremWeb-HEP</application> 
+                            objects according to access rights.&nbsp; 
+                            Besides the (user, password) pair, 
+                            <application>XtremWeb-HEP</application> permits 
+                            users to be authenticated by an X509 proxy, which 
+                            facilitates interoperation with all grid 
+                            middleware stacks authenticating users with X509 
+                            proxies.</para></glossdef>
+          </glossentry>
+          <glossentry>
+            <glossterm>Application management</glossterm>
+            <glossdef><para>DG (Desktop Grid) resources must receive only 
+                            applications which are validated as secure and 
+                            which comply to its architecture.&nbsp; 
+                            Therefore, <application>XtremWeb-HEP</application> 
+                            manages its own application 
+                            repository.</para></glossdef>
+          </glossentry>
+          <glossentry>
+            <glossterm>Pull model</glossterm>
+            <glossdef><para>In order to be compatible with standard 
+                            firewall settings of DG resources (authorize 
+                            outbound, forbid inbound), the 
+                            <application>XtremWeb-HEP</application> 
+                            daemon running in the gathered computing 
+                            resources pulls jobs from the 
+                            <application>XtremWeb-HEP</application> 
+                            server.</para></glossdef>
+          </glossentry>
+          <glossentry>
+            <glossterm>Easy gridification of applications</glossterm>
+            <glossdef><para>Contrary to the other DG middleware stacks which 
+                            requires linking with specific middleware 
+                            libraries, <application>XtremWeb-HEP</application> 
+                            only requires that the submitted application is 
+                            statically linked (or else that all necessary 
+                            libraries are submitted inside the job alongside 
+                            the application).</para></glossdef>
+          </glossentry>
+          <glossentry>
+            <glossterm>Agnosticism about data protocol</glossterm>
+            <glossdef><para><application>XtremWeb-HEP</application> does not 
+                            manage large data storage resources, but permits 
+                            users and jobs to use any URI schema as data 
+                            protocol, as long as the corresponding library 
+                            is available to the job.&nbsp; In particular, 
+                            the <literal>http:</literal> and 
+                            <literal>xw:</literal> schemata are available 
+                            natively, and the <literal>attic:</literal> 
+                            schema is available as soon as the 
+                            <application>ATTIC</application> library is 
+                            submitted inside the job alongside the 
+                            application.</para></glossdef>
+          </glossentry>
+        </glosslist>
+      </para>
+      <para>In order to submit jobs to a given 
+            <application>XtremWeb-HEP</application> server, 
+            users must use the web site of this precise 
+            <application>XtremWeb-HEP</application> Server 
+            to download the corresponding 
+            <application>XtremWeb-HEP</application> client 
+            (available for <systemitem>Linux</systemitem> 
+            and <systemitem>Mac OS X</systemitem>).&nbsp; 
+            This <application>XtremWeb-HEP</application> client 
+            provides a <literal>CLI</literal> (Command Line Interface), 
+            but currently, its does not provide an <literal>API</literal> 
+            (Application Programming Interface).</para>
+    </refsection>
+    
+    <refsection>
+      <title>Presentation of the <application>XtremWeb-HEP</application> 
+             plugin for the 3G Bridge</title>
+      <para>The <application>XtremWeb-HEP</application> plugin described in 
+            this document is the 3G Bridge plugin dedicated to submit jobs 
+            to DCIs powered by the <application>XtremWeb-HEP</application> 
+            middleware, and to retrieve job status and job results.</para>
+      <para>Therefore, usage of this <application>XtremWeb-HEP</application> 
+            plugin requires the connection to an 
+            <application>XtremWeb-HEP</application> server.</para>
+    </refsection>
+    
+    <refsection>
+      <title>Architecture of the <application>XtremWeb-HEP</application> 
+             plugin for the 3G Bridge</title>
+      <para>The introduction inside the 
+            <application>XtremWeb-HEP</application> application repository 
+            of the applications submitted by users to the 3G Bridge is not 
+            performed online by the XtremWeb plugin, but is performed 
+            offline by the <application>XtremWeb-HEP</application> 
+            administrator.</para>
+      <para>The 3G Bridge itself is written in C++, and provides the 
+            abstract class <classname>GridHandler</classname> as 
+            template for plugins.&nbsp; Therefore, the XtremWeb plugin 
+            for the 3G Bridge is also written in C++, and implements the 
+            <classname>XWHandler</classname> class inheriting from the 
+            <classname>GridHandler</classname> class.</para>
+      <para>Since the <application>XtremWeb-HEP</application> client does 
+            not currently provide an <literal>API</literal>, the solution 
+            inside the <classname>XWHandler</classname> class is to use 
+            <function>execv</function> to call the <literal>CLI</literal> 
+            for each individual command.</para>
+    </refsection>
+    
+    <refsection>
+      <title>File management inside the XtremWeb plugin for the 3G 
+             Bridge</title>
+      <para>Each time the XtremWeb plugin has to submit a job to 
+            <application>XtremWeb-HEP</application>, the 3G Bridge 
+            provides the list of input files and the list of awaited 
+            output files for this job.</para>
+      <itemizedlist>
+        <listitem><para>
+          The XtremWeb plugin handles the job input files in the following 
+          manner&nbsp;:
+          <itemizedlist>
+            <listitem><para>For each input file given in parameter as URI, 
+                            the <application>XtremWeb-HEP</application> plugin 
+                            creates an <application>XtremWeb-HEP</application> 
+                            data pointing to this URI&nbsp; 
+                            (Here, the data agnosticism of 
+                            <application>XtremWeb-HEP</application> is 
+                            useful).</para></listitem>
+            <listitem><para>If the number of input files given in parameter 
+                            as local files is exactly 1, the XtremWeb plugin 
+                            simply gives it as environment parameter inside 
+                            the submission command to 
+                            <application>XtremWeb-HEP</application>.
+                            </para></listitem>
+            <listitem><para>If the number of input files given in parameter as 
+                            local files is greater or equal to 2, the XtremWeb 
+                            plugin packs all these input files into a single 
+                            ZIP file, and gives this ZIP file as environment 
+                            parameter inside the submission command to 
+                            <application>XtremWeb-HEP</application>.&nbsp; 
+                            On the computing resource, the 
+                            <application>XtremWeb-HEP</application> daemon 
+                            will automatically unpack this ZIP file.
+                            </para></listitem>
+          </itemizedlist>
+        </para></listitem>
+        <listitem><para>As soon as the XtremWeb plugin sees that the 
+                        <application>XtremWeb-HEP</application> Status of a 
+                        submitted job is <returnvalue>COMPLETED</returnvalue>, 
+                        the <application>XtremWeb-HEP</application> plugin 
+                        retrieves the job results from 
+                        <application>XtremWeb-HEP</application>, which packs 
+                        these job results inside a ZIP file.&nbsp; The 
+                        XtremWeb plugin then extracts from this ZIP file the 
+                        files defined as job output files by the 3G Bridge.
+                        </para></listitem>
+      </itemizedlist>
+    </refsection>
+  </refsection>
+  
+  
+  <refsection>
+    <title><application>XtremWeb-HEP</application> plugin&nbsp;:&nbsp; Setup 
+           for new deployment</title>
+    <para><replaceable>X</replaceable>, <replaceable>Y</replaceable>, and 
+          <replaceable>&lt;variables inside angle brackets&gt;</replaceable> 
+          have to be substituted by real values.</para>
+    
+    <refsection>
+      <title>Sources of the 3G Bridge</title>
+      <para>
+        The base source package was 
+        <uri type="file">
+          http://www.lpds.sztaki.hu/~zfarkas/3g-bridge-1.1r2473.tar.bz2
+        </uri>
+      </para>
+      <para>The sources of the XtremWeb plugin are inside EDGI SVN, under 
+            the '<filename class="directory">jra1/devel/bridge/xtremweb</filename>' folder:</para>
+      <screen>
+        &bull;  <filename>3g-bridge.conf</filename>           --&gt;  <filename class="directory">3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/etc</filename>
+        &bull;  <filename class="headerfile">XTREMWEB_handler.h</filename>       --&gt;  <filename class="directory">3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/plugins</filename>
+        &bull;  <filename>XTREMWEB_handler.cpp</filename>     --&gt;  <filename class="directory">3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/plugins</filename>
+      </screen>
+    </refsection>
+    
+    <refsection>
+      <title>Dependencies (Debian Lenny packages)</title>
+      <screen>
+        &bull;  <literal>docbook-xsl</literal>              1.73.2.dfsg.1-5
+        &bull;  <literal>g++</literal>                      4:4.3.2-2
+        &bull;  <literal>gsoap</literal>                    2.7.9l-0.2
+        &bull;  <literal>libcurl3</literal>                 7.18.2-8lenny4
+        &bull;  <literal>libcurl4-openssl-dev</literal>     7.18.2-8lenny4
+        &bull;  <literal>libglib2.0-0</literal>             2.16.6-3
+        &bull;  <literal>libglib2.0-dev</literal>           2.16.6-3
+        &bull;  <literal>libmysql++-dev</literal>           3.0.0-1
+        &bull;  <literal>libmysql++3</literal>              3.0.0-1
+        &bull;  <literal>make</literal>                     3.81-5
+        &bull;  <literal>mysql-server-5.0</literal>         5.0.51a-24+lenny4
+        &bull;  <literal>uuid-dev</literal>                 1.2-1.41.3-1
+        &bull;  <literal>uuid-runtime</literal>             1.41.3-1
+        &bull;  <literal>xsltproc</literal>                 1.1.24-2
+      </screen>
+    </refsection>
+    
+    <refsection>
+      <title>Application Repository and Applications</title>
+      <para>
+        From the Application Repository at 
+        <uri type="webpage">
+https://edgesar.cpc.wmin.ac.uk:8080/szupergrid/AppRepo/EDGeS-Application-Repository-ADMIN/
+        </uri>&nbsp;:
+      </para>
+      <para>DSP application&nbsp;:</para>
+      <para>
+        It can be downloaded from 
+        <uri type="webpage">
+https://edgesar.cpc.wmin.ac.uk:8080/szupergrid/AppRepo/EDGeS-Application-Repository-ADMIN/DSP_compute/dspxw.tar.gz
+        </uri>
+      </para>
+      <para></para>
+      <para>
+        I do NOT know if the EDGI Application Repository at 
+        <uri type="webpage">
+http://dev17-portal.cpc.wmin.ac.uk:8080/repository/user/welcome.xhtml
+        </uri> contains an <application>XtremWeb-HEP</application> version 
+        of DSP.
+      </para>
+    </refsection>
+    
+    <refsection>
+      <title>The 3G Bridge Database</title>
+        <para><prompt>$</prompt> <userinput><command>mysql</command> <option>-u</option> <parameter>root</parameter> <option>-p</option></userinput></para>
+        <programlisting>
+<command>CREATE</command> <literal>DATABASE</literal> <database>bridge</database>
+<command>USE</command> <database>bridge</database>
+<command>GRANT</command> <parameter>ALL PRIVILEGES</parameter> <literal>ON</literal> <parameter><database>bridge</database>.*</parameter> <literal>TO</literal> <parameter>bridge@localhost</parameter> <literal>IDENTIFIED BY</literal> <parameter>'&lt;<replaceable>password</replaceable>&gt;'</parameter> <literal>WITH GRANT OPTION</literal>;
+<command>GRANT</command> <parameter>ALL PRIVILEGES</parameter> <literal>ON</literal> <parameter><database>bridge</database>.*</parameter> <literal>TO</literal> <parameter>bridge@localhost.localdomain</parameter> <literal>IDENTIFIED BY</literal> <parameter>'&lt;<replaceable>password</replaceable>&gt;'</parameter> <literal>WITH GRANT OPTION</literal>;
+<command>GRANT</command> <parameter>ALL PRIVILEGES</parameter> <literal>ON</literal> <parameter><database>bridge</database>.*</parameter> <literal>TO</literal> <parameter>bridge@&lt;<replaceable>server</replaceable>&gt;</parameter> <literal>IDENTIFIED BY</literal> <parameter>'&lt;<replaceable>password</replaceable>&gt;'</parameter> <literal>WITH GRANT OPTION</literal>;
+<command>EXIT</command>
+        </programlisting>
+      <para></para>
+      <para><prompt>$</prompt> <userinput><command>mysql</command> <option>-u</option> <parameter>bridge</parameter> <option>-p</option> <database>bridge</database></userinput></para>
+      <programlisting>
+<command>SOURCE</command> <filename>3g-bridge-1.1/db/schema.sql</filename>
+<command>INSERT</command> INTO cg_algqueue(grid, alg, batchsize) VALUES ("XW_&lt;<replaceable>server</replaceable>&gt;_DG", "DSP", 10);
+<command>EXIT</command>
+      </programlisting>
+    </refsection>
+    
+    <refsection>
+      <title>Environment Setup  (with administrative rights)</title>
+      <para><prompt>#</prompt> <userinput>DIRS='/var/log/3g-bridge  /var/run/3g-bridge  /var/opt/3g-bridge /var/opt/3g-bridge/input  /var/opt/3g-bridge/output /var/opt/3g-bridge/xwhep'</userinput></para>
+      <para><prompt>#</prompt> <userinput><command>mkdir</command> <parameter>$DIRS</parameter></userinput></para>
+      <para><prompt>#</prompt> <userinput><command>chgrp</command> <parameter>staff</parameter> <parameter>$DIRS</parameter></userinput></para>
+      <para><prompt>#</prompt> <userinput><command>chmod</command> <option>g+ws</option>  <parameter>$DIRS</parameter></userinput></para>
+      <para><prompt>#</prompt> <userinput><command>adduser</command> <option>--ingroup</option> <parameter>staff</parameter> <parameter>bridge</parameter></userinput></para>
+      <para></para>
+      <para>Inside <filename>~bridge/.bashrc</filename> &nbsp;: &nbsp; &nbsp; 
+            (to be verified)</para>
+      <programlisting>
+<command>export</command> <parameter><envar>LANG</envar>=<constant>C</constant></parameter>          #  This forces the generation of all messages in English
+<command>umask</command> <parameter>007</parameter>              #  This permits staff members to purge 3G Bridge work files
+        </programlisting>
+    </refsection>
+    
+    <refsection>
+      <title>File '<filename>3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/etc/3g-bridge.conf</filename>'</title>
+      <programlisting>
+[bridge]
+<symbol>log-target</symbol> = <filename>/var/log/3g-bridge/3g-bridge.log</filename>
+<symbol>pid-file</symbol>   = <filename>/var/run/3g-bridge/3g-bridge.pid</filename>
+
+[wssubmitter]
+<symbol>log-target</symbol> = <filename>/var/log/3g-bridge/wssubmitter.log</filename>
+<symbol>pid-file</symbol>   = <filename>/var/run/3g-bridge/wssubmitter.pid</filename>
+<symbol>input-dir</symbol>  = <filename class="directory">/var/opt/3g-bridge/input</filename>
+<symbol>output-dir</symbol> = <filename class="directory">/var/opt/3g-bridge/output</filename>
+<symbol>port</symbol>       = &lt;<replaceable>wssubmitter-port</replaceable>&gt;
+
+[wsmonitor]
+<symbol>log-target</symbol> = <filename>/var/log/3g-bridge/wsmonitor.log</filename>
+<symbol>pid-file</symbol>   = <filename>/var/run/3g-bridge/wsmonitor.pid</filename>
+
+[XW_&lt;<replaceable>server</replaceable>&gt;_DG]
+<symbol>enable</symbol>       = true
+<symbol>handler</symbol>      = XTREMWEB
+# XtremWeb-HEP client install prefix
+# Default value is /opt/xwhep-client-
+# You can set it up to <filename class="directory">/opt/xwhep-client-i.j.k</filename>
+<symbol>xw_client_install_prefix</symbol> = /opt/xwhep-client-
+# Folder for XtremWeb input and output files
+<symbol>xw_files_dir</symbol> = <filename class="directory">/var/opt/3g-bridge/xwhep</filename>
+      </programlisting>
+    </refsection>
+    
+    <refsection>
+      <title>Build and installation on Debian Lenny (as standard user)</title>
+      <para><prompt>$</prompt> <userinput><command>cd</command> <filename class="directory">3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable></filename></userinput></para>
+      <para><prompt>$</prompt> <userinput><command>./configure</command> <option>--with-xtremweb</option></userinput> &nbsp; &nbsp; (WITHOUT any other option)</para> 
+      <para><prompt>$</prompt> <userinput><command>make</command></userinput></para>
+      <para><prompt>$</prompt> <userinput><command>sudo</command> <command>make</command> <parameter>install</parameter></userinput></para>
+    </refsection>
+    
+    <refsection>
+      <title><application>XtremWeb-HEP</application> client</title>
+      <para>Download page&nbsp;:&nbsp; <uri type="webpage">http://xw.lri.fr:4330/XWHEP/index.php?section=section2&amp;subsection=downloadclient</uri></para>
+      <para>In order that the <application>XtremWeb-HEP</application> client 
+            really connects to the server at LRI, you really need to download 
+            it from the LRI server.</para>
+      <para>User manual&nbsp;:&nbsp; <uri type="webpage">http://dghep.lal.in2p3.fr/lal/doc/xwhep-user-guide.pdf</uri></para>
+      <para>Installation and configuration are described at chapter 5.</para>
+    </refsection>
+    
+    <refsection>
+      <title>Startup of the 3G Bridge with the 
+             <application>XtremWeb-HEP</application> plugin</title>
+      <para><prompt>$</prompt> <userinput><command>su</command> <option>-c</option> <application>/usr/local/sbin/3g-bridge</application> <parameter>bridge</parameter></userinput></para>
+      <para><prompt>$</prompt> <userinput><command>su</command> <option>-c</option> <application>/usr/local/sbin/wssubmitter</application> <parameter>bridge</parameter></userinput></para>
+    </refsection>
+  </refsection>
+  
+  
+  <refsection>
+    <title>Tests of the XtremWeb pluging</title>
+
+    <refsection>
+      <title>Usage of the '<application>wsclient</application>' utility of 
+             the 3G Bridge</title>
+      <para>The '<application>wsclient</application>' utility of the 3G 
+            Bridge may be used from any client machine having connectivity 
+            to the 3G Bridge server.</para>
+      <para></para>
+      <para>Submit a DSP job&nbsp;:</para>
+      <para>
+        <prompt>$</prompt> 
+        <userinput>
+          <command>wsclient</command>  
+          <option>-e</option> 
+          <parameter><uri type="WS">http://localhost:&lt;<replaceable>wssubmitter_port</replaceable>&gt;</uri></parameter>  
+          <option>-m</option> 
+          <parameter>add</parameter>  
+          <option>-g</option> 
+          <parameter>XW_&lt;<replaceable>server</replaceable>&gt;_DG</parameter>  
+          <option>-n</option> 
+          <parameter>dsp</parameter>  
+          <option>-a</option> 
+          <parameter>'-f 22 -i 20 -p 723 -n pools.txt'</parameter>  
+          <option>-o</option> 
+          <parameter>cost.txt</parameter>  
+          <option>-i</option> 
+          <parameter><filename>pools.txt</filename>=<uri type="file">http://www.lpds.sztaki.hu/~zfarkas/pools.txt</uri>=7b7eb86bf50c58cbf92dc12ff5adf7f4=9652</parameter>  
+          <option>-E</option> 
+          <parameter><envar>_3G_BRIDGE_BATCH_ID</envar>=89f91036-d53a-453c-93d1-e2ffe9e3cfcf</parameter>
+        </userinput>
+      </para>
+      <para></para>
+      <para>Check the status of a job&nbsp;:</para>
+      <para>
+        <prompt>$</prompt> 
+        <userinput>
+          <command>wsclient</command>  
+          <option>-e</option> 
+          <parameter><uri type="WS">http://localhost:&lt;<replaceable>wssubmitter_port</replaceable>&gt;</uri></parameter>  
+          <option>-m</option> 
+          <parameter>status</parameter> 
+          <option>-j</option> 
+          <parameter>&lt;<replaceable>bridge_job_id_displayed_by_above_command</replaceable>&gt;</parameter>
+        </userinput>
+      </para>
+    </refsection>
+    
+    <refsection>
+      <title>Local browsing of the 3G Bridge log</title>
+      <para>Browsing of the 3G Bridge log may be performed only on the 3G 
+            Bridge server.</para>
+      <para></para>
+      <para>Look at the (very verbose) log&nbsp;:</para>
+      <para><prompt>$</prompt> <userinput><command>less</command> <filename>/var/log/3g-bridge/3g-bridge.log</filename></userinput></para>
+      <para></para>
+      <para>Extract only errors from the (very verbose) log&nbsp;:</para>
+      <para><prompt>$</prompt> <userinput><command>grep</command> <option>-E</option> 'CRIT:|ERROR:|NOTICE:' <filename>/var/log/3g-bridge/3g-bridge.log</filename></userinput></para>
+    </refsection>
+  </refsection>
+  
+  
+  <refsection>
+    <title>See also</title>
+    <para>
+      <citerefentry><refentrytitle>3g-bridge</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
+      <citerefentry><refentrytitle>injector</refentrytitle><manvolnum>1</manvolnum></citerefentry>,
+      <citerefentry><refentrytitle>wsmonitor</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
+      <citerefentry><refentrytitle>wssubmitter</refentrytitle><manvolnum>8</manvolnum></citerefentry>,
+      <citerefentry><refentrytitle>3g-bridge.conf</refentrytitle><manvolnum>5</manvolnum></citerefentry>
+    </para>
+  </refsection>
+  
+</refentry>
