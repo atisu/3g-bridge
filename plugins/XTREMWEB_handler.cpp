@@ -657,7 +657,7 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
   const char *  input_file_name;
   const char *  input_file_path;
   FileRef       input_file_ref;
-  const char *  input_file_md5_str;
+  string        input_file_md5_str;
   const char *  input_file_md5;
   int           input_file_size;
   string        xw_data_file_path_str;
@@ -739,7 +739,7 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
         input_file_ref        = job->getInputRef(input_file_name_str);
         input_file_md5_str    = input_file_ref.getMD5();
         input_file_size       = input_file_ref.getSize();
-        input_file_md5        = input_file_md5_str ? input_file_md5_str : "";
+        input_file_md5        = input_file_md5_str.c_str();
         xw_data_file_path_str = g_xw_files_folder +  "/" + bridge_job_id +
                                 "_" + input_file_name_str + ".xml";
         xw_data_file_path     = xw_data_file_path_str.c_str();
