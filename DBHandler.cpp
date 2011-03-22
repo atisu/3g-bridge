@@ -265,7 +265,7 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 		const char *url = res2.get_field(1);
 		const char *md5 = res2.get_field(2);
 		const char *size = res2.get_field(3);
-		FileRef fref(url, md5, size ? atoi(size) : -1);
+		FileRef fref(url, md5 ? md5 : "", size ? atoi(size) : -1);
 		job->addInput(lname, fref);
 	}
 
@@ -501,18 +501,10 @@ bool DBHandler::addJob(Job &job)
 		string path = job.getInputRef(*it).getURL();
 		FileRef fr = job.getInputRef(*it);
 		char *url = escape_string(fr.getURL().c_str());
-		if (fr.getMD5())
-		{
-			char *md5 = escape_string(fr.getMD5());
-			success &= query("INSERT INTO cg_inputs (id, localname, url, md5, filesize) VALUES ('%s', '%s', '%s', '%s', '%ld')",
-				job.getId().c_str(), it->c_str(), url, md5, fr.getSize());
-			free(md5);
-		}
-		else
-		{
-			success &= query("INSERT INTO cg_inputs (id, localname, url, filesize) VALUES ('%s', '%s', '%s', '%ld')",
-				job.getId().c_str(), it->c_str(), url, fr.getSize());
-		}
+		char *md5 = escape_string(fr.getMD5().c_str());
+		success &= query("INSERT INTO cg_inputs (id, localname, url, md5, filesize) VALUES ('%s', '%s', '%s', '%s', '%ld')",
+			job.getId().c_str(), it->c_str(), url, md5, fr.getSize());
+		free(md5);
 		free(url);
 	}
 	files = job.getOutputs();

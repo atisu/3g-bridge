@@ -451,7 +451,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 
 			if ('/' != URL[0])
 			{
-				FileRef a(URL, md5 ? md5->c_str() : NULL, size ? atoi(size->c_str()) : -1);
+				FileRef a(URL, (md5 ? *md5 : ""), (size ? atoi(size->c_str()) : -1));
 				qmjob->addInput(fname, a);
 				inputs.push_back(pair<string, FileRef>(fname, a));
 			}

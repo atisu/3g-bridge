@@ -52,19 +52,13 @@ public:
 	 * @see f_md5
 	 * @see f_size
 	 */
-	FileRef(const string &url, const char *md5 = NULL, const off_t size = -1);
+	FileRef(const string &url, const string &md5, const off_t size);
 
 	/**
 	 * Default constructor.
 	 * Default empty constructor for the FileRef class.
 	 */
-	FileRef() {};
-
-	/**
-	 * Destructor.
-	 * Destructor for the FileRef class.
-	 */
-	~FileRef();
+	FileRef();
 
 	/**
 	 * Get file reference's URL.
@@ -80,7 +74,7 @@ public:
 	 * @see f_md5
 	 * @return MD5 hash of the referenced file
 	 */
-	const char *getMD5() const { return f_md5; }
+	const string &getMD5() const { return f_md5; }
 
 	/**
 	 * Get referenced file's size.
@@ -89,22 +83,6 @@ public:
 	 * @return size of the referenced file
 	 */
 	const off_t getSize() const { return f_size; }
-
-	/**
-	 * Set referenced file's MD5 hash.
-	 * This function sets the MD5 hash belonging to the referenced file.
-	 * @see f_md5
-	 * @param md5 the new MD5 hash to use
-	 */
-	void setMD5(const char *md5);
-
-	/**
-	 * Set referenced file's size.
-	 * This function sets the size belonging to the referenced file.
-	 * @see size
-	 * @param size the new size to use
-	 */
-	void setSize(const off_t size);
 
 private:
 	/**
@@ -115,7 +93,7 @@ private:
 	/**
 	 * MD5 hash of the referenced file.
 	 */
-	char *f_md5;
+	string f_md5;
 
 	/**
 	 * Size of the referenced file.

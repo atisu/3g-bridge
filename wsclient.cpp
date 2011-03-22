@@ -316,39 +316,42 @@ static void handle_add(void)
 	for (unsigned i = 0; inputs && inputs[i]; i++)
 	{
 		int size = -1;
-		char *url, *md5, *sizestr;
+		char *url, *md5 = NULL, *sizestr;
+		char *tinput = strdup(inputs[i]);
 
 		/* Read URL/path from input specs */
 		url = strchr(inputs[i], '=');
 		if (!url)
 		{
-			cerr << "Malformed input definition string: " << inputs[i] << endl;
+			cerr << "Malformed input definition string: " << tinput << endl;
 			exit(EX_USAGE);
 		}
 		*url++ = '\0';
 		if (!strlen(url))
 		{
-			cerr << "Input URL is missing for " << inputs[i] << endl;
+			cerr << "Input URL is missing for " << tinput << endl;
 			exit(EX_USAGE);
 		}
 
 		/* Read MD5 and size from input specs */
-		md5 = strchr(url, '=');
-		if (md5)
+		sizestr = strrchr(url, '=');
+		if (sizestr)
 		{
-			*md5++ = '\0';
-			sizestr = strchr(md5, '=');
-			if (sizestr)
+			*sizestr++ = '\0';
+			size = strtol(sizestr, NULL, 10);
+			if (errno == ERANGE || (errno != 0 && size == 0))
 			{
-				*sizestr++ = '\0';
-				size = strtol(sizestr, NULL, 10);
-				if (errno == ERANGE || (errno != 0 && size == 0))
-				{
-					cerr << "Unable to parse the following size: ";
-					cerr << sizestr << endl;
-					exit(EX_USAGE);
-				}
+				cerr << "Unable to parse the following size: ";
+				cerr << sizestr << endl;
+				exit(EX_USAGE);
 			}
+			md5 = strrchr(url, '=');
+			if (!md5)
+			{
+				cerr << "Malformed input definition string (unable to read MD5): " << tinput << endl;
+				exit(EX_USAGE);
+			}
+			*md5++ = '\0';
 		}
 
 		G3BridgeSubmitter__LogicalFile *lf = soap_new_G3BridgeSubmitter__LogicalFile(soap, -1);
@@ -385,6 +388,7 @@ static void handle_add(void)
 			lf->size = new string(sizestr);
 		}
 		job.inputs.push_back(lf);
+		free(tinput);
 	}
 
 	for (unsigned i = 0; outputs && outputs[i]; i++)
