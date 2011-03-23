@@ -42,6 +42,9 @@ using namespace std;
  * Data type definitions
  */
 
+/**
+ * Query type enumeration.
+ */
 typedef enum
 {
 	Q_RUNNING = (1 << 0),
@@ -51,9 +54,16 @@ typedef enum
 	Q_ALL = Q_RUNNING | Q_WAITING | Q_CPUS,
 } query_type;
 
+/**
+ * Query map.
+ * A map from query name to query type enumeration.
+ */
 struct query_map
 {
+	/// Name of the query
 	const char	*name;
+
+	/// Assigned type of the query
 	int		value;
 };
 

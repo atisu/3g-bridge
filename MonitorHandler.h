@@ -33,13 +33,20 @@
 #include <string>
 #include <glib.h>
 
+/**
+ * MonitorHandler interface.
+ * The MonitorHandler interface is used by the different monitor plugins as a
+ * generic interface for monitoring information providing. The different monitor
+ * plugins may report the following information: number of running and waiting
+ * jobs, and the total number of available CPUs.
+ */
 class MonitorHandler {
 public:
-	/// Initialize GridHandler.
+	/// Initialize MonitorHandler.
 	MonitorHandler() {}
 
 	/**
-	 * Constructor using config file and instance name
+	 * Constructor using config file and instance name.
 	 * @param config the config file object
 	 * @param instance the name of the instance
 	 * @see name
@@ -50,25 +57,31 @@ public:
 	virtual ~MonitorHandler() {}
 
 	/**
-	 * Return the number of running jobs.
-	 * @return number of jobs
+	 * Return the number of running jobs within the observed grid
+	 * infrastructure.
+	 * @return number of running jobs
+	 * @throws BackendException
 	 */
 	virtual unsigned getRunningJobs() throw (BackendException *) = 0;
 
 	/**
-	 * Return the number of waiting jobs.
-	 * @return number of jobs
+	 * Return the number of waiting jobs within the observer grid
+	 * infrastructure.
+	 * @return number of waiting jobs
+	 * @throws BackendException
 	 */
 	virtual unsigned getWaitingJobs() throw (BackendException *) = 0;
 
 	/**
-	 * Return the number of available CPUs.
+	 * Return the number of available CPUs within the target grid
+	 * infrastructure.
 	 * @return number of CPUs
+	 * @throws BackendException
 	 */
 	virtual unsigned getCPUCount() throw (BackendException *) = 0;
 
 protected:
-	// Name of the monitor handler instance
+	/// Name of the monitor handler instance
 	std::string name;
 };
 

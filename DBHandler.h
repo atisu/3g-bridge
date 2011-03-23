@@ -71,10 +71,11 @@ class DBHandler {
 	bool query(const string &str) { return query("%s", str.c_str()); }
 
 	/**
-	 * Get job from the database. The function reads job from the database
-	 * matching the given identifier, and returns in a Job
-	 * @param[out] job Job storage for the job read
+	 * Get job from the database.
+	 * The function reads job from the database matching the given
+	 * identifier, and returns in a Job object.
 	 * @param id job identifier to use
+	 * @return pointer to the Job object
 	 */
 	auto_ptr<Job> getJob(const string &id);
 
@@ -177,27 +178,28 @@ class DBHandler {
 	void updateJobStat(const string &ID, Job::JobStatus newstat);
 
 	/**
-	 * Add a job to the database
+	 * Add a job to the database.
 	 * @param job the Job object to add
 	 * @return true is job has been added successfully, false otherwise
 	 */
 	bool addJob(Job &job);
 
 	/**
-	 * Delete a job from the database
+	 * Delete a job from the database.
 	 * @param ID the identifier of the job to delete
 	 */
 	void deleteJob(const string &ID);
 
 	/**
-	 * Delete a package of jobs. All jobs having the given grid identifier
-	 * are deleted from the database
+	 * Delete a package of jobs.
+	 * All jobs having the given grid identifier are deleted from the
+	 * database.
 	 * @param gridId the grid identifier to use
 	 */
 	void deleteBatch(const string &gridId);
 
 	/**
-	 * Load algorithm queue statistics
+	 * Load algorithm queue statistics.
 	 */
 	void loadAlgQStats(void);
 
@@ -241,21 +243,65 @@ class DBHandler {
 	void addAlgQ(const char *grid, const char *alg, unsigned batchsize);
 
 	/**
-	 * Initialize the database system. This method must be called before
-	 * any threads that use the database system are started. */
+	 * Initialize the database system.
+	 * This method must be called before any threads that use the database
+	 * system are started.
+	 * @param config configuration file object
+	 */
 	static void init(GKeyFile *config);
 
 	/**
-	 * Free resources held by the database system. Must be called after all
-	 * threads have exited. */
+	 * Free resources held by the database system.
+	 * Must be called after all threads have exited.
+	 */
 	static void done();
 
+	/**
+	 * Add a download.
+	 * Adds a download to the database.
+	 * @param jobid the job identifier of the download
+	 * @param localName the local name of the file
+	 * @param url the remote URL of the file
+	 */
 	void addDL(const string &jobid, const string &localName, const string &url);
+
+	/**
+	 * Delete a download.
+	 * Removed a download from the database identified by a job identifier
+	 * and a local file name.
+	 * @param jobid the job identifier
+	 * @param localName the local name of the file
+	 */
 	void deleteDL(const string &jobid, const string &localName);
+
+	/**
+	 * Update a download.
+	 * Updates a download changing the download time and the number of
+	 * retries.
+	 * @param jobid the job's identifier
+	 * @param localName the file's local name
+	 * @param next the time of download
+	 * @param retries the number of retries
+	 */
 	void updateDL(const string &jobid, const string &localName, const struct timeval &next,
 		int retries);
+
+	/**
+	 * Get all downloads.
+	 * Function to get all downloads and pass to a callback function.
+	 * @param cb the callback function to invode for the downloads
+	 */
 	void getAllDLs(void (*cb)(const char *jobid, const char *localName,
 			const char *url, const struct timeval *next, int retries));
+
+	/**
+	 * Updata a download's input path.
+	 * The function can be used to update the filesystem path of input
+	 * files.
+	 * @param jobid the job identifier
+	 * @param localName the local name of the file
+	 * @param path the new path of the file
+	 */
 	void updateInputPath(const string &jobid, const string &localName, const string &path);
 
     protected:
