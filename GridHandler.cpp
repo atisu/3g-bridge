@@ -29,6 +29,11 @@
 #include <config.h>
 #endif
 
+/**
+ * @file GridHandler.cpp
+ * GridHandler implementation.
+ */
+
 #include "GridHandler.h"
 
 #include <sys/time.h>

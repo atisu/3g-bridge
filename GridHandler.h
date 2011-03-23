@@ -39,7 +39,7 @@
 using namespace std;
 
 /**
- * GridHandler interface. Used by the Queue Manager to submit jobs, update
+ * GridHandler interface. Used by the QueueManager to submit jobs, update
  * status of jobs and get output of finished jobs using grid functions.
  */
 class GridHandler {
@@ -48,12 +48,12 @@ public:
 	GridHandler() {};
 
 	/**
-	 * Constructor using config file and instance name
+	 * Constructor using config file and instance name.
 	 * @param config the config file object
 	 * @param instance the name of the instance
 	 * @see name
 	 */
-	GridHandler(GKeyFile *config, const char *instance): groupByNames(false), name(instance)
+	GridHandler(GKeyFile *config, const char *instance):groupByNames(false), name(instance)
 	{
 		last_update.tv_sec = 0;
 		last_update.tv_usec = 0;
@@ -78,20 +78,44 @@ public:
 
 	/**
 	 * Submit jobs in the argument.
+	 * This function is responsible for submitting jobs stored in the jobs
+	 * vector to the target grid middleware offered by the grid plugin
+	 * instance. In case of an error, the implementation should throw a
+	 * BackendException exception.
 	 * @param jobs JobVector of jobs to be submitted
+	 * @throws BackendException if any problem occured during submission
 	 */
 	virtual void submitJobs(JobVector &jobs) throw (BackendException *) = 0;
 
-	/// Update the status of previously submitted jobs in the database.
+	/**
+	 * Update the status of jobs.
+	 * This function should update the status of each job belonging to the
+	 * grid plugin instance. In case of an error a BackendException should
+	 * be thrown.
+	 * @throws BackendException if any problem occured during update
+	 */
 	virtual void updateStatus(void) throw (BackendException *) = 0;
 
 	/**
-	 * Poll the status of a submitted job. This is used as a callback for
-	 * DBHandler::pollJobs().
+	 * Poll the status of a submitted job.
+	 * This function is used as a callback for the pollJobs function of
+	 * DBHandler. Depending on the job's status the function should either
+	 * update the job's status or cancel the job.
 	 * @param job the job to poll
+	 * @throws BackendException if any problem occured during update
 	 */
 	virtual void poll(Job *job) throw (BackendException *) = 0;
 
+	/**
+	 * Perform job status update if needed.
+	 * This function is called by the QueueManager to perform job status
+	 * update. If the last update has been performed more then interval
+	 * seconds earlier, the updateStatus function is called to perform
+	 * the update.
+	 * @see last_update
+	 * @param interval job status update interval in seconds
+	 * @throws BackendException if any problem occured during update
+	 */
 	void checkUpdate(int interval) throw (BackendException *);
 
 protected:
@@ -107,6 +131,7 @@ protected:
 	string name;
 
 private:
+	/// Time of last update
 	struct timeval last_update;
 };
 
