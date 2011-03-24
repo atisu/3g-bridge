@@ -33,13 +33,46 @@
 
 using namespace std;
 
-
+/**
+ * NullHandler plugin.
+ * The NullHandler plugin can be used for testing: it simply sets new jobs'
+ * status to RUNNING, and upon status update sets their status to FINISHED.
+ */
 class NullHandler : public GridHandler {
     public:
+	/**
+	 * Constructor.
+	 * @param config the configuration file object
+	 * @param instance name of the instance
+	 * @throws BackendException
+	 */
 	NullHandler(GKeyFile *config, const char *instance) throw (BackendException *);
+
+	/// Destructor
 	~NullHandler() {};
+
+	/**
+	 * Submit jobs.
+	 * This function sets the status of each job contained in jobs to
+	 * RUNNING.
+	 * @param jobs the jobs to "submit"
+	 * @throws BackendException
+	 */
 	void submitJobs(JobVector &jobs) throw (BackendException *);
+
+	/**
+	 * Update jobs' status.
+	 * This function calls the poll method through DBHandler.
+	 * @throws BackendException
+	 */
 	void updateStatus(void) throw (BackendException *);
+
+	/**
+	 * Poll status of one job.
+	 * This function sets RUNNING jobs' status to FINISHED.
+	 * @param job the job to update
+	 * @throws BackendException
+	 */
 	void poll(Job *job) throw (BackendException *);
 };
 

@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# Script called by the DC-API batch plugin to pack the input fiels
+# Script called by the DC-API batch plugin to pack the input files
 #
 # Usage:
 #	batch_pack <srcdir> <dstfile> <pattern> [<pattern>...]

@@ -30,13 +30,37 @@
 
 #include "MonitorHandler.h"
 
+/**
+ * NullMonitor.
+ * The NullMonitor simple reports each metric as 0.
+ */
 class NullMonitor: public MonitorHandler {
 public:
+	/// Empty constructor
 	NullMonitor(GKeyFile *config, const char *instance);
+
+	/// Empty destructor
 	~NullMonitor();
 
+	/**
+	 * Get number of running jobs.
+	 * @return 0
+	 * @throws BackendException
+	 */
 	unsigned getRunningJobs() throw (BackendException *);
+
+	/**
+	 * Get number of waiting jobs.
+	 * @return 0
+	 * @throws BackendException
+	 */
 	unsigned getWaitingJobs() throw (BackendException *);
+
+	/**
+	 * Get number of CPUs.
+	 * @return 0
+	 * @throws BackendException
+	 */
 	unsigned getCPUCount() throw (BackendException *);
 };
 

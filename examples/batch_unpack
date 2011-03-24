@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# Script called by the DC-API batch plugin to unpack the output fules
+# Script called by the DC-API batch plugin to unpack the output files
 #
 # Usage:
 #	batch_unpack <srcfile> <dstdir>

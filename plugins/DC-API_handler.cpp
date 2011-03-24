@@ -25,6 +25,11 @@
  * do so, delete this exception statement from your version.
  */
 
+/**
+ * @file DC-API_handler.cpp
+ * @brief DC-API grid plugin implementation.
+ */
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -50,11 +55,22 @@
 #include <errno.h>
 #include <fcntl.h>
 
+/// Name of the wrapping script
 #define SCRIPT_NAME		"script"
+
+/// Name of the directory containing batch inputs
 #define INPUT_DIR		"inputs"
+
+/// Name of the packed input file
 #define INPUT_NAME		"inputs.pack"
+
+/// Name of the directory containing batch outputs
 #define OUTPUT_DIR		"outputs"
+
+/// Name of the packed output file
 #define OUTPUT_NAME		"outputs.pack"
+
+/// Pattern to collect output files
 #define OUTPUT_PATTERN		"outputs/*"
 
 /* Forward declarations */
@@ -66,6 +82,11 @@ using namespace std;
  * Utility functions
  */
 
+/**
+ * Load a text file's contents.
+ * @param name the name of the file to read
+ * @return contents of the file
+ */
 static string load_file(const string name)
 {
 	ifstream file(name.c_str(), ios::in);
@@ -75,6 +96,17 @@ static string load_file(const string name)
 	return result;
 }
 
+/**
+ * Replace occurences of a key with a value.
+ * This function can be used to replace occurences of a given key with the
+ * specified value in the source string. The given key is searched for in the
+ * '%{\<key\>}' context, where any occurenence of such a context is replaced
+ * with the given value.
+ * @param src the string to perform the replacement on
+ * @param key the key to search for
+ * @param value the value to be used for substitution
+ * @return substitued version of the source string
+ */
 static string substitute(const string src, const string key, string value)
 {
 	string result = src;
@@ -92,6 +124,13 @@ static string substitute(const string src, const string key, string value)
 	}
 }
 
+/**
+ * Invoke a command.
+ * The function can be used to invoke a command.
+ * @param exe the executable's name
+ * @param argv arguments for the executable (execvp-style)
+ * @throws BackendException
+ */
 static void invoke_cmd(const char *exe, const char *const argv[]) throw (BackendException *)
 {
 	int sock[2];
@@ -137,6 +176,14 @@ static void invoke_cmd(const char *exe, const char *const argv[]) throw (Backend
 	_Exit(255);
 }
 
+/**
+ * Get DC-API client configuration value.
+ * @param app the application to get the value for
+ * @param key the get to get the value for
+ * @param strict flag indicating if definition of the value is mandatory
+ * @return value of the given key for the given application
+ * @throws BackendException
+ */
 static string get_dc_client_config(const string &app, const char *key, bool strict = false)
 {
 	char *value = DC_getClientCfgStr(app.c_str(), key, 1);
@@ -148,6 +195,15 @@ static string get_dc_client_config(const string &app, const char *key, bool stri
 	return str;
 }
 
+/**
+ * Get absolute path.
+ * The function can be used to get the absolute path for path. If path itself is
+ * an absolute path, it is returned, otherwise it is prefixed with the working
+ * directory specified in the DC-API configuration.
+ * @param path the path to convert to absolute path
+ * @return the absolute path created based on path
+ * @throws BackendException
+ */
 static string abspath(string path) throw (BackendException *)
 {
 	if (!path.length())
@@ -163,6 +219,13 @@ static string abspath(string path) throw (BackendException *)
 	return path;
 }
 
+/**
+ * Create a temporary directory.
+ * The directory is created under the working directory specified in the DC-API
+ * configuration.
+ * @return path of created temporary directory
+ * @throws BackendException
+ */
 static string create_tmpdir(void) throw (BackendException *)
 {
 	char buf[PATH_MAX];
@@ -179,6 +242,13 @@ static string create_tmpdir(void) throw (BackendException *)
 	return string(buf);
 }
 
+/**
+ * Remove a temporary directory.
+ * The function removes the contents of the specified directory in a recursive
+ * manner.
+ * @see invoke_cmd
+ * @param dir the directory to remove
+ */
 static void remove_tmpdir(const string &dir) throw (BackendException *)
 {
 	if (!dir.size())
@@ -188,12 +258,25 @@ static void remove_tmpdir(const string &dir) throw (BackendException *)
 	invoke_cmd("/bin/rm", args);
 }
 
+/**
+ * Set jobs' status to ERROR.
+ * The function sets the status of each specified job to ERROR.
+ * @param jobs the job whose status should be set to ERROR
+ */
 static void error_jobs(JobVector &jobs)
 {
 	for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
 		(*it)->setStatus(Job::ERROR);
 }
 
+/**
+ * Check if a job is ready.
+ * The function is used to move all the output files of a job to their final
+ * location.
+ * @param basedir the directory where packed job outputs reside
+ * @param job the job to check outputs of
+ * @return true if all files are ready, false otherwise
+ */
 static bool check_job(const string &basedir, Job *job)
 {
 	auto_ptr< vector<string> > outputs = job->getOutputs();
@@ -244,6 +327,15 @@ static bool check_job(const string &basedir, Job *job)
 	return result;
 }
 
+/**
+ * Result callback.
+ * This callback function is called once a workunit has finished. The function
+ * updates job execution statistics, and unpacks the result package of the batch
+ * using the batch unpack script.
+ * @see check_job
+ * @param wu the workunit
+ * @param result the result
+ */
 static void result_callback(DC_Workunit *wu, DC_Result *result)
 {
 	char *tmp = DC_serializeWU(wu);
@@ -254,6 +346,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	string tag(tmp);
 	free(tmp);
 
+	/// Gets jobs with the given grid identifier.
 	JobVector jobs;
 	DBHandler *dbh = DBHandler::get();
 	dbh->getJobs(jobs, id.c_str());
@@ -300,6 +393,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 	string basedir = create_tmpdir();
 	string unpack_script = abspath(get_dc_client_config(tag.c_str(), "BatchUnpackScript", true));
 
+	/// Unpacks batch output.
 	try
 	{
 		const char *unpack_args[] =
@@ -318,6 +412,7 @@ static void result_callback(DC_Workunit *wu, DC_Result *result)
 				continue;
 			}
 
+			/// Each job's output is checked.
 			if (check_job(basedir, *it))
 				(*it)->setStatus(Job::FINISHED);
 			else
@@ -367,6 +462,11 @@ DCAPIHandler::DCAPIHandler(GKeyFile *config, const char *instance) throw (Backen
 	groupByNames = true;
 }
 
+/**
+ * Create a directory.
+ * @param path the path of the directory to create
+ * @throws BackendException
+ */
 static void do_mkdir(const string &path) throw (BackendException *)
 {
 	if (!mkdir(path.c_str(), 0750) || errno == EEXIST)
@@ -375,6 +475,19 @@ static void do_mkdir(const string &path) throw (BackendException *)
 	throw new BackendException("Failed to create directory '%s': %s", path.c_str(), strerror(errno));
 }
 
+/**
+ * Add a job to a batch.
+ * The function creates the temporary directory for the job within the base
+ * directory of the batch, and copies input files under this temporary
+ * directory. Finally, it actualizes the specified job template with the job's
+ * input and output directory name, and its command-line arguments. The
+ * actualized template is appended to the script output stream.
+ * @param job the job to add
+ * @param basedir base directory for input and output files
+ * @param script output stream to append actualized job template to
+ * @param job_template job execution template
+ * @throws BackendException
+ */
 static void emit_job(Job *job, const string &basedir, ofstream &script, const string &job_template) throw (BackendException *)
 {
 	string input_dir = INPUT_DIR "/" + job->getId();
@@ -575,6 +688,11 @@ void DCAPIHandler::updateStatus(void) throw (BackendException *)
  * Factory function
  */
 
+/**
+ * Get an instance of the plugin.
+ * @param config the configuration file object
+ * @param instance name of the plugin instance
+ * @return created DCAPIHandler object
 HANDLER_FACTORY(config, instance)
 {
 	return new DCAPIHandler(config, instance);
