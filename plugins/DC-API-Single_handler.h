@@ -35,12 +35,44 @@
 
 using namespace std;
 
+/**
+ * DC-API-Single handler.
+ * Instances of this plugin can be used to submit jobs to BOINC. As opposed to
+ * the DC-API plugin, the DC-API-Single plugin doesn't use batches of jobs for
+ * creating workunits: each individual job will result in an individual workunit
+ * once submitted.
+ */
 class DCAPISingleHandler: public GridHandler {
 public:
+	/**
+	 * Constructor of the DC-API-Single plugin.
+	 * @param config configuration file object
+	 * @param instance name of the plugin instance
+	 * @throws BackendException
+	 */
 	DCAPISingleHandler(GKeyFile *config, const char *instance) throw (BackendException *);
+
+	/// Empty destructor
 	~DCAPISingleHandler() {};
+
+	/**
+	 * Submit jobs to BOINC.
+	 * @param jobs vector of jobs to submit
+	 * @throws BackendException
+	 */
 	void submitJobs(JobVector &jobs) throw (BackendException *);
+
+	/**
+	 * Update status of jobs.
+	 * @throws BackendException
+	 */
 	void updateStatus(void) throw (BackendException *);
+
+	/**
+	 * Empty poll function.
+	 * @param job the job to poll
+	 * @throws BackendException
+	 */
 	void poll(Job *job) throw (BackendException *) {}
 };
 

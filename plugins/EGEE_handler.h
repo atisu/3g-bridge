@@ -43,16 +43,18 @@ using namespace glite::wms::wmproxyapi;
 
 
 /**
- * EGEE handler plugin. Objects of this plugin manage execution of jobs in the
- * EGEE infrastructure.
+ * EGEE handler plugin.
+ * Instances of this plugin manage execution of jobs in the EGEE infrastructure.
  */
 class EGEEHandler : public GridHandler {
     public:
 	/**
-	 * Constructor. Initialize a plugin instance. Uses the configuration
-	 * file and the provided instance name to initialize.
+	 * Constructor.
+	 * Initializes a plugin instance. Uses the configuration file and the
+	 * provided instance name to initialize.
 	 * @param config configuration file data
 	 * @param instance name of the plugin instance
+	 * @throws BackendException
 	 */
 	EGEEHandler(GKeyFile *config, const char *instance) throw (BackendException *);
 
@@ -60,21 +62,27 @@ class EGEEHandler : public GridHandler {
 	~EGEEHandler();
 
 	/**
-	 * Submit jobs. Submits a vector of jobs to EGEE.
+	 * Submit jobs.
+	 * Submits a vector of jobs to EGEE.
 	 * @param jobs jobs to submit
+	 * @throws BackendException
 	 */
 	void submitJobs(JobVector &jobs) throw (BackendException *);
 
 	/**
-	 * Update status of jobs. Updates status of jobs belonging to the
-	 * plugin instance.
+	 * Update status of jobs.
+	 * Updates status of jobs belonging to the plugin instance. Makes use of
+	 * the poll method through DBHandler.
+	 * @throws BackendException
 	 */
 	void updateStatus(void) throw (BackendException *);
 
 	/**
-	 * Handle a given job. DBHandler uses this function to perform
-	 * different operations on a job.
+	 * Handle a given job.
+	 * DBHandler uses this function to perform different operations on a
+	 * job: status update or job cancel.
 	 * @param job the job to handle
+	 * @throws BackendException
 	 */
 	void poll(Job *job) throw (BackendException *);
 
@@ -132,11 +140,12 @@ class EGEEHandler : public GridHandler {
 	int jobloglevel;
 
 	/**
-	 * Initialize GSIFTP for operations. Initializes different structures
-	 * for GSIFTP operations.
+	 * Initialize GSIFTP for operations.
+	 * Initializes different structures for GSIFTP operations.
 	 * @param ftp_handle GSIFTP client handle pointer
 	 * @param ftp_handle_attrs GSIFTP client handle attributes pointer
 	 * @param ftp_op_attrs GSIFTP client operation attributes pointer
+	 * @param rst_pin restart plugin pointer
 	 */
 	void init_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs, globus_ftp_client_plugin_t *rst_pin = NULL);
 
@@ -145,12 +154,13 @@ class EGEEHandler : public GridHandler {
 	 * @param ftp_handle GSIFTP client handle pointer
 	 * @param ftp_handle_attrs GSIFTP client handle attributes pointer
 	 * @param ftp_op_attrs GSIFTP client operation attributes pointer
+	 * @param rst_pin restart plugin pointer
 	 */
 	void destroy_ftp_client(globus_ftp_client_handle_t *ftp_handle, globus_ftp_client_handleattr_t *ftp_handle_attrs, globus_ftp_client_operationattr_t *ftp_op_attrs, globus_ftp_client_plugin_t *rst_pin = NULL);
 
 	/**
-	 * Handle finish of GSIFTP operations. This function is called every
-	 * time a GSIFTP operation has been finished.
+	 * Handle finish of GSIFTP operations.
+	 * This function is called every time a GSIFTP operation has been finished.
 	 * @param user_args pointer to user-provided arguments, ignored
 	 * @param ftp_handle handle of GSIFTP
 	 * @param error pointer to GSIFTP error structure
@@ -158,8 +168,11 @@ class EGEEHandler : public GridHandler {
 	static void handle_finish(void *user_args, globus_ftp_client_handle_t *ftp_handle, globus_object_t *error);
 
 	/**
-	 * Set Globus error message. globus_err is set to true, and globus_errmsg
-	 * is filled up with the error message.
+	 * Set Globus error message.
+	 * globus_err is set to true, and globus_errmsg is filled up with the
+	 * error message.
+	 * @see globus_err
+	 * @see globus_errmsg
 	 * @param error the error object to parse
 	 */
 	static void set_globus_err(globus_object_t *error);
@@ -168,12 +181,14 @@ class EGEEHandler : public GridHandler {
 	 * Transfer files using GASS operations.
 	 * @param srcFiles vector of source file URLs to transfer
 	 * @param dstFiles destination URLs where the files should be transferred
+	 * @throws BackendException
 	 */
 	void transfer_files_globus(const vector<string> &srcFiles, const vector<string> &dstFiles) throw(BackendException *);
 
 	/**
-	 * Remove files using GSIFTP operations. Each file receives the prefix
-	 * before the removal is issued, and file basenames are used
+	 * Remove files using GSIFTP operations.
+	 * Each file receives the prefix before the removal is issued, and file
+	 * basenames are used
 	 * @param fileNames the files to remove
 	 * @param prefix the prefix to add (optional)
 	 */
@@ -181,27 +196,30 @@ class EGEEHandler : public GridHandler {
 
 	/**
 	 * Create a directory using GSIFTP.
-	 * @param the directory to create.
+	 * @param dirurl the directory to create.
+	 * @throws BackendException
 	 */
 	void create_dir_globus(const string &dirurl) throw(BackendException *);
 
 	/**
 	 * Remove a directory using GSIFTP.
-	 * @param the directory to remove.
+	 * @param dirurl the directory to remove.
 	 */
 	void remove_dir_globus(const string &dirurl);
 
 	/**
-	 * Clean an EGEE job. The operation purges the job using the jobPurge
-	 * function provided by EGEE API.
-	 * @param jobID the job identifier to clean
+	 * Clean up a job.
+	 * The function purges the job using the jobPurge function provided by
+	 * the gLite API.
+	 * @param job the job to clean
 	 */
 	void cleanJob(Job *job);
 
 	/**
-	 * Clean an EGEE job's remote storage. The function removes every file
-	 * belonging to the job the from the job's storage URL.
-	 * @param jobID the job to clean
+	 * Clean a gLite job's remote storage.
+	 * The function removes every file belonging to the job the from the
+	 * job's storage URL.
+	 * @param job the job to clean
 	 */
 	void cleanJobStorage(Job *job);
 
@@ -219,55 +237,60 @@ class EGEEHandler : public GridHandler {
 	string getEGEEErrMsg(const BaseException &e);
 
 	/**
-	 * Renew proxy file. This function is periodically called, and gets
-	 * a new proxy every time the existing proxy's lifetime is below 18
-	 * hours using the MyProxy informations provided in the configuration
-	 * file. (In MyProxy terms this is really a retrieval not renewal.)
+	 * Renew proxy file.
+	 * This function is periodically called, and gets a new proxy every
+	 * time the existing proxy's lifetime is below 18 hours using the
+	 * MyProxy informations provided in the configuration file (in MyProxy
+	 * terms this is a retrieval not renewal).
+	 * @throws BackendException
 	 */
 	void renew_proxy() throw(BackendException *);
 
 	/**
-	 * Get output of a job. The function downloads output files produced by
-	 * the job, removes and remote file used by the job, and finally cleans
-	 * the job.
+	 * Get output of a job.
+	 * The function downloads output files produced by the job, removes any
+	 * remote file used by the job, and finally cleans the job.
 	 * @param jobs the job to use
 	 */
 	void getOutputs_real(Job *jobs);
 
 	/**
 	 * Create an EGEE ConfigContext used by WMS/L&B operations.
+	 * @throws BackendException
 	 */
 	void createCFG() throw(BackendException *);
 
 	/**
-	 * Get proxy informations. The function reads a proxy file, and returns
-	 * its subject and remaining lifetime.
+	 * Get proxy informations.
+	 * The function reads a proxy file, and returns its subject and the
+	 * remaining lifetime.
 	 * @param proxyfile location of the proxy file
 	 * @param[out] lifetime remaining lifetime of the proxy
 	 */
 	void getProxyInfo(const char *proxyfile, time_t *lifetime);
 
 	/**
-	 * Update an EGEE job's status. The function uses EGEE L&B API
-	 * functions to get the status of the job. The status info is
-	 * also updated in the database.
-	 * @param job the job to use
+	 * Update a gLite job's status.
+	 * The function uses gLite L&B API functions to get the status of the
+	 * job. The status info is also updated in the database.
+	 * @param job the job to update
 	 */
 	void updateJob(Job *job);
 
 	/**
-	 * Cancel an EGEE job. The function uses EGEE API functions to cancel
-	 * the job. The job is also removed from the database.
+	 * Cancel a gLite job.
+	 * The function uses gLite API functions to cancel the job. The job is
+	 * also removed from the database.
 	 * @param job the job to cancel
-	 * @param clean boolean indicating if the job should be removed from
-	 *	  the database or not
+	 * @param clean flag indicating if the job should be removed from the
+	 *        database or not
 	 */
 	void cancelJob(Job *job, bool clean = true);
 
 	/**
-	 * Log a message related to a job. Location of the log file is
-	 * joblogdir + "/" + jobid + ".log". If level < jobloglevel, the
-	 * message isn't printed.
+	 * Log a message related to a job.
+	 * Location of the log file is joblogdir + "/" + jobid + ".log". If
+	 * level < jobloglevel, the message isn't printed.
 	 * @param jobid the job ID to use
 	 * @param level message log level: NONE, ERROR, ALL
 	 * @param msg the message to log

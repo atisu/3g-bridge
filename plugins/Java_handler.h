@@ -37,21 +37,55 @@
 
 using namespace std;
 
+/**
+ * Java handler class.
+ * Instances of the Java handler can be used as a base for Java implementations
+ * of grid plugins.
+ */
 class JavaHandler: public GridHandler {
 public:
+	/**
+	 * Constructor.
+	 * Initializes the Java handler plugin instance.
+	 * @param config the configuration file object
+	 * @param instance name of the plugin instance
+	 * @throws BackendException
+	 */
 	JavaHandler(GKeyFile *config, const char *instance) throw (BackendException *);
+
+	/**
+	 * Destructor.
+	 */
 	~JavaHandler();
 
+	/**
+	 * Submit jobs.
+	 * @param jobs vector of jobs to submit
+	 * @throws BackendException
+	 */
 	void submitJobs(JobVector &jobs) throw (BackendException *);
+
+	/**
+	 * Update status of jobs.
+	 * @throws BackendException
+	 */
 	void updateStatus(void) throw (BackendException *);
+
+	/**
+	 * Poll a job's status.
+	 * @param job the job to poll
+	 * @throws BackendException
+	 */
 	void poll(Job *job) throw (BackendException *);
 
 private:
-	/* Global reference to the Java gateway object */
+	/// Global reference to the Java gateway object
 	jobject objref;
 
-	/* The embedded JVM instance */
+	/// The embedded JVM instance
 	JavaVM *jvm;
+
+	/// JNI environment
 	JNIEnv *env;
 };
 
