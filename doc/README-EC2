@@ -1,4 +1,4 @@
-3G Bridge EC2 plug-in: Accessing Amazon EC2/ Eucalyptus resources
+3G Bridge EC2 plug-in: Accessing Amazon EC2/ Eucalyptus/ OpenStack resources
 =================================================================
 
 1. How it works
@@ -17,16 +17,21 @@ images ready to be used deployed on Amazon, read more in 3.3.
 2. Requirements
 ---------------
   o 3G Bridge obviously
-  o EC2 API Tools 1.3 30349
+  o EC2 API Tools 1.3 30349 or Euca2ools
   o Java (e.g.: OpenJDK 1.6.0_0)
   o Amazon EC2 account with credentials downloaded
 	OR
   o Eucalyptus account with credentials downloaded
-  o Virtual Machine (VM) image deployed at Amazon EC2 or an Eucalyptus installation with Condor worker or BOINC Client installed in the image
+  o Virtual Machine (VM) image deployed at Amazon EC2/ Eucalyptus/
+    OpenStack installation with Condor worker or BOINC Client installed 
+    in the image
 
 
 3. How to use
 -------------
+
+ This document uses the ec2-api-tools, if you want to access an
+ OpenStack cloud, set 'euca2ools' as ec2-tool-type in 3.1./2.
 
  3.1. Configuring 3G Bridge
  ------------------------
@@ -42,7 +47,8 @@ images ready to be used deployed on Amazon, read more in 3.3.
 	[Cloud]
 	handler = EC2
 	user-data-file = /var/www/userdata.zip
-	region = eu-west-1
+	ec2-tool-type = ec2-api-tools
+    region = eu-west-1
 	ec2-certificate = /foo/bar/.ec2/cert-WLEN637UCDGGKHTERUJYEN7EE33WMOX3.pem
 	ec2-private-key = /foo/bar/.ec2/pk-WLEN637UCDGGKHTERUJYEN7EE33WMOX3.pem
 	ec2-home = /foo/bar/apps/ec2/ec2-api-tools-1.3-30349
@@ -76,7 +82,7 @@ images ready to be used deployed on Amazon, read more in 3.3.
    1. You need to create a security group ('boinc') for the region you 
       are planning to use, where all started instances will belong to:
 
-	ec2-add-group --region eu-west-1 boinc -d "My BOINC workers on amazon"
+	ec2-add-group --region eu-west-1 boinc -d "My BOINC workers on Amazon"
 	
    2. Depending on the middleware, you'll need to open specific port ranges
       for the security group. E.g. for the Condor image described in the next
@@ -124,7 +130,7 @@ images ready to be used deployed on Amazon, read more in 3.3.
   The following parameters can be passed as arguments (after "-p" for 
   the injector):
 
-  --image=<IMAGED_ID>              - Amazon/ Eucalyptus Machine Id (e.g.: ami-0bcce67f)
+  --image=<IMAGED_ID>              - (Amazon/ Eucalyptus) Machine Id (e.g.: ami-0bcce67f)
   --instance-type=<INSTANCE_TYPE>  - Cloud instance type, e.g.: m1.small, c1.medium
   --group=<SECURITY_GROUP>         - Name of the security group the instance should belong to (e.g.: 'boinc')
   --ramdisk=<RAMDISK_ID>           - RAMDISK Id (not-needed)
@@ -148,9 +154,9 @@ images ready to be used deployed on Amazon, read more in 3.3.
    5.2 Using the pre-created images - Condor
    -----------------------------------------
 
-   The Condor image (ami-44b99330 - atisu-worker/debian-5.0-condorworker-v5.img.manifest.xml)
-   requires a Condor pool to connect to (it contains a worker). The IP address of the Central
-   Manager for the pool should be set as 'user-data' in the 3g-bridge.conf.
+   The Condor image (ami-44b99330 - atisu-worker/debian-5.0-condorworker-v5.img.manifest.xml 
+   on Amazon EC2) requires a Condor pool to connect to (it contains a worker). The IP address 
+   of the Central Manager for the pool should be set as 'user-data' in the 3g-bridge.conf.
 
    Also the TCP/UDP 9618 and 40000-41000 ports should be allowed to connect:
 
@@ -163,8 +169,8 @@ images ready to be used deployed on Amazon, read more in 3.3.
    5.3 Using the pre-created images - BOINC
    ----------------------------------------
 
-   The BOINC image (ami-0bcce67f - atisu-worker/debian-5.0-boincworker-v1.4.img.manifest.xml)
-   contains a BOINC client (svn revision r22012). 
+   The BOINC image (ami-0bcce67f - atisu-worker/debian-5.0-boincworker-v1.4.img.manifest.xml 
+   on Amazon EC2) contains a BOINC client (svn revision r22012). 
 
    The image can use both the 'user-data' and 'user-data-file' parameters of 3g-bridge.conf (one at a time).
   
