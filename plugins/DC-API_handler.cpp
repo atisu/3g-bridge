@@ -693,6 +693,7 @@ void DCAPIHandler::updateStatus(void) throw (BackendException *)
  * @param config the configuration file object
  * @param instance name of the plugin instance
  * @return created DCAPIHandler object
+ */
 HANDLER_FACTORY(config, instance)
 {
 	return new DCAPIHandler(config, instance);
