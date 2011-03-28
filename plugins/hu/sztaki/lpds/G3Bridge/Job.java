@@ -45,7 +45,7 @@ public class Job {
 	private String args;
 	private String gridId;
 	private int status;
-	private HashMap<String, String> inputs;
+	private HashMap<String, FileRef> inputs;
 	private HashMap<String, String> outputs;
 
 	public Job(String id, String name, String grid, String args, String gridid, int status) {
@@ -56,7 +56,7 @@ public class Job {
 		this.gridId = gridid;
 		this.status = status;
 
-		this.inputs = new HashMap<String, String>();
+		this.inputs = new HashMap<String, FileRef>();
 		this.outputs = new HashMap<String, String>();
 	}
 
@@ -84,15 +84,15 @@ public class Job {
 		return status;
 	}
 
-	public void addInput(String localName, String path) {
-		inputs.put(localName, path);
+	public void addInput(String localName, FileRef fileref) {
+		inputs.put(localName, fileref);
 	}
 
 	public void addOutput(String localName, String path) {
 		outputs.put(localName, path);
 	}
 
-	public HashMap<String, String> getInputs() {
+	public HashMap<String, FileRef> getInputs() {
 		return inputs;
 	}
 

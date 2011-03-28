@@ -61,6 +61,7 @@ EC2_handler_la_SOURCES = EC2Util.cpp EC2Util.h EC2_handler.cpp EC2_handler.h
 CLASSDIR = hu/sztaki/lpds/G3Bridge
 JAVA_SRC = \
 		$(CLASSDIR)/GridHandler.java \
+		$(CLASSDIR)/FileRef.java \
 		$(CLASSDIR)/Job.java \
 		$(CLASSDIR)/Logger.java \
 		$(CLASSDIR)/LogLevel.java \

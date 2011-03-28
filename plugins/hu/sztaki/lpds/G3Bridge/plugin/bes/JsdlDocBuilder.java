@@ -109,7 +109,8 @@ public class JsdlDocBuilder {
 		JobDescriptionType jobDescription = jobDefDoc.addNewJobDefinition().addNewJobDescription();
 
 		if (isWrapperNeeded) {
-			job.addInput(wrapperBaseFileName + job.getId(), wrapperBaseDir + "/" + wrapperBaseFileName + job.getId());
+			FileRef fr = new FileRef(wrapperBaseDir + "/" + wrapperBaseFileName + job.getId(), "", 0);
+			job.addInput(wrapperBaseFileName + job.getId(), fr);
 		}
 
 		buildApplication(jobDescription, job);
@@ -153,14 +154,14 @@ public class JsdlDocBuilder {
 	 * @throws Exception contians file information which is not accessable under ftp root dir
 	 */
 	private void buildDataStaging(JobDescriptionType jobDescription, Job job) throws Exception {
-		HashMap<String, String> inputFileList = job.getInputs();
+		HashMap<String, FileRef> inputFileList = job.getInputs();
 		for (String inputFile : inputFileList.keySet()) {
 			DataStagingType dataType = jobDescription.addNewDataStaging();
 			dataType.setFileName(inputFile);
 			dataType.setCreationFlag(CreationFlagEnumeration.OVERWRITE);
 			dataType.setDeleteOnTermination(false);
 			SourceTargetType stt = SourceTargetType.Factory.newInstance();
-			stt.setURI(getFileFTPAddress(inputFileList.get(inputFile)));
+			stt.setURI(getFileFTPAddress(inputFileList.get(inputFile).getURL()));
 			dataType.setSource(stt);
 			if (!isAnonymous) {
 				try {

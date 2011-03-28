@@ -79,10 +79,14 @@ using namespace std;
 	"(Lhu/sztaki/lpds/G3Bridge/Job;)V"
 #define CLASS_Job \
 	"hu/sztaki/lpds/G3Bridge/Job"
+#define CLASS_FileRef \
+	"hu/sztaki/lpds/G3Bridge/FileRef"
 #define CTOR_Job \
 	"(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V"
+#define CTOR_FileRef \
+	"(Ljava/lang/String;Ljava/lang/String;I)V"
 #define SIG_Job_addInput \
-	"(Ljava/lang/String;Ljava/lang/String;)V"
+	"(Ljava/lang/String;Lhu/sztaki/lpds/G3Bridge/FileRef;)V"
 #define SIG_Job_addOutput \
 	"(Ljava/lang/String;Ljava/lang/String;)V"
 #define CLASS_Logger \
@@ -524,6 +528,44 @@ JavaHandler::~JavaHandler()
 	}
 }
 
+static jobject fileref_to_java(JNIEnv *env, const FileRef &fr)
+{
+	jstring url, md5;
+	jint size;
+	jmethodID meth;
+	jclass cls;
+	jobject retval;
+
+	url = env->NewStringUTF(fr.getURL().c_str());
+	md5 = env->NewStringUTF(fr.getMD5().c_str());
+	size = fr.getSize();
+	if (!url || !md5)
+	{
+		check_exception(env);
+		if (url)
+			env->DeleteLocalRef(url);
+		if (md5)
+			env->DeleteLocalRef(md5);
+		return 0;
+	}
+
+	if (GET_CTOR(env, FileRef, &cls, &meth))
+	{
+		env->DeleteLocalRef(url);
+		env->DeleteLocalRef(md5);
+	}
+
+	retval = env->NewObject(cls, meth, url, md5, size);
+	env->DeleteLocalRef(url);
+	env->DeleteLocalRef(md5);
+	if (!retval)
+		check_exception(env);
+
+	env->DeleteLocalRef(cls);
+	return retval;
+
+}
+
 static jobject job_to_java(JNIEnv *env, Job *job)
 {
 	jstring idstr, namestr, gridstr, argsstr, grididstr;
@@ -587,25 +629,26 @@ static jobject job_to_java(JNIEnv *env, Job *job)
 	auto_ptr< vector<string> > inputs = job->getInputs();
 	for (vector<string>::iterator it = inputs->begin(); it != inputs->end(); it++)
 	{
-		jstring lfnstr, pathstr;
+		jstring lfnstr;
+		jobject fileref;
 
 		lfnstr = env->NewStringUTF((*it).c_str());
-		pathstr = env->NewStringUTF(job->getInputRef(*it).getURL().c_str());
-		if (!lfnstr || !pathstr)
+		fileref = fileref_to_java(env, job->getInputRef(*it));
+		if (!lfnstr || !fileref)
 		{
 			check_exception(env);
 			if (lfnstr)
 				env->DeleteLocalRef(lfnstr);
-			if (pathstr)
-				env->DeleteLocalRef(pathstr);
+			if (fileref)
+				env->DeleteLocalRef(fileref);
 			env->DeleteLocalRef(cls);
 			env->DeleteLocalRef(retval);
 			return NULL;
 		}
 
-		env->CallVoidMethod(retval, meth, lfnstr, pathstr);
+		env->CallVoidMethod(retval, meth, lfnstr, fileref);
 		env->DeleteLocalRef(lfnstr);
-		env->DeleteLocalRef(pathstr);
+		env->DeleteLocalRef(fileref);
 		if (check_exception(env))
 		{
 			env->DeleteLocalRef(cls);
