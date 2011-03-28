@@ -27,16 +27,35 @@
 
 package hu.sztaki.lpds.G3Bridge;
 
+/**
+ * LogLevel Java class.
+ * The LogLevel class collects logging level related stuffs.
+ */
 public final class LogLevel {
 
 	/* The codes must match the C interface */
+	/// Emergency message level
 	private static final int SYSLOG_EMERG = 0;
+
+	/// Alert message level
 	private static final int SYSLOG_ALERT = 1;
+
+	/// Critical message level
 	private static final int SYSLOG_CRIT = 2;
+
+	/// Error message level
 	private static final int SYSLOG_ERR = 3;
+
+	/// Warning message level
 	private static final int SYSLOG_WARNING = 4;
+
+	/// Notice message level
 	private static final int SYSLOG_NOTICE = 5;
+
+	/// Information message level
 	private static final int SYSLOG_INFO = 6;
+
+	/// Debugging message level
 	private static final int SYSLOG_DEBUG = 7;
 
 	/** Names of the log levels. The indexes must match the above codes. */

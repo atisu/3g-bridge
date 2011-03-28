@@ -25,11 +25,6 @@
  * do so, delete this exception statement from your version.
  */
 
-/**
- * @file DC-API_handler.cpp
- * @brief DC-API grid plugin implementation.
- */
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -688,12 +683,6 @@ void DCAPIHandler::updateStatus(void) throw (BackendException *)
  * Factory function
  */
 
-/**
- * Get an instance of the plugin.
- * @param config the configuration file object
- * @param instance name of the plugin instance
- * @return created DCAPIHandler object
- */
 HANDLER_FACTORY(config, instance)
 {
 	return new DCAPIHandler(config, instance);

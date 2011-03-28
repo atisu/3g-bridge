@@ -27,10 +27,13 @@
 
 package hu.sztaki.lpds.G3Bridge;
 
+/**
+ * Logger Java class.
+ * The Logger class can be used by Java plugins to log messages.
+ */
 public final class Logger {
 	/**
 	 * Sends a log message.
-	 *
 	 * @param level		the severity of the message.
 	 * @param message	the message to send.
 	 */
@@ -38,5 +41,6 @@ public final class Logger {
 		native_logit(level.getCode(), message);
 	}
 
+	/// Native logging function.
 	private static native void native_logit(int level, String message);
 }

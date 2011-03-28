@@ -21,11 +21,21 @@
  * - (Re-)start the 3g-bridge
  */
 
+package hu.sztaki.lpds.G3Bridge.null;
+
 import hu.sztaki.lpds.G3Bridge.*;
 import java.util.ArrayList;
 
+/**
+ * Example NullHandler Java plugin.
+ * This is an example Java plugin implementing "null" functionality.
+ */
 public class NullHandler extends GridHandler {
 
+	/**
+	 * NullHandler constructor.
+	 * @param instance name of the plugin instance
+	 */
 	public NullHandler(String instance) {
 		super(instance);
 
@@ -39,6 +49,11 @@ public class NullHandler extends GridHandler {
 		Logger.logit(LogLevel.INFO, "Config foo is " + getConfig("foo"));
 	}
 
+	/**
+	 * Submit jobs.
+	 * This function simply sets each job's status to RUNNING.
+	 * @param jobs list of jobs to "submit"
+	 */
 	public void submitJobs(ArrayList<Job> jobs) {
 		for (Job j: jobs) {
 			/* Set the job status */
@@ -49,10 +64,18 @@ public class NullHandler extends GridHandler {
 		}
 	}
 
+	/**
+	 * Update status.
+	 */
 	public void updateStatus() {
 		/* This method is not used in this example but it must be defined */
 	}
 
+	/**
+	 * Poll status of a job.
+	 * This function simply sets the polled job's status to FINISHED.
+	 * @param j the job to "update"
+	 */
 	public void poll(Job j) {
 		j.setStatus(Job.FINISHED);
 		Logger.logit(LogLevel.INFO, "Finished " + j.getId());

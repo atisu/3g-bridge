@@ -27,26 +27,53 @@
 
 package hu.sztaki.lpds.G3Bridge;
 
+/**
+ * FileRef Java class.
+ * FileRef is used to store file references.
+ */
 public class FileRef {
 
+	/// URL of the file reference
 	private String url;
+
+	/// MD5 hash of the referenced file
 	private String md5;
+
+	/// Size of the referenced file
 	private int size;
 
+	/**
+	 * FileRef constructor.
+	 * @param url URL of the referenced file
+	 * @param md5 MD5 hash of the referenced file
+	 * @param size size of the referenced file
+	 */
 	public FileRef(String url, String md5, int size) {
 		this.url = url;
 		this.md5 = md5;
 		this.size = size;
 	}
 
+	/**
+	 * Get URL of referenced file
+	 * @return URL of the referenced file
+	 */
 	public String getURL() {
 		return url;
 	}
 
+	/**
+	 * Get MD5 hash of referenced file
+	 * @return MD5 hash of the referenced file
+	 */
 	public String getMD5() {
 		return md5;
 	}
 
+	/**
+	 * Get size of referenced file
+	 * @return size of the referenced file
+	 */
 	public int getSize() {
 		return size;
 	}

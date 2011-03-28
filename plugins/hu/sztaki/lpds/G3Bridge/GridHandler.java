@@ -29,12 +29,26 @@ package hu.sztaki.lpds.G3Bridge;
 
 import java.util.ArrayList;
 
+/**
+ * GridHandler Java interface.
+ * This abstract class can be extended by Java grid plugins to implement plugin
+ * functionalities.
+ */
 public abstract class GridHandler {
 
+	/// Flag indicating if the plugin needs polling (true) or will perform
+	/// status updates on its own (false).
 	private boolean usePoll;
 
+	/// Name of the plugin instance.
 	protected String pluginInstance;
 
+	/**
+	 * Constructor.
+	 * The GridHandler constructor sets the instance's name and disables
+	 * polling.
+	 * @param pluginInstance the instance's name
+	 */
 	public GridHandler(String pluginInstance) {
 		usePoll = false;
 		this.pluginInstance = pluginInstance;
@@ -77,6 +91,7 @@ public abstract class GridHandler {
 		return native_getConfig(pluginInstance, key);
 	}
 
+	/// Native configuration query function.
 	private static native String native_getConfig(String instance, String key);
 
 	/**
