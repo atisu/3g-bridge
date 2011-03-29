@@ -25,6 +25,238 @@
  * do so, delete this exception statement from your version.
  */
 
+/**
+ * @mainpage 3G Bridge
+ *
+ *
+ * @section About About
+ * 3G Bridge is the Generic Grid-Grid Bridge used as a core component in
+ * a number of grid interoperability solutions. It consists of two main modules:
+ * the 3G Bridge service itself and the web service interface called
+ * WSSubmitter. The internal data representation is making use of MySQL in order
+ * to offer persistance.
+ *
+ *
+ * @section idr Internal data representation
+ * Data of 3G Bridge is stored in a MySQL database. The important tables are
+ * cg_job, cg_inputs, cg_outputs, cg_algqueue, cg_download and cg_env. cg_job
+ * stores main properties of jobs, cg_algqueue stores information about plugins,
+ * cg_inputs stores references of jobs' input files, cg_output stores output
+ * file information, cg_download contains file entries to download, and cg_env
+ * stores environment variables of jobs.
+ *
+ * @see DBHandler
+ * @see DBResult
+ * @see Job
+ * @see AlgQueue
+ *
+ *
+ * @section whatver 3G Bridge service
+ * The core 3G Bridge service is responsible for performing management of jobs
+ * using the grid plugins. The base of the 3G Bridge service is the Queue
+ * Manager component that periodically calls the different grid plugins to
+ * perform something useful. The grid plugins implement the GridHandler
+ * interface in order to hide the details of grid systems. Thus, Queue Manager
+ * itself doesn't contain any grid-specific code.
+ *
+ * @see QueueManager
+ * @see QMException
+ * @see DLException
+ *
+ *
+ * @section wsss WSSubmitter service
+ * WSSubmitter implements a web service interface above 3G Bridge, based on a
+ * very simple WSDL, using gSOAP. The web service interface offers job
+ * submission, status queries, output file listing and job cancel/removal. A
+ * typical job management scenarion from the client's side is the following:
+ * \li sumbit the job
+ * \li query status of job as long as the job's status isn't FINISHED
+ * \li get list of output files
+ * \li download output files
+ * \li remove the job
+ *
+ * 3G Bridge offers a client called \c wsclient, but it is possible to create
+ * any SOAP client based on the WSDL (for example Java client using Axis).
+ *
+ * WSSubmitter also offers the DownloadManager component that is able to fetch
+ * jobs' input files. Initially, every input file URL submitted through the web
+ * service interface is accepted. Once 3G Bridge invokes the grid plugins to
+ * submit the jobs, the grid plugins may examine the input URLs and throw a
+ * properly initialized DLException exception if a given URL cannot be handled
+ * by the grid plugin. In such cases the Queue Manager catches the exception,
+ * and fills in the cg_download table according to the exception's contents, and
+ * instructs the WSSubmitter to reread the file download table in order to
+ * download the problematic files. Once all problematic files have been fetched,
+ * the given jobs are submitted by the relevant plugin.
+ *
+ * @see WSSubmitter
+ * @see DBHandler
+ * @see DownloadManager
+ * @see DLException
+ *
+ *
+ * @section dp Destination plugins
+ * Destination plugins implementing the GridHandler interface are used to
+ * interact with destination grids.
+ * Each plugin has to offer the following functionalities:
+ * \li submit a JobVector: this functionality has to be implemented in the
+ * \c submitJobs() method. The outcome of this operation has to be that the
+ * grid identifier of submitted jobs is set, and status of submitted jobs has to
+ * be RUNNING. If the grid plugin is unable to handle some input file URLs, a
+ * properly set up DLException exception has to be thrown. The \c submitJobs()
+ * method will receive jobs in the INIT status.
+ * \li update jobs's status: this functionality is performed with the help of
+ * the \c updateStatus() and \c poll() functions, and the DBHandler component.
+ * The \c updateStatus() function should call the DBHandler::pollJobs()
+ * function to invoke the grid plugin's \c poll() method for the jobs the grid
+ * plugin is interested in (typicall jobs in the RUNNING and CANCEL status). The
+ * \c poll() function of the grid plugin is reponsible for actually performing
+ * the status update.
+ *
+ * @see Job
+ * @see JobVector
+ * @see DBHandler
+ *
+ *
+ * @subsection bp BOINC-related plugins
+ * 3G Bridge currently offers two grid plugins for submitting jobs to BOINC:
+ * DC-API and DC-API-Single. Both of these plugins make use of DC-API
+ * (http://www.desktopgrid.hu/storage/dcdoc/index.html) to interact with BOINC.
+ *
+ *
+ * @subsubsection dcp DC-API plugin
+ * The DC-API plugin (implemented in DCAPIHandler) can be used to submit jobs
+ * to BOINC as a batch: a limited number (batch size) of jobs are packed
+ * together into a BOINC workunit. Such workunits are submitted as follows:
+ * \li a batch pack script (specified in DC-API configuration files) is used to
+ * pack together input files of jobs in a batch, resulting in an input package
+ * \li a batch script is created using a sequence of instantiated versions of a
+ * job template file
+ * \li a batch has one output package file
+ * \li the workunit is submitted using the input package and batch script as the
+ * input files, and the output package as the output files.
+ *
+ * The execution of such batches is as follows:
+ * \li the batch script's head (a script excerpt specified in the DC-API
+ * configuration file) is used to unpack the input package
+ * \li subsequent parts of the batch script (instantiated version of the job
+ * template) execute jobs in the batch
+ * \li the batch script's tail (a script excerpt specified in the DC-API
+ * configuration file) is used to create the output package file based on the
+ * participating jobs' results.
+ *
+ * Finally, if a batch has been processed, the DC-API plugin uses the batch
+ * unpack script to unpack the output package of the batch in order to collect
+ * results of the individual jobs in the batch.
+ *
+ * @see GridHandler
+ * @see Job
+ *
+ *
+ * @subsubsection dcsp DC-API-Single plugin
+ * The DC-API-Single plugin (implemented in DCAPISingleHandler) is a simplified
+ * version of the DC-API plugin: it doesn't put a number of jobs in a workunit,
+ * but handles the different 3G Bridge jobs individually, thus each workunit
+ * contains only one job.
+ *
+ * @see GridHandler
+ * @see Job
+ *
+ *
+ * @subsection egee EGEE (gLite) plugin
+ * The EGEE plugin (implemented in EGEEHandler) can be used to submit jobs to
+ * gLite. One instance of the EGEE plugin is capable to submit to a specific VO
+ * using a specific proxy, which is configured with the plugin instance, and is
+ * aquired from a MyProxy server as needed. Management of gLite jobs is achieved
+ * by using gLite and Globus API functions.
+ *
+ * @see GridHandler
+ * @see Job
+ *
+ *
+ * @subsection xweb XtremWeb plugin
+ * The XtremWeb plugin (implemented in XWHandler) can be used to submit jobs to
+ * XtremWeb.
+ *
+ * @see GridHandler
+ * @see Job
+ *
+ *
+ * @subsection nullp Null plugin
+ * The Null plugin (implemented in NullHandler) is an example plugin
+ * implementation that simply sets jobs' status to RUNNING during the
+ * submission, and sets jobs's status to FINISHED during status update.
+ * 
+ * @see GridHandler
+ * @see Job
+ *
+ *
+ * @subsection ec2p EC2 plugin
+ * The EC2 plugin (implemented in EC2Handler) can be used to submit jobs to
+ * Amazon EC2 clouds.
+ *
+ * @see GridHandler
+ * @see Job
+ *
+ *
+ * @subsection javap Java plugin and derivatives
+ * The Java plugin (implemented in JavaHandler) can be used to connect plugins
+ * to the 3G Bridge implemented in Java through JNI. Java plugins have to
+ * extend the hu.sztaki.lpds.G3Bridge.GridHandler class. Currently, one Java
+ * plugin is offered for BES-compatible resources.
+ *
+ * @see hu.sztaki.lpds.G3Bridge.GridHandler
+ *
+ *
+ * @subsubsection besp BES plugin
+ * The BES Java plugin (implemented in BESHandler) can be used to submit jobs
+ * to OGSA BES-capable resources.
+ *
+ * @see hu.sztaki.lpds.G3Bridge.GridHandler
+ *
+ *
+ * @section mons Monitor service
+ * The Monitor service of 3G Bridge is an extension that allows to query the
+ * the basic status of grids supported by the different grid plugins. The
+ * monitoring component is separate from the 3G Bridge just like the web service
+ * interface: it can be accessed as a web service called WSMonitor. Grid monitor
+ * plugins have to implement the MonitorHandler interface in order to report the
+ * followings about a grid: number of running jobs, number of waiting jobs and
+ * number of CPU cores.
+ *
+ * Beside the web service, a client is also offered by 3G Bridge called
+ * wsmonitorclient. Although any entity may create its own client based on the
+ * Monitor service's WSDL.
+ *
+ * Currently, an example Null monitor and a BOINC monitor is offered by 3G
+ * Bridge.
+ *
+ *
+ * @subsection nullm Null monitor
+ * The Null monitor (implemented in NullMonitor) reports each metric as 0.
+ *
+ * @see MonitorHandler
+ *
+ *
+ * @subsection boincm BOINC monitor
+ * The BOINC monitor (implemented in BOINCMonitor) can be used to get some
+ * information about a BOINC project:
+ * \li number of running jobs: reports the number of workunits in the running
+ * status,
+ * \li number of waiting jobs: reports the number of workunits waiting to be
+ * sent to clients,
+ * \li number of CPU cores: reports the sum of CPU cores belonging to hosts
+ * that were active in the last 24 hours.
+ *
+ *
+ * @section Configuration
+ *
+ * Configuration of 3G Bridge components (core 3G Bridge, WSSubmitter and
+ * WSMonitor) is performed through a single file called 3g-bridge.conf. Please
+ * consult the file's man page 3g-bridge.conf(5) for details on how to configure
+ * the different components and the different grid plugins.
+ */
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif

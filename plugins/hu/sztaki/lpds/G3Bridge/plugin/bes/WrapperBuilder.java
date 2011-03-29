@@ -44,13 +44,18 @@ import java.io.BufferedWriter;
  */
 public class WrapperBuilder {
 
-	// base name of the generated wrapper script files
+	/// base name of the generated wrapper script files
 	private String wrapperBaseFileName;
 
-	// location of the directory contains the generated wrapper script files in the local file system
+	/// location of the directory contains the generated wrapper script files in the local file system
 	private String wrapperBaseDir;
 
 
+	/**
+	 * WrapperBuilder constructor.
+	 * @param wrapperBaseFileName base name of the generated wrapper files
+	 * @param wrapperBaseDir base directory for storing wrapper files
+	 */
 	public WrapperBuilder(String wrapperBaseFileName, String wrapperBaseDir) {
 		this.wrapperBaseFileName = wrapperBaseFileName;
 		this.wrapperBaseDir = wrapperBaseDir;
@@ -61,8 +66,7 @@ public class WrapperBuilder {
 	 * Generates the contents and makes the wrapper script file for the parameter job.
 	 * The file will be stored in the local file system, according to the object's settings
 	 * (location= [wrapperBaseDir]/[wrapperBaseFileName][job ID]).
-	 * @param job
-	 * @param LOG logger object for storing messages
+	 * @param job the job to generate wrapper for
 	 * @param pluginName name of the BES plugin instance (for logging)
 	 * @throws Exception contains error messages in connection with file handling
 	 */
