@@ -204,7 +204,8 @@ nobase_dist_doc_DATA = \
 		examples/batch_pack \
 		examples/batch_unpack \
 		examples/dc-api.conf \
-		examples/resource-manager.sh
+		examples/resource-manager.sh \
+		examples/hu/sztaki/lpds/G3Bridge/plugin/null/NullHandler.java
 
 dist_sysconf_DATA = etc/3g-bridge.conf
 
