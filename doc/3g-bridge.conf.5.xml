@@ -52,7 +52,6 @@
 	</para>
 	<para>
 	    The pre-defined group names are:
-
 	    <itemizedlist>
 		<listitem>
 		    <para>
@@ -72,6 +71,11 @@
 		<listitem>
 		    <para>
 			<literal>wssubmitter</literal>: Specific options for <command>wssubmitter</command>
+		    </para>
+		</listitem>
+		<listitem>
+		    <para>
+			<literal>wsmonitor</literal>: Specific options for <command>wsmonitor</command>
 		    </para>
 		</listitem>
 	    </itemizedlist>
@@ -137,9 +141,9 @@
 	<title>GLOBAL DEFAULTS</title>
 	<para>
 	    The following values can be configured in the <literal>defaults</literal> group.
-	    The same values can also be listed in the <literal>bridge</literal> and
-	    <literal>wssubmitter</literal> groups, in this case the values specified there
-	    override the defaults.
+	    The same values can also be listed in the <literal>bridge</literal>,
+	    <literal>wssubmitter</literal> and <literal>wsmonitor</literal> groups, in this
+	    case the values specified there override the defaults.
 	</para>
 	<glosslist>
 	    <glossentry>
@@ -151,6 +155,16 @@
 			<literal>info</literal>, <literal>notice</literal>, <literal>warning</literal>,
 			<literal>error</literal> and <literal>crit</literal>. The value is
 			not case-sensitive.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>monlog-target</envar></glossterm>
+		<glossdef>
+		    <para>
+			Specifies where to send monitoring log messages. Possible value is
+			<literal>file:<replaceable>FILE</replaceable></literal> that writes all messages to
+			the specified <replaceable>FILE</replaceable>.
 		    </para>
 		</glossdef>
 	    </glossentry>
@@ -180,16 +194,6 @@
 				</para>
 			    </listitem>
 			</itemizedlist>
-		    </para>
-		</glossdef>
-	    </glossentry>
-	    <glossentry>
-		<glossterm><envar>monlog-target</envar></glossterm>
-		<glossdef>
-		    <para>
-			Specifies where to send monitoring log messages. Possible value is
-			<literal>file:<replaceable>FILE</replaceable></literal> that writes all messages to
-			the specified <replaceable>FILE</replaceable>.
 		    </para>
 		</glossdef>
 	    </glossentry>
@@ -316,6 +320,33 @@
     </refsect1>
 
     <refsect1>
+	<title>OPTIONS FOR WSMONITOR</title>
+
+	<para>
+	    The following values can be specified in the <literal>wsmonitor</literal> group:
+	</para>
+	<glosslist>
+	    <glossentry>
+		<glossterm><envar>pid-file</envar></glossterm>
+		<glossdef>
+		    <para>
+			Location of the pid file. When running as a daemon, the <command>wsmonitor</command>
+			stores its process ID in this file.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>port</envar></glossterm>
+		<glossdef>
+		    <para>
+			Network port where <command>wsmonitor</command> should listen on.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	</glosslist>
+    </refsect1>
+
+    <refsect1>
 	<title>DEFINING GRID INSTANCES</title>
 	<para>
 	    If the name of a group is not one of the values described above, then it defines a
@@ -351,6 +382,16 @@
 		    <literal>EGEE</literal>: Submit jobs to an EGEE VO using gLite.
 		</para>
 	    </listitem>
+	    <listitem>
+		<para>
+		    <literal>XTREMWEB</literal>: Submit jobs to an XtremWeb-based desktop grid.
+		</para>
+	    </listitem>
+	    <listitem>
+		<para>
+		    <literal>Java</literal>: Submit jobs using a plugin implemented in Java.
+		</para>
+	    </listitem>
 	</itemizedlist>
     </refsect1>
 
@@ -373,7 +414,9 @@
 			default is used, which is <filename>dc-api.conf</filename> in the current
 			directory. Note that when running as a daemon, the <command>3g-bridge</command>
 			switches to the root directory, so the default value will not work, and a file
-			with an absolute path name must be specified here.
+			with an absolute path name must be specified here. Documentation of this file
+			can be found in the
+			<ulink url="http://www.desktopgrid.hu/storage/dcdoc/backends.html#boinc">DC-API BOINC backend manual</ulink>.
 		    </para>
 		</glossdef>
 	    </glossentry>
@@ -383,6 +426,125 @@
 		    <para>
 			Optional variable for monitoring-related logging when using the BOINC DC-API
 			backend. The value of the variable is added to the monitoring logs.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	</glosslist>
+	<para>
+	    Beside the above variables, the <literal>DC-API</literal> plugin requires additional
+	    configuration variables in the <filename>dc-api.conf</filename> file. These variables
+	    are the followings:
+	</para>
+	<glosslist>
+	    <glossentry>
+		<glossterm><envar>BatchPackScript</envar></glossterm>
+		<glossdef>
+		    <para>
+			This variable defines the location of batch input package creation script, and
+			can be specified in the <literal>Master</literal> section of <filename>dc-api.conf</filename>,
+			but can be overridden in the per-application configurations.
+			The script should parse the following command-line arguments:
+			<orderedlist numeration="lowerroman">
+			    <listitem>
+				<para>base directory where input files are stored</para>
+			    </listitem>
+			    <listitem>
+				<para>name of the input package file</para>
+			    </listitem>
+			    <listitem>
+				<para>pattern to match files to be included</para>
+			    </listitem>
+			    <listitem>
+				<para>pattern to match files to be included</para>
+			    </listitem>
+			    <listitem>
+				<para>...</para>
+			    </listitem>
+			</orderedlist>
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>BatchUnPackScript</envar></glossterm>
+		<glossdef>
+		    <para>
+			This variable defines the location of batch output package unpack script, and
+			can be specified in the <literal>Master</literal> section of <filename>dc-api.conf</filename>,
+			but can be overridden in the per-application configurations.
+			The script should parse the following command-line arguments:
+			<orderedlist>
+			    <listitem>
+				<para>location of batch output package file to unpack</para>
+			    </listitem>
+			    <listitem>
+				<para>location where the batch output should be unpacked to</para>
+			    </listitem>
+			</orderedlist>
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>BatchHeadTemplate</envar></glossterm>
+		<glossdef>
+		    <para>
+			This per-application variable defines the location of the batch head script for a given application. This script
+			is used as the head of the batch job script. A typical task of this script
+			is to unpack the batch input package before jobs of the batch are
+			executed. The template may define one key in the form of <literal>%{inputs}</literal>,
+			which will be replaced with the name of the batch input package file.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>BatchBodyTemplate</envar></glossterm>
+		<glossdef>
+		    <para>
+			This per-application variable defines the location of the batch job template script for a given application.
+			The script is responsible for executing one job within a batch. The template
+			may define the following keys:
+			<itemizedlist>
+			    <listitem>
+				<para>
+				    <literal>%{input_dir}</literal>: location of the job's input
+				    directory within the unpacked batch input directory structure.
+				</para>
+			    </listitem>
+			    <listitem>
+				<para>
+				    <literal>%{output_dir}</literal>: location of the job's output
+				    directory.
+				</para>
+			    </listitem>
+			    <listitem>
+				<para>
+				    <literal>%{args}</literal>: command-line arguments to the job.
+				</para>
+			    </listitem>
+			</itemizedlist>
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>BatchTailTemplate</envar></glossterm>
+		<glossdef>
+		    <para>
+			This per-application variable defines the location of the batch tail script for a given application. The task of
+			this script is to create the batch output package of output files produced
+			by the jobs. The tamplate may define the following keys:
+			<itemizedlist>
+			    <listitem>
+				<para>
+				    <literal>%{outputs}</literal>: name of the batch output package
+				    file.
+				</para>
+			    </listitem>
+			    <listitem>
+				<para>
+				    <literal>%{output_pattern}</literal>: pattern that can be used
+				    to find the files to place into the output package file.
+				</para>
+			    </listitem>
+			</itemizedlist>
 		    </para>
 		</glossdef>
 	    </glossentry>
