@@ -26,6 +26,7 @@
  */
 
 /**
+ * \anchor WSSubmitter
  * @file WSSubmitter.cpp
  * @brief Web Service Submitter.
  * WSSubmitter is responsible for implementing the Web Service interface of 3G

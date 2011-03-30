@@ -25,6 +25,20 @@
  * do so, delete this exception statement from your version.
  */
 
+/**
+ * \anchor WSMonitor
+ * @file WSMonitor.cpp
+ * @brief This file implements the monitoring system with the web service
+ *        interface.
+ * The task of the WSMonitor component is to offer a web service for monitoring
+ * different target grids supported by the 3G Bridge. The WSMonitor is a
+ * standalone component, i.e. it is not necessary to run it together with a 3G
+ * Bridge or WSSubmitter service.
+ * The monitoring system can report the followings about a destination grid:
+ * \li number of running jobs,
+ * \li number of waiting jobs,
+ * \li total number of CPU cores.
+ */
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -52,34 +66,34 @@ using namespace std;
  * Global variables
  */
 
-/* If 'true', exit was requested by a signal */
+/// 'true' if exit was requested by a signal
 static volatile bool finish;
 
-/* If 'true', the log file should be re-opened */
+/// 'true' if the log file should be re-opened
 static volatile bool reload;
 
-/* The global configuration */
+/// The global configuration
 static GKeyFile *global_config = NULL;
 
-/* Config: Location of the plugin directory */
+/// Config: Location of the plugin directory
 static char *plugin_dir;
 
-/* Command line: Location of the config file */
+/// Command line: Location of the config file
 static char *config_file = (char *)SYSCONFDIR "/3g-bridge.conf";
 
-/* Command line: If true, run as a daemon in the background */
+/// Command line: If true, run as a daemon in the background
 static int run_as_daemon = 1;
 
-/* Command line: If true, kill a running daemon */
+/// Command line: If true, kill a running daemon
 static int kill_daemon;
 
-/* Command line: Force debug mode */
+/// Command line: Force debug mode
 static int debug_mode;
 
-/* Command line: Print the version */
+/// Command line: Print the version
 static int get_version;
 
-/* Table of the command-line options */
+/// Table of the command-line options
 static GOptionEntry options[] =
 {
 	{ "config",	'c',	0,			G_OPTION_ARG_FILENAME,	&config_file,
@@ -95,23 +109,34 @@ static GOptionEntry options[] =
 	{ NULL }
 };
 
-/* Set of loaded plugins */
+/// Set of initialized plugin module instances
 static GHashTable *instances;
+
+/// Set of loaded plugin modules
 static GHashTable *modules;
 
-/* Hack for gSoap */
+/// Hack for gSoap
 struct Namespace namespaces[] = {{ NULL, }};
 
 /**********************************************************************
  * Get a plugin instance by name
  */
 
+/**
+ * Close a module.
+ * This function closes a monitoring module.
+ * @param ptr pointer to the module
+ */
 static void close_module(void *ptr)
 {
 	g_module_close((GModule *)ptr);
 }
 
-/* Load the module and get retrieve the address of the factory symbol */
+/**
+ * Load the module and get retrieve the address of the factory symbol.
+ * @param handler name of the monitor module
+ * @return pointer to module initialization function
+ */
 static monitor_factory_func get_factory(const char *handler)
 {
 	monitor_factory_func fn;
@@ -140,6 +165,10 @@ static monitor_factory_func get_factory(const char *handler)
 	return fn;
 }
 
+/**
+ * Free up a monitor module instance.
+ * @param ptr pointer to the instance
+ */
 static void delete_instance(void *ptr)
 {
 	MonitorHandler *instance = (MonitorHandler *)ptr;
@@ -147,7 +176,12 @@ static void delete_instance(void *ptr)
 	delete instance;
 }
 
-/* Create a new MonitorHandle instance for the specified grid */
+/**
+ * Create a new MonitorHandle instance for the specified grid.
+ * @param grid the grid to get the instance for
+ * @return monitor handler instance for the requested grid or NULL in case of
+ *         an error
+ */
 static MonitorHandler *get_instance(const char *grid)
 {
 	MonitorHandler *instance = 0;
@@ -187,6 +221,18 @@ static MonitorHandler *get_instance(const char *grid)
  * Web service routines
  */
 
+/**
+ * Get number of running jobs.
+ * This function is the handler of the "get number of running jobs" web service
+ * request. It gets the instance of the grid the client is interested in, calls
+ * its \c getRunningJobs() method, and returns the resulting number as the
+ * response.
+ * @param soap pointer to the SOAP structure
+ * @param grid name of the selected grid
+ * @param[out] resp the number of running jobs as returned by the monitor
+ *             handler instance
+ * @return SOAP_OK
+ */
 int __G3BridgeMonitor__getRunningJobs(struct soap *soap, std::string grid, unsigned int &resp)
 {
 	MonitorHandler *handler;
@@ -200,6 +246,18 @@ int __G3BridgeMonitor__getRunningJobs(struct soap *soap, std::string grid, unsig
 	return SOAP_OK;
 }
 
+/**
+ * Get number of waiting jobs.
+ * This function is the handler of the "get number of waiting jobs" web service
+ * request. It gets the instance of the grid the client is interested in, calls
+ * its \c getWaitingJobs() method, and returns the resulting number as the
+ * response.
+ * @param soap pointer to the SOAP structure
+ * @param grid name of the selected grid
+ * @param[out] resp the number of waiting jobs as returned by the monitor
+ *             handler instance
+ * @return SOAP_OK
+ */
 int __G3BridgeMonitor__getWaitingJobs(struct soap *soap, std::string grid, unsigned int &resp)
 {
 	MonitorHandler *handler;
@@ -213,6 +271,18 @@ int __G3BridgeMonitor__getWaitingJobs(struct soap *soap, std::string grid, unsig
 	return SOAP_OK;
 }
 
+/**
+ * Get number of CPU cores.
+ * This function is the handler of the "get number of CPU cores" web service
+ * request. It gets the instance of the grid the client is interested in, calls
+ * its \c getCPUCount() method, and returns the resulting number as the
+ * response.
+ * @param soap pointer to the SOAP structure
+ * @param grid name of the selected grid
+ * @param[out] resp the number of CPU cores as returned by the monitor
+ *             handler instance
+ * @return SOAP_OK
+ */
 int __G3BridgeMonitor__getCPUCount(struct soap *soap, std::string grid, unsigned int &resp)
 {
 	MonitorHandler *handler;
@@ -226,6 +296,12 @@ int __G3BridgeMonitor__getCPUCount(struct soap *soap, std::string grid, unsigned
 	return SOAP_OK;
 }
 
+/**
+ * Get version of the monitoring service.
+ * @param soap pointer to the SOAP structure
+ * @param[out] resp version of the service
+ * @return SOAP_OK
+ */
 int __G3BridgeMonitor__getVersion(struct soap *soap, std::string &resp)
 {
 	resp = PACKAGE_STRING;
@@ -236,11 +312,19 @@ int __G3BridgeMonitor__getVersion(struct soap *soap, std::string &resp)
  * Misc. helper functions
  */
 
+/**
+ * INT signal handler.
+ * Sets the finish flag to true.
+ */
 static void sigint_handler(int signal __attribute__((__unused__)))
 {
 	finish = true;
 }
 
+/**
+ * HUP signal handler.
+ * Sets the reload flag to true.
+ */
 static void sighup_handler(int signal __attribute__((__unused__)))
 {
 	reload = true;
@@ -250,6 +334,15 @@ static void sighup_handler(int signal __attribute__((__unused__)))
  * The main program
  */
 
+/**
+ * Main function of WSMonitor
+ * This is the main function of the WSMonitor service. This function is
+ * responsible for parsing command-line arguments, reading the configuration
+ * file, initializing the web service, and handling the requests.
+ * @param argc number of command-line arguments
+ * @param argv value of command-line arguments
+ * @return exit code of the application (0 if OK, not 0 otherwise)
+ */
 int main(int argc, char **argv)
 {
 	GOptionContext *context;

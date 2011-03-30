@@ -42,13 +42,30 @@
  * @image latex doc/Internal_Architecture.png "3G Bridge's internal architecture" width=0.75\textwidth
  *
  * The first block shows the monitoring components with its web service
- * interface.
+ * interface. Relevant components in this documentation are:
+ * \li \ref WSMonitor
+ * \li MonitorHandler
+ * \li BOINCMonitor
+ * \li NullMonitor
  *
  * The second block shows the components offering web service interface for job
- * management in 3G Bridge.
+ * management in 3G Bridge:
+ * \li \ref WSSubmitter
+ * \li DownloadManager
  *
- * Finally, the third block shows core 3G Bridge services responsible for
- * actually performing the job management in destination grids.
+ * Finally, the third block shows core 3G Bridge services (with additional
+ * external services like a web server, a MySQL database, and the filesystem)
+ * responsible for actually performing the job management in destination grids:
+ * \li QueueManager
+ * \li DBHandler
+ * \li GridHandler
+ * \li DCAPIHandler
+ * \li DCAPISingleHandler
+ * \li EGEEHandler
+ * \li JavaHandler
+ * \li EC2Handler
+ * \li XWHandler
+ * \li NullHandler
  *
  *
  * @section idr Internal data representation
@@ -103,7 +120,7 @@
  * download the problematic files. Once all problematic files have been fetched,
  * the given jobs are submitted by the relevant plugin.
  *
- * @see WSSubmitter
+ * @see \ref WSSubmitter
  * @see DBHandler
  * @see DownloadManager
  * @see DLException
