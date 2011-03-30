@@ -39,6 +39,7 @@
  * The following image shows the internal architecture of 3G Bridge with the main
  * components:
  * @image html doc/Internal_Architecture.png "3G Bridge's internal architecture"
+ * @image latex doc/Internal_Architecture.png "3G Bridge's internal architecture" width=0.75\textwidth
  *
  * The first block shows the monitoring components with its web service
  * interface.
