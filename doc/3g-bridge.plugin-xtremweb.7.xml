@@ -7,8 +7,8 @@
 <!ENTITY bull   "&#8226;">
 ]>
 
-<refentry id="3g-bridge.plugin-xtremweb.7" revision="18 Mar 2011">
-
+<refentry id="3g-bridge.plugin-xtremweb.7" revision="30 Mar 2011">
+  
   <refentryinfo>
     <author>
       <personname>
@@ -17,7 +17,7 @@
       </personname>
       <email>urbah@lal.in2p3.fr</email>
     </author>
-    <date>18 Mar 2011</date>
+    <date>30 Mar 2011</date>
     <title>3g-bridge.plugin-xtremweb</title>
     <productname>3G Bridge - XtremWeb plugin</productname>
     <productnumber>@PACKAGE_VERSION@</productnumber>
@@ -36,24 +36,29 @@
                 Documentation</refpurpose>
   </refnamediv>
   
+  
   <refsection>
     <title>Description</title>
     <para>
       For the <application>XtremWeb-HEP</application> plugin of the 3G 
       Bridge, this file provides&nbsp;:
-      <itemizedlist>
+      <itemizedlist spacing="compact">
         <listitem><para>A Glossary,</para></listitem>
         <listitem><para>An Introduction on the Environment and 
                         Architecture,</para></listitem>
         <listitem><para>The Installation and Operation 
                         Manual.</para></listitem>
+        <listitem><para>Elementary tests of the XtremWeb 
+                        plugin</para></listitem>
+        <listitem><para>See also</para></listitem>
       </itemizedlist>
     </para>
   </refsection>
   
   
   <refsection>
-    <title>Glossary</title>
+    <title>Glossary for <application>XtremWeb-HEP</application> and 
+           3G Bridge</title>
     <glosslist>
       <glossentry>
         <glossterm>API</glossterm>
@@ -319,6 +324,7 @@
                         </para></listitem>
       </itemizedlist>
     </refsection>
+    
   </refsection>
   
   
@@ -337,12 +343,14 @@
           http://www.lpds.sztaki.hu/~zfarkas/3g-bridge-1.1r2473.tar.bz2
         </uri>
       </para>
-      <para>The sources of the XtremWeb plugin are inside EDGI SVN, under 
-            the '<filename class="directory">jra1/devel/bridge/xtremweb</filename>' folder:</para>
+      <para>The sources of the XtremWeb plugin are inside the 3G Bridge SVN, 
+            under the 
+            '<uri type="directory">http://edges-3g-bridge.svn.sourceforge.net/viewvc/edges-3g-bridge/3g-bridge/trunk/</uri>' 
+            folder:</para>
       <screen>
-        &bull;  <filename>3g-bridge.conf</filename>           --&gt;  <filename class="directory">3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/etc</filename>
-        &bull;  <filename class="headerfile">XTREMWEB_handler.h</filename>       --&gt;  <filename class="directory">3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/plugins</filename>
-        &bull;  <filename>XTREMWEB_handler.cpp</filename>     --&gt;  <filename class="directory">3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/plugins</filename>
+        &bull;  <filename>etc/3g-bridge.conf</filename>               --&gt;  <filename class="directory">3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/etc</filename>
+        &bull;  <filename class="headerfile">plugins/XTREMWEB_handler.h</filename>       --&gt;  <filename class="directory">3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/plugins</filename>
+        &bull;  <filename>plugins/XTREMWEB_handler.cpp</filename>     --&gt;  <filename class="directory">3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/plugins</filename>
       </screen>
     </refsection>
     
@@ -406,7 +414,7 @@ http://dev17-portal.cpc.wmin.ac.uk:8080/repository/user/welcome.xhtml
       <para><prompt>$</prompt> <userinput><command>mysql</command> <option>-u</option> <parameter>bridge</parameter> <option>-p</option> <database>bridge</database></userinput></para>
       <programlisting>
 <command>SOURCE</command> <filename>3g-bridge-1.1/db/schema.sql</filename>
-<command>INSERT</command> INTO cg_algqueue(grid, alg, batchsize) VALUES ("XW_&lt;<replaceable>server</replaceable>&gt;_DG", "DSP", 10);
+<command>INSERT</command> INTO cg_algqueue(grid, alg, batchsize) VALUES ("XW_&lt;<replaceable>server</replaceable>&gt;_DG", "dsp", 10);
 <command>EXIT</command>
       </programlisting>
     </refsection>
@@ -420,10 +428,10 @@ http://dev17-portal.cpc.wmin.ac.uk:8080/repository/user/welcome.xhtml
       <para><prompt>#</prompt> <userinput><command>adduser</command> <option>--ingroup</option> <parameter>staff</parameter> <parameter>bridge</parameter></userinput></para>
       <para></para>
       <para>Inside <filename>~bridge/.bashrc</filename> &nbsp;: &nbsp; &nbsp; 
-            (to be verified)</para>
+            (works only for interactive shells)</para>
       <programlisting>
-<command>export</command> <parameter><envar>LANG</envar>=<constant>C</constant></parameter>          #  This forces the generation of all messages in English
-<command>umask</command> <parameter>007</parameter>              #  This permits staff members to purge 3G Bridge work files
+<command>export</command> <envar>LANG</envar>=<constant>C</constant>          #  This forces the generation of all messages in English
+<command>umask</command> <parameter>002</parameter>              #  This permits staff members to purge 3G Bridge work files
         </programlisting>
     </refsection>
     
@@ -431,29 +439,29 @@ http://dev17-portal.cpc.wmin.ac.uk:8080/repository/user/welcome.xhtml
       <title>File '<filename>3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/etc/3g-bridge.conf</filename>'</title>
       <programlisting>
 [bridge]
-<symbol>log-target</symbol> = <filename>/var/log/3g-bridge/3g-bridge.log</filename>
-<symbol>pid-file</symbol>   = <filename>/var/run/3g-bridge/3g-bridge.pid</filename>
+<varname>log-target</varname> = <filename>/var/log/3g-bridge/3g-bridge.log</filename>
+<varname>pid-file</varname>   = <filename>/var/run/3g-bridge/3g-bridge.pid</filename>
 
 [wssubmitter]
-<symbol>log-target</symbol> = <filename>/var/log/3g-bridge/wssubmitter.log</filename>
-<symbol>pid-file</symbol>   = <filename>/var/run/3g-bridge/wssubmitter.pid</filename>
-<symbol>input-dir</symbol>  = <filename class="directory">/var/opt/3g-bridge/input</filename>
-<symbol>output-dir</symbol> = <filename class="directory">/var/opt/3g-bridge/output</filename>
-<symbol>port</symbol>       = &lt;<replaceable>wssubmitter-port</replaceable>&gt;
+<varname>log-target</varname> = <filename>/var/log/3g-bridge/wssubmitter.log</filename>
+<varname>pid-file</varname>   = <filename>/var/run/3g-bridge/wssubmitter.pid</filename>
+<varname>input-dir</varname>  = <filename class="directory">/var/opt/3g-bridge/input</filename>
+<varname>output-dir</varname> = <filename class="directory">/var/opt/3g-bridge/output</filename>
+<varname>port</varname>       = &lt;<replaceable>wssubmitter-port</replaceable>&gt;
 
 [wsmonitor]
-<symbol>log-target</symbol> = <filename>/var/log/3g-bridge/wsmonitor.log</filename>
-<symbol>pid-file</symbol>   = <filename>/var/run/3g-bridge/wsmonitor.pid</filename>
+<varname>log-target</varname> = <filename>/var/log/3g-bridge/wsmonitor.log</filename>
+<varname>pid-file</varname>   = <filename>/var/run/3g-bridge/wsmonitor.pid</filename>
 
 [XW_&lt;<replaceable>server</replaceable>&gt;_DG]
-<symbol>enable</symbol>       = true
-<symbol>handler</symbol>      = XTREMWEB
+<varname>enable</varname>       = <literal>true</literal>
+<varname>handler</varname>      = <literal>XTREMWEB</literal>
 # XtremWeb-HEP client install prefix
 # Default value is /opt/xwhep-client-
 # You can set it up to <filename class="directory">/opt/xwhep-client-i.j.k</filename>
-<symbol>xw_client_install_prefix</symbol> = /opt/xwhep-client-
+<varname>xw_client_install_prefix</varname> = /opt/xwhep-client-
 # Folder for XtremWeb input and output files
-<symbol>xw_files_dir</symbol> = <filename class="directory">/var/opt/3g-bridge/xwhep</filename>
+<varname>xw_files_dir</varname> = <filename class="directory">/var/opt/3g-bridge/xwhep</filename>
       </programlisting>
     </refsection>
     
@@ -478,14 +486,51 @@ http://dev17-portal.cpc.wmin.ac.uk:8080/repository/user/welcome.xhtml
     <refsection>
       <title>Startup of the 3G Bridge with the 
              <application>XtremWeb-HEP</application> plugin</title>
-      <para><prompt>$</prompt> <userinput><command>su</command> <option>-c</option> <application>/usr/local/sbin/3g-bridge</application> <parameter>bridge</parameter></userinput></para>
-      <para><prompt>$</prompt> <userinput><command>su</command> <option>-c</option> <application>/usr/local/sbin/wssubmitter</application> <parameter>bridge</parameter></userinput></para>
+      <para><prompt>$</prompt> <userinput><command>su</command> 
+            <option>-c</option> '<command>umask</command> 
+            <parameter>002</parameter>; 
+            <envar>LANG</envar>=<constant>C</constant> 
+            <application>/usr/local/sbin/3g-bridge</application>' 
+            <parameter>bridge</parameter></userinput></para>
+      <para><prompt>$</prompt> <userinput><command>su</command> 
+            <option>-c</option> '<command>umask</command> 
+            <parameter>002</parameter>; 
+            <envar>LANG</envar>=<constant>C</constant> 
+            <application>/usr/local/sbin/wssubmitter</application>' 
+            <parameter>bridge</parameter></userinput></para>
     </refsection>
+    
+    <refsection>
+      <title>Periodic purge of <application>XtremWeb-HEP</application> work 
+             files</title>
+      <para>From time to time, it is necessary to purge old work files 
+            from the folder defined in the configuration file by the 
+            '<varname>xw_files_dir</varname>' variable.</para>
+      <para>By default, this folder is 
+            '<filename class="directory">/var/opt/3g-bridge/xwhep</filename>'.
+            </para>
+    </refsection>
+    
   </refsection>
   
   
   <refsection>
-    <title>Tests of the XtremWeb pluging</title>
+    <title>Elementary tests of the XtremWeb plugin</title>
+    
+    <refsection>
+      <title>Usage of the '<application>dsp</application>' application</title>
+      <itemizedlist>
+        <listitem><para>The value of the '<option>-i</option>' option can be 
+                        set freely between <literal>0</literal> and 
+                        <literal>722</literal>.</para></listitem>
+        <listitem><para>Beware that the current version of the 
+                        '<application>dsp</application>' application 
+                        reads its input file from the file 
+                        '<filename>./pools.txt</filename>' regardless 
+                        of the value of the '<option>-n</option>' 
+                        option.</para></listitem>
+      </itemizedlist>
+    </refsection>
 
     <refsection>
       <title>Usage of the '<application>wsclient</application>' utility of 
@@ -544,6 +589,7 @@ http://dev17-portal.cpc.wmin.ac.uk:8080/repository/user/welcome.xhtml
       <para>Extract only errors from the (very verbose) log&nbsp;:</para>
       <para><prompt>$</prompt> <userinput><command>grep</command> <option>-E</option> 'CRIT:|ERROR:|NOTICE:' <filename>/var/log/3g-bridge/3g-bridge.log</filename></userinput></para>
     </refsection>
+    
   </refsection>
   
   
