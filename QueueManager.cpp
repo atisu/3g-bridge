@@ -36,6 +36,19 @@
  * WSSubmitter. The internal data representation is making use of MySQL in order
  * to offer persistance.
  *
+ * The following image shows the internal architecture of 3G Bridge with the main
+ * components:
+ * @image html doc/Internal_Architecture.png "3G Bridge's internal architecture"
+ *
+ * The first block shows the monitoring components with its web service
+ * interface.
+ *
+ * The second block shows the components offering web service interface for job
+ * management in 3G Bridge.
+ *
+ * Finally, the third block shows core 3G Bridge services responsible for
+ * actually performing the job management in destination grids.
+ *
  *
  * @section idr Internal data representation
  * Data of 3G Bridge is stored in a MySQL database. The important tables are
