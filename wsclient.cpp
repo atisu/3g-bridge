@@ -33,6 +33,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <uuid/uuid.h>
+#include <sys/stat.h>
 
 #include <vector>
 #include <fstream>

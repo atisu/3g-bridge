@@ -54,6 +54,7 @@
 #include <errno.h>
 #include <sys/inotify.h>
 #include <poll.h>
+#include <sys/stat.h>
 
 #include <openssl/crypto.h>
 #include <openssl/md5.h>
