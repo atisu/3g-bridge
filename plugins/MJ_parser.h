@@ -10,6 +10,8 @@
 #include <sstream>
 #include <vector>
 
+#include "FileRef.h"
+
 using namespace std;
 
 /**
@@ -17,15 +19,19 @@ using namespace std;
  */
 namespace _3gbridgeParser
 {
-	typedef map<string, string> inputMap;
+	typedef map<string, FileRef> inputMap;
 
 	/**
 	 * Callback data for job creation
 	 */
 	typedef struct JobDef
 	{
+		JobDef() {}
+		// JobDef(string grid, string algName, string args,
+		//        vector<string> const &outputs, vector<string> const &inputs);
 		JobDef(string grid, string algName, string args,
-		       vector<string> outputs, vector<string> inputs);
+		       vector<string> const &outputs,
+		       inputMap const &inpMap);
 
 		// Predefined by caller of parseMetaJob()
 		string dbId; //valid only after the job has been
@@ -53,10 +59,18 @@ namespace _3gbridgeParser
 	{
 		MetaJobDef()
 			: count(0), startLine(0), finished(false) {}
+		MetaJobDef(size_t count, size_t startLine,
+			   string strRequired, string strSuccessAt)
+			: count(count),
+			  startLine(startLine),
+			  strRequired(strRequired),
+			  strSuccessAt(strSuccessAt)
+		{
+		}
 
 		// Predefined by caller and changed by parseMetaJob()
-		int count;
-		int startLine;
+		size_t count;
+		size_t startLine;
 
 		/**
 		 * Percentage specifications stored by parseMetaJob()
@@ -68,8 +82,8 @@ namespace _3gbridgeParser
 		string strSuccessAt;
 
 		// Set by parseMetaJob() when parsing is fully done
-		int required;
-		int successAt;
+		size_t required;
+		size_t successAt;
 		bool finished;
 	} MetaJobDef;
 
@@ -80,7 +94,7 @@ namespace _3gbridgeParser
 	 * @param jobDef Information to create the job
 	 * @param count  How many copies have to be created
 	 */
-	typedef void (*queueJobHandler)(const JobDef &jobDef, int count);
+	typedef void (*queueJobHandler)(const JobDef &jobDef, size_t count);
 
 	/**
 	 * Parses the meta-job specification from a stream. For each job, calls
@@ -98,7 +112,7 @@ namespace _3gbridgeParser
 			  MetaJobDef &mjd,
 			  JobDef &jobDef,
 			  queueJobHandler handler,
-			  int maxJobs = 0);
+			  size_t maxJobs = 0);
 
 	namespace HelperFunctions
 	{

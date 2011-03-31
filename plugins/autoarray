@@ -1,0 +1,21 @@
+/* -*- mode: c++; coding: utf-8-unix -*- */
+
+#ifndef __AUTOARRAY_
+#define __AUTOARRAY_
+
+/**
+ * Creates, stores and automatically frees an array on the heap. */
+template  <class T, size_t length>
+class AutoArray
+{
+	T *_array;
+	
+public:
+	AutoArray() { _array = new T[length]; }
+	~AutoArray() { delete [] _array; }
+	
+	T *array() { return _array; }
+	size_t size() const { return length; }
+};
+
+#endif //__AUTOARRAY_

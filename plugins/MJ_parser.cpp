@@ -108,7 +108,7 @@ static void rtrim(char *str);
 static string cutKeyword(char *start, char **end); //return: keyword
 /**
  * Parse args of Input keyword; return: key */
-static string parseInputSpecs(int lineNum, CSTR spec, string &value);
+static string parseInputSpecs(int lineNum, CSTR spec, FileRef &value);
 /**
  * Parse a single line of input
  * Return: How many jobs to queue */
@@ -199,22 +199,10 @@ namespace _3gbridgeParser
 	} //parseMetaJob
 
 	JobDef::JobDef(string grid, string algName, string args,
-		       vector<string> outputs, vector<string> inputs)
-		: grid(grid), algName(algName), outputs(outputs), args(args)
+	       vector<string> const &outputs, inputMap const &inpMap)
+		: grid(grid), algName(algName),
+		  outputs(outputs), args(args), inputs(inpMap)
 	{
-		// The inputs given among arguments will define the set of input
-		// files.
-		//
-		//   Only the corresponding values will change, the set will
-		// not.
-		for (vector<string>::const_iterator i = inputs.begin();
-		     i != inputs.end(); i++)
-		{
-			string value;
-			string ifname = parseInputSpecs(0, i->c_str(),
-							value);
-			this->inputs[ifname] = value;
-		}
 	}
 
 	namespace HelperFunctions
@@ -235,8 +223,12 @@ namespace _3gbridgeParser
 			for (inputMap::const_iterator i = jd.inputs.begin();
 			     i != jd.inputs.end(); i++)
 			{
+				const FileRef &fr = i->second;
 				output << KW_INPUT<<' '<<EQ<<' '
-				       << i->second << endl;
+				       << fr.getURL()<<'='
+				       << fr.getMD5()<<'='
+				       << fr.getSize()
+				       << endl;
 			}
 
 			output << KW_QUEUE << endl << endl;
@@ -272,7 +264,7 @@ static int parseLine(int lineNum,
 	else if (keyword == KW_INPUT)
 	{
 		CHECK_EQ_SIGN(value); SKIPSPACES(value);
-		string ifinstance;
+		FileRef ifinstance;
 		string ifname = parseInputSpecs(lineNum, value, ifinstance);
 		jd.inputs[ifname] = ifinstance;
 	}
@@ -341,13 +333,13 @@ static string cutKeyword(char *start, char **end)
 	return keyword;
 }
 
-static string parseInputSpecs(int lineNum, CSTR spec, string &value)
+static string parseInputSpecs(int lineNum, CSTR spec, FileRef &value)
 {
 	CSTR i = spec;
 	while (*i && *i != EQ) i++; //find first '='
 	if (!*i) throw ParserException(lineNum, ERR_INVALID_INPUTFILE);
 
-	value = string(spec);
+	value = FileRef(); //string(spec); //abc
 	return string(spec, i-spec);
 }
 

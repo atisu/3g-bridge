@@ -45,6 +45,7 @@
 #include <errno.h>
 #include <sys/inotify.h>
 #include <poll.h>
+#include <sys/stat.h>
 
 #include <openssl/crypto.h>
 #include <openssl/md5.h>
@@ -63,7 +64,7 @@ using namespace std;
  */
 
 /* Configuration: Name of meta-job grid */
-static char *metaJobGrid = "MetaJob"; //TODO: make configurable
+static char const * const metaJobGrid = "MetaJob"; //TODO: make configurable
 
 /* Configuration: Where to download job input files */
 static char *input_dir;
@@ -315,7 +316,7 @@ bool isMetaJobSpec(const string &fname)
 bool checkMetaJob(const G3BridgeSubmitter__Job &wsjob) throw(int)
 {
 	bool isMetaJob = false;
-	for (vector<G3BridgeSubmitter__LogicalFile *>::const_iterator inpit = wsjob->inputs.begin(); inpit != wsjob->inputs.end(); inpit++)
+	for (vector<G3BridgeSubmitter__LogicalFile *>::const_iterator inpit = wsjob.inputs.begin(); inpit != wsjob.inputs.end(); inpit++)
 	{
 		if (isMetaJobSpec((*inpit)->logicalName))
 		{
@@ -326,6 +327,8 @@ bool checkMetaJob(const G3BridgeSubmitter__Job &wsjob) throw(int)
 				isMetaJob = true; //Don't break, check whether there are too many specified
 		}
 	}
+
+	return isMetaJob;
 }
 
 /**********************************************************************
@@ -474,7 +477,10 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 			//TODO: reject
 		}
 
-		char* destinationGrid = isMetaJob ? metaJobGrid : wsjob->grid.c_str();
+		char const * destinationGrid =
+			isMetaJob
+			? metaJobGrid
+			: wsjob->grid.c_str();
 		Job *qmjob = new Job((const char *)jobid, wsjob->alg.c_str(), destinationGrid, wsjob->args.c_str(), Job::INIT, &wsjob->env);
 
 		if (wsjob->tag)
@@ -627,6 +633,8 @@ int __G3BridgeSubmitter__getStatus(struct soap *soap, G3BridgeSubmitter__JobIDLi
 
 int __G3BridgeSubmitter__delete(struct soap *soap, G3BridgeSubmitter__JobIDList *jobids, struct __G3BridgeSubmitter__deleteResponse &result G_GNUC_UNUSED)
 {
+	//TODO: delete files
+
 	DBHandler *dbh;
 
 	try

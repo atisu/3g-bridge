@@ -188,6 +188,14 @@ public:
 	const FileRef &getInputRef(const string localname) { return inputs[localname]; }
 
 	/**
+	 * Get all file reference info at once.
+	 * @see inputs
+	 * @see FileRef
+	 * @return A maping of logical names to input file references.
+	 */
+	const map<string, FileRef> &getInputRefs() const { return inputs; }
+
+	/**
 	 * Add an output file to the job.
 	 * This function adds an output file to the job.
 	 * @see outputs

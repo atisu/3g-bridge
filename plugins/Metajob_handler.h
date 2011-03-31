@@ -31,6 +31,7 @@
 
 #include "Job.h"
 #include "GridHandler.h"
+#include "MJ_parser.h"
 
 using namespace std;
 
@@ -59,7 +60,10 @@ public:
 	void poll(Job *job) throw (BackendException *);
 
 private:
-}
+	static void qJobHandler(_3gbridgeParser::JobDef const &jd, size_t count);
+
+	size_t maxJobsAtOnce;
+};
 
 
 #endif //METAJOB_HANDLER_H
