@@ -193,6 +193,7 @@ EXTRA_DIST += \
 docdir = ${datadir}/doc/${PACKAGE}
 
 dist_doc_DATA = \
+		README \
 		doc/README-EC2 \
 		doc/README-BOINC2EGEE \
 		doc/jobwrapper_client.xml \
