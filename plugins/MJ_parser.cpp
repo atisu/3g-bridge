@@ -135,13 +135,13 @@ namespace _3gbridgeParser
 			  MetaJobDef &mjd,
 			  JobDef &jobDef,
 			  queueJobHandler handler,
-			  int maxJobs)
+			  size_t maxJobs)
 	{
 		if(mjd.finished)
 			throw ParserException(-1, ERR_MJ_FINISHED);
 
-		int lineNum = 0;
-		int jobCount = 0;
+		size_t lineNum = 0;
+		size_t jobCount = 0;
 
 		{ //enclose buf
 			AutoArray<char, LINE_BUF_SIZE> buf;
@@ -198,9 +198,13 @@ namespace _3gbridgeParser
 		}
 	} //parseMetaJob
 
-	JobDef::JobDef(string grid, string algName, string args,
-	       vector<string> const &outputs, inputMap const &inpMap)
-		: grid(grid), algName(algName),
+	JobDef::JobDef(string const &metajobid,
+		       string const &grid,
+		       string const &algName,
+		       string const &args,
+		       outputMap const &outputs,
+		       inputMap const &inpMap)
+		: metajobid(metajobid), grid(grid), algName(algName),
 		  outputs(outputs), args(args), inputs(inpMap)
 	{
 	}
@@ -339,7 +343,7 @@ static string parseInputSpecs(int lineNum, CSTR spec, FileRef &value)
 	while (*i && *i != EQ) i++; //find first '='
 	if (!*i) throw ParserException(lineNum, ERR_INVALID_INPUTFILE);
 
-	value = FileRef(); //string(spec); //abc
+	value = FileRef(); //TODO: string -> fileref
 	return string(spec, i-spec);
 }
 

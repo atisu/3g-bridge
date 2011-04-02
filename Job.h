@@ -50,6 +50,11 @@ using namespace std;
  * @author Zoltán Farkas <zfarkas@sztaki.hu>
  */
 class Job {
+	//Common code for different constructors
+	void init(const char *name, const char *grid,
+			 const char *args,
+			 const vector<string> *env);
+
 public:
 	/**
 	 * Enumerator of job statuses.
@@ -99,6 +104,29 @@ public:
 	 * @see envs
 	 */
 	Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const vector<string> *env = NULL);
+
+	/**
+	 * Constructor of a Job object.
+	 * This constructor is used to create an initial Job object by filling
+	 * in the main attributes: the job's identifier, the application's name,
+	 * the destination grid, the command-line arguments, the job's status,
+	 * and possible environment variables. Other properties have to be set
+	 * using the relevant function.
+	 * @param id the job's unique identifier.
+	 * @param metajobid the id of the parent meta-job, can be null
+	 * @param name the name of the executable/application.
+	 * @param grid destination grid/plugin name to use.
+	 * @param args command-line arguments.
+	 * @param status status of the job.
+	 * @param env environment variables for the job.
+	 * @see id
+	 * @see name
+	 * @see args
+	 * @see grid
+	 * @see status
+	 * @see envs
+	 */
+	Job(const char *id, const char *metajobid, const char *name, const char *grid, const char *args, JobStatus status, const vector<string> *env = NULL);
 
 	/**
 	 * Default constructor.
@@ -223,6 +251,8 @@ public:
 	 */
 	const string &getOutputPath(const string localname) { return outputs[localname]; }
 
+	const map<string, string> &getOutputMap() const { return outputs; }
+
 	/**
 	 * Set the job's grid identifier.
 	 * This function sets the job's grid identifier.
@@ -254,6 +284,20 @@ public:
 	 * @return the job's grid data
 	 */
 	const string &getGridData() const { return gridData; }
+
+	/**
+	 * Sets the id of the parent meta-job.
+	 * @see metajobid
+	 * @param mjId the meta-job id to set
+	 */
+	void setMetajobId(const string &mjId);
+
+	/**
+	 * Get the id of the parent meta-job (if any).
+	 * @see metajobid
+	 * @return the id of the parent meta-job
+	 */
+	const string &getMetajobId() const { return metajobid; }
 
 	/**
 	 * Set the job's tag.
@@ -327,6 +371,9 @@ public:
 private:
 	/// The job's unique identifier.
 	string id;
+
+	/// The id of the parent meta-job (if any) 
+	string metajobid;
 
 	/// The executable/application name belonging to the job.
 	string name;

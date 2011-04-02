@@ -149,6 +149,13 @@ class DBHandler {
 	void getCompleteWUsSingle(vector<string> &ids, const string &grid, Job::JobStatus stat);
 
 	/**
+	 * Update a job's parent meta-job id
+	 * @param ID the job's identifier
+	 * @param metajobid the id of the parent meta-job
+	 */
+	void updateJobMetajobId(const string &ID, const string &metajobid);
+
+	/**
 	 * Update a job's grid identifier.
 	 * @param ID the job's identifier
 	 * @param gridID the grid identifier to set
@@ -257,6 +264,9 @@ class DBHandler {
 	void getAllDLs(void (*cb)(const char *jobid, const char *localName,
 			const char *url, const struct timeval *next, int retries));
 	void updateInputPath(const string &jobid, const string &localName, const string &path);
+	void updateInputPath(const string &jobid, const string &localName,
+			     const FileRef &ref);
+	void setMetajobChildrenStatus(const string &mjid, Job::JobStatus newstat);
 
     protected:
 	/// DBResult friend class.

@@ -34,6 +34,7 @@
 #include "MJ_parser.h"
 
 using namespace std;
+using namespace _3gbridgeParser;
 
 class MetajobHandler : public GridHandler
 {
@@ -60,9 +61,27 @@ public:
 	void poll(Job *job) throw (BackendException *);
 
 private:
+	static DBHandler *commonDBH;
+
+	static DBHandler *getCommonDBH();
+	static void putCommonDBH();
+	
 	static void qJobHandler(_3gbridgeParser::JobDef const &jd, size_t count);
 
+	// Utility functions
+	static void updateJob(Job *job, MetaJobDef const &mjd, JobDef const &jd)
+		throw (BackendException);
+	static void translateJob(Job const *job, MetaJobDef &mjd, JobDef &jd,
+				 string &mjfileName)
+		throw (BackendException);
+	static void getExtraData(const string &data,
+				 string &grid,  size_t &count, size_t &startLine,
+				 string &reqd, string &succAt, string const &jobId)
+		throw (BackendException*);
+
 	size_t maxJobsAtOnce;
+
+	string output_dir;
 };
 
 

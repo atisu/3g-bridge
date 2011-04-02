@@ -211,6 +211,7 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 	uuid_t uuid;
 
 	const char *alg = res.get_field("alg");
+	const char *metajobid = res.get_field("metajobid");
 	const char *grid = res.get_field("grid");
 	const char *args = res.get_field("args");
 	const char *gridid = res.get_field("gridid");
@@ -247,6 +248,8 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 		job->setGridData(griddata);
 	if (tag)
 		job->setTag(tag);
+	if (metajobid)
+		job->setMetajobId(metajobid);
 
 	// Get inputs for job from db
 	DBHandler *dbh = get();
@@ -428,6 +431,12 @@ void DBHandler::updateAlgQStat(const char *gridId, unsigned pSize, unsigned pTim
 	updateAlgQStat(algQ, pSize, pTime);
 }
 
+void DBHandler::updateJobMetajobId(const string &ID, const string &metajobid)
+{
+	char *mjid = escape_string(metajobid.c_str());
+	query("UPDATE cg_job SET metajobid='%s' WHERE id='%s'", mjid, ID.c_str());
+	free(mjid);
+}
 
 void DBHandler::updateJobGridID(const string &ID, const string &gridID)
 {
@@ -742,6 +751,20 @@ void DBHandler::updateInputPath(const string &jobid, const string &localName,
 	free(url);
 }
 
+void DBHandler::updateInputPath(const string &jobid, const string &localName,
+				const FileRef &ref)
+{
+	char *url = escape_string(ref.getURL().c_str());
+	char *md5 = escape_string(ref.getMD5());
+	query("UPDATE cg_inputs "
+	      "SET url = '%s', md5='%s', filesize=%ld "
+	      "WHERE id = '%s' AND localname = '%s'",
+	      url, md5, ref.getSize(),
+	      jobid.c_str(), localName.c_str());
+	free(md5);
+	free(url);
+}
+
 void DBHandler::init(GKeyFile *config)
 {
 	GError *error = NULL;
@@ -818,4 +841,9 @@ char *DBHandler::escape_string(const char *input)
 	char *dbuf = (char *)malloc(2*inlen+1);
 	mysql_real_escape_string(conn, dbuf, input, inlen);
 	return dbuf;
+}
+
+void DBHandler::setMetajobChildrenStatus(const string &mjid, Job::JobStatus newstat)
+{
+	query("UPDATE cg_job SET status='%s' WHERE metajobid='%s'", statToStr(newstat), mjid.c_str());
 }

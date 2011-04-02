@@ -20,6 +20,7 @@ using namespace std;
 namespace _3gbridgeParser
 {
 	typedef map<string, FileRef> inputMap;
+	typedef map<string, string> outputMap;
 
 	/**
 	 * Callback data for job creation
@@ -27,18 +28,20 @@ namespace _3gbridgeParser
 	typedef struct JobDef
 	{
 		JobDef() {}
-		// JobDef(string grid, string algName, string args,
-		//        vector<string> const &outputs, vector<string> const &inputs);
-		JobDef(string grid, string algName, string args,
-		       vector<string> const &outputs,
+		JobDef(string const &metajobid,
+		       string const &grid,
+		       string const &algName,
+		       string const &args,
+		       outputMap const &outputs,
 		       inputMap const &inpMap);
 
 		// Predefined by caller of parseMetaJob()
+		string metajobid;
 		string dbId; //valid only after the job has been
-		//inserted to DB
+			     //inserted to DB
 		string grid;
 		string algName;
-		vector<string> outputs;
+		outputMap outputs;
 
 		// Set by parseMetaJob()
 		string comment;

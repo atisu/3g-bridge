@@ -38,9 +38,9 @@
 
 using namespace std;
 
-
-Job::Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const vector<string> *env):
-		id(id),name(name),grid(grid),status(status)
+void Job::init(const char *name, const char *grid,
+	       const char *args,
+	       const vector<string> *env)
 {
 	if (args)
 		this->args = args;
@@ -68,6 +68,19 @@ Job::Job(const char *id, const char *name, const char *grid, const char *args, J
 	}
 }
 
+Job::Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const vector<string> *env):
+		id(id),name(name),grid(grid),status(status)
+{
+	init(name, grid, args, env);
+}
+
+Job::Job(const char *id, const char *metajobid, const char *name,
+	 const char *grid, const char *args,
+	 JobStatus status, const vector<string> *env)
+	: id(id), metajobid(metajobid), name(name), grid(grid), status(status)
+{
+	init(name, grid, args, env);
+}
 
 Job::~Job()
 {
@@ -105,6 +118,15 @@ auto_ptr< vector<string> > Job::getOutputs() const
 	for (it = outputs.begin(); it != outputs.end(); it++)
 		rval->push_back(it->first);
 	return rval;
+}
+
+void Job::setMetajobId(const string &mjId)
+{
+	metajobid = mjId;
+
+	DBHandler *dbH = DBHandler::get();
+	dbH->updateJobMetajobId(id, metajobid);
+	DBHandler::put(dbH);
 }
 
 
