@@ -40,18 +40,74 @@
 #include "Metajob_handler.h"
 #include "MJ_parser.h"
 #include "Util.h"
-#include "DBHandler.h"
+#include "DLException.h"
+
+//MJ Extra data information:
+//  Extra information is stored in the job's gridid field.
+//
+//  TODO: Move to external table.
+//
+//  Stored as string, format:
+//     grid{|count|startLine|required|successAt}
+//  {} means optional, | is the '|' character itself
+//
+//  WSSubmitter stores only the grid. Everything else is added by updateJob()
+//  (in this file).
+//
+// grid:      Original destination grid; dest. grid for sub-jobs.
+// count:     Number of sub-jobs generated so far.
+// startLine: Last position in _3gb-metajob* sepcification. Continue
+//            from here.
+// required:  So many jobs needed to successfully finish in order for the
+//            meta-job to be successful. It will only has meaning when all
+//            sub-jobs are generated. At this time this will be an integer
+//            defining the actual number. Up until that it will be a string
+//            unparsed by parseMetajob().
+// successAt: When this number of sub-jobs has successfully finished, all
+//            remaining are canceled and the meta-job automatically
+//            succeeds. Same deal as required.
+
 
 using namespace _3gbridgeParser;
 using namespace std;
 
-char const * const CONFIG_GROUP = "metajob";
-char const * const CFG_MAXJOBS = "maxJobsAtOnce";
+CSTR_C CONFIG_GROUP = "metajob";
+CSTR_C CFG_MAXJOBS = "maxJobsAtOnce";
+CSTR_C CFG_MINEL = "minElapse";
 
+/**
+ * Cut out the base directory from the path of one of the meta-job's outputs.
+ * This directory will be used as base directory for sub-job's outputs. */
 static string getOutDirBase(const string &outPath);
+/**
+ * Construct and create the path to where output shall be saved. */
 static string calc_output_path(const string &basedir,
 			       const string &jobid,
 			       const string &localName);
+/**
+ * Exception handler for submitJobs*/
+static void submit_handleError(DBHandler *dbh, const char *msg, const Job *job);
+
+static size_t getConfInt(GKeyFile *config, CSTR key, int defVal)
+{
+	GError *error = 0;
+	size_t value =
+		g_key_file_get_integer(config, CONFIG_GROUP, key, &error);
+	if (error)
+	{
+		if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND)
+		{
+			LOG(LOG_ERR,
+			    "Metajob Handler: "
+			    "Failed to parse configuration '%s': %s",
+			    key, error->message);
+		}
+		value = defVal;
+		g_error_free(error);
+	}
+
+	return value;
+}
 
 MetajobHandler::MetajobHandler(GKeyFile *config, const char *instance)
 	throw (BackendException*)
@@ -59,19 +115,8 @@ MetajobHandler::MetajobHandler(GKeyFile *config, const char *instance)
 {
 	groupByNames = false;
 
-	GError *error = 0;
-	maxJobsAtOnce = g_key_file_get_integer(config,
-					       CONFIG_GROUP, CFG_MAXJOBS,
-					       &error);
-	if (error)
-	{
-		if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND)
-			LOG(LOG_ERR,
-			    "Failed to parse the max DB connection number: %s",
-			    error->message);
-		maxJobsAtOnce = 0; //unlimited
-		g_error_free(error);
-	}
+	maxJobsAtOnce = getConfInt(config, CFG_MAXJOBS, 0); //Default: unlimited
+	minElapse = getConfInt(config, CFG_MINEL, 60); //Default: a minute
 
 	LOG(LOG_INFO,
 	    "Metajob Handler: instance '%s' initialized.",
@@ -84,55 +129,110 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 	for (JobVector::iterator i = jobs.begin(); i!= jobs.end(); i++)
 	{
 		Job *job = *i;
+		CSTR_C jId = job->getId().c_str();
 
 		// Load last state (or initialize)
+		// This will also check if _3gb-metajob is available on local
+		// FS. If not, it will raise a DLException.
 		MetaJobDef mjd;
 		JobDef jd;
 		string mjfileName;
 		translateJob(job, mjd, jd, mjfileName);
 
+		// _3gb-metajob* on filesystem
 		ifstream mjfile(mjfileName.c_str());
 
-		assert(!commonDBH);
-		DBHandler *dbh = getCommonDBH();
+		DBHWrapper dbh; // Gets a new dbhandler and implements finally
+				// block to free it when dbh goes out of scope
+		//All operations in this block use the same dbh (and thus
+		//transaction)
 		try
 		{
+			LOG(LOG_INFO,
+			    mjd.count
+			    ? "Continuing to unfold meta-job: '%s'."
+			    : "Starting to unfold meta-job: '%s'",
+			    jId);
+
+			// Unfolding a batch and storing the new state for the
+			// next iteration is done in a single transaction. If
+			// anything fails, the next iteration will start from a
+			// consistent state, without generating duplicates.
 			dbh->query("START TRANSACTION");
 
 			// This will insert multiple jobs by calling qJobHandler
-			parseMetaJob(mjfile, mjd, jd,
-				     &qJobHandler, maxJobsAtOnce);
+			parseMetaJob(*dbh, mjfile, mjd, jd,
+				     (queueJobHandler)&qJobHandler,
+				     maxJobsAtOnce);
 
-			// Save state for next iteration
-			updateJob(job, mjd, jd);
+			// Store state for next iteration
+			updateJob(*dbh, job, mjd, jd);
 
 			// Start sub-jobs if all are done
 			if (mjd.finished) {
+				LOG(LOG_INFO,
+				    "Finished unfolding meta-job '%s'. "
+				    "Total sub-jobs generated: %lu",
+				    jId, mjd.count);
+				LOG(LOG_INFO,
+				    "Starting sub-jobs for meta-job '%s'.",
+				    jId);
+
 				dbh->setMetajobChildrenStatus(job->getId(),
 							      Job::INIT);
 				job->setStatus(Job::RUNNING);
 			}
-
-			//TODO: log
+			else
+			{
+				LOG(LOG_INFO,
+				    "Sub-jobs generated so far "
+				    "for meta-job '%s': %lu",
+				    jId, mjd.count);
+			}
 
 			dbh->query("COMMIT");
-			putCommonDBH();
 		}
-		catch (const ParserException &ex)
+		catch (const exception &ex)
 		{
-			//TODO: log
-			dbh->query("ROLLBACK");
-			dbh->updateJobStat(job->getId(), Job::ERROR);
-			//dbh->removeMetajobChildren(job->getId());
-			putCommonDBH();
+			// Rollback, logging, setting status, etc.
+			// See just below.
+			submit_handleError(*dbh,ex.what(),job);
+
+			// Parser throws ParserException& but QueueManager only
+			// handles QMException*.
+			throw new BackendException("%s", ex.what());
 		}
+		catch (const QMException *ex)
+		{
+			submit_handleError(*dbh, ex->what(), job);
+			throw;
+		}
+		catch (...)
+		{
+			submit_handleError(*dbh, "Unknown exception.", job);
+			throw;
+		}
+
+		//dbh gets out of scope == finally { DBHandler::put(*dbh); }
 	}
 }
+static void submit_handleError(DBHandler *dbh, const char *msg, const Job *job)
+{
+	dbh->query("ROLLBACK");
+	LOG(LOG_ERR,
+	    "Error while unfolding meta-job '%s': %s",
+	    job->getId().c_str(), msg);
+	dbh->updateJobStat(job->getId(), Job::ERROR);
+	//TODO: Tell the user what happened ?
+	//dbh->removeMetajobChildren(job->getId()); //TODO: ?
+}
 
-void MetajobHandler::qJobHandler(_3gbridgeParser::JobDef const &jd, size_t count)
+void MetajobHandler::qJobHandler(DBHandler *instance,
+				 _3gbridgeParser::JobDef const &jd,
+				 size_t count)
 {
 	for (size_t i = 0; i < count; i++) {
-		//TODO: optimization: only one job object should be created,
+		//LATER: optimization: only one job object should be created,
 		//only id would be changed in iterations
 
 		uuid_t uuid;
@@ -141,6 +241,7 @@ void MetajobHandler::qJobHandler(_3gbridgeParser::JobDef const &jd, size_t count
 		uuid_generate(uuid);
 		uuid_unparse(uuid, jobid);
 
+		// Create job from template
 		Job qmjob = Job(jobid,
 				jd.metajobid.c_str(),
 				jd.algName.c_str(),
@@ -149,14 +250,20 @@ void MetajobHandler::qJobHandler(_3gbridgeParser::JobDef const &jd, size_t count
 				Job::PREPARE);
 		//TODO: env?!
 
+		// Copy inputs
 		for (inputMap::const_iterator i = jd.inputs.begin();
 		     i != jd.inputs.end(); i++)
-		{
-			qmjob.addInput(i->first, i->second);
-		}
+			// Except _3gb-metajob*
+			if (strncmp(i->first.c_str(),
+				    _METAJOB_SPEC_PREFIX,
+				    _METAJOB_SPEC_PREFIX_LEN)) // !startswith
+			{
+				qmjob.addInput(i->first, i->second);
+			}
 
-		string base;
-
+		string base; // Output base dir; value will be set in first
+			     // iteration
+		// Copy outputs
 		for (outputMap::const_iterator i = jd.outputs.begin();
 		     i != jd.outputs.end(); i++)
 		{
@@ -169,38 +276,37 @@ void MetajobHandler::qJobHandler(_3gbridgeParser::JobDef const &jd, size_t count
 							 i->first));
 		}
 
-		DBHandler *dbh = getCommonDBH();
-		if (!dbh->addJob(qmjob))
-			throw ParserException(
-				-1, "DB error while inserting sub-job.");
+		if (!instance->addJob(qmjob))
+			throw BackendException(
+				"DB error while inserting sub-job"
+				"for meta-job '%s'.",
+				jd.metajobid.c_str());
 	}
 }
 
 void MetajobHandler::updateStatus(void)
 	throw (BackendException *)
 {
-	DBHandler *jobDB = DBHandler::get();
-	jobDB->pollJobs(this, Job::RUNNING, Job::CANCEL);
-	DBHandler::put(jobDB);
+	DBHWrapper()->pollJobs(this, Job::RUNNING, Job::CANCEL);
 }
 
 void MetajobHandler::poll(Job *job) throw (BackendException *)
 {
 	//TODO: aggregate sub-jobs' statuses
-}
 
-DBHandler *MetajobHandler::commonDBH = 0L;
-DBHandler *MetajobHandler::getCommonDBH()
-{
-	if (commonDBH == 0L)
-		commonDBH = DBHandler::get();
-	return commonDBH;
-}
-void MetajobHandler::putCommonDBH()
-{
-	assert(commonDBH);
-	DBHandler::put(commonDBH);
-	commonDBH = 0L;
+	DBHWrapper dbh;
+
+	// if canceled -> cancel sub-jobs
+	// // what happens when a job is canceled?  automatically deleted? if
+	// // not, we must delete the subjobs
+
+	// get histogram of sub-job statuses
+	// calculate new status for meta-job
+	// -> this is where required, succAt and count comes in
+
+	// get filename of sub-job status report
+	// if file doesn't exist or it's older than minel,
+	// -> regen sub-jobs' status info
 }
 
 /**********************************************************************
@@ -209,12 +315,19 @@ void MetajobHandler::putCommonDBH()
 
 static char const DSEP = '|';
 
-#define GETLINE() { if (!getline(is, token, DSEP))			\
-			throw new BackendException("Invalid value in gridId field " \
-						   " for meta-job: %s", \
+CSTR_C MSG_INV_VAL_FMT = "Invalid value in gridId field for meta-job: %s";
+#define GET_TOKEN()							\
+	{								\
+		if (!getline(is, token, DSEP))				\
+			throw new BackendException(MSG_INV_VAL_FMT,	\
 						   jobId.c_str());	\
 	}
-#define RET_NUM(a) { sscanf(token.c_str(), "%lu", &(a)); }
+#define RET_NUM(a)							\
+	{								\
+		if (1 != sscanf(token.c_str(), "%lu", &(a)))		\
+			throw new BackendException(MSG_INV_VAL_FMT,	\
+						   jobId.c_str());	\
+	}
 #define RET_STR(a) { (a).swap(token); }
 
 void MetajobHandler::getExtraData(const string &data,
@@ -227,20 +340,17 @@ void MetajobHandler::getExtraData(const string &data,
 	istringstream is(data);
 	string token;
 
-	GETLINE(); RET_STR(grid);
+	//Info: search for "MJ Extra" (it's near the top of this file)
+	GET_TOKEN(); RET_STR(grid);
 
-	if (getline(is, token, DSEP)) //rest is optional: all-or-nothing
+	// Rest is optional, but all-or-nothing
+	if (getline(is, token, DSEP))
 	{
 		RET_NUM(count);
 
-		GETLINE();
-		RET_NUM(startLine);
-
-		GETLINE();
-		RET_STR(reqd);
-
-		GETLINE();
-		RET_STR(succAt);
+		GET_TOKEN(); RET_NUM(startLine);
+		GET_TOKEN(); RET_STR(reqd);
+		GET_TOKEN(); RET_STR(succAt);
 	}
 	// else: leave default values
 }
@@ -249,7 +359,7 @@ void MetajobHandler::translateJob(Job const *job,
 				  MetaJobDef &mjd,
 				  JobDef &jd,
 				  string &mjfileName)
-	throw (BackendException)
+	throw (BackendException*)
 {
 	size_t count = 0, startLine = 0;
 	string reqd, succAt;
@@ -263,15 +373,44 @@ void MetajobHandler::translateJob(Job const *job,
 		    job->getOutputMap(),
 		    job->getInputRefs());
 
-	string mjfn = ""; //TODO: f(job->getId())
-	mjfileName.swap(mjfn);
+	bool foundMJSpec = false;
+	// Find the path of the _3gb-metajob* file
+	for (inputMap::const_iterator i = jd.inputs.begin();
+	     i != jd.inputs.end(); i++)
+	{
+		if (!strncmp(i->first.c_str(),
+			     _METAJOB_SPEC_PREFIX,
+			     _METAJOB_SPEC_PREFIX_LEN)) // startswith
+		{
+			const string &mjfile = i->second.getURL();
+			if ('/' != mjfile[0])
+			{
+				DLException *ex = new DLException(job->getId());
+				ex->addInput(i->first);
+				throw ex;
+			}
+			else
+			{
+				mjfileName = mjfile;
+				foundMJSpec = true;
+				break;
+			}
+		}
+	}
+
+	if (!foundMJSpec)
+		throw new BackendException(
+			"Missing _3gb-metajob file for meta-job: '%s'",
+			job->getId().c_str());
 }
 
-void MetajobHandler::updateJob(Job *job,
+void MetajobHandler::updateJob(DBHandler *dbh,
+			       Job *job,
 			       MetaJobDef const &mjd,
 			       JobDef const &jd)
-	throw (BackendException)
+	throw (BackendException*)
 {
+	//Info: search for "MJ Extra" (it's near the top of this file)
 	ostringstream os;
 	os << jd.grid << DSEP << mjd.count << DSEP << mjd.startLine << DSEP;
 	if (mjd.finished)
@@ -280,11 +419,10 @@ void MetajobHandler::updateJob(Job *job,
 		os << mjd.strRequired << DSEP << mjd.strSuccessAt;
 	job->setGridId(os.str());
 
-	DBHandler *dbh = getCommonDBH();
 	for (inputMap::const_iterator i = jd.inputs.begin();
 	     i != jd.inputs.end(); i++)
 	{
-		// Second here is a FileRef --> updating all fields
+		// i->second here is a FileRef --> updating all fields
 		dbh->updateInputPath(job->getId(), i->first, i->second);
 	}
 }
@@ -300,7 +438,41 @@ static void md(char const *name)
 
 static string getOutDirBase(const string &outPath)
 {
-	return outPath; //TODO: metajob output path --> outdir base
+	// Output path format: ...base/jobid_prefix/jobid/filename
+	// ==> base = dirname(dirname(dirname(path)))
+
+	if (!outPath.empty())
+	{
+		CSTR_C start = outPath.c_str();
+		CSTR i = start; // With this we will find the third to last
+				// slash, which marks the end of the directory
+				// name we're looking for
+
+		// find last character
+		while (*i) i++;
+		i--;
+
+		if (*i != '/') //else: not a filename; something is wrong
+		{
+			//(At most) three times dirname
+			for (int j=0; j<3 && i >= start; j++)
+			{
+				//skip to next slash
+				while (i >= start && *i != '/') i--;
+				//skip this (and consecutive) slashes
+				while (i >= start && *i == '/') i--;
+			}
+
+			// If there is still something left in the string, then
+			// we found the base directory
+			if (i >= start)
+				return string(start, i-start+1);
+		}
+	}
+
+	throw new BackendException(
+		"Base path cannot be guessed from output path '%s'.",
+		outPath.c_str());
 }
 static string make_hashed_dir(const string &base,
 			      const string &jobid,

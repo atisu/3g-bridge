@@ -9,8 +9,9 @@
 using namespace std;
 
 #define LINE_BUF_SIZE (1024)
-#define CSTR char const *
-#define CSTR_C CSTR const
+
+CSTR_C _METAJOB_SPEC_PREFIX = "_3gb-metajob";
+size_t const _METAJOB_SPEC_PREFIX_LEN = 12;
 
 // Messages
 static CSTR_C ERR_MJ_UNFINISHED =
@@ -131,7 +132,8 @@ static void parseSuccAtPc(_3gbridgeParser::MetaJobDef &mjd);
 // Exports
 namespace _3gbridgeParser
 {
-	void parseMetaJob(istream &input,
+	void parseMetaJob(void *instance,
+			  istream &input,
 			  MetaJobDef &mjd,
 			  JobDef &jobDef,
 			  queueJobHandler handler,
@@ -158,7 +160,7 @@ namespace _3gbridgeParser
 							    jobDef, mjd);
 					if (cnt > 0)
 					{
-						handler(jobDef, cnt);
+						handler(instance, jobDef, cnt);
 						jobCount += cnt;
 						//id cannot be inherited;
 						//clearing it
@@ -343,7 +345,32 @@ static string parseInputSpecs(int lineNum, CSTR spec, FileRef &value)
 	while (*i && *i != EQ) i++; //find first '='
 	if (!*i) throw ParserException(lineNum, ERR_INVALID_INPUTFILE);
 
-	value = FileRef(); //TODO: string -> fileref
+	i++; //Skip '='
+	SKIPSPACES(i);
+
+	istringstream is(i);
+	string token;
+	string url, md5;
+	off_t isize;
+
+	if (!getline(is, token, EQ))
+		throw new ParserException(lineNum, ERR_SYN_INVALID_ARG);
+	url.swap(token);
+	if (getline(is, token, EQ))
+	{
+		md5.swap(token);
+		if (!getline(is, token, EQ))
+			isize = -1;
+		else
+		{
+			if (1 != sscanf(token.c_str(), "%ld", &isize))
+				throw new ParserException(lineNum,
+							  ERR_SYN_INVALID_ARG);
+		}
+	}
+	value = FileRef(url,
+			md5.empty() ? 0L : md5.c_str(),
+			isize);
 	return string(spec, i-spec);
 }
 

@@ -14,11 +14,17 @@
 
 using namespace std;
 
+#define CSTR char const *
+#define CSTR_C CSTR const
+
 /**
  * Meta-job parser interface
  */
 namespace _3gbridgeParser
 {
+	extern char const * const _METAJOB_SPEC_PREFIX;
+	extern size_t const _METAJOB_SPEC_PREFIX_LEN;
+
 	typedef map<string, FileRef> inputMap;
 	typedef map<string, string> outputMap;
 
@@ -94,16 +100,24 @@ namespace _3gbridgeParser
 	 * Delegate type for job creation. Called by parseMetaJob on each Queue
 	 * command in the meta-job file.
 	 *
+	 * @param instance Pointer to the parent object which is responsible for
+	 *        the parsing session.
+	 *
 	 * @param jobDef Information to create the job
-	 * @param count  How many copies have to be created
+	 * @param count How many copies have to be created
 	 */
-	typedef void (*queueJobHandler)(const JobDef &jobDef, size_t count);
+	typedef void (*queueJobHandler)(void *instance,
+					const JobDef &jobDef,
+					size_t count);
 
 	/**
 	 * Parses the meta-job specification from a stream. For each job, calls
 	 * the callback function handler, which should insert the jobs in the
 	 * database.
 	 *
+	 * @param instance       Anything. This will be passed to the handler,
+	 *                       and it can use this any way it wants.
+	 *                       (e.g.: DBHandler, caller object, etc.)
 	 * @param input          Stream, containing meta-job specs.
 	 * @param templateJobDef Template for job definitions
 	 * @param handler        Callback function to create jobs
@@ -111,7 +125,8 @@ namespace _3gbridgeParser
 	 *
 	 * @return Meta-job-global information
 	 */
-	void parseMetaJob(istream &input,
+	void parseMetaJob(void *instance,
+			  istream &input,
 			  MetaJobDef &mjd,
 			  JobDef &jobDef,
 			  queueJobHandler handler,
@@ -143,7 +158,7 @@ namespace _3gbridgeParser
 		for (iterator_t i = first; i != last; i++)
 			HelperFunctions::saveSJ(output, *i);
 	}
-			 
+
 
 	/**
 	 * Parser exception. Contains line number information.

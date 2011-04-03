@@ -23,7 +23,7 @@
  * GNU General Public License in all respects for all of the code used other than
  * "OpenSSL". If you modify this file, you may extend this exception to your
  * version of the file, but you are not obligated to do so. If you do not wish to
- * do so, delete this exception statement from your version. 
+ * do so, delete this exception statement from your version.
  */
 
 #ifndef METAJOB_HANDLER_H
@@ -32,15 +32,40 @@
 #include "Job.h"
 #include "GridHandler.h"
 #include "MJ_parser.h"
+#include "DBHandler.h"
 
 using namespace std;
 using namespace _3gbridgeParser;
 
+/**
+ * Implements finally clause to use DBHandler safely */
+class DBHWrapper
+{
+protected:
+	DBHandler *dbh;
+public:
+	DBHWrapper() { dbh = DBHandler::get(); }
+	~DBHWrapper() { DBHandler::put(dbh); }
+
+	DBHandler *operator->() { return dbh; }
+	DBHandler *operator*() { return dbh; }
+};
+
+/**
+ * TODO: comment
+ */
 class MetajobHandler : public GridHandler
 {
 public:
-	~MetajobHandler();
-	MetajobHandler(GKeyFile *config, const char *instance) throw (BackendException *);
+	/**
+	 * Creates a MetajobHandler instance.
+	 * @param config configuration
+	 * @param instance TODO: ???
+	 */
+	MetajobHandler(GKeyFile *config, const char *instance)
+		throw (BackendException *);
+	~MetajobHandler() throw () {}
+
 	/**
 	 * Submit jobs. Submits a vector of jobs to EGEE.
 	 * @param jobs jobs to submit
@@ -61,27 +86,45 @@ public:
 	void poll(Job *job) throw (BackendException *);
 
 private:
-	static DBHandler *commonDBH;
-
-	static DBHandler *getCommonDBH();
-	static void putCommonDBH();
-	
-	static void qJobHandler(_3gbridgeParser::JobDef const &jd, size_t count);
-
+	/**
+	 * Delegate function. Called by parseMetaJob() to create jobs in the
+	 * database using jd as a template.
+	 * @see queueJobHandler
+	 */
+	static void qJobHandler(DBHandler *instance,
+				_3gbridgeParser::JobDef const &jd,
+				size_t count);
+	//
 	// Utility functions
-	static void updateJob(Job *job, MetaJobDef const &mjd, JobDef const &jd)
-		throw (BackendException);
+	//
+
+	/**
+	 * Store parser state back to DB */
+	static void updateJob(DBHandler *dbh,
+			      Job *job,
+			      MetaJobDef const &mjd,
+			      JobDef const &jd)
+		throw (BackendException*);
+	/**
+	 * Create input for parseMetaJob() from a Job object. */
 	static void translateJob(Job const *job, MetaJobDef &mjd, JobDef &jd,
 				 string &mjfileName)
-		throw (BackendException);
+		throw (BackendException*);
+	/**
+	 * Parse data stored in gridId of meta-job. */
 	static void getExtraData(const string &data,
 				 string &grid,  size_t &count, size_t &startLine,
 				 string &reqd, string &succAt, string const &jobId)
 		throw (BackendException*);
 
+	/**
+	 * From configuration: Max number of jobs to generate in an
+	 * iteration. */
 	size_t maxJobsAtOnce;
-
-	string output_dir;
+	/**
+	 * From configuration: Minimum time (in seconds) to elapse between
+	 * updates sub-jobs' status report */
+	size_t minElapse;
 };
 
 
