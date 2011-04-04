@@ -55,10 +55,19 @@ public:
 	FileRef(const string &url, const char *md5 = NULL, const off_t size = -1);
 
 	/**
+	 * Copy constructor.
+	 *
+	 * This object needs deep copy or else (if only the pointer was copied
+	 * by the default copy constructor) copies would try to free the same
+	 * memory area (f_md5).
+	 */
+	FileRef(const FileRef &other);
+
+	/**
 	 * Default constructor.
 	 * Default empty constructor for the FileRef class.
 	 */
-	FileRef() {};
+	FileRef() : f_url(), f_md5(NULL), f_size(-1) {};
 
 	/**
 	 * Destructor.

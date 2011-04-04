@@ -29,6 +29,17 @@
 
 #include <cstring>
 
+FileRef::FileRef(const FileRef &other)
+{
+	if (this != &other)
+	{
+		// Deep copy needed
+		f_url = string(other.f_url);
+		f_size = other.f_size;
+		f_md5 = other.f_md5 ? strdup(other.f_md5) : NULL;
+	}
+}
+
 FileRef::FileRef(const string &url, const char *md5, const off_t size):f_size(size)
 {
 	/// Copy url into f_url.

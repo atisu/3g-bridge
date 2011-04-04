@@ -441,6 +441,7 @@ void DBItem::setRetry(const struct timeval &when, int retries)
 int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *jobs, G3BridgeSubmitter__JobIDList *result)
 {
 	DBHandler *dbh;
+	LOG(LOG_INFO, "Starting submission...");
 
 	try
 	{
@@ -470,22 +471,32 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 
 		G3BridgeSubmitter__Job *wsjob = *jobit;
 
+		LOG(LOG_INFO, "Checking if meta-job");
 		bool isMetaJob = false;
 		try { isMetaJob = checkMetaJob(*wsjob); }
 		catch (int)
 		{
-			//TODO: reject
+			LOG(LOG_ERR,
+			    "submit: Multiple _3gb-metajob "
+			    "files are specified.");
+			return SOAP_FATAL_ERROR; //TODO: check
 		}
+
+		if (isMetaJob)
+			LOG(LOG_INFO, "Yes, this is a meta-job");
 
 		char const * destinationGrid =
 			isMetaJob
 			? metaJobGrid
 			: wsjob->grid.c_str();
+		LOG(LOG_DEBUG, "Destination grid: '%s'", destinationGrid);
 		Job *qmjob = new Job((const char *)jobid, wsjob->alg.c_str(), destinationGrid, wsjob->args.c_str(), Job::INIT, &wsjob->env);
-
+		
+		LOG(LOG_DEBUG, "Setting tag");
 		if (wsjob->tag)
 			qmjob->setTag(*(wsjob->tag));
 
+		LOG(LOG_DEBUG, "Adding inputs");
 		for (vector<G3BridgeSubmitter__LogicalFile *>::const_iterator inpit = wsjob->inputs.begin(); inpit != wsjob->inputs.end(); inpit++)
 		{
 			G3BridgeSubmitter__LogicalFile *lfn = *inpit;
@@ -541,12 +552,14 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 			}
 		}
 
+		LOG(LOG_DEBUG, "Adding outputs");
 		for (vector<string>::const_iterator outit = wsjob->outputs.begin(); outit != wsjob->outputs.end(); outit++)
 		{
 			string path = calc_output_path(jobid, *outit);
 			qmjob->addOutput(*outit, path);
 		}
 
+		LOG(LOG_DEBUG, "Saving job");
 		if (!dbh->addJob(*qmjob))
 		{
 			LOG(LOG_ERR, "Failed to add job, removing any other job added so far within this request.");
@@ -558,6 +571,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 		if (isMetaJob)
 		{
 			//Store original destination grid
+			LOG(LOG_INFO, "Meta-job original grid: '%s'", wsjob->grid.c_str());
 			qmjob->setGridId(wsjob->grid);
 		}
 

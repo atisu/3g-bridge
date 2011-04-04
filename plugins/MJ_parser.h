@@ -22,7 +22,7 @@ using namespace std;
  */
 namespace _3gbridgeParser
 {
-	extern char const * const _METAJOB_SPEC_PREFIX;
+	extern CSTR_C _METAJOB_SPEC_PREFIX;
 	extern size_t const _METAJOB_SPEC_PREFIX_LEN;
 
 	typedef map<string, FileRef> inputMap;

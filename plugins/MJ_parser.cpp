@@ -10,9 +10,6 @@ using namespace std;
 
 #define LINE_BUF_SIZE (1024)
 
-CSTR_C _METAJOB_SPEC_PREFIX = "_3gb-metajob";
-size_t const _METAJOB_SPEC_PREFIX_LEN = 12;
-
 // Messages
 static CSTR_C ERR_MJ_UNFINISHED =
 	"Trying to calculate percentage values for an unfinished meta-job.";
@@ -132,6 +129,9 @@ static void parseSuccAtPc(_3gbridgeParser::MetaJobDef &mjd);
 // Exports
 namespace _3gbridgeParser
 {
+	CSTR_C _METAJOB_SPEC_PREFIX = "_3gb-metajob";
+	size_t const _METAJOB_SPEC_PREFIX_LEN = 12;
+
 	void parseMetaJob(void *instance,
 			  istream &input,
 			  MetaJobDef &mjd,
