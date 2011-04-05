@@ -159,7 +159,7 @@ export PKG_CONFIG_PATH LD_LIBRARY_PATH
            --enable-java --with-java-includes=/usr/java/default/include \
 %endif
 %if %{_with_egee}
-           --with-egee} \
+           --with-egee \
 %endif
 %if %{_with_jobwrapper}
            --with-jobwrapper \
@@ -269,6 +269,7 @@ fi
 %{_libdir}/3g-bridge/XTREMWEB_handler.a
 %{_libdir}/3g-bridge/XTREMWEB_handler.la
 %{_libdir}/3g-bridge/XTREMWEB_handler.so
+%doc %{_mandir}/man7/3g-bridge.plugin-xtremweb.7*
 %endif
 
 %if %{_with_ec2}
