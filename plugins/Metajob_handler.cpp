@@ -71,7 +71,7 @@
 using namespace _3gbridgeParser;
 using namespace std;
 
-CSTR_C CONFIG_GROUP = "metajob";
+CSTR_C CONFIG_GROUP = "MetaJob";
 CSTR_C CFG_MAXJOBS = "maxJobsAtOnce";
 CSTR_C CFG_MINEL = "minElapse";
 
@@ -86,7 +86,7 @@ static string calc_output_path(const string &basedir,
 			       const string &localName);
 /**
  * Exception handler for submitJobs*/
-static void submit_handleError(DBHandler *dbh, const char *msg, const Job *job);
+static void submit_handleError(DBHandler *dbh, const char *msg, Job *job);
 
 static size_t getConfInt(GKeyFile *config, CSTR key, int defVal)
 {
@@ -121,6 +121,50 @@ MetajobHandler::MetajobHandler(GKeyFile *config, const char *instance)
 	LOG(LOG_INFO,
 	    "Metajob Handler: instance '%s' initialized.",
 	    name.c_str());
+	LOG(LOG_INFO,
+	    "MJ instance '%s': %s = %lu, %s = %lu",
+	    name.c_str(), CFG_MAXJOBS, maxJobsAtOnce, CFG_MINEL, minElapse);
+}
+
+static void LOGJOB(const char * msg,
+		   const MetaJobDef &mjd, const JobDef &jd)
+{
+	LOG(LOG_DEBUG, "%s", msg);
+	LOG(LOG_DEBUG, "Last state:");
+	LOG(LOG_DEBUG, "  count        = %lu", mjd.count);
+	LOG(LOG_DEBUG, "  startLine    = %lu", mjd.startLine);
+	LOG(LOG_DEBUG, "  strRequired  = '%s'", mjd.strRequired.c_str());
+	LOG(LOG_DEBUG, "  strSuccessAt = '%s'", mjd.strSuccessAt.c_str());
+	LOG(LOG_DEBUG, "  required     = %lu", mjd.required);
+	LOG(LOG_DEBUG, "  successAt    = %lu", mjd.successAt);
+	LOG(LOG_DEBUG, "  finished     = %s", mjd.finished ? "true" : "false");
+	LOG(LOG_DEBUG, "  ---");
+	LOG(LOG_DEBUG, "  metajobid    = '%s'", jd.metajobid.c_str());
+	LOG(LOG_DEBUG, "  dbId         = '%s'", jd.dbId.c_str());
+	LOG(LOG_DEBUG, "  grid         = '%s'", jd.grid.c_str());
+	LOG(LOG_DEBUG, "  algName      = '%s'", jd.algName.c_str());
+	LOG(LOG_DEBUG, "  comment      = '%s'", jd.comment.c_str());
+	LOG(LOG_DEBUG, "  args         = '%s'", jd.args.c_str());
+	LOG(LOG_DEBUG, "  ---");
+	LOG(LOG_DEBUG, "  <inputs>");
+	for (inputMap::const_iterator i = jd.inputs.begin();
+	     i != jd.inputs.end(); i++)
+	{
+		const FileRef &fr = i->second;
+		LOG(LOG_DEBUG,
+		    "    '%s' : '%s', '%s', %ld",
+		    i->first.c_str(), fr.getURL().c_str(),
+		    fr.getMD5(), fr.getSize());
+	}
+	LOG(LOG_DEBUG, "  <outputs>");
+	for (outputMap::const_iterator i = jd.outputs.begin();
+	     i != jd.outputs.end(); i++)
+	{
+		LOG(LOG_DEBUG,
+		    "    '%s' : '%s'",
+		    i->first.c_str(), i->second.c_str());
+	}
+	LOG(LOG_DEBUG, "// %s", msg);
 }
 
 void MetajobHandler::submitJobs(JobVector &jobs)
@@ -131,6 +175,9 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 		Job *job = *i;
 		CSTR_C jId = job->getId().c_str();
 
+		LOG(LOG_DEBUG,
+		    "MJ Unfolding job '%s'", jId);
+
 		// Load last state (or initialize)
 		// This will also check if _3gb-metajob is available on local
 		// FS. If not, it will raise a DLException.
@@ -138,6 +185,10 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 		JobDef jd;
 		string mjfileName;
 		translateJob(job, mjd, jd, mjfileName);
+
+		LOG(LOG_DEBUG,
+		    "Will parse meta-job file: '%s'", mjfileName.c_str());
+		LOGJOB("LOADED STATE", mjd, jd);
 
 		// _3gb-metajob* on filesystem
 		ifstream mjfile(mjfileName.c_str());
@@ -158,12 +209,16 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 			// next iteration is done in a single transaction. If
 			// anything fails, the next iteration will start from a
 			// consistent state, without generating duplicates.
+			LOG(LOG_DEBUG, "Starting TRANSACTION");
 			dbh->query("START TRANSACTION");
 
 			// This will insert multiple jobs by calling qJobHandler
+			LOG(LOG_DEBUG, "Starting parser...");
 			parseMetaJob(*dbh, mjfile, mjd, jd,
 				     (queueJobHandler)&qJobHandler,
 				     maxJobsAtOnce);
+
+			LOGJOB("END STATE", mjd, jd);
 
 			// Store state for next iteration
 			updateJob(*dbh, job, mjd, jd);
@@ -190,6 +245,7 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 				    jId, mjd.count);
 			}
 
+			LOG(LOG_DEBUG, "Commiting TRANSACTION");
 			dbh->query("COMMIT");
 		}
 		catch (const exception &ex)
@@ -216,14 +272,17 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 		//dbh gets out of scope == finally { DBHandler::put(*dbh); }
 	}
 }
-static void submit_handleError(DBHandler *dbh, const char *msg, const Job *job)
+static void submit_handleError(DBHandler *dbh, const char *msg, Job *job)
 {
 	dbh->query("ROLLBACK");
-	LOG(LOG_ERR,
-	    "Error while unfolding meta-job '%s': %s",
-	    job->getId().c_str(), msg);
+	ostringstream out;
+	out << "Error while unfolding meta-job '" << job->getId()
+	    << "' : " << msg;
+	const string &s_msg = out.str();
+	LOG(LOG_ERR, "%s", s_msg.c_str());
 	dbh->updateJobStat(job->getId(), Job::ERROR);
-	//TODO: Tell the user what happened ?
+	job->setGridData(s_msg);
+
 	//dbh->removeMetajobChildren(job->getId()); //TODO: ?
 }
 
@@ -243,7 +302,6 @@ void MetajobHandler::qJobHandler(DBHandler *instance,
 
 		// Create job from template
 		Job qmjob = Job(jobid,
-				jd.metajobid.c_str(),
 				jd.algName.c_str(),
 				jd.grid.c_str(),
 				jd.args.c_str(),
@@ -281,6 +339,7 @@ void MetajobHandler::qJobHandler(DBHandler *instance,
 				"DB error while inserting sub-job"
 				"for meta-job '%s'.",
 				jd.metajobid.c_str());
+		qmjob.setMetajobId(jd.metajobid);
 	}
 }
 
@@ -374,29 +433,36 @@ void MetajobHandler::translateJob(Job const *job,
 		    job->getInputRefs());
 
 	bool foundMJSpec = false;
-	// Find the path of the _3gb-metajob* file
+	DLException *ex = 0;
+	bool mustThrowDLEx = false;
+	// Find the path of the _3gb-metajob* file and download missing inputs
 	for (inputMap::const_iterator i = jd.inputs.begin();
 	     i != jd.inputs.end(); i++)
 	{
-		if (!strncmp(i->first.c_str(),
-			     _METAJOB_SPEC_PREFIX,
-			     _METAJOB_SPEC_PREFIX_LEN)) // startswith
+		const string &mjfile = i->second.getURL();
+		
+		bool thisIsIt = !strncmp(i->first.c_str(),
+					 _METAJOB_SPEC_PREFIX,
+					 _METAJOB_SPEC_PREFIX_LEN);
+		bool notDownloaded = '/' != mjfile[0];
+	
+		if (thisIsIt)
 		{
-			const string &mjfile = i->second.getURL();
-			if ('/' != mjfile[0])
-			{
-				DLException *ex = new DLException(job->getId());
-				ex->addInput(i->first);
-				throw ex;
-			}
-			else
-			{
-				mjfileName = mjfile;
-				foundMJSpec = true;
-				break;
-			}
+			mjfileName = mjfile;
+			foundMJSpec = true;
 		}
+
+		if (notDownloaded)
+		{
+			if (!ex)
+				ex = new DLException(job->getId());
+			ex->addInput(i->first);
+		}
+
+		if (thisIsIt && notDownloaded)
+			mustThrowDLEx = true;
 	}
+	if (mustThrowDLEx) throw ex;
 
 	if (!foundMJSpec)
 		throw new BackendException(
@@ -418,6 +484,7 @@ void MetajobHandler::updateJob(DBHandler *dbh,
 	else
 		os << mjd.strRequired << DSEP << mjd.strSuccessAt;
 	job->setGridId(os.str());
+	job->setArgs(jd.args);
 
 	for (inputMap::const_iterator i = jd.inputs.begin();
 	     i != jd.inputs.end(); i++)

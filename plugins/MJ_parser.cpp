@@ -1,4 +1,5 @@
 #include "MJ_parser.h"
+#include "Util.h"
 
 #include <assert.h>
 #include <cstdio>
@@ -106,7 +107,7 @@ static void rtrim(char *str);
 static string cutKeyword(char *start, char **end); //return: keyword
 /**
  * Parse args of Input keyword; return: key */
-static string parseInputSpecs(int lineNum, CSTR spec, FileRef &value);
+static FileRef parseInputSpecs(int lineNum, CSTR spec, string &logicalName);
 /**
  * Parse a single line of input
  * Return: How many jobs to queue */
@@ -270,8 +271,8 @@ static int parseLine(int lineNum,
 	else if (keyword == KW_INPUT)
 	{
 		CHECK_EQ_SIGN(value); SKIPSPACES(value);
-		FileRef ifinstance;
-		string ifname = parseInputSpecs(lineNum, value, ifinstance);
+		string ifname;
+		const FileRef ifinstance = parseInputSpecs(lineNum, value, ifname);
 		jd.inputs[ifname] = ifinstance;
 	}
 	else if (keyword == KW_ARGS)
@@ -339,11 +340,13 @@ static string cutKeyword(char *start, char **end)
 	return keyword;
 }
 
-static string parseInputSpecs(int lineNum, CSTR spec, FileRef &value)
+static FileRef parseInputSpecs(int lineNum, CSTR spec, string &logicalName)
 {
 	CSTR i = spec;
 	while (*i && *i != EQ) i++; //find first '='
 	if (!*i) throw ParserException(lineNum, ERR_INVALID_INPUTFILE);
+
+	CSTR_C endkey = i;
 
 	i++; //Skip '='
 	SKIPSPACES(i);
@@ -368,10 +371,11 @@ static string parseInputSpecs(int lineNum, CSTR spec, FileRef &value)
 							  ERR_SYN_INVALID_ARG);
 		}
 	}
-	value = FileRef(url,
-			md5.empty() ? 0L : md5.c_str(),
-			isize);
-	return string(spec, i-spec);
+	string key = string(spec, endkey-spec);
+	logicalName.swap(key);
+	return FileRef(url,
+		       md5.empty() ? 0L : md5.c_str(),
+		       isize);
 }
 
 static Count parsePcArg(int lineNum, CSTR value, CSTR_C rng[])

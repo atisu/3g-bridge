@@ -38,20 +38,6 @@ using namespace std;
 using namespace _3gbridgeParser;
 
 /**
- * Implements finally clause to use DBHandler safely */
-class DBHWrapper
-{
-protected:
-	DBHandler *dbh;
-public:
-	DBHWrapper() { dbh = DBHandler::get(); }
-	~DBHWrapper() { DBHandler::put(dbh); }
-
-	DBHandler *operator->() { return dbh; }
-	DBHandler *operator*() { return dbh; }
-};
-
-/**
  * TODO: comment
  */
 class MetajobHandler : public GridHandler

@@ -29,6 +29,8 @@
 
 #include <cstring>
 
+#include "Util.h"
+
 FileRef::FileRef(const FileRef &other)
 {
 	if (this != &other)
@@ -50,11 +52,32 @@ FileRef::FileRef(const string &url, const char *md5, const off_t size):f_size(si
 	f_md5 = md5 ? strdup(md5) : NULL;
 }
 
+FileRef::FileRef()
+	: f_url(), f_md5(NULL), f_size(-1)
+{
+}
+
 FileRef::~FileRef()
 {
 	/// Free any memory allocated in f_md5.
 	if (f_md5)
 		delete f_md5;
+}
+
+FileRef& FileRef::operator=(const FileRef& other)
+{
+	if (this != &other)
+	{
+		if (f_md5)
+			delete f_md5;
+
+		// Deep copy needed
+		f_url = string(other.f_url);
+		f_size = other.f_size;
+		f_md5 = (other.f_md5 ? strdup(other.f_md5) : NULL);
+	}
+
+	return *this;
 }
 
 void FileRef::setMD5(const char *md5)

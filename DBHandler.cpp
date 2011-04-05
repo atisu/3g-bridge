@@ -647,6 +647,12 @@ void DBHandler::addAlgQ(const char *grid, const char *alg, unsigned batchsize)
 		grid, alg, batchsize);
 }
 
+void DBHandler::changeJobArgs(const string &jobid, const string &jobargs)
+{
+	auto_ptr<char> a(escape_string(jobargs.c_str()));
+	query("UPDATE cg_job SET args = '%s' WHERE id = '%s';",
+	      a.get(), jobid.c_str());
+}
 
 void DBHandler::getCompleteWUs(vector<string> &ids, const string &grid, Job::JobStatus stat)
 {

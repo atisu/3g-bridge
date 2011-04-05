@@ -106,29 +106,6 @@ public:
 	Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const vector<string> *env = NULL);
 
 	/**
-	 * Constructor of a Job object.
-	 * This constructor is used to create an initial Job object by filling
-	 * in the main attributes: the job's identifier, the application's name,
-	 * the destination grid, the command-line arguments, the job's status,
-	 * and possible environment variables. Other properties have to be set
-	 * using the relevant function.
-	 * @param id the job's unique identifier.
-	 * @param metajobid the id of the parent meta-job, can be null
-	 * @param name the name of the executable/application.
-	 * @param grid destination grid/plugin name to use.
-	 * @param args command-line arguments.
-	 * @param status status of the job.
-	 * @param env environment variables for the job.
-	 * @see id
-	 * @see name
-	 * @see args
-	 * @see grid
-	 * @see status
-	 * @see envs
-	 */
-	Job(const char *id, const char *metajobid, const char *name, const char *grid, const char *args, JobStatus status, const vector<string> *env = NULL);
-
-	/**
 	 * Default constructor.
 	 * Default empty constructor for the Job class.
 	 */
@@ -173,6 +150,11 @@ public:
 	 * @return the Job's command-line arguments
 	 */
 	const string &getArgs() const { return args; }
+
+	/**
+	 * Changes the arguments of the job.
+	 */
+	void setArgs(const string &args);
 
 	/**
 	 * Get the job's algorithm queue.

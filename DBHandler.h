@@ -267,6 +267,7 @@ class DBHandler {
 	void updateInputPath(const string &jobid, const string &localName,
 			     const FileRef &ref);
 	void setMetajobChildrenStatus(const string &mjid, Job::JobStatus newstat);
+	void changeJobArgs(const string &jobid, const string &jobargs);
 
     protected:
 	/// DBResult friend class.
@@ -378,6 +379,20 @@ class DBResult {
 
 	/// Number of fields in the result
 	int field_num;
+};
+
+/**
+ * Implements finally clause to use DBHandler safely */
+class DBHWrapper
+{
+protected:
+	DBHandler *dbh;
+public:
+	DBHWrapper() { dbh = DBHandler::get(); }
+	~DBHWrapper() { DBHandler::put(dbh); }
+
+	DBHandler *operator->() { return dbh; }
+	DBHandler *operator*() { return dbh; }
 };
 
 #endif /* DBHANDLER_H */

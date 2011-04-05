@@ -67,13 +67,18 @@ public:
 	 * Default constructor.
 	 * Default empty constructor for the FileRef class.
 	 */
-	FileRef() : f_url(), f_md5(NULL), f_size(-1) {};
+	FileRef();
 
 	/**
 	 * Destructor.
 	 * Destructor for the FileRef class.
 	 */
 	~FileRef();
+
+	/**
+	 * Deep copy
+	 */
+	FileRef& operator=(const FileRef& other);
 
 	/**
 	 * Get file reference's URL.

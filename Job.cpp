@@ -74,14 +74,6 @@ Job::Job(const char *id, const char *name, const char *grid, const char *args, J
 	init(name, grid, args, env);
 }
 
-Job::Job(const char *id, const char *metajobid, const char *name,
-	 const char *grid, const char *args,
-	 JobStatus status, const vector<string> *env)
-	: id(id), metajobid(metajobid), name(name), grid(grid), status(status)
-{
-	init(name, grid, args, env);
-}
-
 Job::~Job()
 {
 	if (tag)
@@ -139,6 +131,11 @@ void Job::setGridId(const string &sID)
 	DBHandler::put(dbH);
 }
 
+void Job::setArgs(const string &args)
+{
+	this->args = args;
+	DBHWrapper()->changeJobArgs(id, args);
+}
 
 void Job::setGridData(const string &sData)
 {

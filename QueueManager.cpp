@@ -260,6 +260,8 @@ static bool runHandler(GridHandler *handler)
 	bool work_done = false;
 	JobVector jobs;
 
+	LOG(LOG_DEBUG, "Running handler '%s'", handler->getName());
+
 	if (handler->schGroupByNames())
 	{
 		vector<AlgQueue *> algs;
@@ -296,11 +298,14 @@ static bool runHandler(GridHandler *handler)
 		dbh->getJobs(jobs, handler->getName(), Job::INIT, alg->getPackSize());
 		DBHandler::put(dbh);
 
+		LOG(LOG_DEBUG, "Got jobs, count: %d", jobs.size());
 		if (!jobs.empty())
 		{
 			try {
 				handler->submitJobs(jobs);
 			} catch (DLException *e) {
+				LOG(LOG_DEBUG,
+				    "Missing file(s), adding download requests");
 				addDownload(e);
 				delete e;
 			}
