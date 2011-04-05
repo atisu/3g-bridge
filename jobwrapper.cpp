@@ -479,7 +479,7 @@ string add_to_3g_db(char *slotStr)
 	}
 	free(query);
 
-	asprintf(&query, "INSERT INTO cg_inputs VALUES(\"%s\",\"%s.sh\",\"%s/%s.sh\")",
+	asprintf(&query, "INSERT INTO cg_inputs(id, localname, url) VALUES(\"%s\",\"%s.sh\",\"%s/%s.sh\")",
 		sID, sID, cwd, sID);
 	LOG(LOG_DEBUG, "MySQL  inputs insert command is: %s", query);
 	if (mysql_query(conn, query))
@@ -490,7 +490,7 @@ string add_to_3g_db(char *slotStr)
 	}
 	free(query);
 
-	asprintf(&query, "INSERT INTO cg_inputs VALUES(\"%s\",\"%s.tgz\",\"%s/%s.tgz\")",
+	asprintf(&query, "INSERT INTO cg_inputs(id, localname, url) VALUES(\"%s\",\"%s.tgz\",\"%s/%s.tgz\")",
 		sID, sID, cwd, sID);
 	LOG(LOG_DEBUG, "MySQL outputs insert command is: %s", query);
 	if (mysql_query(conn, query))
