@@ -44,7 +44,7 @@ DC_API_Single_handler_la_SOURCES = DC-API-Single_handler.cpp DC-API-Single_handl
 DC_API_Single_handler_la_LIBADD = @DCAPI_MASTER_LIBS@ $(AM_LIBADD)
 
 EGEE_handler_la_SOURCES = EGEE_handler.cpp EGEE_handler.h
-EGEE_handler_la_CPPFLAGS = @EGEE_CPPFLAGS@ $(AM_CPPFLAGS)
+EGEE_handler_la_CPPFLAGS = @EGEE_CPPFLAGS@ $(AM_CPPFLAGS) -DGLITE_VERSION=$(GLITE_VERSION)
 EGEE_handler_la_LIBADD = @EGEE_LIBS@ $(AM_LIBADD)
 
 Null_handler_la_SOURCES = Null_handler.cpp Null_handler.h

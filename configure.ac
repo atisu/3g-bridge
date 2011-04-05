@@ -81,10 +81,13 @@ dnl Check for EGEE backend
 AC_ARG_WITH([egee], AS_HELP_STRING([--with-egee], [Enable EGEE backend @<:@no@:>@]),
 	[], [with_egee=no])
 if test "$with_egee" != no; then
-	EGEE_BE
-fi
-if test "$with_egee" != no; then
 	AC_DEFINE([HAVE_EGEE], [1], [Define if EGEE support is requested.])
+	GLITE_VERSION=`glite-version | tr -d '\.'`
+	if test -z "$GLITE_VERSION"; then
+		AC_MSG_ERROR([unable to determine gLite version])
+	fi
+	AC_SUBST([GLITE_VERSION])
+	EGEE_BE
 fi
 AM_CONDITIONAL([HAVE_EGEE], [test "$with_egee" != no])
 

@@ -51,11 +51,16 @@
 #include <glite/jdl/adconverter.h>
 #include <glite/jdl/JDLAttributes.h>
 #include <glite/wms/wmproxyapi/wmproxy_api.h>
-#include <glite/jobid/JobId.h>
 #include <glite/wmsutils/exception/Exception.h>
 #include <globus_gass_copy.h>
 #include <globus_ftp_client.h>
 #include <globus_gsi_credential.h>
+
+#if GLITE_VERSION == 310
+#include <glite/wmsutils/jobid/JobId.h>
+#else
+#include <glite/jobid/JobId.h>
+#endif
 
 extern "C" {
 #include <myproxy.h>
@@ -65,8 +70,12 @@ using namespace std;
 using namespace glite::wms;
 using namespace glite::jdl;
 using namespace glite::wms::wmproxyapi;
-using namespace glite::jobid;
 
+#if GLITE_VERSION == 310
+using namespace glite::wmsutils::jobid;
+#else
+using namespace glite::jobid;
+#endif
 
 globus_mutex_t EGEEHandler::lock;
 globus_cond_t EGEEHandler::cond;
