@@ -281,6 +281,12 @@ fi
 %endif
 
 %changelog
+* Tue Apr 5 2011 FARKAS Zoltan <zfarkas@sztaki.hu> 1.4-1
+- Disable automatic per-job proxy delegation in the EGEE plugin
+- Support both gLite 3.1 and gLite 3.2
+- Jobwrapper update to handle job input file table properly
+- Fixed RPM spec file
+
 * Sat Apr 2 2011 FARKAS Zoltan <zfarkas@sztaki.hu> 1.3-1
 - Documentation updates
 - Improved EC2 plugin
