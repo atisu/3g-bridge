@@ -139,6 +139,9 @@ class EGEEHandler : public GridHandler {
 	/// Job logging level
 	int jobloglevel;
 
+	/// Delegation identifier
+	char *delegid;
+
 	/**
 	 * Initialize GSIFTP for operations.
 	 * Initializes different structures for GSIFTP operations.

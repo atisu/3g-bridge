@@ -225,6 +225,8 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 		free(jl);
 	}
 
+	delegid = NULL;
+
 	groupByNames = false;
 	LOG(LOG_INFO, "EGEE Plugin: instance \"%s\" initialized.", instance);
 }
@@ -245,6 +247,7 @@ EGEEHandler::~EGEEHandler()
 	g_free(isb_url);
 	g_free(joblogdir);
 	delete cfg;
+	delete delegid;
 }
 
 
@@ -446,7 +449,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 	string collidfile = string(wdir) + "/collection.id";
 	try
 	{
-		const char *submitargs[] = {"glite-wms-job-submit", "-a", "-e",
+		const char *submitargs[] = {"glite-wms-job-submit", "-d", delegid, "-e",
 			wmpendp, "-o", collidfile.c_str(), "--collection",
 			jdldir, NULL};
 		if (invoke_cmd("glite-wms-job-submit", submitargs, &stdoe))
@@ -1011,10 +1014,19 @@ void EGEEHandler::renew_proxy() throw(BackendException *)
 
 	getProxyInfo(vproxyf.c_str(), &lifetime);
 	// Do not update proxy if it is valid for at least 6 hrs
-	if (lifetime > 6*60*60) {
+	if (lifetime > 6*60*60 && delegid != NULL) {
 		setenv("X509_USER_PROXY", vproxyf.c_str(), 1);
 		return;
 	}
+
+	// Allocate memory for delegid
+	if (delegid == NULL)
+		delegid = new char[37];
+
+	// Create new delegation identifier
+	uuid_t uuid;
+	uuid_generate(uuid);
+	uuid_unparse(uuid, delegid);
 
 	LOG(LOG_DEBUG, "EGEE Plugin (%s): about to renew proxy",
 		name.c_str());
@@ -1067,6 +1079,16 @@ void EGEEHandler::renew_proxy() throw(BackendException *)
 
 	unlink(proxyf.c_str());
 	setenv("X509_USER_PROXY", vproxyf.c_str(), 1);
+
+	const char *delegargs[] = { "glite-wms-job-delegate-proxy", "-d", delegid, "-e",
+		wmpendp, "--vo", voname, NULL};
+	string delegout;
+	if (invoke_cmd("glite-wms-job-delegate-proxy", delegargs, &delegout))
+	{
+		throw new BackendException("Delegating proxy to WMS failed: " +
+			delegout);
+	}
+
 	LOG(LOG_DEBUG, "EGEE Plugin (%s): proxy renewal finished", name.c_str());
 }
 
