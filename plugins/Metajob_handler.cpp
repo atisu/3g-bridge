@@ -246,8 +246,7 @@ static void submit_handleError(DBHandler *dbh, const char *msg, Job *job)
 	LOG(LOG_ERR, "%s", s_msg.c_str());
 	dbh->updateJobStat(job->getId(), Job::ERROR);
 	job->setGridData(s_msg);
-
-	//dbh->removeMetajobChildren(job->getId()); //TODO: ?
+	dbh->removeMetajobChildren(job->getId());
 }
 
 void MetajobHandler::qJobHandler(DBHandler *instance,
@@ -313,26 +312,50 @@ void MetajobHandler::updateStatus(void)
 	DBHWrapper()->pollJobs(this, Job::RUNNING, Job::CANCEL);
 }
 
-void MetajobHandler::cancel(Job *job)
+void MetajobHandler::userCancel(Job *job)
 {
-	// TODO: if canceled -> cancel sub-jobs
-	// // what happens when a job is canceled?  automatically deleted? if
-	// // not, we must delete the subjobs
+	LOG(LOG_DEBUG, "Canceling job: '%s'", job->getId().c_str());
+	//TODO
+}
+void MetajobHandler::finishedCancel(Job *job)
+{
+	//TODO
+}
+void MetajobHandler::errorCancel(Job *job)
+{
+	//TODO
+}
+void MetajobHandler::processOutputs(Job *job)
+{
+	//TODO
+}
+
+void MetajobHandler::deleteOutput(Job *job)
+{
+	//TODO
 }
 
 void MetajobHandler::poll(Job *job) throw (BackendException *)
 {
 	//TODO: aggregate sub-jobs' statuses
 
-	return;
+	const string &jid = job->getId();
+
+	LOG(LOG_DEBUG, "Polling job status: '%s'", jid.c_str());
 
 	DBHWrapper dbh;
 
 	if (job->getStatus() == Job::CANCEL)
 	{
-		cancel(job);
+		userCancel(job);
 		return;
 	}
+	
+	if (job->getStatus() != Job::RUNNING)
+		throw BackendException("Job '%s' has unexpected status: %d",
+				      jid.c_str(), job->getStatus());
+
+	processOutputs(job);
 
 	size_t count = 0, startLine = 0;
 	string strReqd, strSuccAt;
@@ -349,18 +372,48 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 			"required='%s', succAt='%s'; All should be numbers.",
 			strReqd.c_str(), strSuccAt.c_str());
 	}
+	LOG(LOG_DEBUG,
+	    "Job status for '%s'\n"
+	    "  count = %lu\n"
+	    "  required = %lu\n"
+	    "  successAt = %lu\n", jid.c_str(), count, required, succAt);
 
-	map<Job::JobStatus, size_t> histogram = dbh->getMJHisto(job->getId());
-	size_t finished = histogram[Job::FINISHED];
+	size_t all, err;
+	dbh->getSubjobCounts(job->getId(), all, err);
 
-	// get histogram of sub-job statuses
-	// calculate new status for meta-job
-	// -> this is where required, succAt and count comes in
+	// Finished sub-jobs' output is processed, and then they are deleted.
+	// So, histogram[FINISHED] is the number of jobs in FINISHED status,
+	// with unprocessed outputs.
+	// We only consider finished AND processed jobs as successfully
+	// finished. They are the missing ones.
+	size_t finished = count - all;
 
+	if (finished > succAt)
+	{
+		finishedCancel(job);
+	}
+	else if (err > count - required)
+	{
+		// It is impossible to achieve the required number of successful
+		// jobs. Cancel everything.
+		errorCancel(job);
+	}
+	else if (finished + err == count)
+	{
+		// All jobs finished in either final state.
+		if (finished > required)
+			finishedCancel(job);
+		else
+			errorCancel(job);
+	}
+	
+
+	// TODO:
 	// get filename of sub-job status report
 	// if file doesn't exist or it's older than minel,
 	// -> regen sub-jobs' status info
 }
+
 
 /**********************************************************************
  * Utility functions

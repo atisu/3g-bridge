@@ -151,6 +151,8 @@ static bool submit_job(Job *job) throw (BackendException *)
 	char **argv = NULL;
 	int argc;
 
+	LOG(LOG_DEBUG, "DC-API Submit job: '%s'", job->getId().c_str());
+
 	if (NULL == job->getAlgQueue())
 	{
 		LOG(LOG_ERR, "DC-API-Single: Job %s: unknown algorithm queue",
@@ -186,7 +188,7 @@ static bool submit_job(Job *job) throw (BackendException *)
 	{
 		FileRef fr = job->getInputRef(*it);
 		string url = fr.getURL();
-		string md5 = fr.getMD5();
+		string md5 = fr.getMD5() ? string(fr.getMD5()) : string();
 		int size = fr.getSize();
 		if ("http://" != url.substr(0, 7) && "attic://" != url.substr(0, 8) && '/' != url[0] ||
 			(("http://" == url.substr(0, 7) || "attic://" == url.substr(0, 8)) && (md5 == "" || size == -1)))
@@ -207,7 +209,7 @@ static bool submit_job(Job *job) throw (BackendException *)
 		string lname = *it;
 		FileRef fr = job->getInputRef(lname);
 		string url = fr.getURL();
-		string md5 = fr.getMD5();
+		string md5 = fr.getMD5() ? string(fr.getMD5()) : string();
 		int size = fr.getSize();
 		
 		if ("http://" == url.substr(0, 7) || "attic://" == url.substr(0, 8))

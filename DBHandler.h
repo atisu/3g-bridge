@@ -46,6 +46,9 @@ using namespace std;
 
 class DBResult;
 
+/**
+ * Histogram for the statuses of a meta-job's existing sub-jobs.  */
+typedef map<Job::JobStatus, size_t> MJHistogram;
 
 /**
  * Database handler class. This class is responsible for providing an interface
@@ -270,7 +273,9 @@ class DBHandler {
 	void setMetajobChildrenStatus(const string &mjid, Job::JobStatus newstat);
 	void changeJobArgs(const string &jobid, const string &jobargs);
 
-	map<Job::JobStatus, size_t> getMJHisto(const string &jobid);
+	void getSubjobCounts(const string &jobid, size_t &all, size_t &err);
+	void removeMetajobChildren(const string &jobid);
+	void cancelRunning(const string &parentId);
 
     protected:
 	/// DBResult friend class.
