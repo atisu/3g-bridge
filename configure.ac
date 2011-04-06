@@ -283,7 +283,7 @@ dnl Update 3g-bridge.spec if needed
 SVNVER=`svnversion .`
 if test "$SVNVER" != exported; then
 	TMPFILE=`mktemp /tmp/example.XXXXXXXXXX` || exit 1
-	for sfile in 3g-bridge{,-sl}.spec; do
+	for sfile in 3g-bridge{,-sl4}.spec; do
 	    sed -e "s|#define rev 2149|%define rev $SVNVER|" $sfile > $TMPFILE
 	    mv $TMPFILE $sfile
 	done
