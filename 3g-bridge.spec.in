@@ -25,7 +25,7 @@ Group: Grid
 Source: %{name}-%{version}.tar.bz2
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 BuildRequires: libstdc++-devel
-BuildRequires: mysql-devel >= 5.0
+BuildRequires: mysql-devel >= 4.1
 # For libuuid.so:
 BuildRequires: e2fsprogs-devel
 BuildRequires: glib2-devel >= 2.6
