@@ -39,7 +39,7 @@ Prerequisites
 See below the list of 3rd party software requried for building the 3G Bridge.
 The list shows the minimum required version.
 
-- MySQL				5.0
+- MySQL				4.1
 - glib				2.6
 - libcurl			7.12.0		(for the web service interface)
 - gsoap				2.7.9l		(for the web service interface)

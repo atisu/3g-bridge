@@ -1334,6 +1334,31 @@ void EGEEHandler::updateJob(Job *job)
 			}
 			sleep(5);
 		}
+		catch (...)
+		{
+			string gstatstr;
+			invoke_cmd("glite-wms-job-status", gstat, &gstatstr);
+			logjob(job->getId(), ERROR, "Failed to update status"
+				"of job " + job->getGridId() + " for some unknown reason.");
+			logjob(job->getId(), ERROR, "CLI-based status query:" +
+				gstatstr);
+			LOG(LOG_WARNING, "EGEE Plugin (%s): failed to update "
+				"status of EGEE job \"%s\" (attempt %d).",
+				name.c_str(), job->getGridId().c_str(), ++tries);
+			if (tries >= 3)
+			{
+				LOG(LOG_ERR, "EGEE Plugin (%s): status update "
+					"of job \"%s\" (EGEE ID is \"%s\") "
+					"three times, the job will be aborted",
+					name.c_str(), job->getId().c_str(),
+					job->getGridId().c_str());
+				cancelJob(job, false);
+				job->setStatus(Job::ERROR);
+				movejoblogs(job->getId(), jlogerr);
+				return;
+			}
+			sleep(5);
+		}
 	}
 
 	logjob(job->getId(), ALL, "Updated status of job " + job->getGridId() + " is: " + statStr);
