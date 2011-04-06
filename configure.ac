@@ -275,14 +275,16 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile
 		 doc/Makefile
 		 plugins/Makefile
-		 3g-bridge.spec])
+		 3g-bridge.spec
+		 3g-bridge-sl4.spec])
 AC_OUTPUT
 
 dnl Update 3g-bridge.spec if needed
 SVNVER=`svnversion .`
 if test "$SVNVER" != exported; then
 	TMPFILE=`mktemp /tmp/example.XXXXXXXXXX` || exit 1
-	sed -e "s|#define rev 2149|%define rev $SVNVER|" 3g-bridge.spec > $TMPFILE
-	mv $TMPFILE 3g-bridge.spec
+	for sfile in 3g-bridge{,-sl}.spec; do
+	    sed -e "s|#define rev 2149|%define rev $SVNVER|" $sfile > $TMPFILE
+	    mv $TMPFILE $sfile
+	done
 fi
-

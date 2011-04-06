@@ -186,6 +186,7 @@ EXTRA_DIST += \
 		3GBridgeMonitor.wsdl \
 		master.xml.in \
 		3g-bridge.spec \
+		3g-bridge-sl4.spec \
 		etc/3g-bridge.* \
 		doc/* \
 		soap/.keepme

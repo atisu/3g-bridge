@@ -1,0 +1,348 @@
+%define ver @VERSION@
+#define rev 2149
+
+# Optional features:
+# Use 'rpmbuild --{with|without} <feature>' to enable/disable
+# Defaults to build all:
+%define _with_egee  1
+%define _with_java  1
+%define _with_jobwrapper  1
+%define _with_xtremweb  1
+%define _with_ec2  1
+
+%{?_without_egee: %define _with_egee  0}
+%{?_without_java: %define _with_java  0}
+%{?_without_jobwrapper: %define _with_jobwrapper  0}
+%{?_without_xtremweb: %define _with_xtremweb  0}
+%{?_without_ec2: %define _with_ec2  0}
+
+Summary: Generic Grid Grid (3G) bridge.
+Name: 3g-bridge
+Version: %{ver}
+Release: %{rev}
+License: GPL
+Group: Grid
+Source: %{name}-%{version}.tar.bz2
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
+BuildRequires: libstdc++-devel
+BuildRequires: mysql-devel >= 4.1
+# For libuuid.so:
+BuildRequires: e2fsprogs-devel
+BuildRequires: curl-devel >= 7.12
+Source1: http://ftp.gnome.org/pub/gnome/sources/glib/2.12/glib-2.12.13.tar.bz2
+Source2: http://prdownloads.sourceforge.net/gsoap2/gsoap_2.7.11.tar.gz
+# For gSOAP: bison and flex
+BuildRequires: bison
+BuildRequires: flex
+
+%description
+The purpose of the 3G bridge application is to create a connection between a
+job source and a grid backend. The 3G bridge communicates with the job
+source via a MySQL database. The job source renders job descriptors in the
+MySQL database. There are different destination grid plugins available.
+
+%package wsclient
+Summary: Generic Grid Grid (3G) bridge wsclient job source.
+Group: Grid
+
+%description wsclient
+The purpose of the 3G bridge application is to create a connection between a
+job source and a grid backend. The 3G bridge communicates with the job
+source via a MySQL database. The job source renders job descriptors in the
+MySQL database. This package contains the web service based job source client.
+
+%package plugin-null
+Summary: Generic Grid Grid (3G) bridge "null" plugin.
+Group: Grid
+Requires: 3g-bridge = %{version}-%{release}
+
+%description plugin-null
+The purpose of the 3G bridge application is to create a connection between a
+job source and a grid backend. The 3G bridge uses grid plugins to submit jobs
+to different grid types. The "null" plugin simply sets new jobs to running,
+and running jobs to finished. No job execution is performed by this
+plugin, this is mainly useful for testing and benchmarking.
+
+%if %{_with_egee}
+%package plugin-egee
+Summary: Generic Grid Grid (3G) bridge EGEE submission plugin.
+Group: Grid
+Requires: 3g-bridge = %{version}-%{release}
+BuildRequires: vdt_globus_sdk
+BuildRequires: glite-wms-wmproxy-api-cpp
+BuildRequires: glite-wms-utils-jobid
+BuildRequires: glite-jdl-api-cpp
+BuildRequires: glite-lb-client
+BuildRequires: myproxy
+BuildRequires: libxml2-devel
+BuildRequires: boost-devel
+
+%description plugin-egee
+The purpose of the 3G bridge application is to create a connection between a
+job source and a grid backend. The 3G bridge uses grid plugins to submit jobs
+to different grid types. The EGEE plugin allows job sources to run their jobs
+on the EGEE grid.
+%endif
+
+%if %{_with_java}
+%package plugin-java
+Summary: Generic Grid Grid (3G) bridge Java plugin support.
+Group: Grid
+Requires: 3g-bridge = %{version}-%{release}
+BuildRequires: jdk
+
+%description plugin-java
+The purpose of the 3G bridge application is to create a connection between a
+job source and a grid backend. The 3G bridge uses grid plugins to submit jobs
+to different grid types. The Java plugin allows to use plugins written
+in Java.
+%endif
+
+%if %{_with_jobwrapper}
+%package jobwrapper
+Summary: Generic Grid Grid (3G) bridge jobwrapper application.
+Group: Grid
+BuildRequires: boinc-client-devel
+
+%description jobwrapper
+The purpose of the 3G bridge application is to create a connection between a
+job source and a grid backend. The jobwrapper application is used in the
+scenario where BOINC is the job source. The jobwrapper is responsible for
+parsing BOINC workunits received by the BOINC jobwrapper client, and put
+them into the 3G bridge database.
+%endif
+
+%if %{_with_xtremweb}
+%package plugin-xtremweb
+Summary: Generic Grid Grid (3G) bridge XtremWeb plugin.
+Group: Grid
+
+%description plugin-xtremweb
+The purpose of the 3G bridge application is to create a connection between a
+job source and a grid backend. The jobwrapper application is used in the
+scenario where BOINC is the job source. The 3G bridge uses grid plugins to
+submit jobs to different grid types. The xtremweb plugin allows job sources
+to run their jobs in the XtremWeb desktop grid.
+%endif
+
+%if %{_with_ec2}
+%package plugin-ec2
+Summary: Generic Grid Grid (3G) bridge Amazon EC2 Cloud plugin.
+Group: Grid
+
+%description plugin-ec2
+The purpose of the 3G bridge application is to create a connection between a
+job source and a grid backend. The jobwrapper application is used in the
+scenario where BOINC is the job source. The 3G bridge uses grid plugins to
+submit jobs to different grid types. The EC2 plugin allows defining queues
+to handle virtual machine instances in Amazon EC2 compatible clouds.
+%endif
+
+%prep
+%setup -q -n %{name}-%{ver} -a 1 -a 2
+
+%build
+# Build static glib first, this can also be removed when using system glib
+cd glib-2.12.13
+./configure --host=%{_host} --build=%{_build} --target=%{_target_platform} \
+            --prefix="$PWD/installed" --enable-static --disable-shared
+make
+make install
+PKG_CONFIG_PATH=$PWD/installed/lib/pkgconfig:$PKG_CONFIG_PATH
+LD_LIBRARY_PATH=$PWD/installed/lib:$LD_LIBRARY_PATH
+cd ..
+
+# Build gsoap
+cd gsoap-2.7
+./configure --host=%{_host} --build=%{_build} --target=%{_target_platform} \
+            --prefix="$PWD/installed" --enable-static --disable-shared
+make
+make install
+PKG_CONFIG_PATH=$PWD/installed/lib/pkgconfig:$PKG_CONFIG_PATH
+LD_LIBRARY_PATH=$PWD/installed/lib:$LD_LIBRARY_PATH
+cd ..
+export PKG_CONFIG_PATH LD_LIBRARY_PATH
+
+# Real build starts here
+%configure --with-gsoap=$PWD/gsoap-2.7/installed \
+%if %{_with_java}
+           --enable-java --with-java-includes=/usr/java/default/include \
+%endif
+%if %{_with_egee}
+           --with-egee \
+%endif
+%if %{_with_jobwrapper}
+           --with-jobwrapper \
+%endif
+%if %{_with_xtremweb}
+           --with-xtremweb \
+%endif
+%if %{_with_ec2}
+           --with-ec2 \
+%endif
+           --without-dcapi
+make
+
+%install
+rm -rf "$RPM_BUILD_ROOT"
+mkdir -p "$RPM_BUILD_ROOT"
+%makeinstall
+install -D etc/3g-bridge.init "$RPM_BUILD_ROOT/%{_sysconfdir}/rc.d/init.d/3g-bridge"
+install -D etc/3g-bridge.logrotate "$RPM_BUILD_ROOT/%{_sysconfdir}/logrotate.d/3g-bridge"
+install -D COPYING "$RPM_BUILD_ROOT/%{_docdir}/3g-bridge/COPYING"
+install -D README "$RPM_BUILD_ROOT/%{_docdir}/3g-bridge/README"
+mkdir -p "$RPM_BUILD_ROOT/%{_localstatedir}/lib/3g-bridge"
+mkdir -p "$RPM_BUILD_ROOT/%{_localstatedir}/log/3g-bridge"
+
+%clean
+rm -rf "$RPM_BUILD_ROOT"
+
+%pre
+/usr/sbin/useradd -c '3G Bridge' -s /sbin/nologin \
+                  -r -d '/var/lib/3g-bridge' 3g-bridge 2> /dev/null || :
+
+%post
+/sbin/chkconfig --add 3g-bridge
+
+%preun
+if [ $1 = 0 ]; then
+    service 3g-bridge stop > /dev/null 2>&1
+    /sbin/chkconfig --del 3g-bridge
+fi
+
+%postun
+if [ "$1" -ge "1" ]; then
+    service 3g-bridge condrestart > /dev/null 2>&1 || :
+fi
+
+%files
+%defattr(-, root, root)
+%{_bindir}/injector
+%{_sbindir}/3g-bridge
+%{_sbindir}/wsmonitor
+%{_sbindir}/wssubmitter
+%doc %{_mandir}/man1/injector.1*
+%doc %{_mandir}/man5/3g-bridge.conf.5*
+%doc %{_mandir}/man8/3g-bridge.8*
+%doc %{_mandir}/man8/wssubmitter.8*
+%doc %{_mandir}/man8/wsmonitor.8*
+%config(noreplace) %attr(0640, root, 3g-bridge) %{_sysconfdir}/3g-bridge.conf
+%config(noreplace) %{_sysconfdir}/logrotate.d/3g-bridge
+%{_sysconfdir}/rc.d/init.d/3g-bridge
+%docdir %{_docdir}/3g-bridge
+%{_docdir}/3g-bridge
+%attr(0750, 3g-bridge, 3g-bridge) %{_localstatedir}/lib/3g-bridge
+%attr(0750, 3g-bridge, 3g-bridge) %{_localstatedir}/log/3g-bridge
+
+%files wsclient
+%defattr(-, root, root)
+%{_bindir}/wsclient
+%{_bindir}/wsmonitorclient
+%doc %{_mandir}/man1/wsclient.1*
+%doc %{_mandir}/man1/wsmonitorclient.1*
+
+%files plugin-null
+%defattr(-, root, root)
+%{_libdir}/3g-bridge/Null_handler.a
+%{_libdir}/3g-bridge/Null_handler.la
+%{_libdir}/3g-bridge/Null_handler.so
+%{_libdir}/3g-bridge/Null_monitor.a
+%{_libdir}/3g-bridge/Null_monitor.la
+%{_libdir}/3g-bridge/Null_monitor.so
+
+%if %{_with_egee}
+%files plugin-egee
+%defattr(-, root, root)
+%{_libdir}/3g-bridge/EGEE_handler.a
+%{_libdir}/3g-bridge/EGEE_handler.la
+%{_libdir}/3g-bridge/EGEE_handler.so
+%endif
+
+%if %{_with_java}
+%files plugin-java
+%defattr(-, root, root)
+%{_libdir}/3g-bridge/Java_handler.a
+%{_libdir}/3g-bridge/Java_handler.la
+%{_libdir}/3g-bridge/Java_handler.so
+%{_datadir}/java/3g-bridge-plugin-%{ver}.jar
+%endif
+
+%if %{_with_jobwrapper}
+%files jobwrapper
+%defattr(-, root, root)
+%{_libexecdir}/3g-bridge/jobwrapper
+%endif
+
+%if %{_with_xtremweb}
+%files plugin-xtremweb
+%defattr(-, root, root)
+%{_libdir}/3g-bridge/XTREMWEB_handler.a
+%{_libdir}/3g-bridge/XTREMWEB_handler.la
+%{_libdir}/3g-bridge/XTREMWEB_handler.so
+%doc %{_mandir}/man7/3g-bridge.plugin-xtremweb.7*
+%endif
+
+%if %{_with_ec2}
+%files plugin-ec2
+%defattr(-, root, root)
+%{_libdir}/3g-bridge/EC2_handler.a
+%{_libdir}/3g-bridge/EC2_handler.la
+%{_libdir}/3g-bridge/EC2_handler.so
+%endif
+
+%changelog
+* Tue Apr 5 2011 FARKAS Zoltan <zfarkas@sztaki.hu> 1.4-1
+- Disable automatic per-job proxy delegation in the EGEE plugin
+- Support both gLite 3.1 and gLite 3.2
+- Jobwrapper update to handle job input file table properly
+- Fixed RPM spec file
+
+* Sat Apr 2 2011 FARKAS Zoltan <zfarkas@sztaki.hu> 1.3-1
+- Documentation updates
+- Improved EC2 plugin
+- Improved MySQL handling (sanitize insert/update arguments)
+
+* Fri Feb 11 2011 FARKAS Zoltan <zfarkas@sztaki.hu> 1.2-1
+- URL passthrough
+- XtremWeb updates
+
+* Wed Dec  8 2010 BALATON Zoltan <balaton@sztaki.hu> 1.01-1
+- Fix build requirements
+- Build and package all plugins (except DC-API based ones short of DC-API rpm)
+- Allow conditional build of plugin packages
+
+* Mon Sep 20 2010 FARKAS Zoltan <zfarkas@sztaki.hu> 1.0-1
+- Move to SL5
+- Update build requirements
+
+* Thu Mar 11 2010 BALATON Zoltan <balaton@sztaki.hu> 0.96r2324-1
+- Add missed man pages
+- Also package the Java plugin
+- Rename plugin packages to plugin-* for nicer sorting and grouping
+- Prevent mixing plugin and 3g-bridge versions by requiring the
+  3g-bridge version in plugin packages
+
+* Tue Oct 15 2009 FARKAS Zoltan <zfarkas@sztaki.hu> 0.96r2275-1
+- Separate package for plugins, jobwrapper, and 3G bridge
+
+* Tue May  5 2009 BALATON Zoltan <balaton@sztaki.hu> 0.92r2189-2
+- Added build requires boinc-client-devel
+
+* Tue Mar 24 2009 BALATON Zoltan <balaton@sztaki.hu> 0.90-1
+- Added URLs for additional sources
+
+* Wed Feb 11 2009 BALATON Zoltan <balaton@sztaki.hu> 0.9r2103-1
+- Added build requires e2fsprogs-devel for libuuid
+
+* Mon Dec 19 2008 BALATON Zoltan <balaton@sztaki.hu> 0.9r2086-1
+- Fix location of README and COPYING doc files
+- Mark configs as noreplace
+
+* Sun Dec 18 2008 BALATON Zoltan <balaton@sztaki.hu> 0.9r2085-1
+- also install README file
+
+* Wed Dec 10 2008 BALATON Zoltan <balaton@sztaki.hu> 0.9r2053-1
+- rebuild to include license
+
+* Thu Nov 27 2008 BALATON Zoltan <balaton@sztaki.hu> 0.9r2031-1
+- alpha test release
