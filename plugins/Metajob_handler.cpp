@@ -71,6 +71,8 @@
 using namespace _3gbridgeParser;
 using namespace std;
 
+#define DO_LOG_JOBS
+
 CSTR_C CONFIG_GROUP = "MetaJob";
 CSTR_C CFG_MAXJOBS = "maxJobsAtOnce";
 CSTR_C CFG_MINEL = "minElapse";
@@ -127,45 +129,7 @@ MetajobHandler::MetajobHandler(GKeyFile *config, const char *instance)
 }
 
 static void LOGJOB(const char * msg,
-		   const MetaJobDef &mjd, const JobDef &jd)
-{
-	LOG(LOG_DEBUG, "%s", msg);
-	LOG(LOG_DEBUG, "Last state:");
-	LOG(LOG_DEBUG, "  count        = %lu", mjd.count);
-	LOG(LOG_DEBUG, "  startLine    = %lu", mjd.startLine);
-	LOG(LOG_DEBUG, "  strRequired  = '%s'", mjd.strRequired.c_str());
-	LOG(LOG_DEBUG, "  strSuccessAt = '%s'", mjd.strSuccessAt.c_str());
-	LOG(LOG_DEBUG, "  required     = %lu", mjd.required);
-	LOG(LOG_DEBUG, "  successAt    = %lu", mjd.successAt);
-	LOG(LOG_DEBUG, "  finished     = %s", mjd.finished ? "true" : "false");
-	LOG(LOG_DEBUG, "  ---");
-	LOG(LOG_DEBUG, "  metajobid    = '%s'", jd.metajobid.c_str());
-	LOG(LOG_DEBUG, "  dbId         = '%s'", jd.dbId.c_str());
-	LOG(LOG_DEBUG, "  grid         = '%s'", jd.grid.c_str());
-	LOG(LOG_DEBUG, "  algName      = '%s'", jd.algName.c_str());
-	LOG(LOG_DEBUG, "  comment      = '%s'", jd.comment.c_str());
-	LOG(LOG_DEBUG, "  args         = '%s'", jd.args.c_str());
-	LOG(LOG_DEBUG, "  ---");
-	LOG(LOG_DEBUG, "  <inputs>");
-	for (inputMap::const_iterator i = jd.inputs.begin();
-	     i != jd.inputs.end(); i++)
-	{
-		const FileRef &fr = i->second;
-		LOG(LOG_DEBUG,
-		    "    '%s' : '%s', '%s', %ld",
-		    i->first.c_str(), fr.getURL().c_str(),
-		    fr.getMD5(), fr.getSize());
-	}
-	LOG(LOG_DEBUG, "  <outputs>");
-	for (outputMap::const_iterator i = jd.outputs.begin();
-	     i != jd.outputs.end(); i++)
-	{
-		LOG(LOG_DEBUG,
-		    "    '%s' : '%s'",
-		    i->first.c_str(), i->second.c_str());
-	}
-	LOG(LOG_DEBUG, "// %s", msg);
-}
+		   const MetaJobDef &mjd, const JobDef &jd);
 
 void MetajobHandler::submitJobs(JobVector &jobs)
 	throw (BackendException *)
@@ -349,15 +313,45 @@ void MetajobHandler::updateStatus(void)
 	DBHWrapper()->pollJobs(this, Job::RUNNING, Job::CANCEL);
 }
 
+void MetajobHandler::cancel(Job *job)
+{
+	// TODO: if canceled -> cancel sub-jobs
+	// // what happens when a job is canceled?  automatically deleted? if
+	// // not, we must delete the subjobs
+}
+
 void MetajobHandler::poll(Job *job) throw (BackendException *)
 {
 	//TODO: aggregate sub-jobs' statuses
 
+	return;
+
 	DBHWrapper dbh;
 
-	// if canceled -> cancel sub-jobs
-	// // what happens when a job is canceled?  automatically deleted? if
-	// // not, we must delete the subjobs
+	if (job->getStatus() == Job::CANCEL)
+	{
+		cancel(job);
+		return;
+	}
+
+	size_t count = 0, startLine = 0;
+	string strReqd, strSuccAt;
+	string grid;
+	getExtraData(job->getGridId(),
+		     grid, count, startLine, strReqd, strSuccAt,
+		     job->getId());
+	size_t required, succAt;
+	if (!sscanf(strReqd.c_str(), "%lu", &required)
+	    || !sscanf(strSuccAt.c_str(), "%lu", &succAt))
+	{
+		throw new BackendException(
+			"Invalid data in meta-job information: "
+			"required='%s', succAt='%s'; All should be numbers.",
+			strReqd.c_str(), strSuccAt.c_str());
+	}
+
+	map<Job::JobStatus, size_t> histogram = dbh->getMJHisto(job->getId());
+	size_t finished = histogram[Job::FINISHED];
 
 	// get histogram of sub-job statuses
 	// calculate new status for meta-job
@@ -561,6 +555,49 @@ static string calc_output_path(const string &basedir,
 			       const string &localName)
 {
 	return make_hashed_dir(basedir, jobid) + '/' + localName;
+}
+
+static void LOGJOB(const char * msg,
+		   const MetaJobDef &mjd, const JobDef &jd)
+{
+#ifdef DO_LOG_JOBS
+	LOG(LOG_DEBUG, "%s", msg);
+	LOG(LOG_DEBUG, "Last state:");
+	LOG(LOG_DEBUG, "  count        = %lu", mjd.count);
+	LOG(LOG_DEBUG, "  startLine    = %lu", mjd.startLine);
+	LOG(LOG_DEBUG, "  strRequired  = '%s'", mjd.strRequired.c_str());
+	LOG(LOG_DEBUG, "  strSuccessAt = '%s'", mjd.strSuccessAt.c_str());
+	LOG(LOG_DEBUG, "  required     = %lu", mjd.required);
+	LOG(LOG_DEBUG, "  successAt    = %lu", mjd.successAt);
+	LOG(LOG_DEBUG, "  finished     = %s", mjd.finished ? "true" : "false");
+	LOG(LOG_DEBUG, "  ---");
+	LOG(LOG_DEBUG, "  metajobid    = '%s'", jd.metajobid.c_str());
+	LOG(LOG_DEBUG, "  dbId         = '%s'", jd.dbId.c_str());
+	LOG(LOG_DEBUG, "  grid         = '%s'", jd.grid.c_str());
+	LOG(LOG_DEBUG, "  algName      = '%s'", jd.algName.c_str());
+	LOG(LOG_DEBUG, "  comment      = '%s'", jd.comment.c_str());
+	LOG(LOG_DEBUG, "  args         = '%s'", jd.args.c_str());
+	LOG(LOG_DEBUG, "  ---");
+	LOG(LOG_DEBUG, "  <inputs>");
+	for (inputMap::const_iterator i = jd.inputs.begin();
+	     i != jd.inputs.end(); i++)
+	{
+		const FileRef &fr = i->second;
+		LOG(LOG_DEBUG,
+		    "    '%s' : '%s', '%s', %ld",
+		    i->first.c_str(), fr.getURL().c_str(),
+		    fr.getMD5(), fr.getSize());
+	}
+	LOG(LOG_DEBUG, "  <outputs>");
+	for (outputMap::const_iterator i = jd.outputs.begin();
+	     i != jd.outputs.end(); i++)
+	{
+		LOG(LOG_DEBUG,
+		    "    '%s' : '%s'",
+		    i->first.c_str(), i->second.c_str());
+	}
+	LOG(LOG_DEBUG, "// %s", msg);
+#endif
 }
 
 /**********************************************************************

@@ -853,3 +853,8 @@ void DBHandler::setMetajobChildrenStatus(const string &mjid, Job::JobStatus news
 {
 	query("UPDATE cg_job SET status='%s' WHERE metajobid='%s'", statToStr(newstat), mjid.c_str());
 }
+
+map<Job::JobStatus, size_t> DBHandler::getMJHisto(const string &jobid)
+{
+	//TODO
+}

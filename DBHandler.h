@@ -35,6 +35,7 @@
 
 #include <string>
 #include <memory>
+#include <map>
 
 #include <mysql.h>
 #include <glib.h>
@@ -268,6 +269,8 @@ class DBHandler {
 			     const FileRef &ref);
 	void setMetajobChildrenStatus(const string &mjid, Job::JobStatus newstat);
 	void changeJobArgs(const string &jobid, const string &jobargs);
+
+	map<Job::JobStatus, size_t> getMJHisto(const string &jobid);
 
     protected:
 	/// DBResult friend class.

@@ -272,7 +272,8 @@ static bool runHandler(GridHandler *handler)
 			DBHandler *dbh = DBHandler::get();
 			dbh->getJobs(jobs, handler->getName(), (*it)->getName(), Job::INIT, selectSizeAdv(*it));
 			DBHandler::put(dbh);
-
+			
+			LOG(LOG_DEBUG, "Got jobs, count: %lu", jobs.size());
 			if (!jobs.empty())
 			{
 				try {
@@ -298,7 +299,7 @@ static bool runHandler(GridHandler *handler)
 		dbh->getJobs(jobs, handler->getName(), Job::INIT, alg->getPackSize());
 		DBHandler::put(dbh);
 
-		LOG(LOG_DEBUG, "Got jobs, count: %d", jobs.size());
+		LOG(LOG_DEBUG, "Got jobs, count: %lu", jobs.size());
 		if (!jobs.empty())
 		{
 			try {

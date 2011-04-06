@@ -102,6 +102,9 @@ private:
 				 string &grid,  size_t &count, size_t &startLine,
 				 string &reqd, string &succAt, string const &jobId)
 		throw (BackendException*);
+	/**
+	 * Cancels the meta-job and its sub-jobs */
+	static void cancel(Job* job);
 
 	/**
 	 * From configuration: Max number of jobs to generate in an
