@@ -31,6 +31,12 @@ dnl ===================================================================
 dnl Check for 3rd party software
 dnl ===================================================================
 
+dnl Check for mktemp
+AC_PATH_PROG([MKTEMP], [mktemp], [false])
+if test "$MKTEMP" = false; then
+	AC_MSG_ERROR([mktemp was not found])
+fi
+
 dnl -------------------------------------------------------------------
 dnl MySQL
 dnl -------------------------------------------------------------------
@@ -149,8 +155,8 @@ if test "$no_gsoap" != yes; then
 	LIBCURL_CHECK_CONFIG([yes], [7.12.0], [],
 		[AC_MSG_ERROR([CURL development files are missing])])
 
-	AC_PATH_PROG([SOAPCPP2], [soapcpp2], [false], "$PATH:$with_gsoap/bin")
-	AC_PATH_PROG([WSDL2H], [wsdl2h], [false], "$PATH:$with_gsoap/bin")
+	AC_PATH_PROG([SOAPCPP2], [soapcpp2], [false], "$with_gsoap/bin:$PATH")
+	AC_PATH_PROG([WSDL2H], [wsdl2h], [false], "$with_gsoap/bin:$PATH")
 	if test "$SOAPCPP2" = false -o "$WSDL2H" = false; then
 		no_gsoap=yes
 	fi
@@ -268,3 +274,12 @@ AC_CONFIG_FILES([Makefile
 		 plugins/Makefile
 		 3g-bridge.spec])
 AC_OUTPUT
+
+dnl Update 3g-bridge.spec if needed
+SVNVER=`svnversion .`
+if test "$SVNVER" != exported; then
+	TMPFILE=`mktemp /tmp/example.XXXXXXXXXX` || exit 1
+	sed -e "s|#define rev 2149|%define rev $SVNVER|" 3g-bridge.spec > $TMPFILE
+	mv $TMPFILE 3g-bridge.spec
+fi
+

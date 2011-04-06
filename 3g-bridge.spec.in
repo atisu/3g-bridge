@@ -18,8 +18,8 @@
 
 Summary: Generic Grid Grid (3G) bridge.
 Name: 3g-bridge
-Version: %{ver}%{?rev:r%{rev}}
-Release: 1
+Version: %{ver}
+Release: %{rev}
 License: GPL
 Group: Grid
 Source: %{name}-%{version}.tar.bz2
