@@ -129,7 +129,7 @@ AC_ARG_WITH([jobwrapper], AS_HELP_STRING([--with-jobwrapper], [Enable Jobwrapper
 AM_CONDITIONAL([HAVE_JOBWRAPPER], [test "$with_jobwrapper" != no])
 
 dnl -------------------------------------------------------------------
-dnl gsoap & libcurl
+dnl gsoap & libcurl & inotify
 dnl -------------------------------------------------------------------
 
 AC_ARG_WITH([gsoap], AS_HELP_STRING([--with-gsoap], [Use gSOAP @<:@auto@:>@]),
@@ -166,6 +166,9 @@ if test "$with_gsoap" = yes -a "$no_gsoap" = yes; then
 	AC_MSG_ERROR([gsoap was not found])
 fi
 AM_CONDITIONAL([HAVE_GSOAP], [test "$no_gsoap" != yes])
+
+AC_CHECK_HEADER([sys/inotify.h], [AC_DEFINE([HAVE_SYS_INOTIFY_H], [1], [Define if sys/inotify.h is usable])], [])
+AC_CHECK_HEADER([inotifytools/inotify.h], [AC_DEFINE([HAVE_INOTIFYTOOLS], [1], [Define if inotifytools/inotify.h is usable])], [])
 
 dnl -------------------------------------------------------------------
 dnl BES

@@ -52,7 +52,6 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <errno.h>
-#include <sys/inotify.h>
 #include <poll.h>
 #include <sys/stat.h>
 
@@ -65,6 +64,12 @@
 #include "soap/Submitter.nsmap"
 
 #include <glib.h>
+
+#ifdef HAVE_SYS_INOTIFY_H
+#include <sys/inotify.h>
+#elif defined(HAVE_INOTIFYTOOLS)
+#include <inotifytools/inotify.h>
+#endif
 
 using namespace std;
 
