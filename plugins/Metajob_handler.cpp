@@ -481,6 +481,9 @@ void MetajobHandler::processOutput(DBHWrapper &dbh, Job *metajob, Job *subjob)
 		if (system(s_append.c_str()))
 			throw BackendException("Error executing command '%s'",
 					       s_append.c_str());
+		if (system(("rm -rf '" + tgzpath + "/" + tgzname + "'").c_str()))
+			LOG(LOG_DEBUG, "Couldn't delete '%s/%s'",
+			    tgzpath.c_str(), tgzname.c_str());
 	}
 	
 	deleteJob(subjob);
