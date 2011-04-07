@@ -34,6 +34,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "Conf.h"
 #include "Job.h"
@@ -80,10 +81,6 @@ CSTR_C CFG_MAXJOBS = "maxJobsAtOnce";
 CSTR_C CFG_MINEL = "minElapse";
 CSTR_C CFG_MAXJOBS_OUTPUT = "maxProcOutput";
 
-/**
- * Cut out the base directory from the path of one of the meta-job's outputs.
- * This directory will be used as base directory for sub-job's outputs. */
-static string getOutDirBase(const string &outPath);
 /**
  * Construct and create the path to where output shall be saved. */
 static string calc_job_path(const string &basedir,
@@ -343,9 +340,25 @@ void MetajobHandler::updateStatus(void)
 	DBHWrapper()->pollJobs(this, Job::RUNNING, Job::CANCEL);
 }
 
-void MetajobHandler::deleteMetajob(Job *job)
+static void rmrf(string dir)
 {
-	//TODO
+	//TODO: implement recursive deleting
+	if (system(("rm -rf '" + dir + "'").c_str()))
+		LOG(LOG_WARNING,
+		    "Couldn't remove directory: '%s'",
+		    dir.c_str());
+}
+
+void MetajobHandler::cleanupJob(Job *job)
+{
+	rmrf(calc_job_path(outDirBase, job->getId()));
+	rmrf(calc_job_path(inDirBase, job->getId()));
+}
+
+void MetajobHandler::deleteJob(Job *job)
+{
+	cleanupJob(job);
+	DBHWrapper()->deleteJob(job->getId());
 }
 
 void MetajobHandler::userCancel(Job *job)
@@ -365,7 +378,7 @@ void MetajobHandler::userCancel(Job *job)
 		    "All sub-jobs has been canceled and deleted. "
 		    "Deleting meta-job '%s'.", c_jobid);
 		// Delete meta-job if there are no sub-jobs left.
-		deleteMetajob(job);
+		deleteJob(job);
 	}
 	else
 	{
@@ -378,6 +391,7 @@ void MetajobHandler::userCancel(Job *job)
 		{
 			LOG(LOG_DEBUG, "Canceling job: '%s'.", c_jobid);
 
+			//TODO: delete remaining output of sub-jobs
 			dbh->cancelSubjobs(jobid);
 			job->setGridId("");
 		}
@@ -410,36 +424,77 @@ void MetajobHandler::errorCancel(Job *job)
 	job->setStatus(Job::ERROR);
 	job->setGridData("Too many sub-jobs failed.");
 }
-void MetajobHandler::processOutput(Job *metajob, Job *subjob)
+typedef map<string, string> Outputmap;
+void MetajobHandler::processOutput(DBHWrapper &dbh, Job *metajob, Job *subjob)
 {	
-	const map<string, string> &mjoutputs = metajob->getOutputMap();
-	const map<string, string> &subjob_outputs = subjob->getOutputMap();
+	const Outputmap &mjoutputs = metajob->getOutputMap();
+	const Outputmap &subjob_outputs = subjob->getOutputMap();
 
-	for (map<string, string>::const_iterator i = mjoutputs.begin();
-	     i != mjoutputs.end(); i++)
+	LOG(LOG_DEBUG,
+	    "Processing output of sub-job '%s'",
+	    subjob->getId().c_str());
+
+	for (map<string, string>::const_iterator i = subjob_outputs.begin();
+	     i != subjob_outputs.end(); i++)
 	{
-		//TODO
+		const string &src_file = i->second;
+
+		Outputmap::const_iterator mji = mjoutputs.find(i->first);
+		if (i == mjoutputs.end())
+		{
+			throw BackendException(
+				"Sub-job '%s' has an unexpected output: '%s'",
+				subjob->getId().c_str(), i->first.c_str());
+		}
+		const string &dst_file = mji->second;
+
+		LOG(LOG_DEBUG,
+		    "Appending output '%s' to meta-job output '%s'",
+		    src_file.c_str(), dst_file.c_str());
+
+		//TODO: implement archiving using a lib
+
+		string tgzname = subjob->getId() + ".tgz";
+		string tgzpath = calc_job_path(outDirBase,
+					       metajob->getId());
+		const char *src_basename = src_file.c_str() + outDirBase.length();
+		while ('/' == *src_basename) src_basename++;
+
+		ostringstream compress;
+		compress << "tar czf '" << tgzpath << '/' << tgzname << '\''
+			 << " -C '" << outDirBase << '\''
+			 << " '"<< src_basename << '\'';
+		compress.flush();
+		string s_compress = compress.str();
+		LOG(LOG_DEBUG, "Executing '%s'", s_compress.c_str());
+		if (system(s_compress.c_str()))
+			throw BackendException("Error executing command '%s'",
+					       s_compress.c_str());
+
+		ostringstream append;
+		append << "tar rf '" << dst_file << '\''
+		       << " -C '" << tgzpath << '\''
+		       << " '" << tgzname << '\'';
+		append.flush();
+		string s_append = append.str();
+		LOG(LOG_DEBUG, "Executing '%s'", s_append.c_str());
+		if (system(s_append.c_str()))
+			throw BackendException("Error executing command '%s'",
+					       s_append.c_str());
 	}
 	
-	subjob->setStatus(Job::CANCEL);
+	deleteJob(subjob);
 }
-void MetajobHandler::processFinishedSubjobsOutputs(Job *job)
+void MetajobHandler::processFinishedSubjobsOutputs(DBHWrapper &dbh, Job *job)
 {
 	JobVector jobs;
 	DBHWrapper()->getFinishedSubjobs(job->getId(), jobs, maxProcOutput);
 	for (JobVector::iterator i = jobs.begin(); i!=jobs.end(); i++)
-		processOutput(job, *i);
-}
-
-void MetajobHandler::deleteOutput(Job *job)
-{
-	
+		processOutput(dbh, job, *i);
 }
 
 void MetajobHandler::poll(Job *job) throw (BackendException *)
 {
-	//TODO: aggregate sub-jobs' statuses
-
 	const string &jid = job->getId();
 
 	LOG(LOG_DEBUG, "Polling job status: '%s'", jid.c_str());
@@ -456,7 +511,7 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 		throw BackendException("Job '%s' has unexpected status: %d",
 				      jid.c_str(), job->getStatus());
 
-	processFinishedSubjobsOutputs(job);
+	processFinishedSubjobsOutputs(dbh, job);
 
 	size_t count = 0, startLine = 0;
 	string strReqd, strSuccAt;
@@ -520,6 +575,7 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 	// get filename of sub-job status report
 	// if file doesn't exist or it's older than minel,
 	// -> regen sub-jobs' status info
+	// Add url to griddata
 }
 
 /**********************************************************************

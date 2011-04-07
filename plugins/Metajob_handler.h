@@ -106,7 +106,7 @@ private:
 		throw (BackendException*);
 	/**
 	 * Cancels the meta-job and its sub-jobs */
-	static void userCancel(Job* job);
+	void userCancel(Job* job);
 	/**
 	 * Set meta-job to finished. Cancel all remaining sub-jobs. */
 	static void finishedCancel(Job *job);
@@ -115,16 +115,16 @@ private:
 	static void errorCancel(Job *job);
 	/**
 	 * Process sub-jobs' outputs and delete them. */
-	void processFinishedSubjobsOutputs(Job *job);
+	void processFinishedSubjobsOutputs(DBHWrapper &dbh, Job *job);
 	/**
 	 * Process a single job's output  */
-	static void processOutput(Job *metajob, Job *subjob);
-	/**
-	 * Delete meta-job files from the disk. */
-	static void deleteOutput(Job *job);
+	void processOutput(DBHWrapper &dbh, Job *metajob, Job *subjob);
 	/**
 	 * Delete the job record  */
-	static void deleteMetajob(Job *job);
+	void deleteJob(Job *job);
+	/**
+	 * Remove files from the disk */
+	void cleanupJob(Job *job);
 
 	/**
 	 * From configuration: Max number of jobs to generate in an
