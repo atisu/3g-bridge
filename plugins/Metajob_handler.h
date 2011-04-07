@@ -138,8 +138,11 @@ private:
 	 * From configuration: Max number of finished jobs to be handled at once
 	 * when processing output. */
 	size_t maxProcOutput;
-
+	/**
+	 * From configuration: Output base directory. */
 	string outDirBase;
+	/**
+	 * From configuration: Input base directory. */
 	string inDirBase;
 
 };

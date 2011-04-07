@@ -76,8 +76,14 @@ void NullHandler::poll(Job *job) throw (BackendException *)
 			LOG(LOG_DEBUG, "NULL Handler (%s): set status of job \"%s\" to FINISHED.",
 				name.c_str(), job->getId().c_str());
 			break;
-		default:
-			break;
+	case Job::CANCEL:
+		DBHWrapper()->deleteJob(job->getId());
+		LOG(LOG_DEBUG,
+		    "NULL Handler (%s): DELETED job '%s'",
+		    name.c_str(), job->getId().c_str());
+		break;
+	default:
+		break;
 	}
 }
 

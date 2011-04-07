@@ -86,9 +86,13 @@ CSTR_C CFG_MAXJOBS_OUTPUT = "maxProcOutput";
 static string getOutDirBase(const string &outPath);
 /**
  * Construct and create the path to where output shall be saved. */
-static string calc_output_path(const string &basedir,
-			       const string &jobid,
-			       const string &localName);
+static string calc_job_path(const string &basedir,
+			    const string &jobid);
+/**
+ * Construct and create the path to where output shall be saved. */
+static string calc_file_path(const string &basedir,
+			     const string &jobid,
+			     const string &localName);
 /**
  * Exception handler for submitJobs*/
 static void submit_handleError(DBHandler *dbh, const char *msg, Job *job);
@@ -319,9 +323,9 @@ void MetajobHandler::qJobHandler(MetajobHandler *instance,
 		     i != jd.outputs.end(); i++)
 		{
 			qmjob.addOutput(i->first,
-					calc_output_path(instance->outDirBase,
-							 jobid,
-							 i->first));
+					calc_file_path(instance->outDirBase,
+						       jobid,
+						       i->first));
 		}
 
 		if (!(*(instance->dbh))->addJob(qmjob))
@@ -490,7 +494,7 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 	    jid.c_str(), count, required, succAt,
 	    finished, err, all);
 
-	if (finished > succAt)
+	if (finished >= succAt)
 	{
 		finishedCancel(job);
 	}
@@ -503,11 +507,13 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 	else if (finished + err == count)
 	{
 		// All jobs finished in either final state.
-		if (finished > required)
+		if (finished >= required)
 			finishedCancel(job);
 		else
 			errorCancel(job);
 	}
+	else
+		LOG(LOG_DEBUG, "Metajob '%s' still RUNNING.", jid.c_str());
 	
 
 	// TODO:
@@ -667,11 +673,15 @@ static string make_hashed_dir(const string &base,
 
 	return dir;
 }
-static string calc_output_path(const string &basedir,
+static string calc_job_path(const string &basedir, const string &jobid)
+{
+	return make_hashed_dir(basedir, jobid);
+}
+static string calc_file_path(const string &basedir,
 			       const string &jobid,
 			       const string &localName)
 {
-	return make_hashed_dir(basedir, jobid) + '/' + localName;
+	return calc_job_path(basedir, jobid) + '/' + localName;
 }
 
 static void LOGJOB(const char * msg,

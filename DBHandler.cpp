@@ -884,8 +884,12 @@ void DBHandler::getSubjobCounts(const string &jobid, size_t &all, size_t &err)
 void DBHandler::cancelSubjobs(const string &parentId)
 {	
 	query("UPDATE cg_job SET status='CANCEL' "
-	      "where metajobid = '%s'",
+	      "where metajobid = '%s' and status='RUNNING'",
 	      parentId.c_str());
+	query("DELETE FROM cg_job "
+	      "where metajobid = '%s' and status <> 'RUNNING'",
+	      parentId.c_str());
+
 }
 
 void DBHandler::getFinishedSubjobs(const string &parentId,
