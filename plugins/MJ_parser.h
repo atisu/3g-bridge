@@ -66,12 +66,7 @@ namespace _3gbridgeParser
 	 */
 	typedef struct MetaJobDef
 	{
-		MetaJobDef()
-			: count(0), startLine(0),
-			  required(0), successAt(0),
-			  finished(false)
-		{
-		}
+		MetaJobDef();
 		MetaJobDef(size_t count, size_t startLine,
 			   string strRequired, string strSuccessAt)
 			: count(count),

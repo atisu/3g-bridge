@@ -421,18 +421,20 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 
 static char const DSEP = '|';
 
-CSTR_C MSG_INV_VAL_FMT = "Invalid value in gridId field for meta-job: %s";
+CSTR_C MSG_INV_VAL_FMT = "Invalid value in gridId field for meta-job '%s': '%s'";
 #define GET_TOKEN()							\
 	{								\
 		if (!getline(is, token, DSEP))				\
 			throw new BackendException(MSG_INV_VAL_FMT,	\
-						   jobId.c_str());	\
+						   jobId.c_str(),	\
+						   data.c_str());	\
 	}
 #define RET_NUM(a)							\
 	{								\
 		if (1 != sscanf(token.c_str(), "%lu", &(a)))		\
 			throw new BackendException(MSG_INV_VAL_FMT,	\
-						   jobId.c_str());	\
+						   jobId.c_str(),	\
+						   data.c_str());	\
 	}
 #define RET_STR(a) { (a).swap(token); }
 

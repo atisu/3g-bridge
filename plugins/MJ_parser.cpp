@@ -53,7 +53,7 @@ static CSTR_C SUCCAT_RNG [] = { SUCCAT_ALL, SUCCAT_REQD, 0L }; //for iterating
 
 // Default values for directives
 static CSTR_C REQ_DEFAULT = REQ_ALL;
-static CSTR_C SUCCAT_DEFAULT = SUCCAT_REQD;
+static CSTR_C SUCCAT_DEFAULT = SUCCAT_ALL;
 
 enum CountType
 {
@@ -209,6 +209,15 @@ namespace _3gbridgeParser
 		       inputMap const &inpMap)
 		: metajobid(metajobid), grid(grid), algName(algName),
 		  outputs(outputs), args(args), inputs(inpMap)
+	{
+	}
+
+	MetaJobDef::MetaJobDef()
+		: count(0), startLine(0),
+		  strRequired(REQ_DEFAULT),
+		  strSuccessAt(SUCCAT_DEFAULT),
+		  required(0), successAt(0),
+		  finished(false)
 	{
 	}
 
