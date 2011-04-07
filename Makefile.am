@@ -186,7 +186,6 @@ EXTRA_DIST += \
 		3GBridgeMonitor.wsdl \
 		master.xml.in \
 		3g-bridge.spec \
-		3g-bridge-sl4.spec \
 		etc/3g-bridge.* \
 		doc/* \
 		soap/.keepme
@@ -197,7 +196,6 @@ dist_doc_DATA = \
 		README \
 		doc/README-EC2 \
 		doc/README-BOINC2EGEE \
-		doc/jobwrapper_client.xml \
 		master.xml
 nobase_dist_doc_DATA = \
 		db/schema.sql \
@@ -206,13 +204,20 @@ nobase_dist_doc_DATA = \
 		examples/batch_pack \
 		examples/batch_unpack \
 		examples/dc-api.conf \
+		examples/jobwrapper_client.xml \
 		examples/resource-manager.sh \
 		examples/hu/sztaki/lpds/G3Bridge/plugin/null/NullHandler.java
 
 dist_sysconf_DATA = etc/3g-bridge.conf
 
+SVNREV := $(shell svnversion "$(srcdir)")
 dist-hook:
-	if [ `svnversion .` != "exported" ]; then svn2cl --group-by-day --authors=AUTHORS --revision HEAD:2153 -o $(distdir)/ChangeLog; fi
+	if [ "$(SVNREV)" != "exported" ]; then \
+		svn2cl --group-by-day --authors=AUTHORS --revision HEAD:2153 -o "$(distdir)/ChangeLog"; \
+		for f in  "$(distdir)/3g-bridge.spec"{,.in}; do \
+			$(SED) -i -e "s/^#define rev @REVISION@$$/%define rev ${SVNREV}/" "$$f"; \
+		done; \
+	fi
 
 package: 3g-bridge-package.tar.gz
 

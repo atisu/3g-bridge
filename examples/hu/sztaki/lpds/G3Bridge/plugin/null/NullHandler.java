@@ -6,7 +6,7 @@
  * - Compile & install the bridge (installing it is important, otherwise it
  *   won't find the plugins)
  *
- * - Run 'javac -classpath ../plugins/3g-bridge-plugin-0.96.jar NullHandler.java'
+ * - Run 'javac -classpath ../plugins/3g-bridge-plugin.jar NullHandler.java'
  *   to compile this Java plugin
  *
  * - Edit 3g-bridge.conf:

@@ -31,12 +31,6 @@ dnl ===================================================================
 dnl Check for 3rd party software
 dnl ===================================================================
 
-dnl Check for mktemp
-AC_PATH_PROG([MKTEMP], [mktemp], [false])
-if test "$MKTEMP" = false; then
-	AC_MSG_ERROR([mktemp was not found])
-fi
-
 dnl -------------------------------------------------------------------
 dnl MySQL
 dnl -------------------------------------------------------------------
@@ -275,16 +269,6 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile
 		 doc/Makefile
 		 plugins/Makefile
-		 3g-bridge.spec
-		 3g-bridge-sl4.spec])
+		 doc/doxygen.cfg
+		 3g-bridge.spec])
 AC_OUTPUT
-
-dnl Update 3g-bridge.spec if needed
-SVNVER=`svnversion .`
-if test "$SVNVER" != exported; then
-	TMPFILE=`mktemp /tmp/example.XXXXXXXXXX` || exit 1
-	for sfile in 3g-bridge{,-sl4}.spec; do
-	    sed -e "s|#define rev 2149|%define rev $SVNVER|" $sfile > $TMPFILE
-	    mv $TMPFILE $sfile
-	done
-fi

@@ -83,7 +83,8 @@ steps:
      Make sure that the directory and config file is owned by the user
      the bridge will be running as
      $ chown 3g-bridge:3g-bridge /var/lib/3g-bridge/jobwrapper-boinc
-     (An example jobwrapper_client.xml file is provided in the doc directory.)
+     (An example jobwrapper_client.xml file is provided in the examples
+     directory.)
 
   6. Start the boinc_jobwrapper_client in this new directory, and attach to
      the requested BOINC project. Do this as the user created for the
