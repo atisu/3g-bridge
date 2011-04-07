@@ -861,10 +861,45 @@ void DBHandler::removeMetajobChildren(const string &jobid)
 
 void DBHandler::getSubjobCounts(const string &jobid, size_t &all, size_t &err)
 {
-	//TODO
+	{
+		query("SELECT COUNT(*) FROM cg_job WHERE metajobid='%s'",
+		      jobid.c_str());
+
+		DBResult res(this);
+		res.use(); res.fetch();
+		sscanf(res.get_field(0), "%lu", &all);
+	}
+
+	{
+		query("SELECT COUNT(*) FROM cg_job WHERE metajobid='%s'"
+		      " AND status='ERROR'",
+		      jobid.c_str());
+
+		DBResult res(this);
+		res.use(); res.fetch();
+		sscanf(res.get_field(0), "%lu", &err);
+	}
 }
 
-void DBHandler::cancelRunning(const string &parentId)
+void DBHandler::cancelSubjobs(const string &parentId)
+{	
+	query("UPDATE cg_job SET status='CANCEL' "
+	      "where metajobid = '%s'",
+	      parentId.c_str());
+}
+
+void DBHandler::getFinishedSubjobs(const string &parentId,
+				   JobVector &jobs,
+				   size_t limit)
 {
-	//TODO
+	char s_limit[32] = "";
+	if (limit)
+		sprintf(s_limit, "LIMIT %lu", limit);
+
+	if (query("SELECT * FROM cg_job "
+		  "WHERE metajobid = '%s' AND status = 'FINISHED' "
+		  "ORDER BY creation_time %s", parentId.c_str(), s_limit))
+	{
+		parseJobs(jobs);
+	}
 }

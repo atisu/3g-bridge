@@ -72,12 +72,14 @@ public:
 	void poll(Job *job) throw (BackendException *);
 
 private:
+	DBHWrapper *dbh;
+	
 	/**
 	 * Delegate function. Called by parseMetaJob() to create jobs in the
 	 * database using jd as a template.
 	 * @see queueJobHandler
 	 */
-	static void qJobHandler(DBHandler *instance,
+	static void qJobHandler(MetajobHandler *instance,
 				_3gbridgeParser::JobDef const &jd,
 				size_t count);
 	//
@@ -112,11 +114,17 @@ private:
 	 * Set meta-job to error. Cancel all remaining sub-jobs. */
 	static void errorCancel(Job *job);
 	/**
-	 * Process sub-jobs' outputs. */
-	static void processOutputs(Job *job);
+	 * Process sub-jobs' outputs and delete them. */
+	void processFinishedSubjobsOutputs(Job *job);
+	/**
+	 * Process a single job's output  */
+	static void processOutput(Job *metajob, Job *subjob);
 	/**
 	 * Delete meta-job files from the disk. */
 	static void deleteOutput(Job *job);
+	/**
+	 * Delete the job record  */
+	static void deleteMetajob(Job *job);
 
 	/**
 	 * From configuration: Max number of jobs to generate in an
@@ -126,6 +134,14 @@ private:
 	 * From configuration: Minimum time (in seconds) to elapse between
 	 * updates sub-jobs' status report */
 	size_t minElapse;
+	/**
+	 * From configuration: Max number of finished jobs to be handled at once
+	 * when processing output. */
+	size_t maxProcOutput;
+
+	string outDirBase;
+	string inDirBase;
+
 };
 
 

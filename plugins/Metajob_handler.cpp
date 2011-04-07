@@ -73,9 +73,12 @@ using namespace std;
 
 #define DO_LOG_JOBS
 
-CSTR_C CONFIG_GROUP = "MetaJob";
+CSTR_C CFG_OUTDIR = "output-dir";
+CSTR_C CFG_INDIR = "input-dir";
+
 CSTR_C CFG_MAXJOBS = "maxJobsAtOnce";
 CSTR_C CFG_MINEL = "minElapse";
+CSTR_C CFG_MAXJOBS_OUTPUT = "maxProcOutput";
 
 /**
  * Cut out the base directory from the path of one of the meta-job's outputs.
@@ -90,11 +93,11 @@ static string calc_output_path(const string &basedir,
  * Exception handler for submitJobs*/
 static void submit_handleError(DBHandler *dbh, const char *msg, Job *job);
 
-static size_t getConfInt(GKeyFile *config, CSTR key, int defVal)
+static size_t getConfInt(GKeyFile *config, CSTR group, CSTR key, int defVal)
 {
 	GError *error = 0;
 	size_t value =
-		g_key_file_get_integer(config, CONFIG_GROUP, key, &error);
+		g_key_file_get_integer(config, group, key, &error);
 	if (error)
 	{
 		if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND)
@@ -110,6 +113,27 @@ static size_t getConfInt(GKeyFile *config, CSTR key, int defVal)
 
 	return value;
 }
+static string getConfStr(GKeyFile *config, CSTR group, CSTR key)
+{
+	GError *error = 0;
+	gchar* value =
+		g_key_file_get_string(config, group, key, &error);
+	if (value)
+		g_strstrip(value);
+	if (error)
+	{
+		LOG(LOG_ERR,
+		    "Metajob Handler: "
+		    "Failed to parse configuration '%s': %s",
+		    key, error->message);
+		throw BackendException("Missing configuration: [%s]/%s",
+				       group, key);
+	}
+
+	string s = value ? value : string();
+	g_free(value);
+	return s;
+}
 
 MetajobHandler::MetajobHandler(GKeyFile *config, const char *instance)
 	throw (BackendException*)
@@ -117,8 +141,15 @@ MetajobHandler::MetajobHandler(GKeyFile *config, const char *instance)
 {
 	groupByNames = false;
 
-	maxJobsAtOnce = getConfInt(config, CFG_MAXJOBS, 0); //Default: unlimited
-	minElapse = getConfInt(config, CFG_MINEL, 60); //Default: a minute
+	//Default: unlimited
+	maxJobsAtOnce = getConfInt(config, name.c_str(), CFG_MAXJOBS, 0);
+	//Default: a minute
+	minElapse = getConfInt(config, name.c_str(), CFG_MINEL, 60);
+	//Default: unlimited
+	maxProcOutput = getConfInt(config, name.c_str(), CFG_MAXJOBS_OUTPUT, 0);
+
+	outDirBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_OUTDIR);
+	inDirBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_INDIR);
 
 	LOG(LOG_INFO,
 	    "Metajob Handler: instance '%s' initialized.",
@@ -159,6 +190,7 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 
 		DBHWrapper dbh; // Gets a new dbhandler and implements finally
 				// block to free it when dbh goes out of scope
+		this->dbh = &dbh;
 		//All operations in this block use the same dbh (and thus
 		//transaction)
 		try
@@ -178,7 +210,7 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 
 			// This will insert multiple jobs by calling qJobHandler
 			LOG(LOG_DEBUG, "Starting parser...");
-			parseMetaJob(*dbh, mjfile, mjd, jd,
+			parseMetaJob(this, mjfile, mjd, jd,
 				     (queueJobHandler)&qJobHandler,
 				     maxJobsAtOnce);
 
@@ -249,7 +281,7 @@ static void submit_handleError(DBHandler *dbh, const char *msg, Job *job)
 	dbh->removeMetajobChildren(job->getId());
 }
 
-void MetajobHandler::qJobHandler(DBHandler *instance,
+void MetajobHandler::qJobHandler(MetajobHandler *instance,
 				 _3gbridgeParser::JobDef const &jd,
 				 size_t count)
 {
@@ -282,22 +314,17 @@ void MetajobHandler::qJobHandler(DBHandler *instance,
 				qmjob.addInput(i->first, i->second);
 			}
 
-		string base; // Output base dir; value will be set in first
-			     // iteration
 		// Copy outputs
 		for (outputMap::const_iterator i = jd.outputs.begin();
 		     i != jd.outputs.end(); i++)
 		{
-			if (base.empty())
-				base = getOutDirBase(i->second);
-
 			qmjob.addOutput(i->first,
-					calc_output_path(base,
+					calc_output_path(instance->outDirBase,
 							 jobid,
 							 i->first));
 		}
 
-		if (!instance->addJob(qmjob))
+		if (!(*(instance->dbh))->addJob(qmjob))
 			throw BackendException(
 				"DB error while inserting sub-job"
 				"for meta-job '%s'.",
@@ -312,22 +339,92 @@ void MetajobHandler::updateStatus(void)
 	DBHWrapper()->pollJobs(this, Job::RUNNING, Job::CANCEL);
 }
 
+void MetajobHandler::deleteMetajob(Job *job)
+{
+	//TODO
+}
+
 void MetajobHandler::userCancel(Job *job)
 {
-	LOG(LOG_DEBUG, "Canceling job: '%s'", job->getId().c_str());
-	//TODO
+	const string &jobid = job->getId();
+	CSTR_C c_jobid = jobid.c_str();
+
+	DBHWrapper dbh;
+
+	size_t all, err;
+	dbh->getSubjobCounts(jobid, all, err);
+
+	string gid = job->getGridId();
+	if (all == 0)
+	{
+		LOG(LOG_DEBUG,
+		    "All sub-jobs has been canceled and deleted. "
+		    "Deleting meta-job '%s'.", c_jobid);
+		// Delete meta-job if there are no sub-jobs left.
+		deleteMetajob(job);
+	}
+	else
+	{
+		// Wait for sub-jobs to be canceled
+
+		// Sub-jobs must be canceled, but only once. GridId is used as a
+		// flag. Empty gridId means the sub-jobs has been canceled
+		// already.
+		if (!gid.empty())
+		{
+			LOG(LOG_DEBUG, "Canceling job: '%s'.", c_jobid);
+
+			dbh->cancelSubjobs(jobid);
+			job->setGridId("");
+		}
+		else
+		{
+			LOG(LOG_DEBUG,
+			    "Still waiting for sub-jobs to finish "
+			    "(metajobid='%s').", c_jobid);
+		}
+	}
 }
 void MetajobHandler::finishedCancel(Job *job)
 {
-	//TODO
+	LOG(LOG_DEBUG,
+	    "Job '%s' is finished successfully, canceling remaining sub-jobs.",
+	    job->getId().c_str());
+
+	DBHWrapper dbh;
+	dbh->cancelSubjobs(job->getId());
+	job->setStatus(Job::FINISHED);
 }
 void MetajobHandler::errorCancel(Job *job)
 {
-	//TODO
+	DBHWrapper dbh;
+	LOG(LOG_DEBUG,
+	    "Job '%s' has FAILED, canceling remaining sub-jobs.",
+	    job->getId().c_str());
+
+	dbh->cancelSubjobs(job->getId());
+	job->setStatus(Job::ERROR);
+	job->setGridData("Too many sub-jobs failed.");
 }
-void MetajobHandler::processOutputs(Job *job)
+void MetajobHandler::processOutput(Job *metajob, Job *subjob)
+{	
+	const map<string, string> &mjoutputs = metajob->getOutputMap();
+	const map<string, string> &subjob_outputs = subjob->getOutputMap();
+
+	for (map<string, string>::const_iterator i = mjoutputs.begin();
+	     i != mjoutputs.end(); i++)
+	{
+		//TODO
+	}
+	
+	subjob->setStatus(Job::CANCEL);
+}
+void MetajobHandler::processFinishedSubjobsOutputs(Job *job)
 {
-	//TODO
+	JobVector jobs;
+	DBHWrapper()->getFinishedSubjobs(job->getId(), jobs, maxProcOutput);
+	for (JobVector::iterator i = jobs.begin(); i!=jobs.end(); i++)
+		processOutput(job, *i);
 }
 
 void MetajobHandler::deleteOutput(Job *job)
@@ -355,7 +452,7 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 		throw BackendException("Job '%s' has unexpected status: %d",
 				      jid.c_str(), job->getStatus());
 
-	processOutputs(job);
+	processFinishedSubjobsOutputs(job);
 
 	size_t count = 0, startLine = 0;
 	string strReqd, strSuccAt;
@@ -372,21 +469,26 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 			"required='%s', succAt='%s'; All should be numbers.",
 			strReqd.c_str(), strSuccAt.c_str());
 	}
-	LOG(LOG_DEBUG,
-	    "Job status for '%s'\n"
-	    "  count = %lu\n"
-	    "  required = %lu\n"
-	    "  successAt = %lu\n", jid.c_str(), count, required, succAt);
-
 	size_t all, err;
 	dbh->getSubjobCounts(job->getId(), all, err);
 
 	// Finished sub-jobs' output is processed, and then they are deleted.
-	// So, histogram[FINISHED] is the number of jobs in FINISHED status,
-	// with unprocessed outputs.
+	// So, the number of jobs in FINISHED status, is the number of jobs with
+	// unprocessed outputs.
 	// We only consider finished AND processed jobs as successfully
 	// finished. They are the missing ones.
 	size_t finished = count - all;
+
+	LOG(LOG_DEBUG,
+	    "Job status for '%s'\n"
+	    "  count     = %12lu\n"
+	    "  required  = %12lu\n"
+	    "  successAt = %12lu\n"
+	    "  finished  = %12lu\n"
+	    "  error     = %12lu\n"
+	    "  existing  = %12lu\n",
+	    jid.c_str(), count, required, succAt,
+	    finished, err, all);
 
 	if (finished > succAt)
 	{
@@ -413,7 +515,6 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 	// if file doesn't exist or it's older than minel,
 	// -> regen sub-jobs' status info
 }
-
 
 /**********************************************************************
  * Utility functions
@@ -552,44 +653,6 @@ static void md(char const *name)
 			name, strerror(errno));
 }
 
-static string getOutDirBase(const string &outPath)
-{
-	// Output path format: ...base/jobid_prefix/jobid/filename
-	// ==> base = dirname(dirname(dirname(path)))
-
-	if (!outPath.empty())
-	{
-		CSTR_C start = outPath.c_str();
-		CSTR i = start; // With this we will find the third to last
-				// slash, which marks the end of the directory
-				// name we're looking for
-
-		// find last character
-		while (*i) i++;
-		i--;
-
-		if (*i != '/') //else: not a filename; something is wrong
-		{
-			//(At most) three times dirname
-			for (int j=0; j<3 && i >= start; j++)
-			{
-				//skip to next slash
-				while (i >= start && *i != '/') i--;
-				//skip this (and consecutive) slashes
-				while (i >= start && *i == '/') i--;
-			}
-
-			// If there is still something left in the string, then
-			// we found the base directory
-			if (i >= start)
-				return string(start, i-start+1);
-		}
-	}
-
-	throw new BackendException(
-		"Base path cannot be guessed from output path '%s'.",
-		outPath.c_str());
-}
 static string make_hashed_dir(const string &base,
 			      const string &jobid,
 			      bool create = true)
@@ -604,7 +667,6 @@ static string make_hashed_dir(const string &base,
 
 	return dir;
 }
-
 static string calc_output_path(const string &basedir,
 			       const string &jobid,
 			       const string &localName)

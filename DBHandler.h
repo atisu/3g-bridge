@@ -275,7 +275,11 @@ class DBHandler {
 
 	void getSubjobCounts(const string &jobid, size_t &all, size_t &err);
 	void removeMetajobChildren(const string &jobid);
-	void cancelRunning(const string &parentId);
+	void cancelSubjobs(const string &parentId);
+
+	void getFinishedSubjobs(const string &parentId,
+				JobVector &jobs,
+				size_t limit);
 
     protected:
 	/// DBResult friend class.
