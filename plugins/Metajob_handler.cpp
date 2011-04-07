@@ -433,7 +433,7 @@ void MetajobHandler::processFinishedSubjobsOutputs(Job *job)
 
 void MetajobHandler::deleteOutput(Job *job)
 {
-	//TODO
+	
 }
 
 void MetajobHandler::poll(Job *job) throw (BackendException *)
