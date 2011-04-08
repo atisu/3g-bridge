@@ -198,7 +198,7 @@ DBHandler::~DBHandler()
 }
 
 
-static const char *statToStr(Job::JobStatus stat)
+const char *statToStr(Job::JobStatus stat)
 {
 	if (stat < 0 || stat > (int)(sizeof(status_str) / sizeof(status_str[0])))
 		throw new QMException("Unknown job status value %d", (int)stat);
@@ -879,6 +879,32 @@ void DBHandler::getSubjobCounts(const string &jobid, size_t &all, size_t &err)
 		res.use(); res.fetch();
 		sscanf(res.get_field(0), "%lu", &err);
 	}
+}
+
+map<string, size_t> DBHandler::getSubjobHisto(const string &jobid)
+{
+	query(" SELECT status, COUNT(*) FROM cg_job"
+	      " WHERE metajobid='%s' GROUP BY status"
+	      " ORDER BY"
+	      "  case"
+	      "   when status = 'PREPARE' then 0"
+	      "   when status = 'INIT' then 1"
+	      "   when status = 'RUNNING' then 2"
+	      "   when status = 'FINISHED' then 3"
+	      "   else 100"
+	      "  end",
+	      jobid.c_str());
+	DBResult res(this);
+	res.use();
+	map<string, size_t> histo;
+	while (res.fetch())
+	{
+		string name = string(res.get_field(0));
+		size_t count = 0;
+		sscanf(res.get_field(1), "%lu", &count);
+		histo.insert(pair<string, size_t>(name, count));
+	}
+	return histo;
 }
 
 void DBHandler::cancelSubjobs(const string &parentId)

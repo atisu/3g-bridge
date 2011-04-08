@@ -221,34 +221,36 @@ namespace _3gbridgeParser
 	{
 	}
 
-	namespace HelperFunctions
+	void saveMJ(ostream &output, const MetaJobDef &mjd)
 	{
-		void saveMJ(ostream &output, const MetaJobDef &mjd)
-		{
-			output << KW_REQ <<' '<< mjd.required << endl
-			       << KW_SUCCAT<<' '<< mjd.successAt << endl
-			       << endl;
-		}
+		output << KW_REQ <<' '<< mjd.required << endl
+		       << KW_SUCCAT<<' '<< mjd.successAt << endl
+		       << "# Total generated: " << mjd.count << endl
+		       << endl;
+	}
 
-		void saveSJ(ostream &output, const JobDef &jd)
-		{
-			output << KW_COMMENT <<' '<< jd.comment << endl
-			       << KW_ID <<' '<< jd.dbId << endl
-			       << KW_ARGS <<' '<<EQ<<' '<< jd.args << endl;
+	void saveSJ(ostream &output, const JobDef &jd)
+	{
+		output << KW_COMMENT <<' '<< jd.comment << endl
+		       << KW_ID <<' '<< jd.dbId << endl
+		       << KW_ARGS <<' '<<EQ<<' '<< jd.args << endl;
 
-			for (inputMap::const_iterator i = jd.inputs.begin();
-			     i != jd.inputs.end(); i++)
+		for (inputMap::const_iterator i = jd.inputs.begin();
+		     i != jd.inputs.end(); i++)
+		{
+			const FileRef &fr = i->second;
+			output << KW_INPUT<<' '<<EQ<<' '
+			       << i->first<<EQ<< fr.getURL();
+			if (fr.getMD5())
 			{
-				const FileRef &fr = i->second;
-				output << KW_INPUT<<' '<<EQ<<' '
-				       << fr.getURL()<<'='
-				       << fr.getMD5()<<'='
-				       << fr.getSize()
-				       << endl;
+				output << '=' << fr.getMD5();
+				if (fr.getSize() >= 0)
+					output << fr.getSize();
 			}
-
-			output << KW_QUEUE << endl << endl;
+			output << endl;
 		}
+
+		output << KW_QUEUE << endl << endl;
 	}
 }
 
@@ -262,7 +264,7 @@ static int parseLine(int lineNum,
 	char *bok = line;
 
 	SKIPSPACES(bok); //Trim left -- keyword
-	if (!*bok) return 0; //Empty line
+	if (!*bok || *bok == '#') return 0; //Empty line/comment
 
 	char *value;
 	string keyword = cutKeyword(bok, &value);

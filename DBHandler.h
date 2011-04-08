@@ -43,6 +43,10 @@
 
 using namespace std;
 
+/**
+ * Converts the given job status to its string equivalent.
+ */
+const char *statToStr(Job::JobStatus stat);
 
 class DBResult;
 
@@ -280,6 +284,7 @@ class DBHandler {
 	void getFinishedSubjobs(const string &parentId,
 				JobVector &jobs,
 				size_t limit);
+	map<string, size_t> getSubjobHisto(const string &jobid);
 
     protected:
 	/// DBResult friend class.

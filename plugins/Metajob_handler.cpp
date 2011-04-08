@@ -18,6 +18,7 @@
  *
  * In addition, as a special exception, MTA SZTAKI gives you permission to link the
  * code of its release of the 3G Bridge with the OpenSSL project's "OpenSSL"
+
  * library (or with modified versions of it that use the same license as the
  * "OpenSSL" library), and distribute the linked executables. You must obey the
  * GNU General Public License in all respects for all of the code used other than
@@ -32,6 +33,7 @@
 #include <uuid/uuid.h>
 #include <assert.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -81,6 +83,9 @@ CSTR_C CFG_MAXJOBS = "maxJobsAtOnce";
 CSTR_C CFG_MINEL = "minElapse";
 CSTR_C CFG_MAXJOBS_OUTPUT = "maxProcOutput";
 
+CSTR_C MAP_SUFFIX = "-mapping.txt";
+CSTR_C STATS_SUFFIX = "-stats.txt";
+
 /**
  * Construct and create the path to where output shall be saved. */
 static string calc_job_path(const string &basedir,
@@ -114,7 +119,7 @@ static size_t getConfInt(GKeyFile *config, CSTR group, CSTR key, int defVal)
 
 	return value;
 }
-static string getConfStr(GKeyFile *config, CSTR group, CSTR key)
+static string getConfStr(GKeyFile *config, CSTR group, CSTR key, CSTR defVal = 0)
 {
 	GError *error = 0;
 	gchar* value =
@@ -127,8 +132,11 @@ static string getConfStr(GKeyFile *config, CSTR group, CSTR key)
 		    "Metajob Handler: "
 		    "Failed to parse configuration '%s': %s",
 		    key, error->message);
-		throw BackendException("Missing configuration: [%s]/%s",
-				       group, key);
+		if (defVal)
+			return string(defVal);
+		else
+			throw BackendException("Missing configuration: [%s]/%s",
+					       group, key);
 	}
 
 	string s = value ? value : string();
@@ -189,6 +197,13 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 		// _3gb-metajob* on filesystem
 		ifstream mjfile(mjfileName.c_str());
 
+		ofstream f_mapping(
+			calc_file_path(outDirBase,
+				       job->getId(),
+				       job->getId() + MAP_SUFFIX).c_str(),
+			ios::app);
+		mappingFile = &f_mapping;
+
 		DBHWrapper dbh; // Gets a new dbhandler and implements finally
 				// block to free it when dbh goes out of scope
 		this->dbh = &dbh;
@@ -233,6 +248,8 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 				dbh->setMetajobChildrenStatus(job->getId(),
 							      Job::INIT);
 				job->setStatus(Job::RUNNING);
+
+				saveMJ(f_mapping, mjd);
 			}
 			else
 			{
@@ -283,7 +300,7 @@ static void submit_handleError(DBHandler *dbh, const char *msg, Job *job)
 }
 
 void MetajobHandler::qJobHandler(MetajobHandler *instance,
-				 _3gbridgeParser::JobDef const &jd,
+				 _3gbridgeParser::JobDef &jd,
 				 size_t count)
 {
 	for (size_t i = 0; i < count; i++) {
@@ -331,6 +348,9 @@ void MetajobHandler::qJobHandler(MetajobHandler *instance,
 				"for meta-job '%s'.",
 				jd.metajobid.c_str());
 		qmjob.setMetajobId(jd.metajobid);
+
+		jd.dbId = jobid;
+		saveSJ(*(instance->mappingFile), jd);
 	}
 }
 
@@ -496,14 +516,61 @@ void MetajobHandler::processFinishedSubjobsOutputs(DBHWrapper &dbh, Job *job)
 		processOutput(dbh, job, *i);
 }
 
+void MetajobHandler::getMetajobStatusInfo(Job *job, DBHWrapper &dbh,
+					  size_t &count,
+					  size_t &required, size_t &succAt,
+					  size_t &err, size_t &finished)
+{
+	size_t startLine = 0; // unused, mandatory for getExtraData
+	string grid;          // this too
+
+	string strReqd, strSuccAt;
+	getExtraData(job->getGridId(),
+		     grid, count, startLine, strReqd, strSuccAt,
+		     job->getId());
+
+	// After parsing the meta-job, these have been set
+	if (!sscanf(strReqd.c_str(), "%lu", &required)
+	    || !sscanf(strSuccAt.c_str(), "%lu", &succAt))
+	{
+		throw new BackendException(
+			"Invalid data in meta-job information: "
+			"required='%s', succAt='%s'; All should be numbers.",
+			strReqd.c_str(), strSuccAt.c_str());
+	}
+	// Get job-count from database
+	size_t existing;
+	dbh->getSubjobCounts(job->getId(), existing, err);
+
+	// Finished sub-jobs' output is processed, and then they are deleted.
+	// So, the number of jobs in FINISHED status, is the number of jobs with
+	// unprocessed outputs.
+	// We only consider finished AND processed jobs as successfully
+	// finished. They are the missing ones.
+	finished = count - existing;
+
+	LOG(LOG_DEBUG,
+	    "Job status for '%s'\n"
+	    "  count     = %12lu\n"
+	    "  required  = %12lu\n"
+	    "  successAt = %12lu\n"
+	    "  finished  = %12lu\n"
+	    "  error     = %12lu\n"
+	    "  existing  = %12lu\n",
+	    job->getId().c_str(), count, required, succAt,
+	    finished, err, existing);
+}
+
 void MetajobHandler::poll(Job *job) throw (BackendException *)
 {
 	const string &jid = job->getId();
+	bool mustUpdateStatsFile = false;
 
 	LOG(LOG_DEBUG, "Polling job status: '%s'", jid.c_str());
 
 	DBHWrapper dbh;
 
+	// Cancel sub-jobs and delete meta-job if user has canceled
 	if (job->getStatus() == Job::CANCEL)
 	{
 		userCancel(job);
@@ -514,53 +581,31 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 		throw BackendException("Job '%s' has unexpected status: %d",
 				      jid.c_str(), job->getStatus());
 
+	// Process the output of finished sub-jobs
+	// Also, delete processed sub-jobs
 	processFinishedSubjobsOutputs(dbh, job);
 
-	size_t count = 0, startLine = 0;
-	string strReqd, strSuccAt;
-	string grid;
-	getExtraData(job->getGridId(),
-		     grid, count, startLine, strReqd, strSuccAt,
-		     job->getId());
-	size_t required, succAt;
-	if (!sscanf(strReqd.c_str(), "%lu", &required)
-	    || !sscanf(strSuccAt.c_str(), "%lu", &succAt))
-	{
-		throw new BackendException(
-			"Invalid data in meta-job information: "
-			"required='%s', succAt='%s'; All should be numbers.",
-			strReqd.c_str(), strSuccAt.c_str());
-	}
-	size_t all, err;
-	dbh->getSubjobCounts(job->getId(), all, err);
+	// Calculate new status for the meta-job
 
-	// Finished sub-jobs' output is processed, and then they are deleted.
-	// So, the number of jobs in FINISHED status, is the number of jobs with
-	// unprocessed outputs.
-	// We only consider finished AND processed jobs as successfully
-	// finished. They are the missing ones.
-	size_t finished = count - all;
-
-	LOG(LOG_DEBUG,
-	    "Job status for '%s'\n"
-	    "  count     = %12lu\n"
-	    "  required  = %12lu\n"
-	    "  successAt = %12lu\n"
-	    "  finished  = %12lu\n"
-	    "  error     = %12lu\n"
-	    "  existing  = %12lu\n",
-	    jid.c_str(), count, required, succAt,
-	    finished, err, all);
-
+	// The new status is the function of these parameters:
+	//  Total count, succAt, required, err
+	size_t count,required, succAt, err, finished;
+	getMetajobStatusInfo(job, dbh, count,
+			     required, succAt,
+			     err, finished);
+	
 	if (finished >= succAt)
 	{
+		// Goal has been reached
 		finishedCancel(job);
+		mustUpdateStatsFile = true;
 	}
 	else if (err > count - required)
 	{
 		// It is impossible to achieve the required number of successful
 		// jobs. Cancel everything.
 		errorCancel(job);
+		mustUpdateStatsFile = true;
 	}
 	else if (finished + err == count)
 	{
@@ -569,15 +614,44 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 			finishedCancel(job);
 		else
 			errorCancel(job);
+		mustUpdateStatsFile = true;
 	}
 	else
 		LOG(LOG_DEBUG, "Metajob '%s' still RUNNING.", jid.c_str());
 	
+	// Update statistics if neccesary
+	string statsFile = calc_file_path(outDirBase,
+					  jid,
+					  jid + STATS_SUFFIX);
 
+	time_t now = time(NULL);
+	struct stat st;
+	bool statsExists = !stat(statsFile.c_str(), &st);
+	
+	if (mustUpdateStatsFile // i.e. meta-job finished
+	    || !statsExists
+	    || (now - st.st_mtime) > (int)minElapse)
+	{
+		map<string, size_t> histo = dbh->getSubjobHisto(jid);
+		ofstream stat(statsFile.c_str(), ios::trunc);
+
+		stat << "# Stat generated at "<< asctime(localtime(&now))<< endl
+		     << "Meta-job ID: " << jid << endl
+		     << "Meta-job STATUS: " << statToStr(job->getStatus()) << endl
+		     << "# Jobs in each 3g-bridge status" << endl;
+		for (map<string, size_t>::const_iterator i = histo.begin();
+		     i != histo.end(); i++)
+		{
+			stat << i->first << ":\t" << i->second << endl;
+		}
+		stat << "Jobs finished AND processed: " <<  finished
+		     << " (required: " << required
+		     << ", goal: " << succAt
+		     << ")" << endl
+		     << "Total number of jobs generated: " << count << endl;
+	}
+	
 	// TODO:
-	// get filename of sub-job status report
-	// if file doesn't exist or it's older than minel,
-	// -> regen sub-jobs' status info
 	// Add url to griddata
 }
 

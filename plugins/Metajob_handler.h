@@ -73,6 +73,7 @@ public:
 
 private:
 	DBHWrapper *dbh;
+	ofstream *mappingFile;
 	
 	/**
 	 * Delegate function. Called by parseMetaJob() to create jobs in the
@@ -80,7 +81,7 @@ private:
 	 * @see queueJobHandler
 	 */
 	static void qJobHandler(MetajobHandler *instance,
-				_3gbridgeParser::JobDef const &jd,
+				_3gbridgeParser::JobDef &jd,
 				size_t count);
 	//
 	// Utility functions
@@ -104,6 +105,12 @@ private:
 				 string &grid,  size_t &count, size_t &startLine,
 				 string &reqd, string &succAt, string const &jobId)
 		throw (BackendException*);
+	/**
+	 */
+	static void getMetajobStatusInfo(Job *job, DBHWrapper &dbh,
+					 size_t &count,
+					 size_t &required, size_t &succAt,
+					 size_t &err, size_t &finished);
 	/**
 	 * Cancels the meta-job and its sub-jobs */
 	void userCancel(Job* job);
@@ -144,7 +151,6 @@ private:
 	/**
 	 * From configuration: Input base directory. */
 	string inDirBase;
-
 };
 
 

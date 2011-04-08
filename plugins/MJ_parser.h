@@ -108,7 +108,7 @@ namespace _3gbridgeParser
 	 * @param count How many copies have to be created
 	 */
 	typedef void (*queueJobHandler)(void *instance,
-					const JobDef &jobDef,
+					JobDef &jobDef,
 					size_t count);
 
 	/**
@@ -133,17 +133,14 @@ namespace _3gbridgeParser
 			  queueJobHandler handler,
 			  size_t maxJobs = 0);
 
-	namespace HelperFunctions
-	{
-		/**
-		 * Save a meta-job-global information to stream.
-		 */
-		void saveMJ(ostream &output, const MetaJobDef &mjd);
-		/**
-		 * Save a sub-job to stream.
-		 */
-		void saveSJ(ostream &output, const JobDef &jd);
-	}
+	/**
+	 * Save a meta-job-global information to stream.
+	 */
+	void saveMJ(ostream &output, const MetaJobDef &mjd);
+	/**
+	 * Save a sub-job to stream.
+	 */
+	void saveSJ(ostream &output, const JobDef &jd);
 
 	/**
 	 * Save a meta-job to a stream. The format fill be such that
@@ -155,9 +152,9 @@ namespace _3gbridgeParser
 			 iterator_t first,
 			 iterator_t last)
 	{
-		HelperFunctions::saveMJ(output, mjd);
+		saveMJ(output, mjd);
 		for (iterator_t i = first; i != last; i++)
-			HelperFunctions::saveSJ(output, *i);
+			saveSJ(output, *i);
 	}
 
 
