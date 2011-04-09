@@ -151,6 +151,9 @@ private:
 	/**
 	 * From configuration: Input base directory. */
 	string inDirBase;
+	/**
+	 * From configuration: Output base URL */
+	string outURLBase;
 };
 
 

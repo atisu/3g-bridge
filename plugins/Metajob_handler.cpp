@@ -27,7 +27,8 @@
  * do so, delete this exception statement from your version.
  */
 
-#include <sstream>
+#include <iostream>
+#include <iomanip>
 #include <cstdio>
 #include <fstream>
 #include <uuid/uuid.h>
@@ -82,6 +83,7 @@ CSTR_C CFG_INDIR = "input-dir";
 CSTR_C CFG_MAXJOBS = "maxJobsAtOnce";
 CSTR_C CFG_MINEL = "minElapse";
 CSTR_C CFG_MAXJOBS_OUTPUT = "maxProcOutput";
+CSTR_C CFG_OUTURL = "output-url-prefix";
 
 CSTR_C MAP_SUFFIX = "-mapping.txt";
 CSTR_C STATS_SUFFIX = "-stats.txt";
@@ -159,6 +161,7 @@ MetajobHandler::MetajobHandler(GKeyFile *config, const char *instance)
 
 	outDirBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_OUTDIR);
 	inDirBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_INDIR);
+	outURLBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_OUTURL);
 
 	LOG(LOG_INFO,
 	    "Metajob Handler: instance '%s' initialized.",
@@ -250,6 +253,8 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 				job->setStatus(Job::RUNNING);
 
 				saveMJ(f_mapping, mjd);
+
+				poll(job);
 			}
 			else
 			{
@@ -442,7 +447,6 @@ void MetajobHandler::errorCancel(Job *job)
 
 	dbh->cancelSubjobs(job->getId());
 	job->setStatus(Job::ERROR);
-	job->setGridData("Too many sub-jobs failed.");
 }
 typedef map<string, string> Outputmap;
 void MetajobHandler::processOutput(DBHWrapper &dbh, Job *metajob, Job *subjob)
@@ -561,6 +565,17 @@ void MetajobHandler::getMetajobStatusInfo(Job *job, DBHWrapper &dbh,
 	    finished, err, existing);
 }
 
+string pc(size_t part, size_t whole)
+{
+	ostringstream os;
+	os << right << setfill(' ') << fixed;
+	os << setw(8) << part << " ("
+	   << setw(5) << setprecision(1)
+	   << ((float)part)/whole * 100
+	   << "%)";
+	return os.str();
+}
+
 void MetajobHandler::poll(Job *job) throw (BackendException *)
 {
 	const string &jid = job->getId();
@@ -620,9 +635,12 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 		LOG(LOG_DEBUG, "Metajob '%s' still RUNNING.", jid.c_str());
 	
 	// Update statistics if neccesary
-	string statsFile = calc_file_path(outDirBase,
-					  jid,
-					  jid + STATS_SUFFIX);
+	string statsFilename = jid + STATS_SUFFIX;
+	string statsFile = calc_file_path(outDirBase, jid, statsFilename);
+
+	ostringstream urlBaseS;
+	urlBaseS << outURLBase << '/' << jid[0] << jid[1] << '/' << jid << '/';
+	const string &urlBase = urlBaseS.str();
 
 	time_t now = time(NULL);
 	struct stat st;
@@ -635,24 +653,35 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 		map<string, size_t> histo = dbh->getSubjobHisto(jid);
 		ofstream stat(statsFile.c_str(), ios::trunc);
 
+		size_t notStarted = histo["INIT"] + histo["PREPARE"];
+		size_t running = histo["FINISHED"] + histo["RUNNING"];
+		size_t stillNeed = succAt > finished ? succAt - finished : 0;
+
 		stat << "# Stat generated at "<< asctime(localtime(&now))<< endl
 		     << "Meta-job ID: " << jid << endl
 		     << "Meta-job STATUS: " << statToStr(job->getStatus()) << endl
-		     << "# Jobs in each 3g-bridge status" << endl;
-		for (map<string, size_t>::const_iterator i = histo.begin();
-		     i != histo.end(); i++)
-		{
-			stat << i->first << ":\t" << i->second << endl;
-		}
-		stat << "Jobs finished AND processed: " <<  finished
-		     << " (required: " << required
-		     << ", goal: " << succAt
-		     << ")" << endl
-		     << "Total number of jobs generated: " << count << endl;
+		     << endl
+		     << "# Generation report" << endl
+		     << "Total generated: " << pc(count, count) << endl
+		     << "Required:        " << pc(required, count) << endl
+		     << "Success at:      " << pc(succAt, count) << endl
+		     << "Mapping:         " << urlBase << jid << MAP_SUFFIX
+		     << endl
+		     << "# Status report" << endl
+		     << "Not started:" << pc(notStarted, count) << endl
+		     << "Running:    " << pc(running, count) << endl
+		     << "Error:      " << pc(err, count) << endl
+		     << "Finished:   " << pc(finished, count) << endl
+		     << endl
+		     << "Still need: " << pc(stillNeed, count) << endl;
+		// for (map<string, size_t>::const_iterator i = histo.begin();
+		//      i != histo.end(); i++)
+		// {
+		// 	stat << i->first << ":\t" << i->second << endl;
+		// }
+
+		job->setGridData(urlBase + statsFilename);
 	}
-	
-	// TODO:
-	// Add url to griddata
 }
 
 /**********************************************************************

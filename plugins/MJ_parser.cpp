@@ -37,7 +37,7 @@ static const char EQ = '=';
 static CSTR_C KW_QUEUE = "Queue";
 static CSTR_C KW_INPUT = "Input";
 static CSTR_C KW_ARGS = "Arguments";
-static CSTR_C KW_ID = "%3gbJobId";
+static CSTR_C KW_ID = "%JobId";
 static CSTR_C KW_COMMENT = "%Comment";
 static CSTR_C KW_REQ = "%Required";
 static CSTR_C KW_SUCCAT = "%SuccessAt";
@@ -238,14 +238,19 @@ namespace _3gbridgeParser
 		for (inputMap::const_iterator i = jd.inputs.begin();
 		     i != jd.inputs.end(); i++)
 		{
+			if (!strncmp(i->first.c_str(),
+				     _METAJOB_SPEC_PREFIX,
+				     _METAJOB_SPEC_PREFIX_LEN)) //startswith
+				continue;
+
 			const FileRef &fr = i->second;
 			output << KW_INPUT<<' '<<EQ<<' '
 			       << i->first<<EQ<< fr.getURL();
 			if (fr.getMD5())
 			{
-				output << '=' << fr.getMD5();
+				output << EQ << fr.getMD5();
 				if (fr.getSize() >= 0)
-					output << fr.getSize();
+					output << EQ << fr.getSize();
 			}
 			output << endl;
 		}
