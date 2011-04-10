@@ -2,29 +2,29 @@
  *
  * Copyright (C) 2009-2010 MTA SZTAKI LPDS
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free Software
+ * Foundation; either version 2 of the License, or (at your option) any later
+ * version.
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+ * details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc., 51
+ * Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * In addition, as a special exception, MTA SZTAKI gives you permission to link the
- * code of its release of the 3G Bridge with the OpenSSL project's "OpenSSL"
+ * In addition, as a special exception, MTA SZTAKI gives you permission to link
+ * the code of its release of the 3G Bridge with the OpenSSL project's "OpenSSL"
 
  * library (or with modified versions of it that use the same license as the
  * "OpenSSL" library), and distribute the linked executables. You must obey the
- * GNU General Public License in all respects for all of the code used other than
- * "OpenSSL". If you modify this file, you may extend this exception to your
- * version of the file, but you are not obligated to do so. If you do not wish to
- * do so, delete this exception statement from your version.
+ * GNU General Public License in all respects for all of the code used other
+ * than "OpenSSL". If you modify this file, you may extend this exception to
+ * your version of the file, but you are not obligated to do so. If you do not
+ * wish to do so, delete this exception statement from your version.
  */
 
 #include <iostream>
@@ -38,6 +38,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "Conf.h"
 #include "Job.h"
@@ -46,35 +47,12 @@
 #include "Util.h"
 #include "DLException.h"
 
-//MJ Extra data information:
-//  Extra information is stored in the job's gridid field.
-//
-//  TODO: Move to external table.
-//
-//  Stored as string, format:
-//     grid{|count|startLine|required|successAt}
-//  {} means optional, | is the '|' character itself
-//
-//  WSSubmitter stores only the grid. Everything else is added by updateJob()
-//  (in this file).
-//
-// grid:      Original destination grid; dest. grid for sub-jobs.
-// count:     Number of sub-jobs generated so far.
-// startLine: Last position in _3gb-metajob* sepcification. Continue
-//            from here.
-// required:  So many jobs needed to successfully finish in order for the
-//            meta-job to be successful. It will only has meaning when all
-//            sub-jobs are generated. At this time this will be an integer
-//            defining the actual number. Up until that it will be a string
-//            unparsed by parseMetajob().
-// successAt: When this number of sub-jobs has successfully finished, all
-//            remaining are canceled and the meta-job automatically
-//            succeeds. Same deal as required.
-
-
 using namespace _3gbridgeParser;
 using namespace std;
 
+typedef map<string, string> Outputmap;
+
+//remove this to omit extensive logging during job generation
 #define DO_LOG_JOBS
 
 CSTR_C CFG_OUTDIR = "output-dir";
@@ -82,11 +60,16 @@ CSTR_C CFG_INDIR = "input-dir";
 
 CSTR_C CFG_MAXJOBS = "maxJobsAtOnce";
 CSTR_C CFG_MINEL = "minElapse";
-CSTR_C CFG_MAXJOBS_OUTPUT = "maxProcOutput";
 CSTR_C CFG_OUTURL = "output-url-prefix";
 
 CSTR_C MAP_SUFFIX = "-mapping.txt";
 CSTR_C STATS_SUFFIX = "-stats.txt";
+
+CSTR_C ARCH_RUNNING = ".arch.RUNNING";
+CSTR_C ARCH_SUCCESS = ".arch.SUCCESS";
+CSTR_C ARCH_ERROR   = ".arch.ERROR";
+CSTR_C ARCH_STDERR  = ".arch.stderr";
+CSTR_C ARCH_SCRIPT  = ".arch.create.sh";
 
 /**
  * Construct and create the path to where output shall be saved. */
@@ -101,50 +84,25 @@ static string calc_file_path(const string &basedir,
  * Exception handler for submitJobs*/
 static void submit_handleError(DBHandler *dbh, const char *msg, Job *job);
 
-static size_t getConfInt(GKeyFile *config, CSTR group, CSTR key, int defVal)
-{
-	GError *error = 0;
-	size_t value =
-		g_key_file_get_integer(config, group, key, &error);
-	if (error)
-	{
-		if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND)
-		{
-			LOG(LOG_ERR,
-			    "Metajob Handler: "
-			    "Failed to parse configuration '%s': %s",
-			    key, error->message);
-		}
-		value = defVal;
-		g_error_free(error);
-	}
+/** Recursive deletion of a directory */
+static void rmrf(string dir);
 
-	return value;
-}
-static string getConfStr(GKeyFile *config, CSTR group, CSTR key, CSTR defVal = 0)
-{
-	GError *error = 0;
-	gchar* value =
-		g_key_file_get_string(config, group, key, &error);
-	if (value)
-		g_strstrip(value);
-	if (error)
-	{
-		LOG(LOG_ERR,
-		    "Metajob Handler: "
-		    "Failed to parse configuration '%s': %s",
-		    key, error->message);
-		if (defVal)
-			return string(defVal);
-		else
-			throw BackendException("Missing configuration: [%s]/%s",
-					       group, key);
-	}
+/** Gets the given int value from the config. */
+static size_t getConfInt(GKeyFile *config, CSTR group, CSTR key, int defVal);
 
-	string s = value ? value : string();
-	g_free(value);
-	return s;
-}
+/** Gets the given string value from the config. */
+static string getConfStr(GKeyFile *config,
+			 CSTR group, CSTR key,
+			 CSTR defVal = 0);
+/** Stores state information of parser to job griddata */
+static void updateJobGenerationData(DBHandler *dbh, Job *job,
+				    MetaJobDef const &mjd,
+				    JobDef const &jd) throw (BackendException*);
+/** Logs information about meta-job parser state. */
+static void LOGJOB(const char * msg,
+		   const MetaJobDef &mjd, const JobDef &jd);
+/** Formats stat field with percentage info. */
+static string pc(size_t part, size_t whole);
 
 MetajobHandler::MetajobHandler(GKeyFile *config, const char *instance)
 	throw (BackendException*)
@@ -156,8 +114,6 @@ MetajobHandler::MetajobHandler(GKeyFile *config, const char *instance)
 	maxJobsAtOnce = getConfInt(config, name.c_str(), CFG_MAXJOBS, 0);
 	//Default: a minute
 	minElapse = getConfInt(config, name.c_str(), CFG_MINEL, 60);
-	//Default: unlimited
-	maxProcOutput = getConfInt(config, name.c_str(), CFG_MAXJOBS_OUTPUT, 0);
 
 	outDirBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_OUTDIR);
 	inDirBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_INDIR);
@@ -170,9 +126,6 @@ MetajobHandler::MetajobHandler(GKeyFile *config, const char *instance)
 	    "MJ instance '%s': %s = %lu, %s = %lu",
 	    name.c_str(), CFG_MAXJOBS, maxJobsAtOnce, CFG_MINEL, minElapse);
 }
-
-static void LOGJOB(const char * msg,
-		   const MetaJobDef &mjd, const JobDef &jd);
 
 void MetajobHandler::submitJobs(JobVector &jobs)
 	throw (BackendException *)
@@ -236,7 +189,7 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 			LOGJOB("END STATE", mjd, jd);
 
 			// Store state for next iteration
-			updateJob(*dbh, job, mjd, jd);
+			updateJobGenerationData(*dbh, job, mjd, jd);
 
 			// Start sub-jobs if all are done
 			if (mjd.finished) {
@@ -248,12 +201,14 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 				    "Starting sub-jobs for meta-job '%s'.",
 				    jId);
 
-				dbh->setMetajobChildrenStatus(job->getId(),
-							      Job::INIT);
-				job->setStatus(Job::RUNNING);
-
+				//Finish creating mapping file
 				saveMJ(f_mapping, mjd);
 
+				dbh->setMetajobChildrenStatus(
+					job->getId(), Job::INIT);
+				job->setStatus(Job::RUNNING);
+
+				//Initially create stats file
 				poll(job);
 			}
 			else
@@ -365,25 +320,51 @@ void MetajobHandler::updateStatus(void)
 	DBHWrapper()->pollJobs(this, Job::RUNNING, Job::CANCEL);
 }
 
-static void rmrf(string dir)
-{
-	//TODO: implement recursive deleting
-	if (system(("rm -rf '" + dir + "'").c_str()))
-		LOG(LOG_WARNING,
-		    "Couldn't remove directory: '%s'",
-		    dir.c_str());
-}
+/********************************************
+ * Updating meta-job status
+ ********************************************/
 
-void MetajobHandler::cleanupJob(Job *job)
+void MetajobHandler::poll(Job *job) throw (BackendException *)
 {
-	rmrf(calc_job_path(outDirBase, job->getId()));
-	rmrf(calc_job_path(inDirBase, job->getId()));
-}
+	const string &jid = job->getId();
 
-void MetajobHandler::deleteJob(Job *job)
-{
-	cleanupJob(job);
-	DBHWrapper()->deleteJob(job->getId());
+	LOG(LOG_DEBUG, "Polling job status: '%s'", jid.c_str());
+
+	// Cancel sub-jobs and delete meta-job if user has canceled
+	if (job->getStatus() == Job::CANCEL)
+	{
+		userCancel(job);
+		return;
+	}
+	
+	if (job->getStatus() != Job::RUNNING)
+		throw BackendException("Job '%s' has unexpected status: %d",
+				      jid.c_str(), job->getStatus());
+
+	DBHWrapper dbh;
+
+	// Process the output of finished sub-jobs
+	// Also, delete processed sub-jobs
+	processFinishedSubjobsOutputs(dbh, job);
+
+	// The new status is the function of these parameters:
+	//  Total count, succAt, required, err
+	size_t count,required, succAt, err, finished;
+	getMetajobStatusInfo(job, dbh,
+			     count, required, succAt, err, finished);
+
+	bool archivingRunning;
+	string errorMsg;
+	bool metajobFinalized = updateJobStatus(job, dbh,
+						count, required,
+						succAt, err, finished,
+						errorMsg, archivingRunning);
+       
+        updateStatsFileIfNeccesary(job, dbh,
+				   count, required, succAt,
+				   err, finished,
+				   errorMsg, archivingRunning,
+				   metajobFinalized);
 }
 
 void MetajobHandler::userCancel(Job *job)
@@ -434,9 +415,9 @@ void MetajobHandler::finishedCancel(Job *job)
 	    "Job '%s' is finished successfully, canceling remaining sub-jobs.",
 	    job->getId().c_str());
 
-	DBHWrapper dbh;
-	dbh->cancelSubjobs(job->getId());
-	job->setStatus(Job::FINISHED);
+	DBHWrapper()->cancelSubjobs(job->getId());
+	
+	startArchivingProcess(job);
 }
 void MetajobHandler::errorCancel(Job *job)
 {
@@ -448,82 +429,11 @@ void MetajobHandler::errorCancel(Job *job)
 	dbh->cancelSubjobs(job->getId());
 	job->setStatus(Job::ERROR);
 }
-typedef map<string, string> Outputmap;
-void MetajobHandler::processOutput(DBHWrapper &dbh, Job *metajob, Job *subjob)
-{	
-	const Outputmap &mjoutputs = metajob->getOutputMap();
-	const Outputmap &subjob_outputs = subjob->getOutputMap();
 
-	LOG(LOG_DEBUG,
-	    "Processing output of sub-job '%s'",
-	    subjob->getId().c_str());
-
-	for (map<string, string>::const_iterator i = subjob_outputs.begin();
-	     i != subjob_outputs.end(); i++)
-	{
-		const string &src_file = i->second;
-
-		Outputmap::const_iterator mji = mjoutputs.find(i->first);
-		if (i == mjoutputs.end())
-		{
-			throw BackendException(
-				"Sub-job '%s' has an unexpected output: '%s'",
-				subjob->getId().c_str(), i->first.c_str());
-		}
-		const string &dst_file = mji->second;
-
-		LOG(LOG_DEBUG,
-		    "Appending output '%s' to meta-job output '%s'",
-		    src_file.c_str(), dst_file.c_str());
-
-		//TODO: implement archiving using a lib
-
-		string tgzname = subjob->getId() + ".tgz";
-		string tgzpath = calc_job_path(outDirBase,
-					       metajob->getId());
-		const char *src_basename = src_file.c_str() + outDirBase.length();
-		while ('/' == *src_basename) src_basename++;
-
-		ostringstream compress;
-		compress << "tar czf '" << tgzpath << '/' << tgzname << '\''
-			 << " -C '" << outDirBase << '\''
-			 << " '"<< src_basename << '\'';
-		compress.flush();
-		string s_compress = compress.str();
-		LOG(LOG_DEBUG, "Executing '%s'", s_compress.c_str());
-		if (system(s_compress.c_str()))
-			throw BackendException("Error executing command '%s'",
-					       s_compress.c_str());
-
-		ostringstream append;
-		append << "tar rf '" << dst_file << '\''
-		       << " -C '" << tgzpath << '\''
-		       << " '" << tgzname << '\'';
-		append.flush();
-		string s_append = append.str();
-		LOG(LOG_DEBUG, "Executing '%s'", s_append.c_str());
-		if (system(s_append.c_str()))
-			throw BackendException("Error executing command '%s'",
-					       s_append.c_str());
-		if (system(("rm -rf '" + tgzpath + "/" + tgzname + "'").c_str()))
-			LOG(LOG_DEBUG, "Couldn't delete '%s/%s'",
-			    tgzpath.c_str(), tgzname.c_str());
-	}
-	
-	deleteJob(subjob);
-}
-void MetajobHandler::processFinishedSubjobsOutputs(DBHWrapper &dbh, Job *job)
-{
-	JobVector jobs;
-	DBHWrapper()->getFinishedSubjobs(job->getId(), jobs, maxProcOutput);
-	for (JobVector::iterator i = jobs.begin(); i!=jobs.end(); i++)
-		processOutput(dbh, job, *i);
-}
-
-void MetajobHandler::getMetajobStatusInfo(Job *job, DBHWrapper &dbh,
+void MetajobHandler::getMetajobStatusInfo(const Job *job, DBHWrapper &dbh,
 					  size_t &count,
 					  size_t &required, size_t &succAt,
-					  size_t &err, size_t &finished)
+					  size_t &err, size_t &finished) const
 {
 	size_t startLine = 0; // unused, mandatory for getExtraData
 	string grid;          // this too
@@ -565,75 +475,83 @@ void MetajobHandler::getMetajobStatusInfo(Job *job, DBHWrapper &dbh,
 	    finished, err, existing);
 }
 
-string pc(size_t part, size_t whole)
+bool MetajobHandler::updateJobStatus (
+	Job *job, DBHWrapper &dbh,
+	size_t count, size_t required, size_t succAt,
+	size_t err, size_t finished,
+	string &errorMsg, bool &archivingRunning)
 {
-	ostringstream os;
-	os << right << setfill(' ') << fixed;
-	os << setw(8) << part << " ("
-	   << setw(5) << setprecision(1)
-	   << ((float)part)/whole * 100
-	   << "%)";
-	return os.str();
+	bool metajobFinalized = false;
+	archivingRunning = isArchivingProcessRunning(job);
+
+	if (isArchivingProcessFinished(job))
+	{
+		if (isArchivingSuccessful(job))
+		{
+			job->setStatus(Job::FINISHED);
+			metajobFinalized = true;
+		}
+		else
+		{
+			errorMsg = archivingError(job);
+			job->setStatus(Job::ERROR);
+			metajobFinalized = true;
+		}
+
+		cleanupArchiving(job);
+	}
+	else if (archivingRunning)
+	{
+		LOG(LOG_DEBUG, "Still running archivation process for job '%s'",
+		    job->getId().c_str());
+	}
+	else //Archiving hasn't even started yet
+	{
+		// Calculate new status for the meta-job
+			
+		if (finished >= succAt)
+		{
+			// Goal has been reached
+			finishedCancel(job);
+			metajobFinalized = true;
+		}
+		else if (err > count - required)
+		{
+			// It is impossible to achieve the required number of
+			// successful jobs. Cancel everything.
+			errorCancel(job);
+			errorMsg = "Too many jobs failed.";
+			metajobFinalized = true;
+		}
+		else if (finished + err == count)
+		{
+			// All jobs finished in either final state.
+			if (finished >= required)
+				finishedCancel(job);
+			else
+			{
+				errorCancel(job);
+				errorMsg = "Too many jobs failed.";
+			}
+			metajobFinalized = true;
+		}
+		else
+			LOG(LOG_DEBUG, "Metajob '%s' still RUNNING.",
+			    job->getId().c_str());
+	}
+
+	return metajobFinalized;
 }
 
-void MetajobHandler::poll(Job *job) throw (BackendException *)
+void MetajobHandler::updateStatsFileIfNeccesary (
+	Job *job, DBHWrapper &dbh,
+	size_t count, size_t required, size_t succAt,
+	size_t err, size_t finished,
+	const string &errorMsg, bool archivingRunning,
+	bool metajobFinalized) const
 {
 	const string &jid = job->getId();
-	bool mustUpdateStatsFile = false;
 
-	LOG(LOG_DEBUG, "Polling job status: '%s'", jid.c_str());
-
-	DBHWrapper dbh;
-
-	// Cancel sub-jobs and delete meta-job if user has canceled
-	if (job->getStatus() == Job::CANCEL)
-	{
-		userCancel(job);
-		return;
-	}
-	
-	if (job->getStatus() != Job::RUNNING)
-		throw BackendException("Job '%s' has unexpected status: %d",
-				      jid.c_str(), job->getStatus());
-
-	// Process the output of finished sub-jobs
-	// Also, delete processed sub-jobs
-	processFinishedSubjobsOutputs(dbh, job);
-
-	// Calculate new status for the meta-job
-
-	// The new status is the function of these parameters:
-	//  Total count, succAt, required, err
-	size_t count,required, succAt, err, finished;
-	getMetajobStatusInfo(job, dbh, count,
-			     required, succAt,
-			     err, finished);
-	
-	if (finished >= succAt)
-	{
-		// Goal has been reached
-		finishedCancel(job);
-		mustUpdateStatsFile = true;
-	}
-	else if (err > count - required)
-	{
-		// It is impossible to achieve the required number of successful
-		// jobs. Cancel everything.
-		errorCancel(job);
-		mustUpdateStatsFile = true;
-	}
-	else if (finished + err == count)
-	{
-		// All jobs finished in either final state.
-		if (finished >= required)
-			finishedCancel(job);
-		else
-			errorCancel(job);
-		mustUpdateStatsFile = true;
-	}
-	else
-		LOG(LOG_DEBUG, "Metajob '%s' still RUNNING.", jid.c_str());
-	
 	// Update statistics if neccesary
 	string statsFilename = jid + STATS_SUFFIX;
 	string statsFile = calc_file_path(outDirBase, jid, statsFilename);
@@ -646,7 +564,7 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 	struct stat st;
 	bool statsExists = !stat(statsFile.c_str(), &st);
 	
-	if (mustUpdateStatsFile // i.e. meta-job finished
+	if (metajobFinalized // i.e. meta-job finished
 	    || !statsExists
 	    || (now - st.st_mtime) > (int)minElapse)
 	{
@@ -654,34 +572,211 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 		ofstream stat(statsFile.c_str(), ios::trunc);
 
 		size_t notStarted = histo["INIT"] + histo["PREPARE"];
-		size_t running = histo["FINISHED"] + histo["RUNNING"];
+		size_t running =
+			histo["FINISHED"]+histo["RUNNING"]+histo["TEMPFAILED"];
 		size_t stillNeed = succAt > finished ? succAt - finished : 0;
 
 		stat << "# Stat generated at "<< asctime(localtime(&now))<< endl
 		     << "Meta-job ID: " << jid << endl
-		     << "Meta-job STATUS: " << statToStr(job->getStatus()) << endl
-		     << endl
+		     << "Meta-job STATUS: " << statToStr(job->getStatus()) << endl;
+		if (archivingRunning)
+			stat << "  Packing sub-jobs' output..." << endl;
+		if (!errorMsg.empty()) 
+			stat << "Error message: " << errorMsg << endl;
+		
+		stat << endl
 		     << "# Generation report" << endl
 		     << "Total generated: " << pc(count, count) << endl
 		     << "Required:        " << pc(required, count) << endl
-		     << "Success at:      " << pc(succAt, count) << endl
-		     << "Mapping:         " << urlBase << jid << MAP_SUFFIX
-		     << endl
+		     << "Success at:      " << pc(succAt, count) << endl;
+		if (metajobFinalized)
+		{
+		     stat << "Mapping: "
+			  << urlBase << jid << MAP_SUFFIX << endl;
+		}
+		stat << endl
 		     << "# Status report" << endl
-		     << "Not started:" << pc(notStarted, count) << endl
+		     << "Preparing:  " << pc(notStarted, count) << endl
 		     << "Running:    " << pc(running, count) << endl
 		     << "Error:      " << pc(err, count) << endl
 		     << "Finished:   " << pc(finished, count) << endl
-		     << endl
 		     << "Still need: " << pc(stillNeed, count) << endl;
-		// for (map<string, size_t>::const_iterator i = histo.begin();
-		//      i != histo.end(); i++)
-		// {
-		// 	stat << i->first << ":\t" << i->second << endl;
-		// }
 
 		job->setGridData(urlBase + statsFilename);
 	}
+}
+
+void MetajobHandler::processFinishedSubjobsOutputs(DBHWrapper &dbh, Job *metajob)
+{
+	JobVector jobs;
+	DBHWrapper()->getFinishedSubjobs(metajob->getId(), jobs, 0);
+	for (JobVector::iterator i = jobs.begin(); i!=jobs.end(); i++)
+	{
+		Job *subjob = *i;
+		
+		const string &sjid = subjob->getId();
+		const string &mjid = metajob->getId();
+		LOG(LOG_DEBUG,
+		    "Moving output of sub-job '%s' to meta-job output '%s'",
+		    sjid.c_str(), mjid.c_str());
+		
+		ostringstream s_dstdir;
+		s_dstdir << calc_job_path(outDirBase, metajob->getId()) 
+			 << '/' << sjid[0] << sjid[1] << '/';
+		const string &dstdir = s_dstdir.str();
+		if (-1 == mkdir(dstdir.c_str(), 0750) && errno != EEXIST)
+			throw BackendException("Error creating directory '%s'",
+					       dstdir.c_str());
+		
+		const string &srcdir = calc_job_path(outDirBase, sjid);
+		
+		ostringstream command;
+		command << "mv '" << srcdir << "' '" << dstdir << "'";
+		const string &s_command = command.str();
+		
+		LOG(LOG_DEBUG, "Moving: '%s' -> '%s'",
+		    srcdir.c_str(), dstdir.c_str());
+
+		if (system(s_command.c_str()))
+			LOG(LOG_DEBUG, "Error while executing command '%s'.",
+			    s_command.c_str());
+		
+		deleteJob(subjob);
+	}
+}
+
+void MetajobHandler::cleanupJob(Job *job)
+{
+	rmrf(calc_job_path(outDirBase, job->getId()));
+	rmrf(calc_job_path(inDirBase, job->getId()));
+}
+void MetajobHandler::deleteJob(Job *job)
+{
+	cleanupJob(job);
+	DBHWrapper()->deleteJob(job->getId());
+}
+
+/********************************************
+ * Creating output archives
+ ********************************************/
+
+void MetajobHandler::startArchivingProcess(const Job *job)
+{
+	const string &scriptFileName = archFile(job, ARCH_SCRIPT);
+
+	{
+		ofstream runFile(archFile(job, ARCH_RUNNING).c_str());
+		runFile << "" << endl;
+	}
+
+	const string &baseDir = calc_job_path(outDirBase, job->getId());
+	
+	{
+		ofstream scriptFile(scriptFileName.c_str());
+		
+		bool first = true;
+		scriptFile << "#!/bin/bash" << endl;
+		for (Outputmap::const_iterator
+			     i = job->getOutputMap().begin();
+		     i != job->getOutputMap().end(); i++)
+		{
+			if (first) first = false;
+			else scriptFile << " && ";
+
+			scriptFile << "tar czf '" << i->first
+				   << "' --remove-files $(find -name '"
+				   << i->first << "') ";
+		}
+		if (!first)
+		{
+			scriptFile << " && touch '"
+				   << archFile(job, ARCH_SUCCESS)
+				   << "' || touch '"
+				   << archFile(job, ARCH_ERROR) << "'";
+		}
+		scriptFile << endl;
+	}
+
+	ostringstream cmd;
+	cmd << "cd '" << baseDir << "' && /bin/bash -r '" << scriptFileName
+	    << "' 2> '" << archFile(job, ARCH_STDERR) << "'";
+	const string &s_cmd = cmd.str();
+
+	pid_t pid = fork();
+	if (pid < 0)
+		throw BackendException("Error executing fork. "
+				       "Couldn't start archiving process "
+				       "for job '%s'", job->getId().c_str());
+	else if (pid == 0)
+	{
+		char bash[] = "/bin/bash";
+		char arg0[] = "-c";
+		char arg1[s_cmd.size()+1];
+		strcpy(arg1, s_cmd.c_str());
+		char * args[] = { bash, arg0, arg1, 0 };
+
+		execv(bash, args);
+	}
+	else
+	{
+		LOG(LOG_DEBUG, "Spawned process '%d' to create archive for '%s'",
+		    pid, job->getId().c_str());
+	}
+}
+
+void MetajobHandler::cleanupArchiving(const Job *job)
+{
+
+#define AF(s) archFile(job, (ARCH_##s))
+	string residue[] = { AF(SCRIPT), AF(SUCCESS), AF(ERROR),
+			     AF(RUNNING), AF(STDERR) };
+	for (int i=0; i<5; i++)
+		remove(residue[i].c_str());
+
+	ostringstream rmdirs;
+	rmdirs << "find '" << calc_job_path(outDirBase, job->getId())
+	       << "' -depth -type d -empty -exec rmdir {} \\;";
+	const string &s_rmdirs = rmdirs.str();
+	if (system(s_rmdirs.c_str()))
+		LOG(LOG_DEBUG, "Failed to remove empty directories: '%s'",
+		    s_rmdirs.c_str());
+}
+string MetajobHandler::archFile(const Job *job, CSTR_C basename) const
+{
+	// Currently: archFile is in outputDir and the filename does not contain
+	// the job id. This can be changed, so these temporary files will not be
+	// available through http.
+	return calc_file_path(outDirBase, job->getId().c_str(), basename);
+}
+bool MetajobHandler::isArchivingProcessRunning(const Job *job) const
+{
+	return ifstream(archFile(job, ARCH_RUNNING).c_str());
+}
+bool MetajobHandler::isArchivingProcessFinished(const Job *job) const
+{
+	return ifstream(archFile(job, ARCH_SUCCESS).c_str())
+		|| ifstream(archFile(job, ARCH_ERROR).c_str());
+}
+bool MetajobHandler::isArchivingSuccessful(const Job *job) const
+{
+	return ifstream(archFile(job, ARCH_SUCCESS).c_str());
+}
+string MetajobHandler::archivingError(const Job *job) const
+{
+	ifstream infile(archFile(job, ARCH_STDERR).c_str());
+	if (infile)
+	{
+		string line;
+		ostringstream msg;
+		while (infile.good())
+		{
+			getline(infile, line);
+			msg << line << endl;
+		}
+		return msg.str();
+	}
+	else
+		return "";
 }
 
 /**********************************************************************
@@ -707,6 +802,31 @@ CSTR_C MSG_INV_VAL_FMT = "Invalid value in gridId field for meta-job '%s': '%s'"
 	}
 #define RET_STR(a) { (a).swap(token); }
 
+//MJ Extra data information:
+//  Extra information is stored in the job's gridid field.
+//
+//  TODO: Move to external table.
+//
+//  Stored as string, format:
+//     grid{|count|startLine|required|successAt}
+//  {} means optional, | is the '|' character itself
+//
+//  WSSubmitter stores only the grid. Everything else is added by
+//  updateJobGenerationData() (in this file).
+//
+// grid:      Original destination grid; dest. grid for sub-jobs.
+// count:     Number of sub-jobs generated so far.
+// startLine: Last position in _3gb-metajob* sepcification. Continue
+//            from here.
+// required:  So many jobs needed to successfully finish in order for the
+//            meta-job to be successful. It will only has meaning when all
+//            sub-jobs are generated. At this time this will be an integer
+//            defining the actual number. Up until that it will be a string
+//            unparsed by parseMetajob().
+// successAt: When this number of sub-jobs has successfully finished, all
+//            remaining are canceled and the meta-job automatically
+//            succeeds. Same deal as required.
+
 void MetajobHandler::getExtraData(const string &data,
 				  string &grid,
 				  size_t &count, size_t &startLine,
@@ -717,7 +837,7 @@ void MetajobHandler::getExtraData(const string &data,
 	istringstream is(data);
 	string token;
 
-	//Info: search for "MJ Extra" (it's near the top of this file)
+	//Info: search for "MJ Extra" above
 	GET_TOKEN(); RET_STR(grid);
 
 	// Rest is optional, but all-or-nothing
@@ -788,13 +908,13 @@ void MetajobHandler::translateJob(Job const *job,
 			job->getId().c_str());
 }
 
-void MetajobHandler::updateJob(DBHandler *dbh,
-			       Job *job,
-			       MetaJobDef const &mjd,
-			       JobDef const &jd)
+static void updateJobGenerationData(DBHandler *dbh,
+				    Job *job,
+				    MetaJobDef const &mjd,
+				    JobDef const &jd)
 	throw (BackendException*)
 {
-	//Info: search for "MJ Extra" (it's near the top of this file)
+	//Info: search for "MJ Extra" above
 	ostringstream os;
 	os << jd.grid << DSEP << mjd.count << DSEP << mjd.startLine << DSEP;
 	if (mjd.finished)
@@ -846,6 +966,59 @@ static string calc_file_path(const string &basedir,
 	return calc_job_path(basedir, jobid) + '/' + localName;
 }
 
+static void rmrf(string dir)
+{
+	//TODO: implement recursive deleting
+	if (system(("rm -rf '" + dir + "'").c_str()))
+		LOG(LOG_WARNING,
+		    "Couldn't remove directory: '%s'",
+		    dir.c_str());
+}
+static size_t getConfInt(GKeyFile *config, CSTR group, CSTR key, int defVal)
+{
+	GError *error = 0;
+	size_t value =
+		g_key_file_get_integer(config, group, key, &error);
+	if (error)
+	{
+		if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND)
+		{
+			LOG(LOG_ERR,
+			    "Metajob Handler: "
+			    "Failed to parse configuration '%s': %s",
+			    key, error->message);
+		}
+		value = defVal;
+		g_error_free(error);
+	}
+
+	return value;
+}
+static string getConfStr(GKeyFile *config, CSTR group, CSTR key, CSTR defVal)
+{
+	GError *error = 0;
+	gchar* value =
+		g_key_file_get_string(config, group, key, &error);
+	if (value)
+		g_strstrip(value);
+	if (error)
+	{
+		LOG(LOG_ERR,
+		    "Metajob Handler: "
+		    "Failed to parse configuration '%s': %s",
+		    key, error->message);
+		if (defVal)
+			return string(defVal);
+		else
+			throw BackendException("Missing configuration: [%s]/%s",
+					       group, key);
+	}
+
+	string s = value ? value : string();
+	g_free(value);
+	return s;
+}
+
 static void LOGJOB(const char * msg,
 		   const MetaJobDef &mjd, const JobDef &jd)
 {
@@ -887,6 +1060,17 @@ static void LOGJOB(const char * msg,
 	}
 	LOG(LOG_DEBUG, "// %s", msg);
 #endif
+}
+
+static string pc(size_t part, size_t whole)
+{
+	ostringstream os;
+	os << right << setfill(' ') << fixed;
+	os << setw(8) << part << " ("
+	   << setw(5) << setprecision(1)
+	   << ((float)part)/whole * 100
+	   << "%)";
+	return os.str();
 }
 
 /**********************************************************************

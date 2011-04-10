@@ -37,9 +37,7 @@
 using namespace std;
 using namespace _3gbridgeParser;
 
-/**
- * TODO: comment
- */
+
 class MetajobHandler : public GridHandler
 {
 public:
@@ -72,28 +70,25 @@ public:
 	void poll(Job *job) throw (BackendException *);
 
 private:
+	///////////////////////////////////
+	// Parsing (submitting) meta-jobs
+	///////////////////////////////////
+
+	/**
+	 * Used to implement transactioning in parser iterations */
 	DBHWrapper *dbh;
+	/**
+	 * Output stream for mapping-file. Created by submitJobs and used by
+	 * qJobHandler */
 	ofstream *mappingFile;
 	
 	/**
 	 * Delegate function. Called by parseMetaJob() to create jobs in the
 	 * database using jd as a template.
-	 * @see queueJobHandler
-	 */
+	 * @see queueJobHandler */
 	static void qJobHandler(MetajobHandler *instance,
 				_3gbridgeParser::JobDef &jd,
 				size_t count);
-	//
-	// Utility functions
-	//
-
-	/**
-	 * Store parser state back to DB */
-	static void updateJob(DBHandler *dbh,
-			      Job *job,
-			      MetaJobDef const &mjd,
-			      JobDef const &jd)
-		throw (BackendException*);
 	/**
 	 * Create input for parseMetaJob() from a Job object. */
 	static void translateJob(Job const *job, MetaJobDef &mjd, JobDef &jd,
@@ -105,18 +100,39 @@ private:
 				 string &grid,  size_t &count, size_t &startLine,
 				 string &reqd, string &succAt, string const &jobId)
 		throw (BackendException*);
+
+	/////////////////////////////////////////
+	// Status polling and sub-job processing
+	/////////////////////////////////////////
+	
 	/**
-	 */
-	static void getMetajobStatusInfo(Job *job, DBHWrapper &dbh,
-					 size_t &count,
-					 size_t &required, size_t &succAt,
-					 size_t &err, size_t &finished);
+	 * Gets statistics about a meta-job's sub-jobs */
+	void getMetajobStatusInfo(
+		const Job *job, DBHWrapper &dbh,
+		size_t &count, size_t &required, size_t &succAt,
+		size_t &err, size_t &finished) const;
+	/**
+	 * Updates the status of the meta-job using statistics about sub-jobs */
+	bool updateJobStatus(
+		Job *job, DBHWrapper &dbh,
+		size_t count, size_t required, size_t succAt,
+		size_t err, size_t finished,
+		string &errorMsg, bool &archivingRunning);
+	/**
+	 * Updates the statistics file if found to be neccesary */
+	void updateStatsFileIfNeccesary(
+		Job *job, DBHWrapper &dbh,
+		size_t count, size_t required, size_t succAt,
+		size_t err, size_t finished,
+		const string &errorMsg, bool archivingRunning,
+		bool metajobFinalized) const;
+
 	/**
 	 * Cancels the meta-job and its sub-jobs */
 	void userCancel(Job* job);
 	/**
 	 * Set meta-job to finished. Cancel all remaining sub-jobs. */
-	static void finishedCancel(Job *job);
+	void finishedCancel(Job *job);
 	/**
 	 * Set meta-job to error. Cancel all remaining sub-jobs. */
 	static void errorCancel(Job *job);
@@ -124,14 +140,44 @@ private:
 	 * Process sub-jobs' outputs and delete them. */
 	void processFinishedSubjobsOutputs(DBHWrapper &dbh, Job *job);
 	/**
-	 * Process a single job's output  */
-	void processOutput(DBHWrapper &dbh, Job *metajob, Job *subjob);
-	/**
 	 * Delete the job record  */
 	void deleteJob(Job *job);
 	/**
 	 * Remove files from the disk */
 	void cleanupJob(Job *job);
+
+	/////////////////////////////
+	// Creating archive output
+	/////////////////////////////
+
+	/**
+	 * Create full path for the given archive file */
+	string archFile(const Job *job, CSTR_C basename) const;
+	/**
+	 * Determines if the archiving process has been started and is still
+	 * running. */
+	bool isArchivingProcessRunning(const Job *job) const;
+	/**
+	 * Determines if the archving process has been finsihed (either way). */
+	bool isArchivingProcessFinished(const Job *job) const;
+	/**
+	 * Determines if the archiving process has been _successfully_
+	 * finished. */
+	bool isArchivingSuccessful(const Job *job) const;
+	/**
+	 * Returnes the error message if the archiving process has
+	 * failed. Returns empty string if there's been no error. */
+	string archivingError(const Job *job) const;
+	/**
+	 * Creates the neccesary script and starts the archiving process.  */
+	void startArchivingProcess(const Job *job);
+	/**
+	 * Cleans up after archiving. */
+	void cleanupArchiving(const Job *job);
+
+	//////////////////
+	// Configuration
+	//////////////////
 
 	/**
 	 * From configuration: Max number of jobs to generate in an
@@ -141,10 +187,6 @@ private:
 	 * From configuration: Minimum time (in seconds) to elapse between
 	 * updates sub-jobs' status report */
 	size_t minElapse;
-	/**
-	 * From configuration: Max number of finished jobs to be handled at once
-	 * when processing output. */
-	size_t maxProcOutput;
 	/**
 	 * From configuration: Output base directory. */
 	string outDirBase;
