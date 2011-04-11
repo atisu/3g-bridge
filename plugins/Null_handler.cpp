@@ -74,11 +74,12 @@ void NullHandler::poll(Job *job) throw (BackendException *)
 	switch (job->getStatus())
 	{
 		case Job::RUNNING:
+
+			LOG(LOG_DEBUG, "Creating dummy output for job '%s'",
+			    job->getId().c_str());
 			for (map<string, string>::const_iterator i = job->getOutputMap().begin();
 			     i != job->getOutputMap().end(); i++)
 			{
-				LOG(LOG_DEBUG, "Creating output file '%s'.",
-				    i->second.c_str());
 				ofstream of(i->second.c_str(), ios::trunc);
 				of << "Created by Null_handler for job "
 				   << job->getId() << endl;
@@ -90,6 +91,7 @@ void NullHandler::poll(Job *job) throw (BackendException *)
 			break;
 	case Job::CANCEL:
 		DBHWrapper()->deleteJob(job->getId());
+		//TODO: remove files
 		LOG(LOG_DEBUG,
 		    "NULL Handler (%s): DELETED job '%s'",
 		    name.c_str(), job->getId().c_str());
