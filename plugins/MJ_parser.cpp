@@ -59,7 +59,7 @@ enum CountType
 {
 	Keyword,
 	Percentage,
-	Piece
+	Piece,
 };
 struct Count
 {

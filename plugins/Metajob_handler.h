@@ -37,7 +37,17 @@
 using namespace std;
 using namespace _3gbridgeParser;
 
+/**
+ * The new status of a meta-job is the function of these parameters. */
+struct MJStats
+{
+	size_t count,required, succAt, err, finished;
+	bool archivingRunning;
+	string errorMsg;
+};
 
+/**
+ * Plugin for 3g-bridge: Handles meta-jobs. */
 class MetajobHandler : public GridHandler
 {
 public:
@@ -107,44 +117,33 @@ private:
 	
 	/**
 	 * Gets statistics about a meta-job's sub-jobs */
-	void getMetajobStatusInfo(
-		const Job *job, DBHWrapper &dbh,
-		size_t &count, size_t &required, size_t &succAt,
-		size_t &err, size_t &finished) const;
+	auto_ptr<MJStats> getMetajobStatusInfo(
+		const Job *job, DBHWrapper &dbh) const;
 	/**
 	 * Updates the status of the meta-job using statistics about sub-jobs */
-	bool updateJobStatus(
-		Job *job, DBHWrapper &dbh,
-		size_t count, size_t required, size_t succAt,
-		size_t err, size_t finished,
-		string &errorMsg, bool &archivingRunning);
+	void updateJobStatus(
+		Job *job, DBHWrapper &dbh, MJStats *stats,
+		bool *updateNeeded, bool *cleanupNeeded) const;
 	/**
 	 * Updates the statistics file if found to be neccesary */
 	void updateStatsFileIfNeccesary(
-		Job *job, DBHWrapper &dbh,
-		size_t count, size_t required, size_t succAt,
-		size_t err, size_t finished,
-		const string &errorMsg, bool archivingRunning,
-		bool metajobFinalized) const;
-
+		Job *job, DBHWrapper &dbh, const MJStats &stats,
+		bool updateNeeded) const;
 	/**
 	 * Cancels the meta-job and its sub-jobs */
-	void userCancel(Job* job);
-	/**
-	 * Set meta-job to finished. Cancel all remaining sub-jobs. */
-	void finishedCancel(Job *job);
-	/**
-	 * Set meta-job to error. Cancel all remaining sub-jobs. */
-	static void errorCancel(Job *job);
+	void userCancel(Job* job) const;
 	/**
 	 * Process sub-jobs' outputs and delete them. */
-	void processFinishedSubjobsOutputs(DBHWrapper &dbh, Job *job);
+	void processFinishedSubjobsOutputs(DBHWrapper &dbh, Job *job) const;
 	/**
 	 * Delete the job record  */
-	void deleteJob(Job *job);
+	void deleteJob(Job *job) const;
 	/**
 	 * Remove files from the disk */
-	void cleanupJob(Job *job);
+	void cleanupJob(Job *job) const;
+	/**
+	 * Clean up everyrthing after sub-jobs. */
+	void cleanupSubjobs(DBHWrapper &dbh, Job *metajob) const;
 
 	/////////////////////////////
 	// Creating archive output
@@ -170,10 +169,10 @@ private:
 	string archivingError(const Job *job) const;
 	/**
 	 * Creates the neccesary script and starts the archiving process.  */
-	void startArchivingProcess(const Job *job);
+	void startArchivingProcess(const Job *job) const;
 	/**
 	 * Cleans up after archiving. */
-	void cleanupArchiving(const Job *job);
+	void cleanupArchiving(const Job *job) const;
 
 	//////////////////
 	// Configuration

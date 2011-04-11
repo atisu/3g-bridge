@@ -907,15 +907,23 @@ map<string, size_t> DBHandler::getSubjobHisto(const string &jobid)
 	return histo;
 }
 
-void DBHandler::cancelSubjobs(const string &parentId)
+void DBHandler::discardPendingSubjobs(const string &parentId)
 {	
 	query("UPDATE cg_job SET status='CANCEL' "
-	      "where metajobid = '%s' and status='RUNNING'",
+	      "WHERE metajobid = '%s' and status='RUNNING'",
 	      parentId.c_str());
+	query("UPDATE cg_job SET status='PREPARE' "
+	      "WHERE metajobid = '%s' and status='INIT'",
+	      parentId.c_str());
+}
+void DBHandler::cancelAndDeleteRemainingSubjobs(const string &parentId)
+{
 	query("DELETE FROM cg_job "
 	      "where metajobid = '%s' and status <> 'RUNNING'",
 	      parentId.c_str());
-
+	query("UPDATE cg_job SET status='CANCEL' "
+	      "where metajobid = '%s'", // ALL status is 'RUNNING'
+	      parentId.c_str());
 }
 
 void DBHandler::getFinishedSubjobs(const string &parentId,

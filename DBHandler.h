@@ -279,7 +279,8 @@ class DBHandler {
 
 	void getSubjobCounts(const string &jobid, size_t &all, size_t &err);
 	void removeMetajobChildren(const string &jobid);
-	void cancelSubjobs(const string &parentId);
+	void discardPendingSubjobs(const string &parentId);
+	void cancelAndDeleteRemainingSubjobs(const string &parentId);
 
 	void getFinishedSubjobs(const string &parentId,
 				JobVector &jobs,
