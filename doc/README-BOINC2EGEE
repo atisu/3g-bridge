@@ -39,8 +39,10 @@ steps:
   3a. If you plan to bridge a big number of BOINC workunits to gLite in
       parallel, it is recommended to set the maximum number of concurrent MySQL
       connections to a higher value (at least the sum of workunit slots plus the
-      value of the max-connections variable in /etc/3g-bridge.conf:
-      mysql> set global max_connections=512;
+      value of the max-connections variable in /etc/3g-bridge.conf). In order to
+      set this variable, add the following line to the [mysqld] section of
+      /etc/my.cnf and restart the MySQL server:
+      max_connections=512
 
   4. Configure the bridge:
 
