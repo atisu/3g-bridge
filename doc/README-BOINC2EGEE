@@ -36,8 +36,14 @@ steps:
      or update an existing database:
      $ mysql -u bridge -p bridge < doc/db/schema-update.sql
 
+  3a. If you plan to bridge a big number of BOINC workunits to gLite in
+      parallel, it is recommended to set the maximum number of concurrent MySQL
+      connections to a higher value (at least the sum of workunit slots plus the
+      value of the max-connections variable in /etc/3g-bridge.conf:
+      mysql> set global max_connections=512;
+
   4. Configure the bridge:
-  
+
   4a. Update [database] access informations in /etc/3g-bridge.conf
 
   4b. Create a queue:
