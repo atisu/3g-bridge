@@ -118,10 +118,11 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
   // If 'xw_client_install_prefix' is given and seems correct, extract the
   // root folder and the client prefix from it.  Otherwise, use fixed values.
   //--------------------------------------------------------------------------
+  string xw_client_folder_str = "/usr";
+  
   string xw_client_install_prefix_str;
   size_t pos;
-  string xw_root_str;
-  string xw_client_prefix_str;
+  DIR *  directory_stream;
   
   if ( xw_client_install_prefix )
   {
@@ -133,119 +134,114 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
   if ( xw_client_install_prefix && (pos != 0) &&
        (pos < (xw_client_install_prefix_str.length() - 1)) )
   {
-    xw_root_str          = xw_client_install_prefix_str.substr(0, pos - 1);
-    xw_client_prefix_str = xw_client_install_prefix_str.substr(pos + 1);
-  }
-  else
-  {
-    xw_root_str          = "/opt";
-    xw_client_prefix_str = "xwhep-client-";
-  }
-  
-  const char * xw_root   = xw_root_str.c_str();
-  LOG(LOG_DEBUG, "%s(%s)   XW client root folder:         '%s'     "
-                 "XW client prefix: '%s'", function_name, instance_name,
-                 xw_root, xw_client_prefix_str.c_str());
+    string xw_root_str = xw_client_install_prefix_str.substr(0, pos - 1);
+    string xw_client_prefix_str =
+                         xw_client_install_prefix_str.substr(pos + 1);
     
-  //--------------------------------------------------------------------------
-  //  Reading the directory 'xw_root_str', select the file beginning with
-  //  'xw_client_prefix_str' and ended with the highest version number
-  //--------------------------------------------------------------------------
-  DIR *        directory_stream = opendir(xw_root);
-  string       xw_client_folder_str;
-  
-  if ( ! directory_stream )
-    throw new BackendException("XWHandler::XWHandler  can NOT read folder "
-                               "'%s'", xw_root);
-  else
-  {
-    dirent *     directory_entry;
-    const char * file_name;
-    string       file_name_str;
-    size_t       xw_client_prefix_length = xw_client_prefix_str.length();
-    size_t       pos1;
-    size_t       pos2;
-    string       number_str;
-    int          major = 0;
-    int          minor = 0;
-    int          micro = 0;
-    int          i, j, k;
-    string       xw_file_name_str = "";
-    
-    while ( (directory_entry=readdir(directory_stream)) != 0 )
-    {
-      //LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' found "
-      //               "in '%s'", function_name, instance_name,
-      //               directory_entry->d_name, xw_root);
+    const char * xw_root   = xw_root_str.c_str();
+    LOG(LOG_DEBUG, "%s(%s)   XW client root folder:         '%s'     "
+                   "XW client prefix: '%s'", function_name, instance_name,
+                   xw_root, xw_client_prefix_str.c_str());
       
-      file_name     = directory_entry->d_name;
-      file_name_str = string(file_name);
-      if ( file_name_str.substr(0, xw_client_prefix_length) ==
-           xw_client_prefix_str )
+    //------------------------------------------------------------------------
+    //  Reading the directory 'xw_root_str', select the file beginning with
+    //  'xw_client_prefix_str' and ended with the highest version number
+    //------------------------------------------------------------------------
+    directory_stream = opendir(xw_root);
+    
+    if ( ! directory_stream )
+      throw new BackendException("XWHandler::XWHandler  can NOT read folder "
+                                 "'%s'", xw_root);
+    else
+    {
+      dirent *     directory_entry;
+      const char * file_name;
+      string       file_name_str;
+      size_t       xw_client_prefix_length = xw_client_prefix_str.length();
+      size_t       pos1;
+      size_t       pos2;
+      string       number_str;
+      int          major = 0;
+      int          minor = 0;
+      int          micro = 0;
+      int          i, j, k;
+      string       xw_file_name_str = "";
+      
+      while ( (directory_entry=readdir(directory_stream)) != 0 )
       {
-        //LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' "
-        //               "begins with '%s'", function_name, instance_name,
-        //               file_name, xw_client_prefix_str.c_str());
+        //LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' found "
+        //               "in '%s'", function_name, instance_name,
+        //               directory_entry->d_name, xw_root);
         
-        pos1 = file_name_str.find_first_of("0123456789");
-        if ( pos1 == string::npos )
-          continue;
-        pos2 = file_name_str.find_first_not_of("0123456789", pos1);
-        if ( pos2 == string::npos )
-          continue;
-        number_str = file_name_str.substr(pos1, pos2 - pos1);
-        i = atoi(number_str.c_str());
-        if ( i < major )
-          continue;
-        LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
-                       "Major = %d",
-                       function_name, instance_name, file_name, i);
-        
-        pos1 = file_name_str.find_first_of("0123456789", pos2);
-        if ( pos1 == string::npos )
-          continue;
-        pos2 = file_name_str.find_first_not_of("0123456789", pos1);
-        if ( pos2 == string::npos )
-          continue;
-        number_str = file_name_str.substr(pos1, pos2 - pos1);
-        j = atoi(number_str.c_str());
-        if ( j < minor )
-          continue;
-        LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
-                       "Minor = %d",
-                       function_name, instance_name, file_name, j);
-        
-        pos1 = file_name_str.find_first_of("0123456789", pos2);
-        if ( pos1 == string::npos )
-          continue;
-        number_str = file_name_str.substr(pos1);
-        k = atoi(number_str.c_str());
-        if ( k < micro )
-          continue;
-        LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
-                       "Micro = %d",
-                       function_name, instance_name, file_name, k);
-        
-        major = i;
-        minor = j;
-        micro = k;
-        xw_file_name_str = file_name_str;
-        LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' is "
-                       "candidate with %d.%d.%d",
-                       function_name, instance_name, file_name, i, j, k);
+        file_name     = directory_entry->d_name;
+        file_name_str = string(file_name);
+        if ( file_name_str.substr(0, xw_client_prefix_length) ==
+             xw_client_prefix_str )
+        {
+          //LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' "
+          //               "begins with '%s'", function_name, instance_name,
+          //               file_name, xw_client_prefix_str.c_str());
+          
+          pos1 = file_name_str.find_first_of("0123456789");
+          if ( pos1 == string::npos )
+            continue;
+          pos2 = file_name_str.find_first_not_of("0123456789", pos1);
+          if ( pos2 == string::npos )
+            continue;
+          number_str = file_name_str.substr(pos1, pos2 - pos1);
+          i = atoi(number_str.c_str());
+          if ( i < major )
+            continue;
+          LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
+                         "Major = %d",
+                         function_name, instance_name, file_name, i);
+          
+          pos1 = file_name_str.find_first_of("0123456789", pos2);
+          if ( pos1 == string::npos )
+            continue;
+          pos2 = file_name_str.find_first_not_of("0123456789", pos1);
+          if ( pos2 == string::npos )
+            continue;
+          number_str = file_name_str.substr(pos1, pos2 - pos1);
+          j = atoi(number_str.c_str());
+          if ( j < minor )
+            continue;
+          LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
+                         "Minor = %d",
+                         function_name, instance_name, file_name, j);
+          
+          pos1 = file_name_str.find_first_of("0123456789", pos2);
+          if ( pos1 == string::npos )
+            continue;
+          number_str = file_name_str.substr(pos1);
+          k = atoi(number_str.c_str());
+          if ( k < micro )
+            continue;
+          LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
+                         "Micro = %d",
+                         function_name, instance_name, file_name, k);
+          
+          major = i;
+          minor = j;
+          micro = k;
+          xw_file_name_str = file_name_str;
+          LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' is "
+                         "candidate with %d.%d.%d",
+                         function_name, instance_name, file_name, i, j, k);
+        }
       }
+      closedir(directory_stream);
+      
+      if ( xw_file_name_str == "" )
+        throw new BackendException("XWHandler::XWHandler  can NOT find '%s'",
+                                   xw_client_prefix_str.c_str());
+      
+      xw_client_folder_str = xw_root_str + "/" + xw_file_name_str;
     }
-    closedir(directory_stream);
-    
-    if ( xw_file_name_str == "" )
-      throw new BackendException("XWHandler::XWHandler  can NOT find '%s'",
-                                 xw_client_prefix_str.c_str());
-    
-    xw_client_folder_str = xw_root_str + "/" + xw_file_name_str;
   }
   
   //--------------------------------------------------------------------------
-  // Verify that 'xwclient_install_dir' is a readable folder.
+  // Verify that 'xw_client_bin_folder' is a readable folder.
   //--------------------------------------------------------------------------
   LOG(LOG_INFO, "%s(%s)  XW client install folder:      '%s'",
                 function_name, instance_name, xw_client_folder_str.c_str());
@@ -653,10 +649,10 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
                              (new vector<string>);
   auto_ptr< vector<string> > input_file_str_vector;
   string        input_file_name_str;
+  FileRef       input_file_ref;
   string        input_file_path_str;
   const char *  input_file_name;
   const char *  input_file_path;
-  FileRef       input_file_ref;
   string        input_file_md5_str;
   const char *  input_file_md5;
   int           input_file_size;
@@ -710,7 +706,8 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
           input_file_iterator++ )
     {
       input_file_name_str = *input_file_iterator;
-      input_file_path_str = job->getInputRef(input_file_name_str).getURL();
+      input_file_ref      = job->getInputRef(input_file_name_str);
+      input_file_path_str = input_file_ref.getURL();
       input_file_name     = input_file_name_str.c_str();
       input_file_path     = input_file_path_str.c_str();
       
@@ -736,7 +733,6 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
         //--------------------------------------------------------------------
         //  Get MD5 and size for the URL
         //--------------------------------------------------------------------
-        input_file_ref        = job->getInputRef(input_file_name_str);
         input_file_md5_str    = input_file_ref.getMD5();
         input_file_size       = input_file_ref.getSize();
         input_file_md5        = input_file_md5_str.c_str();
@@ -804,7 +800,7 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
         //--------------------------------------------------------------------
         //  From the message displayed by XtremWeb, extract the DATA id
         //--------------------------------------------------------------------
-        pos_xw_id = (returned_values.message).find("xw://");
+        pos_xw_id = (returned_values.message).rfind("xw://");
         if ( pos_xw_id == string::npos )
         {
           LOG(LOG_NOTICE, "%s(%s)  Job '%s'  'xw://' NOT found inside "
@@ -932,7 +928,7 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     //------------------------------------------------------------------------
     // From the message displayed by XtremWeb, extract the XtremWeb job id
     //------------------------------------------------------------------------
-    pos_xw_id = (returned_values.message).find("xw://");
+    pos_xw_id = (returned_values.message).rfind("xw://");
     if ( pos_xw_id == string::npos )
     {
       LOG(LOG_NOTICE, "%s(%s)  Job '%s'  'xw://' NOT found inside message "
