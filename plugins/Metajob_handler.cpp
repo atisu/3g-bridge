@@ -46,6 +46,7 @@
 #include "MJ_parser.h"
 #include "Util.h"
 #include "DLException.h"
+#include "mkstr"
 
 using namespace _3gbridgeParser;
 using namespace std;
@@ -86,6 +87,9 @@ static void submit_handleError(DBHandler *dbh, const char *msg, Job *job);
 /** Recursive deletion of a directory */
 static void rmrf(string dir);
 
+/** Create directory */
+static void md(char const *name);
+
 /** Gets the given int value from the config. */
 static size_t getConfInt(GKeyFile *config, CSTR group, CSTR key, int defVal);
 
@@ -93,7 +97,7 @@ static size_t getConfInt(GKeyFile *config, CSTR group, CSTR key, int defVal);
 static string getConfStr(GKeyFile *config,
 			 CSTR group, CSTR key,
 			 CSTR defVal = 0);
-/** Stores state information of parser to job griddata */
+/** Stores state information of parser to cg_job.griddata and cg_job.args */
 static void updateJobGenerationData(DBHandler *dbh, Job *job,
 				    MetaJobDef const &mjd,
 				    JobDef const &jd) throw (BackendException*);
@@ -111,16 +115,16 @@ MetajobHandler::MetajobHandler(GKeyFile *config, const char *instance)
 
 	//Default: unlimited
 	maxJobsAtOnce = getConfInt(config, name.c_str(), CFG_MAXJOBS, 0);
-	//Default: a minute
-	minElapse = getConfInt(config, name.c_str(), CFG_MINEL, 60);
+	//TODO: unneccesary
+	//Default: always	
+	minElapse = getConfInt(config, name.c_str(), CFG_MINEL, 0);
 
 	outDirBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_OUTDIR);
 	inDirBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_INDIR);
 	outURLBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_OUTURL);
 
 	LOG(LOG_INFO,
-	    "Metajob Handler: instance '%s' initialized.",
-	    name.c_str());
+	    "Metajob Handler: instance '%s' initialized.", name.c_str());
 	LOG(LOG_INFO,
 	    "MJ instance '%s': %s = %lu, %s = %lu",
 	    name.c_str(), CFG_MAXJOBS, maxJobsAtOnce, CFG_MINEL, minElapse);
@@ -246,10 +250,9 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 static void submit_handleError(DBHandler *dbh, const char *msg, Job *job)
 {
 	dbh->query("ROLLBACK");
-	ostringstream out;
-	out << "Error while unfolding meta-job '" << job->getId()
-	    << "' : " << msg;
-	const string &s_msg = out.str();
+	const string &s_msg = MKStr() << "Error while unfolding meta-job '"
+				      << job->getId()
+				      << "' : " << msg;
 	LOG(LOG_ERR, "%s", s_msg.c_str());
 	dbh->updateJobStat(job->getId(), Job::ERROR);
 	job->setGridData(s_msg);
@@ -341,10 +344,8 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 	bool updateNeeded = false;
 	bool cleanupNeeded = false;
 
-	// These stats are required for calculating the meta-job's status and to
-	// update the stats file. So, this will have to be available before any
-	// of these. *But* we can't set it too early, because processing sub-jobs'
-	// output voids it.
+	// Stats can't be initialized here, because it would be voided after
+	// processing the output of sub-jobs (iff we would process them)
 	auto_ptr<MJStats> stats;
 
 	DBHWrapper dbh;
@@ -379,16 +380,17 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 		processFinishedSubjobsOutputs(dbh, job);
 
 		// We need this for updateJobStatus, but we can't set it before
-		// processing the output
+		// processing the output.
 		stats = getMetajobStatusInfo(job, dbh);
 
 		updateJobStatus(job, dbh, stats.get(),
 				&updateNeeded, &cleanupNeeded);
 	}
-
+	
+	// If we skipped the job status update (because of the archiving stage),
+	// then the stats is still uninitialized
 	if (!stats.get())
 		stats = getMetajobStatusInfo(job, dbh);
-	stats->archivingRunning = isArchivingProcessRunning(job);
 
 	updateStatsFileIfNeccesary(job, dbh, *stats, updateNeeded);
 
@@ -523,17 +525,20 @@ void MetajobHandler::updateStatsFileIfNeccesary(
 	const string statsFilename = jid + STATS_SUFFIX;
 	const string statsFile = calc_file_path(outDirBase, jid, statsFilename);
 
-	ostringstream urlBaseS;
-	urlBaseS << outURLBase << '/' << jid[0] << jid[1] << '/' << jid << '/';
-	const string &urlBase = urlBaseS.str();
-
 	const time_t now = time(NULL);
 	struct stat st;
 	const bool statsExists = !stat(statsFile.c_str(), &st);
+	//TODO: unneccesary
 	const bool fileOldEnough = (now - st.st_mtime) > (int)minElapse;
 
+	// ...IfNeccesary :=
 	if (updateNeeded || !(statsExists) || fileOldEnough)
 	{
+		const string &urlBase = MKStr()
+			<< outURLBase << '/'
+			<< jid[0] << jid[1] << '/'
+			<< jid << '/';
+
 		map<string, size_t> histo = dbh->getSubjobHisto(jid);
 		ofstream stat(statsFile.c_str(), ios::trunc);
 
@@ -546,11 +551,12 @@ void MetajobHandler::updateStatsFileIfNeccesary(
 			: 0;
 		const size_t count = stats.count;
 		const bool jobFinished = job->getStatus() == Job::FINISHED;
+		const bool archiving = isArchivingProcessRunning(job);
 
 		stat << "# Stat generated at "<< asctime(localtime(&now))<< endl
 		     << "Meta-job ID: " << jid << endl
 		     << "Meta-job STATUS: " << statToStr(job->getStatus()) << endl;
-		if (stats.archivingRunning)
+		if (archiving)
 			stat << "  Packing sub-jobs' output..." << endl;
 		if (!stats.errorMsg.empty())
 			stat << "Error message: " << stats.errorMsg << endl;
@@ -598,19 +604,14 @@ void MetajobHandler::processFinishedSubjobsOutputs (
 		    "Moving output of sub-job '%s' to meta-job output '%s'",
 		    sjid.c_str(), mjid.c_str());
 
-		ostringstream s_dstdir;
-		s_dstdir << calc_job_path(outDirBase, metajob->getId())
-			 << '/' << sjid[0] << sjid[1] << '/';
-		const string &dstdir = s_dstdir.str();
-		if (-1 == mkdir(dstdir.c_str(), 0750) && errno != EEXIST)
-			throw BackendException("Error creating directory '%s'",
-					       dstdir.c_str());
+		const string &dstdir = MKStr()
+			<< calc_job_path(outDirBase, metajob->getId())
+			<< '/' << sjid[0] << sjid[1] << '/';
+		md(dstdir.c_str());
 
 		const string &srcdir = calc_job_path(outDirBase, sjid);
-
-		ostringstream command;
-		command << "mv '" << srcdir << "' '" << dstdir << "'";
-		const string &s_command = command.str();
+		const string &s_command = MKStr() << "mv '" << srcdir
+						  << "' '" << dstdir << "'";
 
 		LOG(LOG_DEBUG, "Moving: '%s' -> '%s'",
 		    srcdir.c_str(), dstdir.c_str());
@@ -619,6 +620,9 @@ void MetajobHandler::processFinishedSubjobsOutputs (
 			LOG(LOG_DEBUG, "Error while executing command '%s'.",
 			    s_command.c_str());
 
+		// After processing its output, the job has to be deleted. Just
+		// like as a user would delete an ordinary job after receiving
+		// its output.
 		deleteJob(subjob);
 	}
 }
@@ -629,6 +633,8 @@ void MetajobHandler::userCancel(Job *job) const
 	CSTR_C c_jobid = jobid.c_str();
 
 	DBHWrapper dbh;
+
+	// Jobs are canceled and then we wait for them to finish.
 
 	size_t all, err;
 	dbh->getSubjobCounts(jobid, all, err);
@@ -643,8 +649,6 @@ void MetajobHandler::userCancel(Job *job) const
 	}
 	else
 	{
-		// Wait for sub-jobs to be canceled
-
 		// Sub-jobs must be canceled, but only once. GridId is used as a
 		// flag. Empty gridId means the sub-jobs has been canceled
 		// already.
@@ -652,6 +656,7 @@ void MetajobHandler::userCancel(Job *job) const
 
 		if (!gid.empty())
 		{
+			// Job isn't canceled yet; cancel it.
 			LOG(LOG_DEBUG, "Canceling job: '%s'.", c_jobid);
 
 			cleanupSubjobs(dbh, job);
@@ -659,6 +664,8 @@ void MetajobHandler::userCancel(Job *job) const
 		}
 		else
 		{
+			// Job has been canceled, but we still have to wait for
+			// sub-jobs to finish
 			LOG(LOG_DEBUG,
 			    "Still waiting for sub-jobs to finish "
 			    "(metajobid='%s').", c_jobid);
@@ -668,7 +675,8 @@ void MetajobHandler::userCancel(Job *job) const
 
 void MetajobHandler::cleanupSubjobs(DBHWrapper &dbh, Job *metajob) const
 {
-	//TODO: remove files
+	//TODO: remove files:
+	//(foreach job, if status != CANCEL -> cleanupJob({}))
 	dbh->cancelAndDeleteRemainingSubjobs(metajob->getId());
 }
 void MetajobHandler::cleanupJob(Job *job) const
@@ -690,19 +698,23 @@ void MetajobHandler::startArchivingProcess(const Job *job) const
 {
 	const string &scriptFileName = archFile(job, ARCH_SCRIPT);
 	const string &mappingFileName = job->getId() + MAP_SUFFIX;
+	const string &baseDir = calc_job_path(outDirBase, job->getId());
 
-	{
+	{ //enclose runFile
 		ofstream runFile(archFile(job, ARCH_RUNNING).c_str());
 		runFile << "42" << endl;
 	}
 
-	const string &baseDir = calc_job_path(outDirBase, job->getId());
-
-	{
+	{ //enclose scriptFile
 		ofstream scriptFile(scriptFileName.c_str());
 
 		bool first = true;
 		scriptFile << "#!/bin/bash" << endl;
+
+		// tar && tar && tar && touch SUCCESS || touch ERROR
+
+                // This will create SUCCESS _iff_ all tar command finish
+		// successfully, and create ERROR _iff_ any of them fails.
 		for (Outputmap::const_iterator
 			     i = job->getOutputMap().begin();
 		     i != job->getOutputMap().end(); i++)
@@ -717,6 +729,9 @@ void MetajobHandler::startArchivingProcess(const Job *job) const
 				   << i->first << "') ";
 		}
 
+		// In the unlikely case when there are no output files at all,
+		// this command chain will reduce to 'touch SUCCESS || touch
+		// ERROR', which will simply create SUCCESS
 		if (!first)
 			scriptFile << " && ";
 		scriptFile << "touch '"
@@ -725,16 +740,17 @@ void MetajobHandler::startArchivingProcess(const Job *job) const
 			   << archFile(job, ARCH_ERROR) << "'";
 		scriptFile << endl;
 
+		// The RUNNING file is removed in any case
 		scriptFile << "rm -f '"
 			   << archFile(job, ARCH_RUNNING) << "'"
 			   << endl;
 	}
 
-	ostringstream cmd;
-	cmd << "cd '" << baseDir << "' && /bin/bash -r '" << scriptFileName
-	    << "' 2> '" << archFile(job, ARCH_STDERR) << "'";
-	const string &s_cmd = cmd.str();
+	const string &s_cmd = MKStr()
+		<< "cd '" << baseDir << "' && /bin/bash -r '" << scriptFileName
+		<< "' 2> '" << archFile(job, ARCH_STDERR) << "'";
 
+	// Start the script in an external process
 	pid_t pid = fork();
 	if (pid < 0)
 		throw BackendException("Error executing fork. "
@@ -754,37 +770,40 @@ void MetajobHandler::startArchivingProcess(const Job *job) const
 	{
 		LOG(LOG_DEBUG, "Spawned process '%d' to create archive for '%s'",
 		    pid, job->getId().c_str());
+
+		//TODO: zombies!
 	}
 }
 
 void MetajobHandler::cleanupArchiving(const Job *job) const
 {
-
+	// Remove residual files
 #define AF(s) archFile(job, (ARCH_##s))
 	string residue[] = { AF(SCRIPT), AF(SUCCESS), AF(ERROR),
 			     AF(RUNNING), AF(STDERR) };
 	for (int i=0; i<5; i++)
 		remove(residue[i].c_str());
 
+	// Remove all sub-job output
+	// TODO: check whether the meta-job has *successfully* finished, and
+	// remove output only if it did
 	for (Outputmap::const_iterator
 		     i = job->getOutputMap().begin();
 	     i != job->getOutputMap().end(); i++)
 	{
-		ostringstream rmoutputs;
-		rmoutputs << "rm $(find  '"
-			  << calc_job_path(outDirBase, job->getId())
-			  << "' -mindepth 2 -name '"
-			  << i->first << "')";
-		const string &s_rmoutputs = rmoutputs.str();
+		const string &s_rmoutputs = MKStr()
+			<< "rm $(find  '"
+			<< calc_job_path(outDirBase, job->getId())
+			<< "' -mindepth 2 -name '" << i->first << "')";;
 		if (system(s_rmoutputs.c_str()))
 			LOG(LOG_DEBUG, "Failed to remove outputs: '%s'",
 			    s_rmoutputs.c_str());
 	}
 
-	ostringstream rmdirs;
-	rmdirs << "find '" << calc_job_path(outDirBase, job->getId())
-	       << "' -depth -type d -empty -exec rmdir {} \\;";
-	const string &s_rmdirs = rmdirs.str();
+	// Remove empty directories
+	const string &s_rmdirs = MKStr()
+		<< "find '" << calc_job_path(outDirBase, job->getId())
+		<< "' -depth -type d -empty -exec rmdir {} \\;";
 	if (system(s_rmdirs.c_str()))
 		LOG(LOG_DEBUG, "Failed to remove empty directories: '%s'",
 		    s_rmdirs.c_str());
@@ -929,8 +948,8 @@ void MetajobHandler::translateJob(Job const *job,
 
 		bool thisIsIt = !strncmp(i->first.c_str(),
 					 _METAJOB_SPEC_PREFIX,
-					 _METAJOB_SPEC_PREFIX_LEN);
-		bool notDownloaded = '/' != mjfile[0];
+					 _METAJOB_SPEC_PREFIX_LEN); //startswith
+		bool downloaded = '/' == mjfile[0];
 
 		if (thisIsIt)
 		{
@@ -938,14 +957,14 @@ void MetajobHandler::translateJob(Job const *job,
 			foundMJSpec = true;
 		}
 
-		if (notDownloaded)
+		if (!(downloaded))
 		{
 			if (!ex)
 				ex = new DLException(job->getId());
 			ex->addInput(i->first);
 		}
 
-		if (thisIsIt && notDownloaded)
+		if (thisIsIt && !(downloaded))
 			mustThrowDLEx = true;
 	}
 	if (mustThrowDLEx) throw ex;
@@ -956,19 +975,20 @@ void MetajobHandler::translateJob(Job const *job,
 			job->getId().c_str());
 }
 
-static void updateJobGenerationData(DBHandler *dbh,
-				    Job *job,
+static void updateJobGenerationData(DBHandler *dbh, Job *job,
 				    MetaJobDef const &mjd,
 				    JobDef const &jd)
 	throw (BackendException*)
 {
 	//Info: search for "MJ Extra" above
+
 	ostringstream os;
 	os << jd.grid << DSEP << mjd.count << DSEP << mjd.startLine << DSEP;
 	if (mjd.finished)
 		os << mjd.required << DSEP << mjd.successAt;
 	else
 		os << mjd.strRequired << DSEP << mjd.strSuccessAt;
+
 	job->setGridId(os.str());
 	job->setArgs(jd.args);
 
@@ -984,7 +1004,7 @@ static void md(char const *name)
 {
 	int ret = mkdir(name, 0750);
 	if (ret == -1 && errno != EEXIST)
-		throw new QMException(
+		throw new BackendException(
 			"Failed to create directory '%s': %s",
 			name, strerror(errno));
 }
@@ -1008,8 +1028,8 @@ static string calc_job_path(const string &basedir, const string &jobid)
 	return make_hashed_dir(basedir, jobid);
 }
 static string calc_file_path(const string &basedir,
-			       const string &jobid,
-			       const string &localName)
+			     const string &jobid,
+			     const string &localName)
 {
 	return calc_job_path(basedir, jobid) + '/' + localName;
 }
@@ -1112,13 +1132,12 @@ static void LOGJOB(const char * msg,
 
 static string pc(size_t part, size_t whole)
 {
-	ostringstream os;
-	os << right << setfill(' ') << fixed;
-	os << setw(8) << part << " ("
-	   << setw(5) << setprecision(1)
-	   << ((float)part)/whole * 100
-	   << "%)";
-	return os.str();
+	return MKStr()
+		<< right << setfill(' ') << fixed
+		<< setw(8) << part << " ("
+		<< setw(5) << setprecision(1)
+		<< ((float)part)/whole * 100
+		<< "%)";
 }
 
 /**********************************************************************

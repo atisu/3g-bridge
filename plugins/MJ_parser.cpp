@@ -370,7 +370,7 @@ static FileRef parseInputSpecs(int lineNum, CSTR spec, string &logicalName)
 	istringstream is(i);
 	string token;
 	string url, md5;
-	off_t isize;
+	off_t isize = -1;
 
 	if (!getline(is, token, EQ))
 		throw new ParserException(lineNum, ERR_SYN_INVALID_ARG);
@@ -378,9 +378,7 @@ static FileRef parseInputSpecs(int lineNum, CSTR spec, string &logicalName)
 	if (getline(is, token, EQ))
 	{
 		md5.swap(token);
-		if (!getline(is, token, EQ))
-			isize = -1;
-		else
+		if (getline(is, token, EQ))
 		{
 			if (1 != sscanf(token.c_str(), "%ld", &isize))
 				throw new ParserException(lineNum,

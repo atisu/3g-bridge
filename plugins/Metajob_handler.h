@@ -42,7 +42,6 @@ using namespace _3gbridgeParser;
 struct MJStats
 {
 	size_t count,required, succAt, err, finished;
-	bool archivingRunning;
 	string errorMsg;
 };
 
@@ -142,7 +141,8 @@ private:
 	 * Remove files from the disk */
 	void cleanupJob(Job *job) const;
 	/**
-	 * Clean up everyrthing after sub-jobs. */
+	 * Clean up everyrthing after sub-jobs and delete them from the
+	 * database. */
 	void cleanupSubjobs(DBHWrapper &dbh, Job *metajob) const;
 
 	/////////////////////////////
