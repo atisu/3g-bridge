@@ -127,6 +127,9 @@ class EGEEHandler : public GridHandler {
 	/// Base GridFTP URL for storing inputsandbox files
 	char *isb_url;
 
+	/// Requirements string to add to JDL
+	char *reqstr;
+
 	/// ConfigContext for EGEE operations
 	ConfigContext *cfg;
 

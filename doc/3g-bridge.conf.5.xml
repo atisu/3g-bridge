@@ -644,6 +644,14 @@
 		    </para>
 		</glossdef>
 	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>req_str</envar></glossterm>
+		<glossdef>
+		    <para>
+			Requirements string to be included into the JDL of submitted jobs.
+		    </para>
+		</glossdef>
+	    </glossentry>
 	</glosslist>
     </refsect1>
 

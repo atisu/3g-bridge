@@ -185,11 +185,14 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 	myproxy_port = g_key_file_get_string(config, instance, "myproxy_port",
 		NULL);
 	if (!myproxy_port)
-		myproxy_port = "7512";
+		myproxy_port = g_strdup("7512");
 	isb_url = g_key_file_get_string(config, instance, "isb_url", NULL);
 	if (!isb_url)
 		throw new BackendException("EGEE: no inputsandbox URL specified"
 			" for %s", instance);
+	reqstr = g_key_file_get_string(config, instance, "req_str", NULL);
+	if (!reqstr)
+		reqstr = g_strdup("other.GlueCEStateStatus == \"Production\"");
 
 	g_strstrip(wmpendp);
 	g_strstrip(voname);
@@ -198,6 +201,7 @@ EGEEHandler::EGEEHandler(GKeyFile *config, const char *instance) throw (BackendE
 	g_strstrip(myproxy_authkey);
 	g_strstrip(myproxy_port);
 	g_strstrip(isb_url);
+	g_strstrip(reqstr);
 
 	globus_errmsg = NULL;
 
@@ -255,6 +259,7 @@ EGEEHandler::~EGEEHandler()
 	g_free(myproxy_port);
 	g_free(isb_url);
 	g_free(joblogdir);
+	g_free(reqstr);
 	delete cfg;
 	delete delegid;
 }
@@ -304,8 +309,7 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 	try
 	{
 		jobJDLStr = getJobTemplate(JOBTYPE_NORMAL, "wrapscript.sh", "",
-			"other.GlueCEStateStatus == \"Production\"",
-			"- other.GlueCEStateEstimatedResponseTime", cfg);
+			reqstr, "- other.GlueCEStateEstimatedResponseTime", cfg);
 	}
 	catch (BaseException &e)
 	{
