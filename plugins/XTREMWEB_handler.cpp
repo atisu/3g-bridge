@@ -91,272 +91,6 @@ int    g_sleep_time_before_download;  // Sleeping time before download in s
 
 //============================================================================
 //
-//  Constructor
-//
-//  @param config    Configuration file data
-//  @param instance  Name of the plugin instance
-//
-//============================================================================
-XWHandler::XWHandler(GKeyFile * config, const char * instance)
-  throw (BackendException *): GridHandler(config, instance)
-{
-  const char * function_name = "XWHandler::XWHandler";
-  const char * instance_name = name.c_str();
-  
-  LOG(LOG_INFO, "%s(%s)  Plugin creation for instance   '%s'",
-                function_name, instance_name, instance);
-  
-  groupByNames = false;
-  
-  //--------------------------------------------------------------------------
-  // xw_client_install_prefix
-  //--------------------------------------------------------------------------
-  char * xw_client_install_prefix = g_key_file_get_string(config, instance,
-                                            "xw_client_install_prefix", NULL);
-  
-  //--------------------------------------------------------------------------
-  // If 'xw_client_install_prefix' is given and seems correct, extract the
-  // root folder and the client prefix from it.  Otherwise, use fixed values.
-  //--------------------------------------------------------------------------
-  g_xw_client_bin_folder = "/usr/bin/";
-  DIR *  directory_stream;
-  
-  if ( xw_client_install_prefix )
-  {
-    g_strstrip(xw_client_install_prefix);
-    LOG(LOG_DEBUG, "%s(%s)   XW client install prefix:      '%s'",
-                   function_name, instance_name, xw_client_install_prefix);
-    string xw_client_install_prefix_str = xw_client_install_prefix;
-    size_t pos = xw_client_install_prefix_str.rfind('/');
-    
-    if ( (pos != 0) && (pos < (xw_client_install_prefix_str.length() - 1)) )
-    {
-      string xw_root_str = xw_client_install_prefix_str.substr(0, pos);
-      string xw_client_prefix_str =
-                           xw_client_install_prefix_str.substr(pos + 1);
-      
-      const char * xw_root   = xw_root_str.c_str();
-      LOG(LOG_DEBUG, "%s(%s)   XW client root folder:         '%s'     "
-                     "XW client prefix: '%s'", function_name, instance_name,
-                     xw_root, xw_client_prefix_str.c_str());
-        
-      //----------------------------------------------------------------------
-      //  Reading the directory 'xw_root_str', select the file beginning with
-      //  'xw_client_prefix_str' and ended with the highest version number
-      //----------------------------------------------------------------------
-      directory_stream = opendir(xw_root);
-      
-      if ( ! directory_stream )
-        throw new BackendException("XWHandler::XWHandler  can NOT read "
-                                   "folder '%s'", xw_root);
-      else
-      {
-        dirent *     directory_entry;
-        const char * file_name;
-        string       file_name_str;
-        size_t       xw_client_prefix_length = xw_client_prefix_str.length();
-        size_t       pos1;
-        size_t       pos2;
-        string       number_str;
-        int          major = 0;
-        int          minor = 0;
-        int          micro = 0;
-        int          i, j, k;
-        string       xw_file_name_str = "";
-        
-        while ( (directory_entry=readdir(directory_stream)) != 0 )
-        {
-          //LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' "
-          //               "found in '%s'", function_name, instance_name,
-          //               directory_entry->d_name, xw_root);
-          
-          file_name     = directory_entry->d_name;
-          file_name_str = string(file_name);
-          if ( file_name_str.substr(0, xw_client_prefix_length) ==
-               xw_client_prefix_str )
-          {
-            //LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' "
-            //               "begins with '%s'", function_name, instance_name,
-            //               file_name, xw_client_prefix_str.c_str());
-            
-            pos1 = file_name_str.find_first_of("0123456789");
-            if ( pos1 == string::npos )
-              continue;
-            pos2 = file_name_str.find_first_not_of("0123456789", pos1);
-            if ( pos2 == string::npos )
-              continue;
-            number_str = file_name_str.substr(pos1, pos2 - pos1);
-            i = atoi(number_str.c_str());
-            if ( i < major )
-              continue;
-            LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
-                           "Major = %d",
-                           function_name, instance_name, file_name, i);
-            
-            pos1 = file_name_str.find_first_of("0123456789", pos2);
-            if ( pos1 == string::npos )
-              continue;
-            pos2 = file_name_str.find_first_not_of("0123456789", pos1);
-            if ( pos2 == string::npos )
-              continue;
-            number_str = file_name_str.substr(pos1, pos2 - pos1);
-            j = atoi(number_str.c_str());
-            if ( j < minor )
-              continue;
-            LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
-                           "Minor = %d",
-                           function_name, instance_name, file_name, j);
-            
-            pos1 = file_name_str.find_first_of("0123456789", pos2);
-            if ( pos1 == string::npos )
-              continue;
-            number_str = file_name_str.substr(pos1);
-            k = atoi(number_str.c_str());
-            if ( k < micro )
-              continue;
-            LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
-                           "Micro = %d",
-                           function_name, instance_name, file_name, k);
-            
-            major = i;
-            minor = j;
-            micro = k;
-            xw_file_name_str = file_name_str;
-            LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' is "
-                           "candidate with %d.%d.%d",
-                           function_name, instance_name, file_name, i, j, k);
-          }
-        }
-        closedir(directory_stream);
-        
-        if ( xw_file_name_str == "" )
-          throw new BackendException("XWHandler::XWHandler  can NOT find "
-                                     "'%s'", xw_client_prefix_str.c_str());
-        
-        g_xw_client_bin_folder = xw_root_str + "/" + xw_file_name_str +
-                                 "/bin/";
-      }
-    }
-  }
-  
-  //--------------------------------------------------------------------------
-  // Verify that 'xw_client_bin_folder' is a readable folder.
-  //--------------------------------------------------------------------------
-  const char * xw_client_bin_folder = g_xw_client_bin_folder.c_str();
-  LOG(LOG_INFO, "%s(%s)  XW client binaries folder:     '%s'",
-                function_name, instance_name, xw_client_bin_folder);
-  
-  directory_stream = opendir(xw_client_bin_folder);
-  if ( directory_stream )
-    closedir(directory_stream);
-  else
-    throw new BackendException("XWHandler::XWHandler  can NOT read folder "
-                               "'%s'", xw_client_bin_folder);
-  
-  //--------------------------------------------------------------------------
-  // Test file name = this.name + pid + TEST
-  //--------------------------------------------------------------------------
-  char         pid[33];
-  string       test_file_path_str;
-  const char * test_file_path;
-  FILE *       test_file;
-  sprintf(pid, "%d", getpid());
-  const string test_file_name_str = "/" + name + "_" + pid + "_test.tmp";
-  
-  //--------------------------------------------------------------------------
-  // xw_files_dir
-  //--------------------------------------------------------------------------
-  char * xw_files_folder = g_key_file_get_string(config, instance,
-                                                 "xw_files_dir", NULL);
-  if ( ! xw_files_folder )
-    throw new BackendException("XWHandler::XWHandler  No XtremWeb files "
-                               "folder specified for '%s'", instance);
-  
-  g_strstrip(xw_files_folder);
-  LOG(LOG_INFO, "%s(%s)  Folder for XtremWeb files:     '%s'",
-                function_name, instance_name, xw_files_folder);
-  
-  g_xw_files_folder  = string(xw_files_folder);
-  test_file_path_str = g_xw_files_folder + test_file_name_str;
-  test_file_path     = test_file_path_str.c_str();
-  LOG(LOG_DEBUG, "%s(%s)   Path for write access test:  '%s'",
-                 function_name, instance_name, test_file_path);
-  
-  test_file = fopen(test_file_path, "w");
-  if ( test_file )
-    fclose(test_file);
-  else
-    throw new BackendException("XWHandler::XWHandler  can NOT write to "
-                               "folder '%s'", xw_files_folder);
-  unlink(test_file_path);
-  
-  //--------------------------------------------------------------------------
-  // [wssubmitter]output-dir
-  //--------------------------------------------------------------------------
-  const char * bridge_output_folder = g_key_file_get_string(config,
-                                           "wssubmitter", "output-dir", NULL);
-  if ( ! bridge_output_folder )
-    throw new BackendException("XWHandler::XWHandler  No bridge output "
-                               "files folder specified for '%s'", instance);
-  
-  LOG(LOG_INFO, "%s(%s)  3G Bridge output folder:       '%s'",
-                function_name, instance_name, bridge_output_folder);
-  
-  test_file_path_str = string(bridge_output_folder) + test_file_name_str;
-  test_file_path     = test_file_path_str.c_str();
-  LOG(LOG_DEBUG, "%s(%s)   Path for write access test:  '%s'",
-                 function_name, instance_name, test_file_path);
-  
-  test_file = fopen(test_file_path, "w");
-  if ( test_file )
-    fclose(test_file);
-  else
-    throw new BackendException("XWHandler::XWHandler  can NOT write to "
-                               "folder '%s'", bridge_output_folder);
-  unlink(test_file_path);
-  
-  //--------------------------------------------------------------------------
-  // Forced 'xwclean' before 'xwstatus'
-  //--------------------------------------------------------------------------
-  const char * xwclean_forced = g_key_file_get_string(config, instance,
-                                                      "xwclean_forced", NULL);
-  g_xwclean_forced = (xwclean_forced != 0) &&
-                     (strcasecmp(xwclean_forced, "true") == 0);
-  LOG(LOG_INFO, "%s(%s)  'xwclean' before 'xwstatus':   '%s'", function_name,
-                instance_name, (g_xwclean_forced ? "true" : "false"));
-  
-  //--------------------------------------------------------------------------
-  // xw_sleep_time_before_download
-  //--------------------------------------------------------------------------
-  const char * sleep_time_before_download = g_key_file_get_string(config,
-                             instance, "xw_sleep_time_before_download", NULL);
-  if ( sleep_time_before_download )
-    g_sleep_time_before_download = atoi(sleep_time_before_download);
-  else
-    g_sleep_time_before_download = 0;
-  LOG(LOG_INFO, "%s(%s)  Sleeping time before download: '%d'",
-                function_name, instance_name, g_sleep_time_before_download);
-  
-}
-
-
-//============================================================================
-//
-//  Destructor
-//
-//============================================================================
-XWHandler::~XWHandler()
-{
-  const char * function_name = "XWHandler::~XWHandler";
-  const char * instance_name = name.c_str();
-  
-  LOG(LOG_DEBUG, "%s(%s)  Successfully called for destruction",
-                 function_name, instance_name);
-}
-
-
-//============================================================================
-//
 //  Function  trimEol     
 //  @param  my_string  Reference to a string
 //  @return            void
@@ -539,6 +273,291 @@ returned_t outputAndErrorFromCommand(const auto_ptr< vector<string> > &
 
 //============================================================================
 //
+//  Constructor
+//
+//  @param config    Configuration file data
+//  @param instance  Name of the plugin instance
+//
+//============================================================================
+XWHandler::XWHandler(GKeyFile * config, const char * instance)
+  throw (BackendException *): GridHandler(config, instance)
+{
+  const char * function_name = "XWHandler::XWHandler";
+  const char * instance_name = name.c_str();
+  
+  LOG(LOG_INFO, "%s(%s)  Plugin creation for instance   '%s'",
+                function_name, instance_name, instance);
+  
+  groupByNames = false;
+  
+  //--------------------------------------------------------------------------
+  // xw_client_install_prefix
+  //--------------------------------------------------------------------------
+  char * xw_client_install_prefix = g_key_file_get_string(config, instance,
+                                            "xw_client_install_prefix", NULL);
+  
+  //--------------------------------------------------------------------------
+  // If 'xw_client_install_prefix' is given and seems correct, extract the
+  // root folder and the client prefix from it.  Otherwise, use fixed values.
+  //--------------------------------------------------------------------------
+  g_xw_client_bin_folder = "/usr/bin/";
+  DIR *  directory_stream;
+  
+  if ( xw_client_install_prefix )
+  {
+    g_strstrip(xw_client_install_prefix);
+    LOG(LOG_DEBUG, "%s(%s)   XW client install prefix:      '%s'",
+                   function_name, instance_name, xw_client_install_prefix);
+    string xw_client_install_prefix_str = xw_client_install_prefix;
+    size_t pos = xw_client_install_prefix_str.rfind('/');
+    
+    if ( (pos != 0) && (pos < (xw_client_install_prefix_str.length() - 1)) )
+    {
+      string xw_root_str = xw_client_install_prefix_str.substr(0, pos);
+      string xw_client_prefix_str =
+                           xw_client_install_prefix_str.substr(pos + 1);
+      
+      const char * xw_root   = xw_root_str.c_str();
+      LOG(LOG_DEBUG, "%s(%s)   XW client root folder:         '%s'     "
+                     "XW client prefix: '%s'", function_name, instance_name,
+                     xw_root, xw_client_prefix_str.c_str());
+        
+      //----------------------------------------------------------------------
+      //  Reading the directory 'xw_root_str', select the file beginning with
+      //  'xw_client_prefix_str' and ended with the highest version number
+      //----------------------------------------------------------------------
+      directory_stream = opendir(xw_root);
+      
+      if ( ! directory_stream )
+        throw new BackendException("XWHandler::XWHandler  can NOT read "
+                                   "folder '%s'", xw_root);
+      else
+      {
+        dirent *     directory_entry;
+        const char * file_name;
+        string       file_name_str;
+        size_t       xw_client_prefix_length = xw_client_prefix_str.length();
+        size_t       pos1;
+        size_t       pos2;
+        string       number_str;
+        int          major = 0;
+        int          minor = 0;
+        int          micro = 0;
+        int          i, j, k;
+        string       xw_file_name_str = "";
+        
+        while ( (directory_entry=readdir(directory_stream)) != 0 )
+        {
+          //LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' "
+          //               "found in '%s'", function_name, instance_name,
+          //               directory_entry->d_name, xw_root);
+          
+          file_name     = directory_entry->d_name;
+          file_name_str = string(file_name);
+          if ( file_name_str.substr(0, xw_client_prefix_length) ==
+               xw_client_prefix_str )
+          {
+            //LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' "
+            //               "begins with '%s'", function_name, instance_name,
+            //               file_name, xw_client_prefix_str.c_str());
+            
+            pos1 = file_name_str.find_first_of("0123456789");
+            if ( pos1 == string::npos )
+              continue;
+            pos2 = file_name_str.find_first_not_of("0123456789", pos1);
+            if ( pos2 == string::npos )
+              continue;
+            number_str = file_name_str.substr(pos1, pos2 - pos1);
+            i = atoi(number_str.c_str());
+            if ( i < major )
+              continue;
+            LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
+                           "Major = %d",
+                           function_name, instance_name, file_name, i);
+            
+            pos1 = file_name_str.find_first_of("0123456789", pos2);
+            if ( pos1 == string::npos )
+              continue;
+            pos2 = file_name_str.find_first_not_of("0123456789", pos1);
+            if ( pos2 == string::npos )
+              continue;
+            number_str = file_name_str.substr(pos1, pos2 - pos1);
+            j = atoi(number_str.c_str());
+            if ( j < minor )
+              continue;
+            LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
+                           "Minor = %d",
+                           function_name, instance_name, file_name, j);
+            
+            pos1 = file_name_str.find_first_of("0123456789", pos2);
+            if ( pos1 == string::npos )
+              continue;
+            number_str = file_name_str.substr(pos1);
+            k = atoi(number_str.c_str());
+            if ( k < micro )
+              continue;
+            LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' :  "
+                           "Micro = %d",
+                           function_name, instance_name, file_name, k);
+            
+            major = i;
+            minor = j;
+            micro = k;
+            xw_file_name_str = file_name_str;
+            LOG(LOG_DEBUG, "%s(%s)   XW client install folder:      '%s' is "
+                           "candidate with %d.%d.%d",
+                           function_name, instance_name, file_name, i, j, k);
+          }
+        }
+        closedir(directory_stream);
+        
+        if ( xw_file_name_str == "" )
+          throw new BackendException("XWHandler::XWHandler  can NOT find "
+                                     "'%s'", xw_client_prefix_str.c_str());
+        
+        g_xw_client_bin_folder = xw_root_str + "/" + xw_file_name_str +
+                                 "/bin/";
+      }
+    }
+  }
+  
+  //--------------------------------------------------------------------------
+  // Verify that 'xw_client_bin_folder' is a readable folder.
+  //--------------------------------------------------------------------------
+  const char * xw_client_bin_folder = g_xw_client_bin_folder.c_str();
+  LOG(LOG_INFO, "%s(%s)  XW client binaries folder:     '%s'",
+                function_name, instance_name, xw_client_bin_folder);
+  
+  directory_stream = opendir(xw_client_bin_folder);
+  if ( directory_stream )
+    closedir(directory_stream);
+  else
+    throw new BackendException("XWHandler::XWHandler  can NOT read folder "
+                               "'%s'", xw_client_bin_folder);
+  
+  //--------------------------------------------------------------------------
+  // Retrieve and log the version number of XtremWeb-HEP
+  //--------------------------------------------------------------------------
+  auto_ptr< vector<string> > arg_str_vector(new vector<string>);
+  arg_str_vector->reserve(1);
+  arg_str_vector->push_back(g_xw_client_bin_folder + "xwversion");
+  returned_t returned_values = outputAndErrorFromCommand(arg_str_vector);
+  
+  if ( returned_values.retcode == 0 )
+  {
+    LOG(LOG_INFO, "%s(%s)  XW version number:             '%s'",
+                  function_name, instance_name,
+                  (returned_values.message).c_str());
+  }
+  else
+    throw new BackendException("XWHandler::XWHandler  can NOT get XtremWeb "
+                               "version:  return_code = x'%X'",
+                               returned_values.retcode);
+  
+  //--------------------------------------------------------------------------
+  // Test file name = this.name + pid + TEST
+  //--------------------------------------------------------------------------
+  char         pid[33];
+  string       test_file_path_str;
+  const char * test_file_path;
+  FILE *       test_file;
+  sprintf(pid, "%d", getpid());
+  const string test_file_name_str = "/" + name + "_" + pid + "_test.tmp";
+  
+  //--------------------------------------------------------------------------
+  // xw_files_dir
+  //--------------------------------------------------------------------------
+  char * xw_files_folder = g_key_file_get_string(config, instance,
+                                                 "xw_files_dir", NULL);
+  if ( ! xw_files_folder )
+    throw new BackendException("XWHandler::XWHandler  No XtremWeb files "
+                               "folder specified for '%s'", instance);
+  
+  g_strstrip(xw_files_folder);
+  LOG(LOG_INFO, "%s(%s)  Folder for XtremWeb files:     '%s'",
+                function_name, instance_name, xw_files_folder);
+  
+  g_xw_files_folder  = string(xw_files_folder);
+  test_file_path_str = g_xw_files_folder + test_file_name_str;
+  test_file_path     = test_file_path_str.c_str();
+  LOG(LOG_DEBUG, "%s(%s)   Path for write access test:  '%s'",
+                 function_name, instance_name, test_file_path);
+  
+  test_file = fopen(test_file_path, "w");
+  if ( test_file )
+    fclose(test_file);
+  else
+    throw new BackendException("XWHandler::XWHandler  can NOT write to "
+                               "folder '%s'", xw_files_folder);
+  unlink(test_file_path);
+  
+  //--------------------------------------------------------------------------
+  // [wssubmitter]output-dir
+  //--------------------------------------------------------------------------
+  const char * bridge_output_folder = g_key_file_get_string(config,
+                                           "wssubmitter", "output-dir", NULL);
+  if ( ! bridge_output_folder )
+    throw new BackendException("XWHandler::XWHandler  No bridge output "
+                               "files folder specified for '%s'", instance);
+  
+  LOG(LOG_INFO, "%s(%s)  3G Bridge output folder:       '%s'",
+                function_name, instance_name, bridge_output_folder);
+  
+  test_file_path_str = string(bridge_output_folder) + test_file_name_str;
+  test_file_path     = test_file_path_str.c_str();
+  LOG(LOG_DEBUG, "%s(%s)   Path for write access test:  '%s'",
+                 function_name, instance_name, test_file_path);
+  
+  test_file = fopen(test_file_path, "w");
+  if ( test_file )
+    fclose(test_file);
+  else
+    throw new BackendException("XWHandler::XWHandler  can NOT write to "
+                               "folder '%s'", bridge_output_folder);
+  unlink(test_file_path);
+  
+  //--------------------------------------------------------------------------
+  // Forced 'xwclean' before 'xwstatus'
+  //--------------------------------------------------------------------------
+  const char * xwclean_forced = g_key_file_get_string(config, instance,
+                                                      "xwclean_forced", NULL);
+  g_xwclean_forced = (xwclean_forced != 0) &&
+                     (strcasecmp(xwclean_forced, "true") == 0);
+  LOG(LOG_INFO, "%s(%s)  'xwclean' before 'xwstatus':   '%s'", function_name,
+                instance_name, (g_xwclean_forced ? "true" : "false"));
+  
+  //--------------------------------------------------------------------------
+  // xw_sleep_time_before_download
+  //--------------------------------------------------------------------------
+  const char * sleep_time_before_download = g_key_file_get_string(config,
+                             instance, "xw_sleep_time_before_download", NULL);
+  if ( sleep_time_before_download )
+    g_sleep_time_before_download = atoi(sleep_time_before_download);
+  else
+    g_sleep_time_before_download = 0;
+  LOG(LOG_INFO, "%s(%s)  Sleeping time before download: '%d'",
+                function_name, instance_name, g_sleep_time_before_download);
+  
+}
+
+
+//============================================================================
+//
+//  Destructor
+//
+//============================================================================
+XWHandler::~XWHandler()
+{
+  const char * function_name = "XWHandler::~XWHandler";
+  const char * instance_name = name.c_str();
+  
+  LOG(LOG_DEBUG, "%s(%s)  Successfully called for destruction",
+                 function_name, instance_name);
+}
+
+
+//============================================================================
+//
 //  Function  simpleQuotesToDoubleQuotes
 //  @param  input_str   Input string
 //  @return             String with single quotes replaced by double quotes
@@ -697,9 +716,10 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     local_input_file_path_str_vector->clear();
     
     input_file_str_vector = job->getInputs();
-    LOG(LOG_DEBUG, "%s(%s)  Job '%s'  Number of input files = %ld",
-                   function_name, instance_name, bridge_job_id,
-                   input_file_str_vector->size());
+    LOG(LOG_INFO, "%s(%s)  Job '%s'  Submitter DN = '%s'  Number of input "
+                  "files = %ld", function_name, instance_name,
+                  bridge_job_id, (job->getEnv("PROXY_USERDN")).c_str(),
+                  input_file_str_vector->size());
     
     for ( vector<string>::iterator input_file_iterator =
                                    input_file_str_vector->begin();
