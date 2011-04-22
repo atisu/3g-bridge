@@ -59,6 +59,7 @@
 #include <cstdlib>
 
 #include <dirent.h>
+#include <netdb.h>
 
 
 using namespace std;
@@ -73,8 +74,10 @@ struct returned_t
 //============================================================================
 //  Global variables
 //============================================================================
-string g_xw_client_bin_folder;        // XtremWeb-HEP client binaries folder
-string g_xw_files_folder;             // Folder for XW input and output files
+char * g_xw_https_server;             // XtremWeb-HEP HTTPS server
+char * g_xw_https_port;               // XtremWeb-HEP HTTPS port
+string g_xw_client_bin_folder_str;    // XtremWeb-HEP client binaries folder
+string g_xw_files_folder_str;         // Folder for XW input and output files
 bool   g_xwclean_forced;              // Forced 'xwclean' before 'xwstatus'
 int    g_sleep_time_before_download;  // Sleeping time before download in s
 
@@ -290,17 +293,138 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
   
   groupByNames = false;
   
-  //--------------------------------------------------------------------------
-  // xw_client_install_prefix
-  //--------------------------------------------------------------------------
+  //==========================================================================
+  //  xw_https_server and xw_https_port
+  //==========================================================================
+  g_xw_https_server = g_key_file_get_string(config, instance,
+                                            "xw_https_server", NULL);
+  g_xw_https_port   = g_key_file_get_string(config, instance,
+                                            "xw_https_port",   NULL);
+  
+  if ( g_xw_https_server && g_xw_https_port )
+  {
+    g_strstrip(g_xw_https_server);
+    g_strstrip(g_xw_https_port);
+    LOG(LOG_INFO, "%s(%s)  XW HTTPS server and port:      '%s:%s'",
+                  function_name, instance_name, g_xw_https_server,
+                  g_xw_https_port);
+    
+    //------------------------------------------------------------------------
+    //  Get protocol number for TCP
+    //------------------------------------------------------------------------
+    const char * proto_tcp_name = "tcp";
+    struct protoent * protoent_tcp = getprotobyname(proto_tcp_name);
+    if ( ! protoent_tcp )
+      LOG(LOG_ERR, "%s(%s)  NO protocol entry found for '%s'",
+                   function_name, instance_name, proto_tcp_name);
+    else
+    {
+      //----------------------------------------------------------------------
+      //  Get a list of address structures suitable for TCP connection to 
+      //  XtremWeb-HEP server name and port
+      //----------------------------------------------------------------------
+      struct addrinfo   addrinfo_hints;
+      struct addrinfo * first_addrinfo_entry;
+      struct addrinfo * addrinfo_entry;
+      int               xw_socket_fd;
+      
+      memset(&addrinfo_hints, 0, sizeof(struct addrinfo));
+      addrinfo_hints.ai_family   = AF_UNSPEC;            // Allow IPv4 or IPv6
+      addrinfo_hints.ai_socktype = SOCK_STREAM;
+      addrinfo_hints.ai_flags    = 0;
+      addrinfo_hints.ai_protocol = protoent_tcp->p_proto;
+      int return_code = getaddrinfo(g_xw_https_server, g_xw_https_port,
+                                    &addrinfo_hints, &first_addrinfo_entry);
+      
+      if ( return_code != 0)
+        LOG(LOG_ERR, "%s(%s)  NO address info for '%s' connection to '%s:%s'",
+                     function_name, instance_name, proto_tcp_name,
+                     g_xw_https_server, g_xw_https_port);
+      else
+      {
+        //--------------------------------------------------------------------
+        //  Try each address until we successfully connect().
+        //  If socket() (or connect()) fails, we (close the socket and) try
+        //  the next address.
+        //--------------------------------------------------------------------
+        for ( addrinfo_entry =  first_addrinfo_entry;
+              addrinfo_entry != NULL;
+              addrinfo_entry =  addrinfo_entry->ai_next )
+        {
+          xw_socket_fd = socket(addrinfo_entry->ai_family,
+                                addrinfo_entry->ai_socktype,
+                                addrinfo_entry->ai_protocol);
+          if ( xw_socket_fd == -1 )
+              continue;
+          
+          if ( connect(xw_socket_fd, addrinfo_entry->ai_addr,
+                                     addrinfo_entry->ai_addrlen) == 0 )
+              break;                                                // Success
+          
+          close(xw_socket_fd);
+        }
+        
+        freeaddrinfo(first_addrinfo_entry);                // No longer needed
+        
+        if ( addrinfo_entry == NULL )
+          LOG(LOG_ERR, "%s(%s)  '%s' connection to '%s:%s' FAILED",
+                       function_name, instance_name, proto_tcp_name,
+                       g_xw_https_server, g_xw_https_port);
+        else
+        //--------------------------------------------------------------------
+        //  Get XtremWeb-HEP version
+        //--------------------------------------------------------------------
+        {
+          const string xw_version_request_str = "GET /?xwcommand=<version>"
+                       "<user login=\"bridge\" password=\"\"/>"
+                       "</version> HTTP/1.0\n"
+                       "User-Agent: 3G-Bridge XtremWeb plugin\n"
+                       "Host: " + string(g_xw_https_server) + ":" +
+                       string(g_xw_https_port) + "\n\n";
+          size_t req_len = xw_version_request_str.length();
+          if ( write(xw_socket_fd, xw_version_request_str.c_str(), req_len) !=
+               req_len )
+            LOG(LOG_ERR, "%s(%s)  Request 'version' to '%s:%s' FAILED",
+                         function_name, instance_name, g_xw_https_server,
+                         g_xw_https_port);
+          else
+          {
+            size_t  xw_version_response_len = 0;
+            string  xw_version_response_str = "";
+            char    xw_version_response_buf[BUFSIZ];
+            ssize_t nread = BUFSIZ;
+            while ( nread == BUFSIZ )
+            {
+              nread = read(xw_socket_fd, xw_version_response_buf, BUFSIZ);
+              xw_version_response_len += nread;
+              xw_version_response_str += xw_version_response_buf;
+            }
+            LOG(LOG_DEBUG, "%s(%s)  XW response for version number has %d "
+                           "bytes", function_name, instance_name, 
+                           xw_version_response_len);
+            trimEol(xw_version_response_str);
+            LOG(LOG_INFO, "%s(%s)  XW version number:             '%s'",
+                          function_name, instance_name,
+                          xw_version_response_str.c_str());
+          }
+          
+          close(xw_socket_fd);
+        }
+      }
+    }
+  }
+  
+  //==========================================================================
+  //  xw_client_install_prefix
+  //==========================================================================
   char * xw_client_install_prefix = g_key_file_get_string(config, instance,
                                             "xw_client_install_prefix", NULL);
   
   //--------------------------------------------------------------------------
-  // If 'xw_client_install_prefix' is given and seems correct, extract the
-  // root folder and the client prefix from it.  Otherwise, use fixed values.
+  //  If 'xw_client_install_prefix' is given and seems correct, extract the
+  //  root folder and the client prefix from it.  Otherwise, use fixed values.
   //--------------------------------------------------------------------------
-  g_xw_client_bin_folder = "/usr/bin/";
+  g_xw_client_bin_folder_str = "/usr/bin/";
   DIR *  directory_stream;
   
   if ( xw_client_install_prefix )
@@ -415,16 +539,16 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
           throw new BackendException("XWHandler::XWHandler  can NOT find "
                                      "'%s'", xw_client_prefix_str.c_str());
         
-        g_xw_client_bin_folder = xw_root_str + "/" + xw_file_name_str +
-                                 "/bin/";
+        g_xw_client_bin_folder_str = xw_root_str + "/" + xw_file_name_str +
+                                     "/bin/";
       }
     }
   }
   
   //--------------------------------------------------------------------------
-  // Verify that 'xw_client_bin_folder' is a readable folder.
+  //  Verify that 'xw_client_bin_folder' is a readable folder.
   //--------------------------------------------------------------------------
-  const char * xw_client_bin_folder = g_xw_client_bin_folder.c_str();
+  const char * xw_client_bin_folder = g_xw_client_bin_folder_str.c_str();
   LOG(LOG_INFO, "%s(%s)  XW client binaries folder:     '%s'",
                 function_name, instance_name, xw_client_bin_folder);
   
@@ -436,11 +560,11 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
                                "'%s'", xw_client_bin_folder);
   
   //--------------------------------------------------------------------------
-  // Retrieve and log the version number of XtremWeb-HEP
+  //  Retrieve and log the version number of XtremWeb-HEP
   //--------------------------------------------------------------------------
   auto_ptr< vector<string> > arg_str_vector(new vector<string>);
   arg_str_vector->reserve(1);
-  arg_str_vector->push_back(g_xw_client_bin_folder + "xwversion");
+  arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwversion");
   returned_t returned_values = outputAndErrorFromCommand(arg_str_vector);
   
   if ( returned_values.retcode == 0 )
@@ -455,7 +579,7 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
                                returned_values.retcode);
   
   //--------------------------------------------------------------------------
-  // Test file name = this.name + pid + TEST
+  //  Test file name = this.name + pid + TEST
   //--------------------------------------------------------------------------
   char         pid[33];
   string       test_file_path_str;
@@ -464,9 +588,9 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
   sprintf(pid, "%d", getpid());
   const string test_file_name_str = "/" + name + "_" + pid + "_test.tmp";
   
-  //--------------------------------------------------------------------------
-  // xw_files_dir
-  //--------------------------------------------------------------------------
+  //==========================================================================
+  //  xw_files_dir
+  //==========================================================================
   char * xw_files_folder = g_key_file_get_string(config, instance,
                                                  "xw_files_dir", NULL);
   if ( ! xw_files_folder )
@@ -477,9 +601,9 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
   LOG(LOG_INFO, "%s(%s)  Folder for XtremWeb files:     '%s'",
                 function_name, instance_name, xw_files_folder);
   
-  g_xw_files_folder  = string(xw_files_folder);
-  test_file_path_str = g_xw_files_folder + test_file_name_str;
-  test_file_path     = test_file_path_str.c_str();
+  g_xw_files_folder_str = string(xw_files_folder);
+  test_file_path_str    = g_xw_files_folder_str + test_file_name_str;
+  test_file_path        = test_file_path_str.c_str();
   LOG(LOG_DEBUG, "%s(%s)   Path for write access test:  '%s'",
                  function_name, instance_name, test_file_path);
   
@@ -491,9 +615,9 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
                                "folder '%s'", xw_files_folder);
   unlink(test_file_path);
   
-  //--------------------------------------------------------------------------
-  // [wssubmitter]output-dir
-  //--------------------------------------------------------------------------
+  //==========================================================================
+  //  [wssubmitter]output-dir
+  //==========================================================================
   const char * bridge_output_folder = g_key_file_get_string(config,
                                            "wssubmitter", "output-dir", NULL);
   if ( ! bridge_output_folder )
@@ -516,9 +640,9 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
                                "folder '%s'", bridge_output_folder);
   unlink(test_file_path);
   
-  //--------------------------------------------------------------------------
-  // Forced 'xwclean' before 'xwstatus'
-  //--------------------------------------------------------------------------
+  //==========================================================================
+  //  Forced 'xwclean' before 'xwstatus'
+  //==========================================================================
   const char * xwclean_forced = g_key_file_get_string(config, instance,
                                                       "xwclean_forced", NULL);
   g_xwclean_forced = (xwclean_forced != 0) &&
@@ -526,9 +650,9 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
   LOG(LOG_INFO, "%s(%s)  'xwclean' before 'xwstatus':   '%s'", function_name,
                 instance_name, (g_xwclean_forced ? "true" : "false"));
   
-  //--------------------------------------------------------------------------
-  // xw_sleep_time_before_download
-  //--------------------------------------------------------------------------
+  //==========================================================================
+  //  xw_sleep_time_before_download
+  //==========================================================================
   const char * sleep_time_before_download = g_key_file_get_string(config,
                              instance, "xw_sleep_time_before_download", NULL);
   if ( sleep_time_before_download )
@@ -710,7 +834,7 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     //------------------------------------------------------------------------
     arg_str_vector->clear();
     arg_str_vector->reserve(3);
-    arg_str_vector->push_back(g_xw_client_bin_folder + "xwsenddata");
+    arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwsenddata");
     arg_str_vector->push_back(string("--xwxml"));
     arg_str_vector->push_back(string(""));
     local_input_file_path_str_vector->clear();
@@ -757,7 +881,7 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
         input_file_md5_str    = input_file_ref.getMD5();
         input_file_size       = input_file_ref.getSize();
         input_file_md5        = input_file_md5_str.c_str();
-        xw_data_file_path_str = g_xw_files_folder +  "/" + bridge_job_id +
+        xw_data_file_path_str = g_xw_files_folder_str +  "/" + bridge_job_id +
                                 "_" + input_file_name_str + ".xml";
         xw_data_file_path     = xw_data_file_path_str.c_str();
         LOG(LOG_DEBUG, "%s(%s)  Job '%s'  input_file_name = '%s'  "
@@ -862,7 +986,8 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     //------------------------------------------------------------------------
     else if ( local_input_files_number >  1 )
     {
-      zip_file_name_str = g_xw_files_folder + "/" + bridge_job_id + ".zip";
+      zip_file_name_str = g_xw_files_folder_str + "/" + bridge_job_id +
+                          ".zip";
       zip_file_name     = zip_file_name_str.c_str();
       arg_str_vector->clear();
       arg_str_vector->reserve(4 + local_input_files_number);
@@ -919,7 +1044,7 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     //------------------------------------------------------------------------
     arg_str_vector->clear();
     arg_str_vector->reserve(3 + xw_env_str_vector->size());
-    arg_str_vector->push_back(g_xw_client_bin_folder + "xwsubmit");
+    arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwsubmit");
     arg_str_vector->push_back(job->getName());
     arg_str_vector->push_back(job->getArgs());
     arg_str_vector->insert(arg_str_vector->end(), xw_env_str_vector->begin(),
@@ -1165,7 +1290,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     
     arg_str_vector->clear();
     arg_str_vector->reserve(2);
-    arg_str_vector->push_back(g_xw_client_bin_folder + "xwrm");
+    arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwrm");
     arg_str_vector->push_back(xw_job_id_str);
     logStringVectorToDebug(function_name, instance_name, bridge_job_id,
                            arg_str_vector);
@@ -1207,7 +1332,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     if ( g_xwclean_forced )
     {
       arg_str_vector->clear();
-      arg_str_vector->push_back(g_xw_client_bin_folder + "xwclean");
+      arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwclean");
       logStringVectorToDebug(function_name, instance_name, bridge_job_id,
                              arg_str_vector);
       returned_values = outputAndErrorFromCommand(arg_str_vector);
@@ -1218,7 +1343,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     //------------------------------------------------------------------------
     arg_str_vector->clear();
     arg_str_vector->reserve(2);
-    arg_str_vector->push_back(g_xw_client_bin_folder + "xwstatus");
+    arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwstatus");
     arg_str_vector->push_back(xw_job_id_str);
     logStringVectorToDebug(function_name, instance_name, bridge_job_id,
                            arg_str_vector);
@@ -1315,7 +1440,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  cwd = '%s'", function_name, 
                   instance_name, bridge_job_id, xw_job_id, cwd);
     
-    const char * workdir = g_xw_files_folder.c_str();
+    const char * workdir = g_xw_files_folder_str.c_str();
     if  ( strcmp(cwd, workdir) != 0 )
     {
       LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  Executing chdir('%s')",
@@ -1331,7 +1456,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     //------------------------------------------------------------------------
     arg_str_vector->clear();
     arg_str_vector->reserve(2);
-    arg_str_vector->push_back(g_xw_client_bin_folder + "xwresults");
+    arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwresults");
     arg_str_vector->push_back(xw_job_id_str);
     logStringVectorToDebug(function_name, instance_name, bridge_job_id,
                            arg_str_vector);
@@ -1370,7 +1495,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
       string xw_job_uid_str   = xw_job_id_str.substr(pos_id,
                                              xw_job_id_str.length() - pos_id);
       string xw_zip_file_name_str = "*_ResultsOf_" + xw_job_uid_str + ".zip";
-      string xw_zip_file_path_str = g_xw_files_folder +
+      string xw_zip_file_path_str = g_xw_files_folder_str +
                                     "/ResultsOf_" + xw_job_uid_str + ".zip";
       
       //----------------------------------------------------------------------
@@ -1381,7 +1506,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
       arg_str_vector->reserve(3);
       arg_str_vector->push_back(string("/bin/sh"));
       arg_str_vector->push_back(string("-c"));
-      arg_str_vector->push_back(string("/bin/mv  ") + g_xw_files_folder +
+      arg_str_vector->push_back(string("/bin/mv  ") + g_xw_files_folder_str +
                                 "/"  + xw_zip_file_name_str +
                                 "  " + xw_zip_file_path_str);
       logStringVectorToDebug(function_name, instance_name, bridge_job_id,
