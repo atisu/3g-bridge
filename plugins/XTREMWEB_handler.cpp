@@ -1313,7 +1313,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
                     "XtremWeb",
                     function_name, instance_name, bridge_job_id, xw_job_id);
       setJobStatusToError(function_name, instance_name, bridge_job_id, job,
-                          returned_values.message);
+                          string("Cancelled.  ") + returned_values.message);
     }
   }
   
@@ -1403,172 +1403,183 @@ void XWHandler::poll(Job * job) throw (BackendException *)
       else
       {
         //--------------------------------------------------------------------
-        //  Store the xtremWeb message inside the 'griddata' attribute of the
-        //  bridge job
+        //  XtremWeb status of the job
         //--------------------------------------------------------------------
-        xw_message = xw_message.substr(xw_message.find_first_not_of(' '));
         LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  XtremWeb job status = '%s'",
                       function_name, instance_name, bridge_job_id,
                       xw_job_id, xw_job_status_str.c_str());
-      
-        updateJobStatus(job, xw_job_status_str, xw_message);
+        xw_message = xw_message.substr(xw_message.find_first_not_of(' '));
       
         //--------------------------------------------------------------------
-        //  If the XtremWeb status of the job is COMPLETED,
-        //    set its bridge status to FINISHED
+        //  If the XtremWeb status of the job is COMPLETED, retrieve its
+        //  results from XtremWeb, and extract the output files required by
+        //  the bridge
         //--------------------------------------------------------------------
         if ( xw_job_status_str == "COMPLETED" )
-          bridge_status = Job::FINISHED;
-      }
-    }
-  }
-  
-  //--------------------------------------------------------------------------
-  //  If the bridge status of the job is FINISHED, retrieve its results
-  //  from XtremWeb, and extract the output files required by the bridge
-  //--------------------------------------------------------------------------
-  if ( bridge_status == Job::FINISHED )
-  {
-    LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  Bridge job status = 'FINISHED'",
-                  function_name, instance_name, bridge_job_id, xw_job_id);
-    
-    //------------------------------------------------------------------------
-    //  If the current folder is not the folder for XtremWeb output files,
-    //  go there.
-    //------------------------------------------------------------------------
-    char * cwd = getcwd((char*)NULL, 0);
-    LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  cwd = '%s'", function_name, 
-                  instance_name, bridge_job_id, xw_job_id, cwd);
-    
-    const char * workdir = g_xw_files_folder_str.c_str();
-    if  ( strcmp(cwd, workdir) != 0 )
-    {
-      LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  Executing chdir('%s')",
-                     function_name, instance_name, bridge_job_id, xw_job_id,
-                     workdir);
-      chdir(workdir);
-    }
-    
-    free(cwd);               // 'cwd' has been dynamically allocated by getcwd
-    
-    //------------------------------------------------------------------------
-    //  Retrieve the results of the XtremWeb job
-    //------------------------------------------------------------------------
-    arg_str_vector->clear();
-    arg_str_vector->reserve(2);
-    arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwresults");
-    arg_str_vector->push_back(xw_job_id_str);
-    logStringVectorToDebug(function_name, instance_name, bridge_job_id,
-                           arg_str_vector);
-    
-    returned_values = outputAndErrorFromCommand(arg_str_vector);
-    
-    if ( returned_values.retcode != 0 )
-    {
-      LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  XtremWeb return code = x'%X' --> "
-                    "%d  -->  3G Bridge status left unchanged",
-                    function_name, instance_name, bridge_job_id, xw_job_id,
-                    returned_values.retcode, returned_values.retcode / 256);
-    }
-    else
-    {
-      LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  Results successfully retrieved "
-                    "from XtremWeb  '%s'",
-                    function_name, instance_name, bridge_job_id, xw_job_id,
-                    (returned_values.message).c_str());
-    
-      //  Sleep some time before download.  Should NOT be necessary.
-      if ( g_sleep_time_before_download > 0 )
-      {
-        LOG(LOG_DEBUG, "%s(%s)  Job '%s'  Sleeping time before download = %d",
-                       function_name, instance_name, bridge_job_id,
-                       g_sleep_time_before_download);
-        sleep(g_sleep_time_before_download);
-      }
-      
-      //  Name of ZIP file contains XtremWeb job id after last '/'
-      size_t pos_id = xw_job_id_str.rfind('/') + 1;
-      LOG(LOG_DEBUG, "%s(%s)  xw_job_id = '%s'  pos_id=%ld  xw_id_len=%ld",
-                     function_name, instance_name, xw_job_id, pos_id,
-                     xw_job_id_str.length() - pos_id);
-      
-      string xw_job_uid_str   = xw_job_id_str.substr(pos_id,
+        {
+          //------------------------------------------------------------------
+          //  If the current folder is not the folder for XtremWeb output
+          //  files, go there.
+          //------------------------------------------------------------------
+          char * cwd = getcwd((char*)NULL, 0);
+          LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  cwd = '%s'", function_name, 
+                        instance_name, bridge_job_id, xw_job_id, cwd);
+          
+          const char * workdir = g_xw_files_folder_str.c_str();
+          if  ( strcmp(cwd, workdir) != 0 )
+          {
+            LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  Executing chdir('%s')",
+                           function_name, instance_name, bridge_job_id,
+                           xw_job_id, workdir);
+            chdir(workdir);
+          }
+          
+          free(cwd);         // 'cwd' has been dynamically allocated by getcwd
+          
+          //------------------------------------------------------------------
+          //  Retrieve the results of the XtremWeb job
+          //------------------------------------------------------------------
+          arg_str_vector->clear();
+          arg_str_vector->reserve(2);
+          arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwresults");
+          arg_str_vector->push_back(xw_job_id_str);
+          logStringVectorToDebug(function_name, instance_name, bridge_job_id,
+                                 arg_str_vector);
+          
+          returned_values = outputAndErrorFromCommand(arg_str_vector);
+          
+          if ( returned_values.retcode != 0 )
+          {
+            LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  XtremWeb return code = x"
+                          "'%X' --> %d  -->  3G Bridge status left unchanged",
+                          function_name, instance_name, bridge_job_id,
+                          xw_job_id,  returned_values.retcode,
+                          returned_values.retcode / 256);
+          }
+          else
+          {
+            LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  Results successfully "
+                          "retrieved from XtremWeb  '%s'",
+                          function_name, instance_name, bridge_job_id,
+                          xw_job_id, (returned_values.message).c_str());
+          
+            //  Sleep some time before download.  Should NOT be necessary.
+            if ( g_sleep_time_before_download > 0 )
+            {
+              LOG(LOG_DEBUG, "%s(%s)  Job '%s'  Sleeping time before "
+                             "download = %d", function_name, instance_name,
+                             bridge_job_id, g_sleep_time_before_download);
+              sleep(g_sleep_time_before_download);
+            }
+            
+            //  Name of ZIP file contains XtremWeb job id after last '/'
+            size_t pos_id = xw_job_id_str.rfind('/') + 1;
+            LOG(LOG_DEBUG, "%s(%s)  xw_job_id = '%s'  pos_id=%ld  "
+                           "xw_id_len=%ld",
+                           function_name, instance_name, xw_job_id, pos_id,
+                           xw_job_id_str.length() - pos_id);
+            
+            string xw_job_uid_str   = xw_job_id_str.substr(pos_id,
                                              xw_job_id_str.length() - pos_id);
-      string xw_zip_file_name_str = "*_ResultsOf_" + xw_job_uid_str + ".zip";
-      string xw_zip_file_path_str = g_xw_files_folder_str +
-                                    "/ResultsOf_" + xw_job_uid_str + ".zip";
-      
-      //----------------------------------------------------------------------
-      //  The XtremWeb ZIP file containing the job results should be in the
-      //  XtremWeb file folder.  Rename this ZIP file with a shorter name.
-      //----------------------------------------------------------------------
-      arg_str_vector->clear();
-      arg_str_vector->reserve(3);
-      arg_str_vector->push_back(string("/bin/sh"));
-      arg_str_vector->push_back(string("-c"));
-      arg_str_vector->push_back(string("/bin/mv  ") + g_xw_files_folder_str +
-                                "/"  + xw_zip_file_name_str +
-                                "  " + xw_zip_file_path_str);
-      logStringVectorToDebug(function_name, instance_name, bridge_job_id,
-                             arg_str_vector);
-      
-      returned_values  = outputAndErrorFromCommand(arg_str_vector);
-      returned_message = (returned_values.message).c_str();
-      LOG(LOG_DEBUG, "%s(%s)  Job '%s'  return_code = x'%X' --> %d  for "
-                     "command '%s'  Displayed message = '%s'",
-                     function_name, instance_name, bridge_job_id,
-                     returned_values.retcode, returned_values.retcode / 256,
-                     "/bin/mv", returned_message);
-      
-      if ( returned_values.retcode == 0 )
-      {
-      //----------------------------------------------------------------------
-      //  Get the list of bridge ouptut files to be extracted from the
-      //  XtremWeb ZIP file to the bridge output files folder.
-      //  We suppose that all output files have to go to the same folder,
-      //  otherwise we would have to generate 1 unzip command per output file.
-      //----------------------------------------------------------------------
-      auto_ptr< vector<string> > output_file_names = job->getOutputs();
-      arg_str_vector->clear();
-      arg_str_vector->reserve(5 + output_file_names->size());
-      arg_str_vector->push_back(string("/usr/bin/unzip"));
-      arg_str_vector->push_back(string("-o"));
-      arg_str_vector->push_back(xw_zip_file_path_str);
-      arg_str_vector->insert(arg_str_vector->end(),
-                             output_file_names->begin(),
-                             output_file_names->end());
-      arg_str_vector->push_back(string("-d"));
-      string output_file_path = job->getOutputPath(output_file_names->back());
-      size_t pos_last_slash   = output_file_path.rfind('/');
-      arg_str_vector->push_back(output_file_path.substr(0, pos_last_slash));
-      
-      logStringVectorToDebug(function_name, instance_name, bridge_job_id,
-                             arg_str_vector);
-      
-      //----------------------------------------------------------------------
-      //  Extract the bridge output files from the ZIP file containing results
-      //----------------------------------------------------------------------
-      returned_values  = outputAndErrorFromCommand(arg_str_vector);
-      returned_message = (returned_values.message).c_str();
-      LOG(LOG_DEBUG, "%s(%s)  Job '%s'  return_code = x'%X' --> %d  for "
-                     "command '%s'  Displayed message = '%s'",
-                     function_name, instance_name, bridge_job_id,
-                     returned_values.retcode, returned_values.retcode / 256,
-                     "/usr/bin/unzip", returned_message);
+            string xw_zip_file_name_str = "*_ResultsOf_" + xw_job_uid_str +
+                                          ".zip";
+            string xw_zip_file_path_str = g_xw_files_folder_str +
+                                          "/ResultsOf_" + xw_job_uid_str +
+                                          ".zip";
+            
+            //----------------------------------------------------------------
+            //  The XtremWeb ZIP file containing the job results should be in
+            //  the XtremWeb file folder.
+            //  Rename this ZIP file with a shorter name.
+            //----------------------------------------------------------------
+            arg_str_vector->clear();
+            arg_str_vector->reserve(3);
+            arg_str_vector->push_back(string("/bin/sh"));
+            arg_str_vector->push_back(string("-c"));
+            arg_str_vector->push_back(string("/bin/mv  ") +
+                                      g_xw_files_folder_str +
+                                      "/"  + xw_zip_file_name_str +
+                                      "  " + xw_zip_file_path_str);
+            logStringVectorToDebug(function_name, instance_name,
+                                   bridge_job_id, arg_str_vector);
+            
+            returned_values  = outputAndErrorFromCommand(arg_str_vector);
+            returned_message = (returned_values.message).c_str();
+            LOG(LOG_DEBUG, "%s(%s)  Job '%s'  return_code = x'%X' --> %d  "
+                           "for command '%s'  Displayed message = '%s'",
+                           function_name, instance_name, bridge_job_id,
+                           returned_values.retcode,
+                           returned_values.retcode / 256,
+                           "/bin/mv", returned_message);
+            
+            if ( returned_values.retcode == 0 )
+            {
+              //--------------------------------------------------------------
+              //  Get the list of bridge ouptut files to be extracted from the
+              //  XtremWeb ZIP file to the bridge output files folder.
+              //  We suppose that all output files have to go to the same
+              //  folder, otherwise we would have to generate 1 unzip command
+              //  per output file.
+              //--------------------------------------------------------------
+              auto_ptr< vector<string> > output_file_names =
+                                                            job->getOutputs();
+              arg_str_vector->clear();
+              arg_str_vector->reserve(5 + output_file_names->size());
+              arg_str_vector->push_back(string("/usr/bin/unzip"));
+              arg_str_vector->push_back(string("-o"));
+              arg_str_vector->push_back(xw_zip_file_path_str);
+              arg_str_vector->insert(arg_str_vector->end(),
+                                     output_file_names->begin(),
+                                     output_file_names->end());
+              arg_str_vector->push_back(string("-d"));
+              string output_file_path =
+                                job->getOutputPath(output_file_names->back());
+              size_t pos_last_slash   = output_file_path.rfind('/');
+              arg_str_vector->push_back(output_file_path.substr(0,
+                                                             pos_last_slash));
+              
+              logStringVectorToDebug(function_name, instance_name,
+                                     bridge_job_id, arg_str_vector);
+              
+              //--------------------------------------------------------------
+              //  Extract the bridge output files from the ZIP file containing
+              //  results
+              //--------------------------------------------------------------
+              returned_values  = outputAndErrorFromCommand(arg_str_vector);
+              returned_message = (returned_values.message).c_str();
+              LOG(LOG_DEBUG, "%s(%s)  Job '%s'  return_code = x'%X' --> %d  "
+                             "for command '%s'  Displayed message = '%s'",
+                             function_name, instance_name, bridge_job_id,
+                             returned_values.retcode,
+                             returned_values.retcode / 256,
+                             "/usr/bin/unzip", returned_message);
+            }
+            
+            if ( returned_values.retcode != 0 )
+            {
+              LOG(LOG_ERR, "%s(%s)  Job '%s'  return_code = x'%X' --> %d  "
+                           "for command '%s'  Displayed message = '%s'",
+                           function_name, instance_name, bridge_job_id,
+                           returned_values.retcode,
+                           returned_values.retcode / 256,
+                           "/usr/bin/unzip", returned_message);
+              setJobStatusToError(function_name, instance_name, bridge_job_id,
+                                  job, returned_values.message);
+              return;
+            }
+            
+            logit_mon("event=job_status job_id=%s status=Finished",
+                      bridge_job_id);
+          }
+        }
+        
+        //--------------------------------------------------------------------
+        //  For the bridge job, store :
+        //  -  the bridge status    inside the 'status'  attribute,
+        //  -  the XtremWeb message inside the 'griddata' attribute.
+        //--------------------------------------------------------------------
+        updateJobStatus(job, xw_job_status_str, xw_message);
       }
-      
-      if ( returned_values.retcode != 0 )
-      {
-        LOG(LOG_ERR, "%s(%s)  Job '%s'  return_code = x'%X' --> %d  for "
-                     "command '%s'  Displayed message = '%s'",
-                     function_name, instance_name, bridge_job_id,
-                     returned_values.retcode, returned_values.retcode / 256,
-                     "/usr/bin/unzip", returned_message);
-        setJobStatusToError(function_name, instance_name, bridge_job_id, job,
-                            returned_values.message);
-      }
-      
-      logit_mon("event=job_status job_id=%s status=Finished", bridge_job_id);
     }
   }
 }
