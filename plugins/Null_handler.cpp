@@ -71,13 +71,14 @@ void NullHandler::updateStatus(void) throw (BackendException *)
 
 void NullHandler::poll(Job *job) throw (BackendException *)
 {
+	auto_ptr<vector<string> > outs = job->getOutputs();
 	switch (job->getStatus())
 	{
 		case Job::RUNNING:
 			LOG(LOG_DEBUG, "Creating dummy output for job '%s'",
 				job->getId().c_str());
-			for (vector<string>::const_iterator i = job->getOutputs()->begin();
-				i != job->getOutputs()->end(); i++)
+			for (vector<string>::const_iterator i = outs->begin();
+				i != outs->end(); i++)
 			{
 				ofstream of(job->getOutputPath(*i).c_str(), ios::trunc);
 				of << "Created by Null_handler for job "
