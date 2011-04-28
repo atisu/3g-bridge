@@ -29,6 +29,8 @@
 #include <config.h>
 #endif
 
+#include <fstream>
+
 #include "DBHandler.h"
 #include "Null_handler.h"
 #include "GridHandler.h"
@@ -72,12 +74,28 @@ void NullHandler::poll(Job *job) throw (BackendException *)
 	switch (job->getStatus())
 	{
 		case Job::RUNNING:
+			LOG(LOG_DEBUG, "Creating dummy output for job '%s'",
+				job->getId().c_str());
+			for (map<string, string>::const_iterator i = job->getOutputMap().begin();
+				i != job->getOutputMap().end(); i++)
+			{
+				ofstream of(i->second.c_str(), ios::trunc);
+				of << "Created by Null_handler for job "
+					<< job->getId() << endl;
+				of.close();
+			}
 			job->setStatus(Job::FINISHED);
 			LOG(LOG_DEBUG, "NULL Handler (%s): set status of job \"%s\" to FINISHED.",
 				name.c_str(), job->getId().c_str());
 			break;
-		default:
-			break;
+	case Job::CANCEL:
+		DBHWrapper()->deleteJob(job->getId());
+		//TODO: remove files
+		LOG(LOG_DEBUG, "NULL Handler (%s): DELETED job '%s'",
+			name.c_str(), job->getId().c_str());
+		break;
+	default:
+		break;
 	}
 }
 
