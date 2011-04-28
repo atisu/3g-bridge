@@ -82,6 +82,10 @@
 		<arg choice="plain"><option>-f <replaceable>FILE</replaceable></option></arg>
 		<arg choice="plain"><option>--jidfile <replaceable>FILE</replaceable></option></arg>
             </group>
+            <group>
+		<arg choice="plain"><option>-G <replaceable>GRID</replaceable></option></arg>
+		<arg choice="plain"><option>--gridquery <replaceable>GRID</replaceable></option></arg>
+            </group>
         </cmdsynopsis>
 	<cmdsynopsis>
 	    <command>wsclient</command>
@@ -197,6 +201,11 @@
 			<listitem>
 			    <para>
 				<literal>griddata</literal>: query the grid data related to a job
+			    </para>
+			</listitem>
+			<listitem>
+			    <para>
+				<literal>gridalgs</literal>: query the algorithms registered to a grid
 			    </para>
 			</listitem>
 		    </itemizedlist>
@@ -340,7 +349,7 @@
     </refsect1>
 
     <refsect1>
-	<title>STATUS, DELETE, OUTPUT AND GRIDDATA OPTIONS</title>
+	<title>STATUS, DELETE, OUTPUT, GRIDDATA AND GRIDALGS OPTIONS</title>
 
 	<para>
 	    If the <option>--mode</option> option is <literal>status</literal>, <literal>delete</literal>,
@@ -361,6 +370,19 @@
 		    <para>
 			The ID of the job to operate on. This option may be specified multiple
 			times.
+		    </para>
+		</listitem>
+	    </varlistentry>
+	    <varlistentry>
+		<term>
+		    <group choice="plain">
+			<arg choice="plain"><option>-G <replaceable>GRID</replaceable></option></arg>
+			<arg choice="plain"><option>--gridquery <replaceable>GRID</replaceable></option></arg>
+		    </group>
+		</term>
+		<listitem>
+		    <para>
+			The name of the grid to operate on.
 		    </para>
 		</listitem>
 	    </varlistentry>
@@ -415,6 +437,10 @@
 	<para>
 	    If <option>--mode</option> is <literal>griddata</literal>, then messages generated
 	    by the destination grid plugin are returned for the job.
+	</para>
+	<para>
+	    If <option>--mode</option> is <literal>gridalgs</literal>, the list of algorithms
+	    supported by the selected grid is returned.
 	</para>
 	<para>
 	    If <option>--mode</option> is <literal>version</literal>, then the output is a one-line

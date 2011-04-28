@@ -50,7 +50,7 @@ using namespace std;
  * Data type definitions
  */
 
-typedef enum { ADD, DELETE, STATUS, GRIDDATA, OUTPUT, FINISHED, GET_VERSION } op_mode;
+typedef enum { ADD, DELETE, STATUS, GRIDDATA, GRIDALGS, OUTPUT, FINISHED, GET_VERSION } op_mode;
 
 
 /**********************************************************************
@@ -61,6 +61,7 @@ static int add_jobid(const char *name, const char *value, void *ptr, GError **er
 static void handle_add(void);
 static void handle_status(void);
 static void handle_griddata(void);
+static void handle_gridalgs(void);
 static void handle_delete(void);
 static void handle_output(void);
 static void handle_finished(void);
@@ -92,7 +93,7 @@ static GOptionEntry options[] =
 	{ "endpoint",		'e',	0,	G_OPTION_ARG_STRING,		&endpoint,
 		"Service endpoint", "URL" },
 	{ "mode",		'm',	0,	G_OPTION_ARG_STRING,		&mode,
-		"Operation mode", "(add|status|griddata|delete|output|finished|version)" },
+		"Operation mode", "(add|status|griddata|gridalgs|delete|output|finished|version)" },
 	{ "version",		'V',	0,	G_OPTION_ARG_NONE,		&get_version,
 		"Print the version and exit", NULL },
 	{ NULL }
@@ -126,6 +127,8 @@ static GOptionEntry other_options[] =
 	{ "jidfile",		'f',	0,	G_OPTION_ARG_FILENAME,		&jidfile,
 		"Input file holding the job identifiers. '-' can be used to read the "
 		"job IDs from STDIN", "FILE" },
+	{ "gridquery",		'G',	0,	G_OPTION_ARG_STRING,		&grid,
+		"Grid to query", "NAME" },
 	{ NULL }
 };
 
@@ -184,6 +187,8 @@ int main(int argc, char **argv)
 		m = STATUS;
 	else if (!strncmp(mode, "griddata", strlen(mode)))
 		m = GRIDDATA;
+	else if (!strncmp(mode, "gridalgs", strlen(mode)))
+		m = GRIDALGS;
 	else if (!strncmp(mode, "delete", strlen(mode)))
 		m = DELETE;
 	else if (!strncmp(mode, "output", strlen(mode)))
@@ -208,6 +213,9 @@ int main(int argc, char **argv)
 			return 0;
 		case GET_VERSION:
 			handle_version();
+			return 0;
+		case GRIDALGS:
+			handle_gridalgs();
 			return 0;
 		default:
 			break;
@@ -479,6 +487,33 @@ static void handle_griddata(void)
 	{
 		string griddata = resp.griddata.at(i);
 		cout << jobIDs.jobid.at(i) << " " << griddata << endl;
+	}
+
+	soap_destroy(soap);
+	soap_end(soap);
+	soap_done(soap);
+}
+
+
+/**
+ * Handle grid alg list query
+ */
+static void handle_gridalgs(void)
+{
+	G3BridgeSubmitter__GridAlgList resp;
+
+	struct soap *soap = soap_new();
+	soap_set_namespaces(soap, Submitter_namespaces);
+	if (SOAP_OK != soap_call___G3BridgeSubmitter__getGridAlgs(soap, endpoint, NULL, grid, &resp))
+	{
+		soap_print_fault(soap, stderr);
+		exit(EX_UNAVAILABLE);
+	}
+
+	for (unsigned i = 0; i < resp.gridalgs.size(); i++)
+	{
+		string griddata = resp.gridalgs.at(i);
+		cout << griddata << endl;
 	}
 
 	soap_destroy(soap);

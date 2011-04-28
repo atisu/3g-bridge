@@ -243,6 +243,13 @@ class DBHandler {
 	void addAlgQ(const char *grid, const char *alg, unsigned batchsize);
 
 	/**
+	 * Get list of algorithms registered for a grid.
+	 * @param grid the grid name to look for
+	 * @return vector of algorithm names
+	 */
+	vector<string> getAlgs(const string &grid);
+
+	/**
 	 * Initialize the database system.
 	 * This method must be called before any threads that use the database
 	 * system are started.

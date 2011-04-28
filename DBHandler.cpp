@@ -631,6 +631,22 @@ void DBHandler::addAlgQ(const char *grid, const char *alg, unsigned batchsize)
 }
 
 
+vector<string> DBHandler::getAlgs(const string &grid)
+{
+	vector<string> rv;
+	if (!query("SELECT alg FROM cg_algqueue WHERE grid = '%s'", grid.c_str()))
+		return rv;
+	DBResult res(this);
+	res.use();
+	while (res.fetch())
+	{
+		string alg(res.get_field(0));
+		if (alg != "")
+			rv.push_back(alg);
+	}
+	return rv;
+}
+
 void DBHandler::getCompleteWUs(vector<string> &ids, const string &grid, Job::JobStatus stat)
 {
 	if (!query("SELECT gridid, COUNT(*) AS total, COUNT(NULLIF(FALSE, status = '%s')) AS matching "

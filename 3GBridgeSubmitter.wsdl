@@ -90,6 +90,12 @@
 				</xsd:sequence>
 			</xsd:complexType>
 
+			<xsd:complexType name="GridAlgList">
+				<xsd:sequence>
+					<xsd:element name="gridalgs" type="xsd:string" minOccurs="1" maxOccurs="unbounded"/>
+				</xsd:sequence>
+			</xsd:complexType>
+
 			<xsd:element name="submitRequest" type="tns:JobList"/>
 			<xsd:element name="submitResponse" type="tns:JobIDList"/>
 			<xsd:element name="getStatusRequest" type="tns:JobIDList"/>
@@ -102,6 +108,8 @@
 			<xsd:element name="getVersionResponse" type="xsd:string"/>
 			<xsd:element name="getGridDataRequest" type="tns:JobIDList"/>
 			<xsd:element name="getGridDataResponse" type="tns:GridDataList"/>
+			<xsd:element name="getGridAlgRequest" type="xsd:string"/>
+			<xsd:element name="getGridAlgResponse" type="tns:GridAlgList"/>
 		</xsd:schema>
 	</wsdl:types>
 
@@ -159,6 +167,14 @@
 		<wsdl:part name="griddatas" element="tns:getGridDataResponse"/>
 	</wsdl:message>
 
+	<!-- Message elements for "getGridAlg" -->
+	<wsdl:message name="getGridAlgRequest">
+		<wsdl:part name="grids" element="tns:getGridAlgRequest"/>
+	</wsdl:message>
+	<wsdl:message name="getGridAlgResponse">
+		<wsdl:part name="gridalgs" element="tns:getGridAlgResponse"/>
+	</wsdl:message>
+
 	<wsdl:portType name="G3BridgeSubmitter">
 		<wsdl:operation name="submit">
 			<wsdl:documentation>Submit jobs to the bridge</wsdl:documentation>
@@ -194,6 +210,11 @@
 			<wsdl:documentation>Query the grid data of previously submitted jobs</wsdl:documentation>
 			<wsdl:input message="tns:getGridDataRequest"/>
 			<wsdl:output message="tns:getGridDataResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="getGridAlgs">
+			<wsdl:documentation>Query list of algorithms supported by a given grid</wsdl:documentation>
+			<wsdl:input message="tns:getGridAlgRequest"/>
+			<wsdl:output message="tns:getGridAlgResponse"/>
 		</wsdl:operation>
 	</wsdl:portType>
 
@@ -254,6 +275,15 @@
 			</wsdl:output>
 		</wsdl:operation>
 		<wsdl:operation name="getGridData">
+			<soap:operation soapAction=""/>
+			<wsdl:input>
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output>
+				<soap:body use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="getGridAlgs">
 			<soap:operation soapAction=""/>
 			<wsdl:input>
 				<soap:body use="literal"/>

@@ -1043,6 +1043,33 @@ int __G3BridgeSubmitter__getGridData(struct soap *soap, G3BridgeSubmitter__JobID
 }
 
 
+int __G3BridgeSubmitter__getGridAlgs(struct soap *soap, string grid, G3BridgeSubmitter__GridAlgList *result)
+{
+	DBHandler *dbh;
+
+	try
+	{
+		dbh = DBHandler::get();
+	}
+	catch (QMException *e)
+	{
+		LOG(LOG_ERR, "getGridAlgs: Failed to get a DB handle: %s", e->what());
+		delete(e);
+		return SOAP_FATAL_ERROR;
+	}
+	catch (...)
+	{
+		LOG(LOG_ERR, "getGridAlgs: Failed to get a DB handle: Unknown exception");
+		return SOAP_FATAL_ERROR;
+	}
+
+	vector<string> algs = dbh->getAlgs(grid);
+	result->gridalgs = algs;
+
+	DBHandler::put(dbh);
+	return SOAP_OK;
+}
+
 /**********************************************************************
  * The SOAP thread handler
  */
