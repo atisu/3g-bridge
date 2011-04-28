@@ -76,10 +76,10 @@ void NullHandler::poll(Job *job) throw (BackendException *)
 		case Job::RUNNING:
 			LOG(LOG_DEBUG, "Creating dummy output for job '%s'",
 				job->getId().c_str());
-			for (map<string, string>::const_iterator i = job->getOutputMap().begin();
-				i != job->getOutputMap().end(); i++)
+			for (vector<string>::const_iterator i = job->getOutputs()->begin();
+				i != job->getOutputs()->end(); i++)
 			{
-				ofstream of(i->second.c_str(), ios::trunc);
+				ofstream of(job->getOutputPath(*i).c_str(), ios::trunc);
 				of << "Created by Null_handler for job "
 					<< job->getId() << endl;
 				of.close();
@@ -89,10 +89,10 @@ void NullHandler::poll(Job *job) throw (BackendException *)
 				name.c_str(), job->getId().c_str());
 			break;
 	case Job::CANCEL:
-		DBHWrapper()->deleteJob(job->getId());
 		//TODO: remove files
 		LOG(LOG_DEBUG, "NULL Handler (%s): DELETED job '%s'",
 			name.c_str(), job->getId().c_str());
+		job->deleteJob();
 		break;
 	default:
 		break;
