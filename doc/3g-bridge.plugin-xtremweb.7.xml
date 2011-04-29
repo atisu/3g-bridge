@@ -357,6 +357,7 @@
     <refsection>
       <title>Dependencies (Debian Lenny packages)</title>
       <screen>
+        &bull;  <literal>automake1.9</literal>              1.9.6+nogfdl-3
         &bull;  <literal>docbook-xsl</literal>              1.73.2.dfsg.1-5
         &bull;  <literal>g++</literal>                      4:4.3.2-2
         &bull;  <literal>gsoap</literal>                    2.7.9l-0.2
@@ -366,6 +367,7 @@
         &bull;  <literal>libglib2.0-dev</literal>           2.16.6-3
         &bull;  <literal>libmysql++-dev</literal>           3.0.0-1
         &bull;  <literal>libmysql++3</literal>              3.0.0-1
+        &bull;  <literal>libtool</literal>                  1.5.26-4+lenny1
         &bull;  <literal>make</literal>                     3.81-5
         &bull;  <literal>mysql-server-5.0</literal>         5.0.51a-24+lenny4
         &bull;  <literal>uuid-dev</literal>                 1.2-1.41.3-1
@@ -485,17 +487,15 @@ http://dev17-portal.cpc.wmin.ac.uk:8080/repository/user/welcome.xhtml
       <title>Startup of the 3G Bridge with the 
              <application>XtremWeb-HEP</application> plugin</title>
       <para><prompt>$</prompt> <userinput><command>su</command> 
-            <option>-c</option> '<command>umask</command> 
-            <parameter>002</parameter>; 
-            <envar>LANG</envar>=<constant>C</constant> 
-            <application>/usr/local/sbin/3g-bridge</application>' 
-            <parameter>bridge</parameter></userinput></para>
+            <option>-l</option> <parameter>bridge</parameter> 
+            <option>-c</option> 
+            '<application>/usr/local/sbin/3g-bridge</application>' 
+            </userinput></para>
       <para><prompt>$</prompt> <userinput><command>su</command> 
-            <option>-c</option> '<command>umask</command> 
-            <parameter>002</parameter>; 
-            <envar>LANG</envar>=<constant>C</constant> 
-            <application>/usr/local/sbin/wssubmitter</application>' 
-            <parameter>bridge</parameter></userinput></para>
+            <option>-l</option> <parameter>bridge</parameter> 
+            <option>-c</option> 
+            '<application>/usr/local/sbin/wssubmitter</application>' 
+            </userinput></para>
     </refsection>
     
     <refsection>

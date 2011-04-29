@@ -52,6 +52,7 @@ Null_handler_la_SOURCES = Null_handler.cpp Null_handler.h
 Null_monitor_la_SOURCES = Null_monitor.cpp Null_monitor.h
 
 XTREMWEB_handler_la_SOURCES = XTREMWEB_handler.cpp XTREMWEB_handler.h
+XTREMWEB_handler_la_LIBADD = -lssl
 
 Java_handler_la_SOURCES = Java_handler.cpp Java_handler.h
 Java_handler_la_CPPFLAGS = $(JAVA_INC) $(AM_CPPFLAGS) -DJAVA_CLASSPATH='"${javadir}/${JARNAME}"' -DPKGLIBDIR='"${pkglibdir}"'

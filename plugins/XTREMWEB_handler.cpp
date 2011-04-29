@@ -60,6 +60,7 @@
 
 #include <dirent.h>
 #include <netdb.h>
+#include <openssl/ssl.h>
 
 
 using namespace std;
@@ -74,12 +75,17 @@ struct returned_t
 //============================================================================
 //  Global variables
 //============================================================================
-char * g_xw_https_server;             // XtremWeb-HEP HTTPS server
-char * g_xw_https_port;               // XtremWeb-HEP HTTPS port
-string g_xw_client_bin_folder_str;    // XtremWeb-HEP client binaries folder
-string g_xw_files_folder_str;         // Folder for XW input and output files
-bool   g_xwclean_forced;              // Forced 'xwclean' before 'xwstatus'
-int    g_sleep_time_before_download;  // Sleeping time before download in s
+char *    g_xw_https_server;            // XtremWeb-HEP HTTPS server
+char *    g_xw_https_port;              // XtremWeb-HEP HTTPS port
+char *    g_xw_user;                    // XtremWeb-HEP user login
+char *    g_xw_password;                // XtremWeb-HEP user password
+int       g_xw_socket_fd;               // Socket to XtremWeb-HEP server
+SSL_CTX * g_ssl_context;                // SSL context
+SSL *     g_ssl_xw;                     // SSL object for XtremWeb-HEP server
+string    g_xw_client_bin_folder_str;   // XtremWeb-HEP client binaries folder
+string    g_xw_files_folder_str;        // Folder for XW input + output files
+bool      g_xwclean_forced;             // Forced 'xwclean' before 'xwstatus'
+int       g_sleep_time_before_download; // Sleeping time before download in s
 
 
 //============================================================================
@@ -294,20 +300,26 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
   groupByNames = false;
   
   //==========================================================================
-  //  xw_https_server and xw_https_port
+  //  xw_https_server, xw_https_port, xw_user, xw_password
   //==========================================================================
   g_xw_https_server = g_key_file_get_string(config, instance,
                                             "xw_https_server", NULL);
   g_xw_https_port   = g_key_file_get_string(config, instance,
                                             "xw_https_port",   NULL);
+  g_xw_user         = g_key_file_get_string(config, instance,
+                                            "xw_user",         NULL);
+  g_xw_password     = g_key_file_get_string(config, instance,
+                                            "xw_password",     NULL);
   
-  if ( g_xw_https_server && g_xw_https_port )
+  if ( g_xw_https_server && g_xw_https_port && g_xw_user && g_xw_password )
   {
     g_strstrip(g_xw_https_server);
     g_strstrip(g_xw_https_port);
-    LOG(LOG_INFO, "%s(%s)  XW HTTPS server and port:      '%s:%s'",
-                  function_name, instance_name, g_xw_https_server,
-                  g_xw_https_port);
+    g_strstrip(g_xw_user);
+    g_strstrip(g_xw_password);
+    LOG(LOG_INFO, "%s(%s)  XW HTTPS server and port:      '%s:%s'     "
+                  "XW user: '%s'", function_name, instance_name,
+                  g_xw_https_server, g_xw_https_port, g_xw_user);
     
     //------------------------------------------------------------------------
     //  Get protocol number for TCP
@@ -326,7 +338,6 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
       struct addrinfo   addrinfo_hints;
       struct addrinfo * first_addrinfo_entry;
       struct addrinfo * addrinfo_entry;
-      int               xw_socket_fd;
       
       memset(&addrinfo_hints, 0, sizeof(struct addrinfo));
       addrinfo_hints.ai_family   = AF_UNSPEC;            // Allow IPv4 or IPv6
@@ -351,64 +362,149 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
               addrinfo_entry != NULL;
               addrinfo_entry =  addrinfo_entry->ai_next )
         {
-          xw_socket_fd = socket(addrinfo_entry->ai_family,
-                                addrinfo_entry->ai_socktype,
-                                addrinfo_entry->ai_protocol);
-          if ( xw_socket_fd == -1 )
+          g_xw_socket_fd = socket(addrinfo_entry->ai_family,
+                                  addrinfo_entry->ai_socktype,
+                                  addrinfo_entry->ai_protocol);
+          if ( g_xw_socket_fd == -1 )
               continue;
           
-          if ( connect(xw_socket_fd, addrinfo_entry->ai_addr,
-                                     addrinfo_entry->ai_addrlen) == 0 )
+          if ( connect(g_xw_socket_fd, addrinfo_entry->ai_addr,
+                                       addrinfo_entry->ai_addrlen) == 0 )
               break;                                                // Success
           
-          close(xw_socket_fd);
+          close(g_xw_socket_fd);
         }
         
         freeaddrinfo(first_addrinfo_entry);                // No longer needed
         
         if ( addrinfo_entry == NULL )
-          LOG(LOG_ERR, "%s(%s)  '%s' connection to '%s:%s' FAILED",
+          LOG(LOG_ERR, "%s(%s)  '%s' connection to XW server '%s:%s' FAILED",
                        function_name, instance_name, proto_tcp_name,
                        g_xw_https_server, g_xw_https_port);
         else
-        //--------------------------------------------------------------------
-        //  Get XtremWeb-HEP version
-        //--------------------------------------------------------------------
         {
-          const string xw_version_request_str = "GET /?xwcommand=<version>"
-                       "<user login=\"bridge\" password=\"\"/>"
-                       "</version> HTTP/1.0\n"
-                       "User-Agent: 3G-Bridge XtremWeb plugin\n"
-                       "Host: " + string(g_xw_https_server) + ":" +
-                       string(g_xw_https_port) + "\n\n";
-          size_t req_len = xw_version_request_str.length();
-          if ( write(xw_socket_fd, xw_version_request_str.c_str(), req_len) !=
-               req_len )
-            LOG(LOG_ERR, "%s(%s)  Request 'version' to '%s:%s' FAILED",
-                         function_name, instance_name, g_xw_https_server,
-                         g_xw_https_port);
+          LOG(LOG_DEBUG, "%s(%s)  '%s' connection to XW server '%s:%s' "
+                         "succeeded", function_name, instance_name,
+                         proto_tcp_name, g_xw_https_server, g_xw_https_port);
+          
+          //------------------------------------------------------------------
+          //  Initialize SSL
+          //------------------------------------------------------------------
+          SSL_load_error_strings();
+          SSL_library_init();
+          
+          g_ssl_context = SSL_CTX_new(SSLv23_client_method());
+          if  ( ! g_ssl_context )
+            LOG(LOG_ERR, "%s(%s)  Creation of SSL context with "
+                         "'SSLv23_client_method' FAILED",
+                         function_name, instance_name);
           else
           {
-            size_t  xw_version_response_len = 0;
-            string  xw_version_response_str = "";
-            char    xw_version_response_buf[BUFSIZ];
-            ssize_t nread = BUFSIZ;
-            while ( nread == BUFSIZ )
+            SSL_CTX_set_verify(g_ssl_context, SSL_VERIFY_NONE, NULL);
+            
+            g_ssl_xw = SSL_new(g_ssl_context);
+            if  ( ! g_ssl_xw )
+              LOG(LOG_ERR, "%s(%s)  Creation of SSL object FAILED",
+                           function_name, instance_name);
+            else
             {
-              nread = read(xw_socket_fd, xw_version_response_buf, BUFSIZ);
-              xw_version_response_len += nread;
-              xw_version_response_str += xw_version_response_buf;
+              LOG(LOG_DEBUG, "%s(%s)  Trying to connect the SSL object to "
+                             "the socket for the XW server at '%s:%s'",
+                             function_name, instance_name,
+                             g_xw_https_server, g_xw_https_port);
+              
+              //--------------------------------------------------------------
+              //  Connect the SSL object to the XtremWeb-HEP socket, and
+              //  initiate the TLS/SSL handshake with the XtremWeb-HEP server
+              //--------------------------------------------------------------
+              if ( SSL_set_fd(g_ssl_xw, g_xw_socket_fd) != 1 )
+                LOG(LOG_ERR, "%s(%s)  Connection of the SSL object to the "
+                             "socket for the XW server at '%s:%s' FAILED",
+                             function_name, instance_name,
+                             g_xw_https_server, g_xw_https_port);
+              else
+              {
+                LOG(LOG_DEBUG, "%s(%s)  Connection of the SSL object to the "
+                               "socket for the XW server at '%s:%s' succeeded"
+                               "     Trying now TLS/SSL handshake",
+                               function_name, instance_name,
+                               g_xw_https_server, g_xw_https_port);
+                
+                return_code = SSL_connect(g_ssl_xw);
+                if ( return_code != 1 )
+                  LOG(LOG_ERR, "%s(%s)  TLS/SSL handshake with the XW server "
+                               "at '%s:%s' FAILED   SSL return code = %d",
+                               function_name, instance_name,
+                               g_xw_https_server, g_xw_https_port,
+                               SSL_get_error(g_ssl_xw, return_code));
+                else
+                {
+                  LOG(LOG_DEBUG, "%s(%s)  TLS/SSL handshake with the XW "
+                                 "server at '%s:%s' succeeded     "
+                                 "SSL verify result = %ld",
+                                 function_name, instance_name,
+                                 g_xw_https_server, g_xw_https_port,
+                                 SSL_get_verify_result(g_ssl_xw));
+                  
+                  //------------------------------------------------------------
+                  //  Get XtremWeb-HEP version
+                  //------------------------------------------------------------
+                  const string xw_version_request_str =
+                               "GET /?xwcommand=%3Cversion%3E"
+                               "%3Cuser%20login=%22" + string(g_xw_user) +
+                               "%22%20password=%22" + string(g_xw_password) +
+                               "%22/%3E%3C/version%3E HTTP/1.0\n"
+                               "User-Agent: 3G-Bridge_XtremWeb_plugin\n"
+                               "Host: " + string(g_xw_https_server) + ":" +
+                               string(g_xw_https_port) + "\n\n";
+                  int req_len = xw_version_request_str.length();
+                  if ( SSL_write(g_ssl_xw,
+                                 xw_version_request_str.c_str(), req_len) !=
+                       req_len )
+                    LOG(LOG_ERR, "%s(%s)  Request 'version' to '%s:%s' "
+                                 "FAILED", function_name, instance_name,
+                                 g_xw_https_server, g_xw_https_port);
+                  else
+                  {
+                    size_t  http_response_len = 0;
+                    string  http_response_str = "";
+                    char    http_response_buf[BUFSIZ];
+                    ssize_t nread = BUFSIZ;
+                    while ( nread == BUFSIZ )
+                    {
+                      nread = SSL_read(g_ssl_xw, http_response_buf, BUFSIZ);
+                      http_response_len += nread;
+                      http_response_str += http_response_buf;
+                    }
+                    size_t pos_length =
+                                    http_response_str.find("Content-Length:");
+                    size_t xw_version_response_len =
+                      atoi((http_response_str.substr(pos_length+15)).c_str());
+                    LOG(LOG_DEBUG, "%s(%s)  XW response for version number "
+                                   "has %d bytes", function_name,
+                                   instance_name,  xw_version_response_len);
+                    
+                    http_response_len = 0;
+                    http_response_str = "";
+                    while ( http_response_len < xw_version_response_len )
+                    {
+                      nread = SSL_read(g_ssl_xw, http_response_buf,
+                                       xw_version_response_len);
+                      http_response_len += nread;
+                      http_response_str += http_response_buf;
+                    }
+                    trimEol(http_response_str);
+                    LOG(LOG_INFO, "%s(%s)  XW version number:             "
+                                  "'%s'", function_name, instance_name,
+                                  http_response_str.c_str());
+                  }
+                }
+              }
+              SSL_free(g_ssl_xw);
             }
-            LOG(LOG_DEBUG, "%s(%s)  XW response for version number has %d "
-                           "bytes", function_name, instance_name, 
-                           xw_version_response_len);
-            trimEol(xw_version_response_str);
-            LOG(LOG_INFO, "%s(%s)  XW version number:             '%s'",
-                          function_name, instance_name,
-                          xw_version_response_str.c_str());
+            SSL_CTX_free(g_ssl_context);
           }
-          
-          close(xw_socket_fd);
+          close(g_xw_socket_fd);
         }
       }
     }
@@ -786,12 +882,14 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
   size_t        nb_jobs = 0;
   Job *         job;
   const char *  bridge_job_id;
-  bool          b_xw_data_error;
-  auto_ptr< vector<string> > xw_env_str_vector(new vector<string>);
-  auto_ptr< vector<string> > arg_str_vector(new vector<string>);
+  string        submitter_dn_str;
+  auto_ptr< vector<string> > submitter_dn_vector(new vector<string>);
   auto_ptr< vector<string> > local_input_file_path_str_vector
                              (new vector<string>);
+  auto_ptr< vector<string> > arg_str_vector(new vector<string>);
+  auto_ptr< vector<string> > xw_env_str_vector(new vector<string>);
   auto_ptr< vector<string> > input_file_str_vector;
+  bool          b_xw_data_error;
   string        input_file_name_str;
   FileRef       input_file_ref;
   string        input_file_path_str;
@@ -823,27 +921,46 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
         job_iterator != jobs.end();
         job_iterator++ )
   {
-    job             = *job_iterator;
-    bridge_job_id   = (job->getId()).c_str();
+    //------------------------------------------------------------------------
+    //  Retrieve bridge job id and submitter DN
+    //------------------------------------------------------------------------
+    job              = *job_iterator;
+    bridge_job_id    = (job->getId()).c_str();
+    submitter_dn_str = job->getEnv("PROXY_USERDN");
     
-    b_xw_data_error = false;
-    xw_env_str_vector->clear();
+    const string specials_str  = " !$&()*?[\\]^{|}~";
+    size_t submitter_dn_length = submitter_dn_str.length();
+    size_t pos_special         = submitter_dn_str.find_first_of(specials_str);
+    while ( pos_special < submitter_dn_length )
+    {
+      submitter_dn_str[pos_special] = '_';
+      pos_special++;
+      if ( pos_special < submitter_dn_length )
+        pos_special = submitter_dn_str.find_first_of(specials_str,
+                                                     pos_special);
+    }
+    submitter_dn_vector->clear();
+    if ( submitter_dn_str != "" )
+    {
+      submitter_dn_vector->reserve(2);
+      submitter_dn_vector->push_back(string("--xwlabel"));
+      submitter_dn_vector->push_back(string("Submitter_DN:") +
+                                     submitter_dn_str);
+    }
     
     //------------------------------------------------------------------------
     //  Retrieve list of input files
     //------------------------------------------------------------------------
-    arg_str_vector->clear();
-    arg_str_vector->reserve(3);
-    arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwsenddata");
-    arg_str_vector->push_back(string("--xwxml"));
-    arg_str_vector->push_back(string(""));
     local_input_file_path_str_vector->clear();
+    arg_str_vector->clear();
+    xw_env_str_vector->clear();
+    b_xw_data_error = false;
     
     input_file_str_vector = job->getInputs();
-    LOG(LOG_INFO, "%s(%s)  Job '%s'  Submitter DN = '%s'  Number of input "
-                  "files = %ld", function_name, instance_name,
-                  bridge_job_id, (job->getEnv("PROXY_USERDN")).c_str(),
-                  input_file_str_vector->size());
+    LOG(LOG_INFO, "%s(%s)  Job '%s'  Submitter DN = '%s'  Application = '%s'"
+                  "  Number of input files = %ld", function_name,
+                  instance_name, bridge_job_id, submitter_dn_str.c_str(),
+                  (job->getName()).c_str(), input_file_str_vector->size());
     
     for ( vector<string>::iterator input_file_iterator =
                                    input_file_str_vector->begin();
@@ -919,7 +1036,18 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
         //--------------------------------------------------------------------
         //  Send the data to XtremWeb
         //--------------------------------------------------------------------
-        arg_str_vector->back() = xw_data_file_path_str;
+        if ( arg_str_vector->size() <= 0 )
+        {
+          arg_str_vector->reserve(3 + submitter_dn_vector->size());
+          arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwsenddata");
+          arg_str_vector->insert(arg_str_vector->end(),
+                                 submitter_dn_vector->begin(),
+                                 submitter_dn_vector->end());
+          arg_str_vector->push_back(string("--xwxml"));
+          arg_str_vector->push_back(xw_data_file_path_str);
+        }
+        else
+          arg_str_vector->back() = xw_data_file_path_str;
         logStringVectorToDebug(function_name, instance_name, bridge_job_id,
                                arg_str_vector);
         
@@ -1043,8 +1171,12 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     // Submit the job to XtremWeb
     //------------------------------------------------------------------------
     arg_str_vector->clear();
-    arg_str_vector->reserve(3 + xw_env_str_vector->size());
+    arg_str_vector->reserve(3 + submitter_dn_vector->size() +
+                            xw_env_str_vector->size());
     arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwsubmit");
+    arg_str_vector->insert(arg_str_vector->end(),
+                           submitter_dn_vector->begin(),
+                           submitter_dn_vector->end());
     arg_str_vector->push_back(job->getName());
     arg_str_vector->push_back(job->getArgs());
     arg_str_vector->insert(arg_str_vector->end(), xw_env_str_vector->begin(),
@@ -1372,14 +1504,14 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     }
     else
     {
-      // Initial value of the 'xw_job_status_str' variable is the empty string
+      string xw_message        = returned_values.message;
       string xw_job_status_str = "";
+      string xw_job_label_str  = "";
       
       //----------------------------------------------------------------------
       //  Message displayed by XtremWeb should contain:  STATUS='<status>'
       //----------------------------------------------------------------------
       const char * status_header = "STATUS='";
-      string       xw_message    = returned_values.message;
       size_t       pos_status    = xw_message.find(status_header);
       size_t       pos_quote     = 0;
       if ( pos_status != string::npos )
@@ -1389,6 +1521,21 @@ void XWHandler::poll(Job * job) throw (BackendException *)
         if ( pos_quote != string::npos )
           xw_job_status_str = xw_message.substr(pos_status,
                                                 pos_quote - pos_status );
+      }
+      
+      //----------------------------------------------------------------------
+      //  Message displayed by XtremWeb should contain:  LABEL='<label>'
+      //----------------------------------------------------------------------
+      const char * label_header = "LABEL='";
+      size_t       pos_label    = xw_message.find(label_header);
+      pos_quote = 0;
+      if ( pos_label != string::npos )
+      {
+        pos_label += strlen(label_header);
+        pos_quote  = xw_message.find("'", pos_label);
+        if ( pos_quote != string::npos )
+          xw_job_label_str = xw_message.substr(pos_label,
+                                                pos_quote - pos_label );
       }
       
       //----------------------------------------------------------------------
@@ -1472,16 +1619,23 @@ void XWHandler::poll(Job * job) throw (BackendException *)
               sleep(g_sleep_time_before_download);
             }
             
-            //  Name of ZIP file contains XtremWeb job id after last '/'
+            //----------------------------------------------------------------
+            //  Name of ZIP file :  ATTENTION :
+            //  If the XtremWeb label is not empty, it ends with it,
+            //  otherwise it ends with the XtremWeb job id after last '/'
+            //----------------------------------------------------------------
             size_t pos_id = xw_job_id_str.rfind('/') + 1;
             LOG(LOG_DEBUG, "%s(%s)  xw_job_id = '%s'  pos_id=%ld  "
                            "xw_id_len=%ld",
                            function_name, instance_name, xw_job_id, pos_id,
                            xw_job_id_str.length() - pos_id);
             
-            string xw_job_uid_str   = xw_job_id_str.substr(pos_id,
+            string xw_job_uid_str = xw_job_id_str.substr(pos_id,
                                              xw_job_id_str.length() - pos_id);
-            string xw_zip_file_name_str = "*_ResultsOf_" + xw_job_uid_str +
+            if ( xw_job_label_str == "" )
+              xw_job_label_str = xw_job_uid_str;
+            
+            string xw_zip_file_name_str = "*_ResultsOf_" + xw_job_label_str +
                                           ".zip";
             string xw_zip_file_path_str = g_xw_files_folder_str +
                                           "/ResultsOf_" + xw_job_uid_str +
