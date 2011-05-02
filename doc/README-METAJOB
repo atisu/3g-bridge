@@ -1,0 +1,78 @@
+3G Bridge MetaJob plugin: Submitting a batch of jobs to 3G Bridge
+=================================================================
+
+1. What is it?
+--------------
+
+The meta-job feature enables the users of the 3G Bridge to submit a batch of
+jobs in a single submission. There are (at least) two cases where this feature
+can come in handy:
+
+   i) When jobs are to be submitted to 3G Bridge through another middleware
+     (gLite for example). Using the meta-job feature, thousands of jobs can be
+      submitted at once to avoid the overhead of the middleware.
+
+      A single job is submitted (1) through gLite. The batch is unfolded only in
+      the 3G Bridge, then sub-jobs (*) are submitted to the destination grid
+      individually:
+    
+          User -(1)-> gLite -(1)-> 3GBridge =(*)=> [WorkerNodes]
+
+  ii) As the status information of the sub-jobs are gathered and processed by
+      the Metajob plugin internally, the user doesn't have to poll thousands of
+      her jobs individually.
+
+1. Requirements
+---------------
+
+  o The usual reuirements for 3G Bridge
+  o Meta-job enabled database:
+        The basic 3G Bridge database can be extended using the
+        db/schema-add-metajob.sql script.
+
+It is assumed that the reader knows and understands ordinary job-submission.
+
+2. How to use it?
+-----------------
+
+This feature is primarily intended to be used with the wsclient user interface.
+
+A meta-job is a job submitted to 3G Bridge with a special additional input
+file. The name of the file must start with _3gb-metajob (this identifies the
+meta-job). When submitting a meta-job only one _3gb-metajob file can be
+specified.
+
+<example>
+wsclient -m add -e http://3gb-host.org:8091         \
+         -n algName -g DestGrid                     \
+ 	 -o 'output.txt'                            \
+	 -a 'default args'                          \
+	 -i 'input1=Url_for_input1_1'               \
+ 	 -i 'input2=Url_for_input2_1'               \
+	 -i '_3gb-metajob=Url_for_3gb_metajob_file'
+</example>
+
+In the above example, the last file specified contains the batch of
+jobs. Everything else (other intputs, output specs, algorithm name, destination
+grid, arguments) will be inherited by the sub-jobs.
+
+The feature can only be used to do a parameter study. //TODO
+
+//TODO When the 3G Bridge identifies a meta-job, it 
+
+3. Configuring
+--------------
+
+In the 3G Bridge configuration file, the Metajob plugin must be associated with
+the MetaJob grid:
+
+<example>
+#######################################################################
+# Sample grid using the Metajob plugin
+[MetaJob]
+disable = false 
+handler = Metajob
+maxJobsAtOnce = 100
+</example>
+
+When
