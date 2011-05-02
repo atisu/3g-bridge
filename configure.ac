@@ -100,17 +100,6 @@ fi
 AM_CONDITIONAL([HAVE_EC2], [test "$with_ec2" != no])
 
 dnl -------------------------------------------------------------------
-dnl Meta-job support
-dnl -------------------------------------------------------------------
-
-AC_ARG_WITH([metajob], AS_HELP_STRING([--with-metajob], [Enable meta-job support @<:@no@:>@]),
-        [], [with_ec2=no])
-if test "$with_metajob" != no; then
-        AC_DEFINE([HAVE_METAJOB], [1], [Define if meta-job feautre is requested.])
-fi
-AM_CONDITIONAL([HAVE_METAJOB], [test "$with_metajob" != no])
-
-dnl -------------------------------------------------------------------
 dnl XtremWeb
 dnl -------------------------------------------------------------------
 

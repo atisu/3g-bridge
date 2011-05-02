@@ -34,9 +34,7 @@ if HAVE_EC2
 pkglib_LTLIBRARIES += EC2_handler.la
 endif
 
-if HAVE_METAJOB
 pkglib_LTLIBRARIES += Metajob_handler.la
-endif
 
 Metajob_handler_la_SOURCES = MJ_parser.cpp MJ_parser.h Metajob_handler.cpp Metajob_handler.h
 Metajob_handler_la_LIBADD = #TODO
