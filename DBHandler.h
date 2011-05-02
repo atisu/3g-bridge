@@ -271,6 +271,7 @@ class DBHandler {
 		int retries);
 	void getAllDLs(void (*cb)(const char *jobid, const char *localName,
 			const char *url, const struct timeval *next, int retries));
+	size_t getDLCount(const string &jobid);
 	void updateInputPath(const string &jobid, const string &localName, const string &path);
 	void updateInputPath(const string &jobid, const string &localName,
 			     const FileRef &ref);

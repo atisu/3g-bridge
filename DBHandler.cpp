@@ -148,7 +148,11 @@ bool DBHandler::query(const char *fmt, ...)
 		throw new QMException("Not connected to the database");
 
 	va_start(ap, fmt);
-	vasprintf(&qstr, fmt, ap);
+	if (0 > vasprintf(&qstr, fmt, ap))
+	{
+		LOG(LOG_ERR, "Query [%s] has failed: vasprintf failed.", qstr);
+		return false;
+	}
 	va_end(ap);
 
 	if (mysql_query(conn, qstr))
@@ -951,4 +955,21 @@ void DBHandler::getFinishedSubjobs(const string &parentId,
 	{
 		parseJobs(jobs);
 	}
+}
+
+size_t DBHandler::getDLCount(const string &jobid)
+{
+	size_t count = 0;
+	
+	query("SELECT COUNT(*) FROM cg_download WHERE jobid='%s'",
+	      jobid.c_str());
+	
+	DBResult res(this);
+	res.use();
+	if (res.fetch())
+	{
+		sscanf(res.get_field(0), "%lu", &count);
+	}
+
+	return count;
 }

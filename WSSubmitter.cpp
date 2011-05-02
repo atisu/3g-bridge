@@ -374,31 +374,17 @@ void DBItem::finished()
 
 	DBHandler *dbh = DBHandler::get();
 	dbh->deleteDL(jobId, logicalFile);
-	auto_ptr<Job> job = dbh->getJob(jobId);
-	DBHandler::put(dbh);
 
-	if (!job.get())
-	{
-		failed();
-		return;
-	}
 
 	/* Check if the job is now ready to be submitted */
-	auto_ptr< vector<string> > inputs = job->getInputs();
-	bool job_ready = true;
-	for (vector<string>::const_iterator it = inputs->begin(); job_ready && it != inputs->end(); it++)
+	if (0 == dbh->getDLCount(jobId))
 	{
-		struct stat st;
-
-		string path = (job->getInputRef(*it)).getURL();
-		if (stat(path.c_str(), &st))
-			job_ready = false;
-	}
-	if (job_ready)
-	{
+		auto_ptr<Job> job = dbh->getJob(jobId);
 		job->setStatus(Job::INIT);
 		LOG(LOG_INFO, "Job %s: Preparation complete", jobId.c_str());
 	}
+
+	DBHandler::put(dbh);
 }
 
 void DBItem::failed()

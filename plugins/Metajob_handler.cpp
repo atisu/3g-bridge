@@ -938,8 +938,6 @@ void MetajobHandler::translateJob(Job const *job,
 		    job->getInputRefs());
 
 	bool foundMJSpec = false;
-	DLException *ex = 0;
-	bool mustThrowDLEx = false;
 	// Find the path of the _3gb-metajob* file and download missing inputs
 	for (inputMap::const_iterator i = jd.inputs.begin();
 	     i != jd.inputs.end(); i++)
@@ -956,18 +954,14 @@ void MetajobHandler::translateJob(Job const *job,
 			mjfileName = mjfile;
 			foundMJSpec = true;
 		}
-
-		if (!(downloaded))
-		{
-			if (!ex)
-				ex = new DLException(job->getId());
-			ex->addInput(i->first);
-		}
-
+		
 		if (thisIsIt && !(downloaded))
-			mustThrowDLEx = true;
+		{
+			DLException *ex = new DLException(job->getId());
+			ex->addInput(i->first);
+			throw ex;
+		}
 	}
-	if (mustThrowDLEx) throw ex;
 
 	if (!foundMJSpec)
 		throw new BackendException(
