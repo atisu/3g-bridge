@@ -881,9 +881,10 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
   
   size_t        nb_jobs = 0;
   Job *         job;
+  string        bridge_job_id_str;
   const char *  bridge_job_id;
   string        submitter_dn_str;
-  auto_ptr< vector<string> > submitter_dn_vector(new vector<string>);
+  auto_ptr< vector<string> > xw_label_vector(new vector<string>);
   auto_ptr< vector<string> > local_input_file_path_str_vector
                              (new vector<string>);
   auto_ptr< vector<string> > arg_str_vector(new vector<string>);
@@ -915,6 +916,14 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
   const char *  xw_job_id;
   
   //------------------------------------------------------------------------
+  //  XtremWeb label for xwsendata and xwsubmit
+  //------------------------------------------------------------------------
+  xw_label_vector->clear();
+  xw_label_vector->reserve(2);
+  xw_label_vector->push_back(string("--xwlabel"));
+  xw_label_vector->push_back("");
+  
+  //------------------------------------------------------------------------
   //  Loop on jobs to be submitted
   //------------------------------------------------------------------------
   for ( JobVector::iterator job_iterator = jobs.begin();
@@ -924,9 +933,10 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     //------------------------------------------------------------------------
     //  Retrieve bridge job id and submitter DN
     //------------------------------------------------------------------------
-    job              = *job_iterator;
-    bridge_job_id    = (job->getId()).c_str();
-    submitter_dn_str = job->getEnv("PROXY_USERDN");
+    job               = *job_iterator;
+    bridge_job_id_str = job->getId();
+    bridge_job_id     = bridge_job_id_str.c_str();
+    submitter_dn_str  = job->getEnv("PROXY_USERDN");
     
     const string specials_str  = " !$&()*?[\\]^{|}~";
     size_t submitter_dn_length = submitter_dn_str.length();
@@ -939,14 +949,9 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
         pos_special = submitter_dn_str.find_first_of(specials_str,
                                                      pos_special);
     }
-    submitter_dn_vector->clear();
-    if ( submitter_dn_str != "" )
-    {
-      submitter_dn_vector->reserve(2);
-      submitter_dn_vector->push_back(string("--xwlabel"));
-      submitter_dn_vector->push_back(string("Submitter_DN:") +
-                                     submitter_dn_str);
-    }
+    xw_label_vector->back() = ( submitter_dn_str == "" ) ?
+                              bridge_job_id_str:
+                              bridge_job_id_str + ":" + submitter_dn_str;
     
     //------------------------------------------------------------------------
     //  Retrieve list of input files
@@ -1038,11 +1043,11 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
         //--------------------------------------------------------------------
         if ( arg_str_vector->size() <= 0 )
         {
-          arg_str_vector->reserve(3 + submitter_dn_vector->size());
+          arg_str_vector->reserve(3 + xw_label_vector->size());
           arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwsenddata");
           arg_str_vector->insert(arg_str_vector->end(),
-                                 submitter_dn_vector->begin(),
-                                 submitter_dn_vector->end());
+                                 xw_label_vector->begin(),
+                                 xw_label_vector->end());
           arg_str_vector->push_back(string("--xwxml"));
           arg_str_vector->push_back(xw_data_file_path_str);
         }
@@ -1171,12 +1176,12 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     // Submit the job to XtremWeb
     //------------------------------------------------------------------------
     arg_str_vector->clear();
-    arg_str_vector->reserve(3 + submitter_dn_vector->size() +
+    arg_str_vector->reserve(3 + xw_label_vector->size() +
                             xw_env_str_vector->size());
     arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwsubmit");
     arg_str_vector->insert(arg_str_vector->end(),
-                           submitter_dn_vector->begin(),
-                           submitter_dn_vector->end());
+                           xw_label_vector->begin(),
+                           xw_label_vector->end());
     arg_str_vector->push_back(job->getName());
     arg_str_vector->push_back(job->getArgs());
     arg_str_vector->insert(arg_str_vector->end(), xw_env_str_vector->begin(),
