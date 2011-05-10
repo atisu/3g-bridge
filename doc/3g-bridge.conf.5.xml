@@ -403,7 +403,9 @@
 	    plugins handle job submission using DC-API. The <literal>DC-API</literal>
 	    plugin supports batching and requires that the application is
 	    specifically prepared for batching. The <literal>DC-API-Single</literal>
-	    plugin supports any DC-API application.
+	    plugin supports any DC-API application. The <literal>DC-API-Single</literal>
+	    plugin makes use of the <literal>_3G_BRIDGE_BATCH_ID</literal> environment
+	    variable and sets is as the batch identifier of the submitted workunit.
 	</para>
 	<glosslist>
 	    <glossentry>
