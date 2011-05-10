@@ -1,3 +1,13 @@
+3g-bridge (1.5-1) unstable; urgency=low
+
+  * New Debian release
+  * EGEE Plugin: specify requirements for the JDL in the config
+  * XtremWeb Plugin: make use of submitting user's DN
+  * NULL Plugin: creates fake output files
+  * Web Service: query algorithms supported by a plugin
+
+ -- FARKAS Zoltán <zfarkas@sztaki.hu>  Tue, 10 May 2011 07:36:37 +0200
+
 3g-bridge (1.4-1) unstable; urgency=low
 
   * New Debian release

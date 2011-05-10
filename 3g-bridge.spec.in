@@ -309,6 +309,12 @@ fi
 %endif
 
 %changelog
+* Tue May 10 2011 FARKAS Zoltan <zfarkas@sztaki.hu> 1.5-1
+- EGEE Plugin: specify requirements for the JDL in the config
+- XtremWeb Plugin: make use of submitting user's DN
+- NULL Plugin: creates fake output files
+- Web Service: query algorithms supported by a plugin
+
 * Tue Apr 5 2011 FARKAS Zoltan <zfarkas@sztaki.hu> 1.4-1
 - Disable automatic per-job proxy delegation in the EGEE plugin
 - Support both gLite 3.1 and gLite 3.2
