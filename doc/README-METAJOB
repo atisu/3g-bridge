@@ -48,6 +48,7 @@ sub-job:
   o Meta-job enabled database:
 	The basic 3G Bridge database can be extended using the
 	db/schema-add-metajob.sql script.
+//TODO: The feature will possibly be a built-in feature of the Bridge rather than an optional one.
 
 It is assumed that the reader knows and understands ordinary job-submission
 using wsclient.
@@ -91,6 +92,8 @@ using wsclient.
   too, especially if it's big. It's probably more efficient to download a big
   file from a server than from the user's personal computer, also, the user will
   not have to wait long for the wsclient command to finish.
+
+  The MetaJob feature assumes that all sub-jobs generate the same output files.
 
   4.2 The _3gb-metajob file
   -------------------------
@@ -179,20 +182,76 @@ using wsclient.
    remaining (failed, running, not submitted) sub-jobs are canceled and deleted
    as they are considered unneeded.
 
-  Both directives can be specified as an exact number or a percentage.
+  Both directives can be specified as an exact number or as a percentage.
 
   They are optional, the default value for both is 100%.
 
-  4.?? Getting the output of sub-jobs
-  -----------------------------------
+  4.5 Getting the output of sub-jobs
+  ----------------------------------
 
-  TODO
+  A meta-job will produce the same output files as any of its sub-jobs. But
+  actually, the output files of a meta-job are archives containing corresponding
+  outputs of sub-jobs. In these archives files are arranged in directories so
+  the user can find which sub-job produced a given output file. (Indirectly:
+  which *parameter set* produced a given file -- see: Identifying sub-jobs.)
 
-  4.?? Identifying sub-jobs
+  Example: A meta-job is defined to have two output ports: out1.txt and
+  out2.txt. This means that each and every sub-job will produce those files and
+  also, the meta-job will produce files called exactly out1.txt and
+  out2.txt. The result files will have an internal structure something like the
+  following:
+
+  out1.txt // actually: tar.gz
+  +--d6/
+  |  +--d6be9f05-003a-4cdb-be1e-0b8cbb1fbdb5/
+  |     +--out1.txt
+  ...
+  +--c0/
+  |  +--c0ec606a-d706-45e3-bc4a-66228b6b2987/
+  |     +--out1.txt
+  +--metajobUUID-mapping.txt
+	
+  out2.txt // actually: tar.gz
+  +--d6/
+  |  +--d6be9f05-003a-4cdb-be1e-0b8cbb1fbdb5/
+  |     +--out2.txt
+  ...
+  +--c0/
+  |  +--c0ec606a-d706-45e3-bc4a-66228b6b2987/
+  |     +--out2.txt
+  +--metajobUUID-mapping.txt
+
+  All *-mapping.txt files are the same. These files can be used to identify
+  which sub-job generated a particular output. The content of this file is
+  described in the next section.
+  
+  Merging the output is easy:
+
+    cd directory/where/I/want/my/output/to/be/merged
+    tar xzf path_to_archives/out1.txt
+    tar xzf path_to_archives/out2.txt
+
+  The result will be:
+
+  ./
+  +--d6/
+  |  +--d6be9f05-003a-4cdb-be1e-0b8cbb1fbdb5/
+  |     +--out1.txt
+  |     +--out2.txt
+  ...
+  +--c0/
+  |  +--c0ec606a-d706-45e3-bc4a-66228b6b2987/
+  |     +--out1.txt
+  |     +--out2.txt
+  +--metajobUUID-mapping.txt
+
+  //TODO: rationale
+
+  4.6 Identifying sub-jobs
   ------------------------
 
   The %Comment directive specifies a user-comment on a set of parameters. After
-  generating a sub-job, the 3G Bridge assigns this comment with the generated
+  generating a sub-job, the 3G Bridge assigns this comment to the generated
   sub-job's unique identifier. The only purpose of this is to enable the user to
   identify sub-jobs: which unique id belongs to which set of parameters. This
   instruction is a directive, because its value is not stored like,
@@ -206,7 +265,8 @@ using wsclient.
        Input = input1=url_for_input1
        Queue 2
 
-       # Here, %Comment is ''; it must be explicitly set
+       # Here, %Comment is ''; it must be explicitly set for each parameter set
+       #                       to avoid confusion
        Arguments = 33
        Queue
 
@@ -219,19 +279,19 @@ using wsclient.
   will result in the following mapping:
 
        %Comment job_with_arg_22
-       %Id subjob-uuid-1
+       %JobId subjob-uuid-1
        Arguments = 22
        Input = input1=url_for_input1
        Queue
 
        %Comment job_with_arg_22
-       %Id subjob-uuid-2
+       %JobId subjob-uuid-2
        Arguments = 22
        Input = input1=url_for_input1
        Queue
 
        %Comment
-       %Id subjob-uuid-3
+       %JobId subjob-uuid-3
        Arguments = 33
        Input = input1=url_for_input1
        Queue
@@ -241,32 +301,32 @@ using wsclient.
        # Total generated: 3
 
   This mapping can be submitted back to 3G Bridge with the same effect as the
-  original. %Id directives are valid, they're completely omitted.
+  original. %JobId directives are valid, they're simply omitted.
+
+  If the user provides useful %Comments for her jobs, she can search through
+  them to find a specific parameter set. The unique job id of the sub-job which
+  used that given parameter set is given after the %Comment directive.
 
 
-  4.?? Using the MetaJob feature through gLite
+  4.7 Using the MetaJob feature through gLite
   --------------------------------------------
 
   TODO
 
-??. Configuring
---------------
+5. Configuring the Metajob plugin
+---------------------------------
 
-TODO
+//TODO
 
 In the 3G Bridge configuration file, the Metajob plugin must be associated with
 the MetaJob grid:
 
-<example>
-#######################################################################
-# Sample grid using the Metajob plugin
-[MetaJob]
-disable = false
-handler = Metajob
-maxJobsAtOnce = 100
-</example>
-
-When
+  #######################################################################
+  # Sample grid using the Metajob plugin
+  [MetaJob]          <---- Fixed //TODO: explain
+  disable = false
+  handler = Metajob
+  maxJobsAtOnce = 100
 
 
 
