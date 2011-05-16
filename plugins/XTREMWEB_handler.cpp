@@ -938,12 +938,14 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     bridge_job_id     = bridge_job_id_str.c_str();
     submitter_dn_str  = job->getEnv("PROXY_USERDN");
     
-    const string specials_str  = " !$&()*?[\\]^{|}~";
+    const string specials_str  = " !$&()*/?[\\]^{|}~";
     size_t submitter_dn_length = submitter_dn_str.length();
     size_t pos_special         = submitter_dn_str.find_first_of(specials_str);
     while ( pos_special < submitter_dn_length )
     {
-      submitter_dn_str[pos_special] = '_';
+      submitter_dn_str[pos_special] = (submitter_dn_str[pos_special] == '/') ?
+                                        ',' :
+                                        '_';
       pos_special++;
       if ( pos_special < submitter_dn_length )
         pos_special = submitter_dn_str.find_first_of(specials_str,
