@@ -116,7 +116,7 @@ static GOptionEntry add_options[] =
 	{ "env",		'E',	0,	G_OPTION_ARG_STRING_ARRAY,	&env,
 		"Environment variables for the job", "NAME=VALUE" },
 	{ "tag",		't',	0,	G_OPTION_ARG_STRING,		&tag,
-		"Command-line arguments for the job", "ARGS" },
+		"Tag for the job", "TAG" },
 	{ NULL }
 };
 
