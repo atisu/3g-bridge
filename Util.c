@@ -216,9 +216,11 @@ out:
 				path += 5;
 			mon_log_file = fopen(path, "a");
 			if (mon_log_file)
+			{
 				setvbuf(mon_log_file, NULL, _IOLBF, 1024);
-			if (mon_log_file)
 				mon_log_file_name = g_strdup(path);
+				chmod(mon_log_file_name, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+			}
 		}
 		g_free(str);
 	}
