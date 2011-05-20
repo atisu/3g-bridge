@@ -672,6 +672,12 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 			string *size = lfn->size;
 			string fname = lfn->logicalName;
 
+			if (fname == "" || URL == "")
+			{
+				qmjob->deleteJob();
+				return soap_receiver_fault(soap, "Invalid input file description", "At least URL and logical name attributes have to specified for input files");
+			}
+
 			/// Either simply adds the remote file, or searches for the DIME transferred local file.
 			if ('/' != URL[0])
 			{
@@ -720,6 +726,11 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 		/// Iterates through the output files, and adds them to the job.
 		for (vector<string>::const_iterator outit = wsjob->outputs.begin(); outit != wsjob->outputs.end(); outit++)
 		{
+			if ("" == *outit)
+			{
+				qmjob->deleteJob();
+				return soap_receiver_fault(soap, "Empty output file name", "Empty output file names are not allowed");
+			}
 			string path = calc_output_path(jobid, *outit);
 			qmjob->addOutput(*outit, path);
 		}
@@ -730,7 +741,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 			LOG(LOG_ERR, "Failed to add job, removing any other job added so far within this request.");
 			for (vector<string>::const_iterator idit = result->jobid.begin(); idit != result->jobid.end(); idit++)
 				dbh->deleteJob(*idit);
-			return SOAP_FATAL_ERROR;
+			return soap_receiver_fault(soap, "Failed to add job to database", "Failed to add job to the database. This is probably caused by using a wrong grid or algorithm name.");
 		}
 		LOG(LOG_INFO, "Job %s: Accepted", jobid);
 		logit_mon("event=job_entry job_id=%s application=%s", jobid, qmjob->getName().c_str());
