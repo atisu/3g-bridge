@@ -225,10 +225,14 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 			LOG(LOG_DEBUG, "Commiting TRANSACTION");
 			dbh->query("COMMIT");
 		}
-		catch (const exception &ex)
+		catch (const ParserException &ex)
 		{
 			// Rollback, logging, setting status, etc.
 			// See just below.
+			submit_handleError(*dbh,ex.what(),job);
+		}
+		catch (const exception &ex)
+		{
 			submit_handleError(*dbh,ex.what(),job);
 
 			// Parser throws ParserException& but QueueManager only

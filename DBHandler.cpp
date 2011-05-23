@@ -871,7 +871,7 @@ void DBHandler::setMetajobChildrenStatus(const string &mjid, Job::JobStatus news
 
 void DBHandler::removeMetajobChildren(const string &jobid)
 {
-	query("DELETE FROM JOB WHERE metajobid = '%s'", jobid.c_str());
+	query("DELETE FROM cg_job WHERE metajobid = '%s'", jobid.c_str());
 }
 
 void DBHandler::getSubjobCounts(const string &jobid, size_t &all, size_t &err)
