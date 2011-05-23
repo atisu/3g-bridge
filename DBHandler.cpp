@@ -973,3 +973,13 @@ size_t DBHandler::getDLCount(const string &jobid)
 
 	return count;
 }
+
+void DBHandler::copyEnv(const string &srcId, const string &dstId)
+{
+	query("INSERT INTO cg_env (id, name, val) "
+	      "  SELECT '%s', name, val"
+	      "  FROM cg_env"
+	      "  WHERE id = '%s'",
+	      dstId.c_str(),
+	      srcId.c_str());
+}

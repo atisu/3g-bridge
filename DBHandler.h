@@ -288,6 +288,8 @@ class DBHandler {
 				size_t limit);
 	map<string, size_t> getSubjobHisto(const string &jobid);
 
+	void copyEnv(const string &srcId, const string &dstId);
+
     protected:
 	/// DBResult friend class.
 	friend class DBResult;

@@ -283,8 +283,7 @@ void MetajobHandler::qJobHandler(MetajobHandler *instance,
 				jd.grid.c_str(),
 				jd.args.c_str(),
 				Job::PREPARE);
-		//TODO: env?!
-
+		
 		// Copy inputs
 		for (inputMap::const_iterator i = jd.inputs.begin();
 		     i != jd.inputs.end(); i++)
@@ -312,6 +311,8 @@ void MetajobHandler::qJobHandler(MetajobHandler *instance,
 				"for meta-job '%s'.",
 				jd.metajobid.c_str());
 		qmjob.setMetajobId(jd.metajobid);
+
+		(*(instance->dbh))->copyEnv(jd.metajobid, jobid);
 
 		jd.dbId = jobid;
 		saveSJ(*(instance->mappingFile), jd);
