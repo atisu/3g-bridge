@@ -391,12 +391,11 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 		updateJobStatus(job, dbh, stats.get(),
 				&updateNeeded, &cleanupNeeded);
 	}
-	
-	// If we skipped the job status update (because of the archiving stage),
-	// then the stats is still uninitialized
-	if (!stats.get())
-		stats = getMetajobStatusInfo(job, dbh);
 
+	// This information is either uninitialized or updateJobStatus changed
+	// it -- query (again)
+	stats = getMetajobStatusInfo(job, dbh);
+	
 	updateStatsFileIfNeccesary(job, dbh, *stats, updateNeeded);
 
 	if (cleanupNeeded)
@@ -551,7 +550,8 @@ void MetajobHandler::updateStatsFileIfNeccesary(
 		const size_t running =
 			histo["FINISHED"]+histo["RUNNING"]+histo["TEMPFAILED"];
 		const size_t stillNeed =
-			stats.succAt > stats.finished
+			(job->getStatus() == Job::RUNNING
+			 && stats.succAt > stats.finished)
 			? stats.succAt - stats.finished
 			: 0;
 		const size_t count = stats.count;
@@ -578,11 +578,11 @@ void MetajobHandler::updateStatsFileIfNeccesary(
 		}
 		stat << endl
 		     << "# Status report" << endl
-		     << "Preparing:  " << pc(notStarted, count) << endl
-		     << "Running:    " << pc(running, count) << endl
-		     << "Error:      " << pc(stats.err, count) << endl
-		     << "Finished:   " << pc(stats.finished, count) << endl
-		     << "Still need: " << pc(stillNeed, count) << endl;
+		     << "Not started:     " << pc(notStarted, count) << endl
+		     << "Running:         " << pc(running, count) << endl
+		     << "Error:           " << pc(stats.err, count) << endl
+		     << "Finished:        " << pc(stats.finished, count) << endl
+		     << "Still need:      " << pc(stillNeed, count) << endl;
 		// if (jobFinished)
 		// {
 		// 	// Discarded jobs (due to reaching succAt)

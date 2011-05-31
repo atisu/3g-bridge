@@ -30,6 +30,8 @@
 #endif
 
 #include <fstream>
+#include <stdlib.h>
+#include <time.h>
 
 #include "DBHandler.h"
 #include "Null_handler.h"
@@ -39,11 +41,26 @@
 
 using namespace std;
 
+char const * const CFG_FAILURE_PERCENT = "failurePercent";
 
 NullHandler::NullHandler(GKeyFile *config, const char *instance) throw (BackendException *): GridHandler(config, instance)
 {
 	groupByNames = false;
 	LOG(LOG_INFO, "NULL Handler: instance \"%s\" initialized.", name.c_str());
+
+	GError *error = 0;
+	int value =
+		g_key_file_get_integer(config,
+				       name.c_str(), CFG_FAILURE_PERCENT,
+				       &error);
+	if (error)
+	{
+		value = 0;
+		g_error_free(error);
+	}
+
+	failure_pct = value;
+	srand(time(0));
 }
 
 
@@ -71,24 +88,57 @@ void NullHandler::updateStatus(void) throw (BackendException *)
 
 void NullHandler::poll(Job *job) throw (BackendException *)
 {
+	bool failed = false;
+	int r;
 	switch (job->getStatus())
 	{
-		case Job::RUNNING:
-
-			LOG(LOG_DEBUG, "Creating dummy output for job '%s'",
+	case Job::RUNNING:
+		failed = rand()%100 < failure_pct;
+		
+		if (failed)
+		{
+			job->setGridData("Null handler made this job fail.");
+			job->setStatus(Job::ERROR);
+			LOG(LOG_DEBUG,
+			    "NULL Handler (%s): set status of job "
+			    "\"%s\" to ERROR.",
+			    name.c_str(), job->getId().c_str());
+		}
+		else
+		{
+			LOG(LOG_DEBUG,
+			    "Creating dummy output for job '%s'",
 			    job->getId().c_str());
-			for (map<string, string>::const_iterator i = job->getOutputMap().begin();
-			     i != job->getOutputMap().end(); i++)
+				
+			typedef map<string, string>::const_iterator iter;
+			typedef map<string, FileRef>::const_iterator inputIter;
+			for (iter i = job->getOutputMap().begin();
+			     i != job->getOutputMap().end();
+			     i++)
 			{
-				ofstream of(i->second.c_str(), ios::trunc);
-				of << "Created by Null_handler for job "
-				   << job->getId() << endl;
-				of.close();
+				ofstream of(i->second.c_str(),
+					    ios::trunc);
+				of << "Dummy output file: " << i->first << endl
+				   << "Created by Null_handler for job " <<
+					job->getId() << endl
+				   << "Job arguments: " << job->getArgs() << endl
+				   << "Input files:" << endl;
+				const map<string, FileRef> &inputRefs =
+					job->getInputRefs();
+				for (inputIter j = inputRefs.begin();
+				     j != inputRefs.end(); j++)
+				{
+					of << j->first << "=" <<
+						j->second.getURL() << endl;
+				}
 			}
 			job->setStatus(Job::FINISHED);
-			LOG(LOG_DEBUG, "NULL Handler (%s): set status of job \"%s\" to FINISHED.",
-				name.c_str(), job->getId().c_str());
-			break;
+			LOG(LOG_DEBUG,
+			    "NULL Handler (%s): set status of job "
+			    "\"%s\" to FINISHED.",
+			    name.c_str(), job->getId().c_str());
+		}
+		break;
 	case Job::CANCEL:
 		DBHWrapper()->deleteJob(job->getId());
 		//TODO: remove files

@@ -35,6 +35,7 @@ using namespace std;
 
 
 class NullHandler : public GridHandler {
+	int failure_pct;
     public:
 	NullHandler(GKeyFile *config, const char *instance) throw (BackendException *);
 	~NullHandler() {};

@@ -937,7 +937,7 @@ void DBHandler::cancelAndDeleteRemainingSubjobs(const string &parentId)
 	      "where metajobid = '%s' and status <> 'RUNNING'",
 	      parentId.c_str());
 	query("UPDATE cg_job SET status='CANCEL' "
-	      "where metajobid = '%s'", // ALL status is 'RUNNING'
+	      "where metajobid = '%s' and status='RUNNING'",
 	      parentId.c_str());
 }
 

@@ -351,6 +351,17 @@
 		    <literal>EGEE</literal>: Submit jobs to an EGEE VO using gLite.
 		</para>
 	    </listitem>
+	    <listitem>
+	      <para>
+		<literal>Null</literal>: Provided for testing purposes, this
+		plugin does not submit jobs. Instead, the plugin simply changes
+		handled jobs' statuses from INIT to RUNNING, and from RUNNING to
+		FINISHED. Also, dummy output files are created matching the
+		output specification in the table cg_outputs. If configured so,
+		the Null handler will fail jobs with a given probability. In
+		this case, no output is generated.
+	      </para>
+	    </listitem>
 	</itemizedlist>
     </refsect1>
 
@@ -800,6 +811,25 @@
 		</glossdef>
 	    </glossentry>
 	</glosslist>
+    </refsect1>
+
+    <refsect1>
+      <title>OPTIONS FOR THE NULL PLUGIN</title>
+      
+      <glosslist>
+	<glossentry>
+	  <glossterm><envar>failurePercent</envar></glossterm>
+	  <glossdef>
+	    <para>
+	      Percentage; handled jobs' will fail with this probability. The
+	      value must be an integer between 0 and 100 (inclusive).
+	    </para>
+	    <para>
+		Optional, default value is 0. (No job will fail.)
+	    </para>
+	  </glossdef>
+	</glossentry>
+      </glosslist>
     </refsect1>
 
     <refsect1>

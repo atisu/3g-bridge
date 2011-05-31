@@ -64,7 +64,7 @@ using namespace std;
  */
 
 /* Configuration: Name of meta-job grid */
-static char const * const metaJobGrid = "MetaJob"; //TODO: make configurable
+static char const * const metaJobGrid = "Metajob"; //TODO: make configurable
 
 /* Configuration: Where to download job input files */
 static char *input_dir;
