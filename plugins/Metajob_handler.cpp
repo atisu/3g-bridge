@@ -1090,7 +1090,7 @@ static void LOGJOB(const char * msg,
 		LOG(LOG_DEBUG,
 		    "    '%s' : '%s', '%s', %ld",
 		    i->first.c_str(), fr.getURL().c_str(),
-		    fr.getMD5(), fr.getSize());
+		    fr.getMD5().c_str(), fr.getSize());
 	}
 	LOG(LOG_DEBUG, "  <outputs>");
 	for (outputMap::const_iterator i = jd.outputs.begin();

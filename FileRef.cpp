@@ -28,71 +28,13 @@
 #include "FileRef.h"
 
 #include <cstring>
+#include <cstdlib>
+#include <iostream>
 
-#include "Util.h"
-
-FileRef::FileRef(const FileRef &other)
-{
-	if (this != &other)
-	{
-		// Deep copy needed
-		f_url = string(other.f_url);
-		f_size = other.f_size;
-		f_md5 = other.f_md5 ? strdup(other.f_md5) : NULL;
-	}
-}
-
-FileRef::FileRef(const string &url, const char *md5, const off_t size):f_size(size)
-{
-	/// Copy url into f_url.
-	f_url = string(url);
-
-	/// Copy md5 into a newly allocated buffer in f_mdt (assuming md5 is
-	/// not NULL).
-	f_md5 = md5 ? strdup(md5) : NULL;
-}
-
-FileRef::FileRef()
-	: f_url(), f_md5(NULL), f_size(-1)
+FileRef::FileRef(const string &url, const string &md5, const off_t size):f_url(url),f_md5(md5),f_size(size)
 {
 }
 
-FileRef::~FileRef()
+FileRef::FileRef():f_url(""),f_md5(""),f_size(-1)
 {
-	/// Free any memory allocated in f_md5.
-	if (f_md5)
-		delete f_md5;
-}
-
-FileRef& FileRef::operator=(const FileRef& other)
-{
-	if (this != &other)
-	{
-		if (f_md5)
-			delete f_md5;
-
-		// Deep copy needed
-		f_url = string(other.f_url);
-		f_size = other.f_size;
-		f_md5 = (other.f_md5 ? strdup(other.f_md5) : NULL);
-	}
-
-	return *this;
-}
-
-void FileRef::setMD5(const char *md5)
-{
-	/// Free any memory allocated in f_md5.
-	if (f_md5)
-		delete f_md5;
-
-	/// Copy md5 into a newly allocated buffer in f_mdt (assuming md5 is
-	/// not NULL).
-	f_md5 = md5 ? strdup(md5) : NULL;
-}
-
-void FileRef::setSize(const off_t size)
-{
-	/// Set f_size to provided size.
-	f_size = size;
 }

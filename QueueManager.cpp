@@ -578,6 +578,11 @@ int main(int argc, char **argv)
 			LOG(LOG_CRIT, "Fatal: %s", e->what());
 			finish = true;
 		}
+		catch (const exception& ex)
+		{
+			LOG(LOG_CRIT, "Fatal: Unhandled exception: %s", ex.what());
+			finish = true;
+		}
 		catch (...)
 		{
 			LOG(LOG_CRIT, "Fatal: Unknown exception caught");

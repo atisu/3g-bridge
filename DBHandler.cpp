@@ -272,7 +272,7 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 		const char *url = res2.get_field(1);
 		const char *md5 = res2.get_field(2);
 		const char *size = res2.get_field(3);
-		FileRef fref(url, md5, size ? atoi(size) : -1);
+		FileRef fref(url, md5?md5:"", size ? atoi(size) : -1);
 		job->addInput(lname, fref);
 	}
 
@@ -514,9 +514,9 @@ bool DBHandler::addJob(Job &job)
 		string path = job.getInputRef(*it).getURL();
 		FileRef fr = job.getInputRef(*it);
 		char *url = escape_string(fr.getURL().c_str());
-		if (fr.getMD5())
+		if (!fr.getMD5().empty())
 		{
-			char *md5 = escape_string(fr.getMD5());
+			char *md5 = escape_string(fr.getMD5().c_str());
 			success &= query("INSERT INTO cg_inputs (id, localname, url, md5, filesize) VALUES ('%s', '%s', '%s', '%s', '%ld')",
 				job.getId().c_str(), it->c_str(), url, md5, fr.getSize());
 			free(md5);
@@ -765,9 +765,9 @@ void DBHandler::updateInputPath(const string &jobid, const string &localName,
 				const FileRef &ref)
 {
 	char *url = escape_string(ref.getURL().c_str());
-	if (ref.getMD5())
+	if (!ref.getMD5().empty())
 	{
-		char *md5 = escape_string(ref.getMD5());
+		char *md5 = escape_string(ref.getMD5().c_str());
 		query("UPDATE cg_inputs "
 		      "SET url = '%s', md5=%s, filesize=%ld "
 		      "WHERE id = '%s' AND localname = '%s'",

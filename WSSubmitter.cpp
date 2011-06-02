@@ -494,7 +494,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 		      			
 			if ('/' != URL[0])
 			{
-				FileRef a(URL, md5 ? md5->c_str() : NULL, size ? atoi(size->c_str()) : -1);
+				FileRef a(URL, (md5 ? *md5 : ""), size ? atoi(size->c_str()) : -1);
 				qmjob->addInput(fname, a);
 				inputs.push_back(pair<string, FileRef>(fname, a));
 			}
@@ -530,7 +530,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 				md5file.close();
 				struct stat st;
 				stat(dimepath.c_str(), &st);
-				FileRef a(path, md5.c_str(), st.st_size);
+				FileRef a(path, md5, st.st_size);
 				qmjob->addInput(fname, a);
 				inputs.push_back(pair<string, FileRef>(fname, a));
 				unlink(md5path.c_str());
@@ -844,6 +844,10 @@ static void soap_service_handler(void *data, void *user_data G_GNUC_UNUSED)
 		LOG(LOG_ERR, "SOAP: Caught exception: %s", e->what());
 		delete e;
 	}
+	catch (const exception &ex)
+	{
+		LOG(LOG_ERR, "SOAP: Caught unhandled exception: %s", ex.what());
+	}	
 	catch (...)
 	{
 		LOG(LOG_ERR, "SOAP: Caught unhandled exception");

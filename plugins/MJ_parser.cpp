@@ -246,7 +246,7 @@ namespace _3gbridgeParser
 			const FileRef &fr = i->second;
 			output << KW_INPUT<<' '<<EQ<<' '
 			       << i->first<<EQ<< fr.getURL();
-			if (fr.getMD5())
+			if (!fr.getMD5().empty())
 			{
 				output << EQ << fr.getMD5();
 				if (fr.getSize() >= 0)
@@ -387,9 +387,7 @@ static FileRef parseInputSpecs(int lineNum, CSTR spec, string &logicalName)
 	}
 	string key = string(spec, endkey-spec);
 	logicalName.swap(key);
-	return FileRef(url,
-		       md5.empty() ? 0L : md5.c_str(),
-		       isize);
+	return FileRef(url, md5, isize);
 }
 
 static Count parsePcArg(int lineNum, CSTR value, CSTR_C rng[])
