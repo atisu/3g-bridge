@@ -370,6 +370,13 @@
 		and submits the generated sub-jobs to their respective grid
 		handlers.
 	      </para>
+	      <para>
+		The name of the grid handled by this plugin MUST be [Metajob],
+		as the wssubmitter will always submit meta-jobs to this
+		grid. (The plugin itself does not depend on this. If the
+		meta-job is inserted through a different method than
+		wssubmitter, this restriction can be eliminated.)
+	      </para>
 	    </listitem>
 	</itemizedlist>
     </refsect1>
