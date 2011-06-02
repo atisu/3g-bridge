@@ -60,7 +60,6 @@ CSTR_C CFG_OUTDIR = "output-dir";
 CSTR_C CFG_INDIR = "input-dir";
 
 CSTR_C CFG_MAXJOBS = "maxJobsAtOnce";
-CSTR_C CFG_MINEL = "minElapse";
 CSTR_C CFG_OUTURL = "output-url-prefix";
 
 CSTR_C MAP_SUFFIX = "-mapping.txt";
@@ -115,9 +114,6 @@ MetajobHandler::MetajobHandler(GKeyFile *config, const char *instance)
 
 	//Default: unlimited
 	maxJobsAtOnce = getConfInt(config, name.c_str(), CFG_MAXJOBS, 0);
-	//TODO: unneccesary
-	//Default: always	
-	minElapse = getConfInt(config, name.c_str(), CFG_MINEL, 0);
 
 	outDirBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_OUTDIR);
 	inDirBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_INDIR);
@@ -126,8 +122,8 @@ MetajobHandler::MetajobHandler(GKeyFile *config, const char *instance)
 	LOG(LOG_INFO,
 	    "Metajob Handler: instance '%s' initialized.", name.c_str());
 	LOG(LOG_INFO,
-	    "MJ instance '%s': %s = %lu, %s = %lu",
-	    name.c_str(), CFG_MAXJOBS, maxJobsAtOnce, CFG_MINEL, minElapse);
+	    "MJ instance '%s': %s = %lu",
+	    name.c_str(), CFG_MAXJOBS, maxJobsAtOnce);
 }
 
 void MetajobHandler::submitJobs(JobVector &jobs)
@@ -344,9 +340,8 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 
 	if (job->getStatus() != Job::RUNNING)
 		throw BackendException("Job '%s' has unexpected status: %d",
-				      jid.c_str(), job->getStatus());
+				       jid.c_str(), job->getStatus());
 
-	bool updateNeeded = false;
 	bool cleanupNeeded = false;
 
 	// Stats can't be initialized here, because it would be voided after
@@ -364,13 +359,13 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 		if (isArchivingSuccessful(job))
 		{
 			job->setStatus(Job::FINISHED);
-			updateNeeded = cleanupNeeded = true;
+			cleanupNeeded = true;
 		}
 		else
 		{
 			stats->errorMsg = archivingError(job);
 			job->setStatus(Job::ERROR);
-			updateNeeded = cleanupNeeded = true;
+			cleanupNeeded = true;
 		}
 	}
 	else if (isArchivingProcessRunning(job))
@@ -388,15 +383,14 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 		// processing the output.
 		stats = getMetajobStatusInfo(job, dbh);
 
-		updateJobStatus(job, dbh, stats.get(),
-				&updateNeeded, &cleanupNeeded);
+		updateJobStatus(job, dbh, stats.get(), &cleanupNeeded);
 	}
 
 	// This information is either uninitialized or updateJobStatus changed
 	// it -- query (again)
 	stats = getMetajobStatusInfo(job, dbh);
 	
-	updateStatsFileIfNeccesary(job, dbh, *stats, updateNeeded);
+	updateStatsFileIfNeccesary(job, dbh, *stats);
 
 	if (cleanupNeeded)
 	{
@@ -454,7 +448,6 @@ auto_ptr<MJStats> MetajobHandler::getMetajobStatusInfo(const Job *job,
 
 void MetajobHandler::updateJobStatus (Job *job, DBHWrapper &dbh,
 				      MJStats *stats,
-				      bool *updateNeeded,
 				      bool *cleanupNeeded) const
 {
 	// These are events. They're handled at the end of this function.
@@ -464,8 +457,7 @@ void MetajobHandler::updateJobStatus (Job *job, DBHWrapper &dbh,
 	if (stats->finished >= stats->succAt)
 	{
 		// Goal has been reached
-		metajobSuccess =
-			*updateNeeded = true;
+		metajobSuccess = true;
 	}
 	else if (stats->err > stats->count - stats->required)
 	{
@@ -473,14 +465,11 @@ void MetajobHandler::updateJobStatus (Job *job, DBHWrapper &dbh,
 		// successful jobs. Cancel everything.
 		stats->errorMsg = "Too many jobs failed.";
 		metajobError =
-			*updateNeeded =
 			*cleanupNeeded = true;
 	}
 	else if (stats->finished + stats->err == stats->count)
 	{
 		// All jobs finished in some final state.
-		*updateNeeded = true;
-
 		if (stats->finished >= stats->required)
 		{
 			// Enough sub-jobs terminated in FINISHED
@@ -522,7 +511,7 @@ void MetajobHandler::updateJobStatus (Job *job, DBHWrapper &dbh,
 }
 
 void MetajobHandler::updateStatsFileIfNeccesary(
-	Job *job, DBHWrapper &dbh, const MJStats &stats, bool updateNeeded) const
+	Job *job, DBHWrapper &dbh, const MJStats &stats) const
 {
 	const string &jid = job->getId();
 
@@ -530,68 +519,54 @@ void MetajobHandler::updateStatsFileIfNeccesary(
 	const string statsFile = calc_file_path(outDirBase, jid, statsFilename);
 
 	const time_t now = time(NULL);
-	struct stat st;
-	const bool statsExists = !stat(statsFile.c_str(), &st);
-	//TODO: unneccesary
-	const bool fileOldEnough = (now - st.st_mtime) > (int)minElapse;
+	
+	const string &urlBase = MKStr()
+		<< outURLBase << '/'
+		<< jid[0] << jid[1] << '/'
+		<< jid << '/';
 
-	// ...IfNeccesary :=
-	if (updateNeeded || !(statsExists) || fileOldEnough)
+	map<string, size_t> histo = dbh->getSubjobHisto(jid);
+	ofstream stat(statsFile.c_str(), ios::trunc);
+
+	const size_t notStarted = histo["INIT"] + histo["PREPARE"];
+	const size_t running =
+		histo["FINISHED"]+histo["RUNNING"]+histo["TEMPFAILED"];
+	const size_t stillNeed =
+		(job->getStatus() == Job::RUNNING
+		 && stats.succAt > stats.finished)
+		? stats.succAt - stats.finished
+		: 0;
+	const size_t count = stats.count;
+	const bool jobFinished = job->getStatus() == Job::FINISHED;
+	const bool archiving = isArchivingProcessRunning(job);
+
+	stat << "# Stat generated at "<< asctime(localtime(&now))<< endl
+	     << "Meta-job ID: " << jid << endl
+	     << "Meta-job STATUS: " << statToStr(job->getStatus()) << endl;
+	if (archiving)
+		stat << "  Packing sub-jobs' output..." << endl;
+	if (!stats.errorMsg.empty())
+		stat << "Error message: " << stats.errorMsg << endl;
+
+	stat << endl
+	     << "# Generation report" << endl
+	     << "Total generated: " << pc(stats.count, count) << endl
+	     << "Required:        " << pc(stats.required, count) << endl
+	     << "Success at:      " << pc(stats.succAt, count) << endl;
+	if (jobFinished)
 	{
-		const string &urlBase = MKStr()
-			<< outURLBase << '/'
-			<< jid[0] << jid[1] << '/'
-			<< jid << '/';
-
-		map<string, size_t> histo = dbh->getSubjobHisto(jid);
-		ofstream stat(statsFile.c_str(), ios::trunc);
-
-		const size_t notStarted = histo["INIT"] + histo["PREPARE"];
-		const size_t running =
-			histo["FINISHED"]+histo["RUNNING"]+histo["TEMPFAILED"];
-		const size_t stillNeed =
-			(job->getStatus() == Job::RUNNING
-			 && stats.succAt > stats.finished)
-			? stats.succAt - stats.finished
-			: 0;
-		const size_t count = stats.count;
-		const bool jobFinished = job->getStatus() == Job::FINISHED;
-		const bool archiving = isArchivingProcessRunning(job);
-
-		stat << "# Stat generated at "<< asctime(localtime(&now))<< endl
-		     << "Meta-job ID: " << jid << endl
-		     << "Meta-job STATUS: " << statToStr(job->getStatus()) << endl;
-		if (archiving)
-			stat << "  Packing sub-jobs' output..." << endl;
-		if (!stats.errorMsg.empty())
-			stat << "Error message: " << stats.errorMsg << endl;
-
-		stat << endl
-		     << "# Generation report" << endl
-		     << "Total generated: " << pc(stats.count, count) << endl
-		     << "Required:        " << pc(stats.required, count) << endl
-		     << "Success at:      " << pc(stats.succAt, count) << endl;
-		if (jobFinished)
-		{
-		     stat << "Mapping: "
-			  << urlBase << jid << MAP_SUFFIX << endl;
-		}
-		stat << endl
-		     << "# Status report" << endl
-		     << "Not started:     " << pc(notStarted, count) << endl
-		     << "Running:         " << pc(running, count) << endl
-		     << "Error:           " << pc(stats.err, count) << endl
-		     << "Finished:        " << pc(stats.finished, count) << endl
-		     << "Still need:      " << pc(stillNeed, count) << endl;
-		// if (jobFinished)
-		// {
-		// 	// Discarded jobs (due to reaching succAt)
-		// 	stat << "Discarded:  "
-		// 	     << pc(histo["CANCEL"], count) << endl;
-		// }
-
-		job->setGridData(urlBase + statsFilename);
+		stat << "Mapping: "
+		     << urlBase << jid << MAP_SUFFIX << endl;
 	}
+	stat << endl
+	     << "# Status report" << endl
+	     << "Not started:     " << pc(notStarted, count) << endl
+	     << "Running:         " << pc(running, count) << endl
+	     << "Error:           " << pc(stats.err, count) << endl
+	     << "Finished:        " << pc(stats.finished, count) << endl
+	     << "Still need:      " << pc(stillNeed, count) << endl;
+
+	job->setGridData(urlBase + statsFilename);
 }
 
 void MetajobHandler::processFinishedSubjobsOutputs (

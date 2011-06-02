@@ -122,12 +122,11 @@ private:
 	 * Updates the status of the meta-job using statistics about sub-jobs */
 	void updateJobStatus(
 		Job *job, DBHWrapper &dbh, MJStats *stats,
-		bool *updateNeeded, bool *cleanupNeeded) const;
+		bool *cleanupNeeded) const;
 	/**
 	 * Updates the statistics file if found to be neccesary */
 	void updateStatsFileIfNeccesary(
-		Job *job, DBHWrapper &dbh, const MJStats &stats,
-		bool updateNeeded) const;
+		Job *job, DBHWrapper &dbh, const MJStats &stats) const;
 	/**
 	 * Cancels the meta-job and its sub-jobs */
 	void userCancel(Job* job) const;
@@ -182,10 +181,6 @@ private:
 	 * From configuration: Max number of jobs to generate in an
 	 * iteration. */
 	size_t maxJobsAtOnce;
-	/**
-	 * From configuration: Minimum time (in seconds) to elapse between
-	 * updates sub-jobs' status report */
-	size_t minElapse;
 	/**
 	 * From configuration: Output base directory. */
 	string outDirBase;
