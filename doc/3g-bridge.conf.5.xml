@@ -357,9 +357,18 @@
 		plugin does not submit jobs. Instead, the plugin simply changes
 		handled jobs' statuses from INIT to RUNNING, and from RUNNING to
 		FINISHED. Also, dummy output files are created matching the
-		output specification in the table cg_outputs. If configured so,
-		the Null handler will fail jobs with a given probability. In
-		this case, no output is generated.
+		output specification in the table cg_outputs.
+	      </para>
+	      <para>
+		If configured so, the Null handler will fail jobs with a given
+		probability. In this case, no output is generated.
+	      </para>
+	    </listitem>
+	    <listitem>
+	      <para>
+		<literal>Metajob</literal>: The Metajob plugin unfolds meta-jobs
+		and submits the generated sub-jobs to their respective grid
+		handlers.
 	      </para>
 	    </listitem>
 	</itemizedlist>
@@ -826,6 +835,23 @@
 	    </para>
 	    <para>
 		Optional, default value is 0. (No job will fail.)
+	    </para>
+	  </glossdef>
+	</glossentry>
+      </glosslist>
+    </refsect1>
+
+    <refsect1>
+      <title>OPTIONS FOR THE METAJOB PLUGIN</title>
+      
+      <glosslist>
+	<glossentry>
+	  <glossterm><envar>maxJobsAtOnce</envar></glossterm>
+	  <glossdef>
+	    <para>
+	      Integer; unfolding of a meta-job is suspended after generating so
+	      many sub-jobs, yielding up control to other plugins. Required. The
+	      value 0 means infinity.
 	    </para>
 	  </glossdef>
 	</glossentry>
