@@ -147,6 +147,11 @@ public:
 	const string &getArgs() const { return args; }
 
 	/**
+	 * Changes the arguments of the job.
+	 */
+	void setArgs(const string &args);
+
+	/**
 	 * Get the job's algorithm queue.
 	 * This function returns the pointer to the algorithm queue the job
 	 * belongs to.
@@ -188,6 +193,14 @@ public:
 	const FileRef &getInputRef(const string localname) { return inputs[localname]; }
 
 	/**
+	 * Get all file reference info at once.
+	 * @see inputs
+	 * @see FileRef
+	 * @return A maping of logical names to input file references.
+	 */
+	const map<string, FileRef> &getInputRefs() const { return inputs; }
+
+	/**
 	 * Add an output file to the job.
 	 * This function adds an output file to the job.
 	 * @see outputs
@@ -214,6 +227,8 @@ public:
 	 * @return the expected filesystem location of the output file
 	 */
 	const string &getOutputPath(const string localname) { return outputs[localname]; }
+
+	const map<string, string> &getOutputMap() const { return outputs; }
 
 	/**
 	 * Set the job's grid identifier.
@@ -246,6 +261,20 @@ public:
 	 * @return the job's grid data
 	 */
 	const string &getGridData() const { return gridData; }
+
+	/**
+	 * Sets the id of the parent meta-job.
+	 * @see metajobid
+	 * @param mjId the meta-job id to set
+	 */
+	void setMetajobId(const string &mjId);
+
+	/**
+	 * Get the id of the parent meta-job (if any).
+	 * @see metajobid
+	 * @return the id of the parent meta-job
+	 */
+	const string &getMetajobId() const { return metajobid; }
 
 	/**
 	 * Set the job's tag.
@@ -319,6 +348,9 @@ public:
 private:
 	/// The job's unique identifier.
 	string id;
+
+	/// The id of the parent meta-job (if any) 
+	string metajobid;
 
 	/// The executable/application name belonging to the job.
 	string name;

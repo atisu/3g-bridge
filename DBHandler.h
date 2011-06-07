@@ -35,6 +35,7 @@
 
 #include <string>
 #include <memory>
+#include <map>
 
 #include <mysql.h>
 #include <glib.h>
@@ -42,9 +43,16 @@
 
 using namespace std;
 
+/**
+ * Converts the given job status to its string equivalent.
+ */
+const char *statToStr(Job::JobStatus stat);
 
 class DBResult;
 
+/**
+ * Histogram for the statuses of a meta-job's existing sub-jobs.  */
+typedef map<Job::JobStatus, size_t> MJHistogram;
 
 /**
  * Database handler class. This class is responsible for providing an interface
@@ -148,6 +156,13 @@ class DBHandler {
 	 * @param stat job status to look at
 	 */
 	void getCompleteWUsSingle(vector<string> &ids, const string &grid, Job::JobStatus stat);
+
+	/**
+	 * Update a job's parent meta-job id
+	 * @param ID the job's identifier
+	 * @param metajobid the id of the parent meta-job
+	 */
+	void updateJobMetajobId(const string &ID, const string &metajobid);
 
 	/**
 	 * Update a job's grid identifier.
@@ -301,6 +316,7 @@ class DBHandler {
 	void getAllDLs(void (*cb)(const char *jobid, const char *localName,
 			const char *url, const struct timeval *next, int retries));
 
+	size_t getDLCount(const string &jobid);
 	/**
 	 * Updata a download's input path.
 	 * The function can be used to update the filesystem path of input
@@ -310,6 +326,22 @@ class DBHandler {
 	 * @param path the new path of the file
 	 */
 	void updateInputPath(const string &jobid, const string &localName, const string &path);
+	void updateInputPath(const string &jobid, const string &localName,
+			     const FileRef &ref);
+	void setMetajobChildrenStatus(const string &mjid, Job::JobStatus newstat);
+	void changeJobArgs(const string &jobid, const string &jobargs);
+
+	void getSubjobCounts(const string &jobid, size_t &all, size_t &err);
+	void removeMetajobChildren(const string &jobid);
+	void discardPendingSubjobs(const string &parentId);
+	void cancelAndDeleteRemainingSubjobs(const string &parentId);
+
+	void getFinishedSubjobs(const string &parentId,
+				JobVector &jobs,
+				size_t limit);
+	map<string, size_t> getSubjobHisto(const string &jobid);
+
+	void copyEnv(const string &srcId, const string &dstId);
 
     protected:
 	/// DBResult friend class.
@@ -421,6 +453,20 @@ class DBResult {
 
 	/// Number of fields in the result
 	int field_num;
+};
+
+/**
+ * Implements finally clause to use DBHandler safely */
+class DBHWrapper
+{
+protected:
+	DBHandler *dbh;
+public:
+	DBHWrapper() { dbh = DBHandler::get(); }
+	~DBHWrapper() { DBHandler::put(dbh); }
+
+	DBHandler *operator->() { return dbh; }
+	DBHandler *operator*() { return dbh; }
 };
 
 #endif /* DBHANDLER_H */

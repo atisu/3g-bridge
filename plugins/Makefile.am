@@ -34,6 +34,11 @@ if HAVE_EC2
 pkglib_LTLIBRARIES += EC2_handler.la
 endif
 
+pkglib_LTLIBRARIES += Metajob_handler.la
+
+Metajob_handler_la_SOURCES = MJ_parser.cpp MJ_parser.h Metajob_handler.cpp Metajob_handler.h
+Metajob_handler_la_LIBADD = #TODO
+
 BOINC_monitor_la_SOURCES = BOINC_monitor.cpp BOINC_monitor.h
 BOINC_monitor_la_LIBADD = -lsched $(AM_LIBADD)
 

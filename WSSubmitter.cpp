@@ -77,6 +77,9 @@ using namespace std;
  * Global variables
  */
 
+/* Configuration: Name of meta-job grid */
+static char const * const metaJobGrid = "Metajob"; //TODO: make configurable
+
 /**
  * Path prefix for input files' download.
  * This variable stores the path of the directory under which jobs' input files
@@ -468,9 +471,38 @@ static void fdimewriteclose(struct soap *soap, void *handle)
 	free(tdmd5);
 }
 
+/**********************************************************************
+ * Check whether a file is a meta-job specification.
+ */
+bool isMetaJobSpec(const string &fname)
+{
+	return !strncmp("_3gb-metajob", fname.c_str(), 12); //startswith
+}
 
-/**
- * Database-aware wrapper for DLItem.
+/**********************************************************************
+ * Check whether submitted job is meta-job.
+ * Throws exception if multiple _3gb-metajob* files are specified.
+ */
+bool checkMetaJob(const G3BridgeSubmitter__Job &wsjob) throw(int)
+{
+	bool isMetaJob = false;
+	for (vector<G3BridgeSubmitter__LogicalFile *>::const_iterator inpit = wsjob.inputs.begin(); inpit != wsjob.inputs.end(); inpit++)
+	{
+		if (isMetaJobSpec((*inpit)->logicalName))
+		{
+			// If multiple meta-job files specified -- reject
+			if (isMetaJob)
+				throw 1;
+			else
+				isMetaJob = true; //Don't break, check whether there are too many specified
+		}
+	}
+
+	return isMetaJob;
+}
+
+/**********************************************************************
+ * Database-aware wrapper for DLItem
  */
 class DBItem: public DLItem
 {
@@ -546,33 +578,17 @@ void DBItem::finished()
 
 	DBHandler *dbh = DBHandler::get();
 	dbh->deleteDL(jobId, logicalFile);
-	auto_ptr<Job> job = dbh->getJob(jobId);
-	DBHandler::put(dbh);
 
-	if (!job.get())
-	{
-		failed();
-		return;
-	}
 
 	/// Checks if all the input files of the job are available.
-	auto_ptr< vector<string> > inputs = job->getInputs();
-	bool job_ready = true;
-	for (vector<string>::const_iterator it = inputs->begin(); job_ready && it != inputs->end(); it++)
+	if (0 == dbh->getDLCount(jobId))
 	{
-		struct stat st;
-
-		string path = (job->getInputRef(*it)).getURL();
-		if (stat(path.c_str(), &st))
-			job_ready = false;
-	}
-	/// If all the input file are available, the job's status is set to
-	/// INIT.
-	if (job_ready)
-	{
+		auto_ptr<Job> job = dbh->getJob(jobId);
 		job->setStatus(Job::INIT);
 		LOG(LOG_INFO, "Job %s: Preparation complete", jobId.c_str());
 	}
+
+	DBHandler::put(dbh);
 }
 
 
@@ -614,6 +630,7 @@ void DBItem::setRetry(const struct timeval &when, int retries)
 /**********************************************************************
  * Web service routines
  */
+
 /**
  * Job submission handler.
  * This function is invoked if jobs are submitted through the web service interface.
@@ -625,6 +642,7 @@ void DBItem::setRetry(const struct timeval &when, int retries)
 int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *jobs, G3BridgeSubmitter__JobIDList *result)
 {
 	DBHandler *dbh;
+	LOG(LOG_INFO, "Starting submission...");
 
 	try
 	{
@@ -656,12 +674,34 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 
 		/// Creates a new Job object for the job.
 		G3BridgeSubmitter__Job *wsjob = *jobit;
-		Job *qmjob = new Job((const char *)jobid, wsjob->alg.c_str(), wsjob->grid.c_str(), wsjob->args.c_str(), Job::INIT, &wsjob->env);
 
+		LOG(LOG_INFO, "Checking if meta-job");
+		bool isMetaJob = false;
+		try { isMetaJob = checkMetaJob(*wsjob); }
+		catch (int)
+		{
+			LOG(LOG_ERR,
+			    "submit: Multiple _3gb-metajob "
+			    "files are specified.");
+			return SOAP_FATAL_ERROR; //TODO: check
+		}
+
+		if (isMetaJob)
+			LOG(LOG_INFO, "Yes, this is a meta-job");
+
+		char const * destinationGrid =
+			isMetaJob
+			? metaJobGrid
+			: wsjob->grid.c_str();
+		LOG(LOG_DEBUG, "Destination grid: '%s'", destinationGrid);
+		Job *qmjob = new Job((const char *)jobid, wsjob->alg.c_str(), destinationGrid, wsjob->args.c_str(), Job::INIT, &wsjob->env);
+		
+		LOG(LOG_DEBUG, "Setting tag");
 		/// If tag is set, sets the tag for the Job object.
 		if (wsjob->tag)
 			qmjob->setTag(*(wsjob->tag));
 
+		LOG(LOG_DEBUG, "Adding inputs");
 		/// Iterates through the input files.
 		for (vector<G3BridgeSubmitter__LogicalFile *>::const_iterator inpit = wsjob->inputs.begin(); inpit != wsjob->inputs.end(); inpit++)
 		{
@@ -671,7 +711,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 			string *md5 = lfn->md5;
 			string *size = lfn->size;
 			string fname = lfn->logicalName;
-
+		      			
 			if (fname == "" || URL == "")
 			{
 				qmjob->deleteJob();
@@ -715,7 +755,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 				md5file.close();
 				struct stat st;
 				stat(dimepath.c_str(), &st);
-				FileRef a(path, md5.c_str(), st.st_size);
+				FileRef a(path, md5, st.st_size);
 				qmjob->addInput(fname, a);
 				inputs.push_back(pair<string, FileRef>(fname, a));
 				unlink(md5path.c_str());
@@ -723,6 +763,8 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 			}
 		}
 
+
+		LOG(LOG_DEBUG, "Adding outputs");
 		/// Iterates through the output files, and adds them to the job.
 		for (vector<string>::const_iterator outit = wsjob->outputs.begin(); outit != wsjob->outputs.end(); outit++)
 		{
@@ -735,6 +777,7 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 			qmjob->addOutput(*outit, path);
 		}
 
+		LOG(LOG_DEBUG, "Saving job");
 		/// Adds the job to the database.
 		if (!dbh->addJob(*qmjob))
 		{
@@ -743,7 +786,19 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 				dbh->deleteJob(*idit);
 			return soap_receiver_fault(soap, "Failed to add job to database", "Failed to add job to the database. This is probably caused by using a wrong grid or algorithm name.");
 		}
-		LOG(LOG_INFO, "Job %s: Accepted", jobid);
+
+		if (isMetaJob)
+		{
+			//Store original destination grid
+			LOG(LOG_INFO, "Meta-job original grid: '%s'", wsjob->grid.c_str());
+			qmjob->setGridId(wsjob->grid);
+		}
+
+		if (isMetaJob)
+			LOG(LOG_INFO, "Job %s: Accepted as meta-job", jobid);
+		else
+			LOG(LOG_INFO, "Job %s: Accepted", jobid);
+
 		logit_mon("event=job_entry job_id=%s application=%s", jobid, qmjob->getName().c_str());
 
 		/// Adds the job's unique identifier to the result.
@@ -830,6 +885,8 @@ int __G3BridgeSubmitter__getStatus(struct soap *soap, G3BridgeSubmitter__JobIDLi
  */
 int __G3BridgeSubmitter__delete(struct soap *soap, G3BridgeSubmitter__JobIDList *jobids, struct __G3BridgeSubmitter__deleteResponse &result)
 {
+	//TODO: delete files
+
 	DBHandler *dbh;
 
 	try
@@ -1104,6 +1161,10 @@ static void soap_service_handler(void *data, void *user_data)
 		LOG(LOG_ERR, "SOAP: Caught exception: %s", e->what());
 		delete e;
 	}
+	catch (const exception &ex)
+	{
+		LOG(LOG_ERR, "SOAP: Caught unhandled exception: %s", ex.what());
+	}	
 	catch (...)
 	{
 		LOG(LOG_ERR, "SOAP: Caught unhandled exception");

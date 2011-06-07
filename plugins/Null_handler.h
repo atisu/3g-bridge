@@ -39,6 +39,7 @@ using namespace std;
  * status to RUNNING, and upon status update sets their status to FINISHED.
  */
 class NullHandler : public GridHandler {
+	int failure_pct;
     public:
 	/**
 	 * Constructor.

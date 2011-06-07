@@ -523,6 +523,8 @@ static bool runHandler(GridHandler *handler)
 	bool work_done = false;
 	JobVector jobs;
 
+	LOG(LOG_DEBUG, "Running handler '%s'", handler->getName());
+
 	if (handler->schGroupByNames())
 	{
 		vector<AlgQueue *> algs;
@@ -533,7 +535,7 @@ static bool runHandler(GridHandler *handler)
 			DBHandler *dbh = DBHandler::get();
 			dbh->getJobs(jobs, handler->getName(), (*it)->getName(), Job::INIT, selectSizeAdv(*it));
 			DBHandler::put(dbh);
-
+			
 			if (!jobs.empty())
 			{
 				try {
@@ -564,6 +566,8 @@ static bool runHandler(GridHandler *handler)
 			try {
 				handler->submitJobs(jobs);
 			} catch (DLException *e) {
+				LOG(LOG_DEBUG,
+				    "Missing file(s), adding download requests");
 				addDownload(e);
 				delete e;
 			}
@@ -835,6 +839,11 @@ int main(int argc, char **argv)
 		catch (QMException *e)
 		{
 			LOG(LOG_CRIT, "Fatal: %s", e->what());
+			finish = true;
+		}
+		catch (const exception& ex)
+		{
+			LOG(LOG_CRIT, "Fatal: Unhandled exception: %s", ex.what());
 			finish = true;
 		}
 		catch (...)

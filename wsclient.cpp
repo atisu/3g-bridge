@@ -41,6 +41,7 @@
 
 #include "soap/SubmitterH.h"
 #include "soap/Submitter.nsmap"
+#include <sys/stat.h>
 
 #include <glib.h>
 

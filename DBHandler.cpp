@@ -148,7 +148,11 @@ bool DBHandler::query(const char *fmt, ...)
 		throw new QMException("Not connected to the database");
 
 	va_start(ap, fmt);
-	vasprintf(&qstr, fmt, ap);
+	if (0 > vasprintf(&qstr, fmt, ap))
+	{
+		LOG(LOG_ERR, "Query [%s] has failed: vasprintf failed.", qstr);
+		return false;
+	}
 	va_end(ap);
 
 	if (mysql_query(conn, qstr))
@@ -198,7 +202,7 @@ DBHandler::~DBHandler()
 }
 
 
-static const char *statToStr(Job::JobStatus stat)
+const char *statToStr(Job::JobStatus stat)
 {
 	if (stat < 0 || stat > (int)(sizeof(status_str) / sizeof(status_str[0])))
 		throw new QMException("Unknown job status value %d", (int)stat);
@@ -211,6 +215,7 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 	uuid_t uuid;
 
 	const char *alg = res.get_field("alg");
+	const char *metajobid = res.get_field("metajobid");
 	const char *grid = res.get_field("grid");
 	const char *args = res.get_field("args");
 	const char *gridid = res.get_field("gridid");
@@ -247,6 +252,8 @@ auto_ptr<Job> DBHandler::parseJob(DBResult &res)
 		job->setGridData(griddata);
 	if (tag)
 		job->setTag(tag);
+	if (metajobid)
+		job->setMetajobId(metajobid);
 
 	// Get inputs for job from db
 	DBHandler *dbh = get();
@@ -428,6 +435,12 @@ void DBHandler::updateAlgQStat(const char *gridId, unsigned pSize, unsigned pTim
 	updateAlgQStat(algQ, pSize, pTime);
 }
 
+void DBHandler::updateJobMetajobId(const string &ID, const string &metajobid)
+{
+	char *mjid = escape_string(metajobid.c_str());
+	query("UPDATE cg_job SET metajobid='%s' WHERE id='%s'", mjid, ID.c_str());
+	free(mjid);
+}
 
 void DBHandler::updateJobGridID(const string &ID, const string &gridID)
 {
@@ -630,6 +643,12 @@ void DBHandler::addAlgQ(const char *grid, const char *alg, unsigned batchsize)
 		grid, alg, batchsize);
 }
 
+void DBHandler::changeJobArgs(const string &jobid, const string &jobargs)
+{
+	auto_ptr<char> a(escape_string(jobargs.c_str()));
+	query("UPDATE cg_job SET args = '%s' WHERE id = '%s';",
+	      a.get(), jobid.c_str());
+}
 
 vector<string> DBHandler::getAlgs(const string &grid)
 {
@@ -750,6 +769,31 @@ void DBHandler::updateInputPath(const string &jobid, const string &localName,
 	free(url);
 }
 
+void DBHandler::updateInputPath(const string &jobid, const string &localName,
+				const FileRef &ref)
+{
+	char *url = escape_string(ref.getURL().c_str());
+	if (!ref.getMD5().empty())
+	{
+		char *md5 = escape_string(ref.getMD5().c_str());
+		query("UPDATE cg_inputs "
+		      "SET url = '%s', md5=%s, filesize=%ld "
+		      "WHERE id = '%s' AND localname = '%s'",
+		      url, md5, ref.getSize(),
+		      jobid.c_str(), localName.c_str());
+		free(md5);
+	}
+	else
+	{
+		query("UPDATE cg_inputs "
+		      "SET url = '%s', md5=null, filesize=%ld "
+		      "WHERE id = '%s' AND localname = '%s'",
+		      url, ref.getSize(),
+		      jobid.c_str(), localName.c_str());
+	}
+	free(url);
+}
+
 void DBHandler::init(GKeyFile *config)
 {
 	GError *error = NULL;
@@ -826,4 +870,124 @@ char *DBHandler::escape_string(const char *input)
 	char *dbuf = (char *)malloc(2*inlen+1);
 	mysql_real_escape_string(conn, dbuf, input, inlen);
 	return dbuf;
+}
+
+void DBHandler::setMetajobChildrenStatus(const string &mjid, Job::JobStatus newstat)
+{
+	query("UPDATE cg_job SET status='%s' WHERE metajobid='%s'", statToStr(newstat), mjid.c_str());
+}
+
+void DBHandler::removeMetajobChildren(const string &jobid)
+{
+	query("DELETE FROM cg_job WHERE metajobid = '%s'", jobid.c_str());
+}
+
+void DBHandler::getSubjobCounts(const string &jobid, size_t &all, size_t &err)
+{
+	{
+		query("SELECT COUNT(*) FROM cg_job WHERE metajobid='%s'",
+		      jobid.c_str());
+
+		DBResult res(this);
+		res.use(); res.fetch();
+		sscanf(res.get_field(0), "%lu", &all);
+	}
+
+	{
+		query("SELECT COUNT(*) FROM cg_job WHERE metajobid='%s'"
+		      " AND status='ERROR'",
+		      jobid.c_str());
+
+		DBResult res(this);
+		res.use(); res.fetch();
+		sscanf(res.get_field(0), "%lu", &err);
+	}
+}
+
+map<string, size_t> DBHandler::getSubjobHisto(const string &jobid)
+{
+	query(" SELECT status, COUNT(*) FROM cg_job"
+	      " WHERE metajobid='%s' GROUP BY status"
+	      " ORDER BY"
+	      "  case"
+	      "   when status = 'PREPARE' then 0"
+	      "   when status = 'INIT' then 1"
+	      "   when status = 'RUNNING' then 2"
+	      "   when status = 'FINISHED' then 3"
+	      "   else 100"
+	      "  end",
+	      jobid.c_str());
+	DBResult res(this);
+	res.use();
+	map<string, size_t> histo;
+	while (res.fetch())
+	{
+		string name = string(res.get_field(0));
+		size_t count = 0;
+		sscanf(res.get_field(1), "%lu", &count);
+		histo.insert(pair<string, size_t>(name, count));
+	}
+	return histo;
+}
+
+void DBHandler::discardPendingSubjobs(const string &parentId)
+{	
+	query("UPDATE cg_job SET status='CANCEL' "
+	      "WHERE metajobid = '%s' and status='RUNNING'",
+	      parentId.c_str());
+	query("UPDATE cg_job SET status='PREPARE' "
+	      "WHERE metajobid = '%s' and status='INIT'",
+	      parentId.c_str());
+}
+void DBHandler::cancelAndDeleteRemainingSubjobs(const string &parentId)
+{
+	query("DELETE FROM cg_job "
+	      "where metajobid = '%s' and status <> 'RUNNING'",
+	      parentId.c_str());
+	query("UPDATE cg_job SET status='CANCEL' "
+	      "where metajobid = '%s' and status='RUNNING'",
+	      parentId.c_str());
+}
+
+void DBHandler::getFinishedSubjobs(const string &parentId,
+				   JobVector &jobs,
+				   size_t limit)
+{
+	char s_limit[32] = "";
+	if (limit)
+		sprintf(s_limit, "LIMIT %lu", limit);
+
+	if (query("SELECT * FROM cg_job "
+		  "WHERE metajobid = '%s' AND status = 'FINISHED' "
+		  "ORDER BY creation_time %s", parentId.c_str(), s_limit))
+	{
+		parseJobs(jobs);
+	}
+}
+
+size_t DBHandler::getDLCount(const string &jobid)
+{
+	size_t count = 0;
+	
+	query("SELECT COUNT(*) FROM cg_download WHERE jobid='%s'",
+	      jobid.c_str());
+	
+	DBResult res(this);
+	res.use();
+	if (res.fetch())
+	{
+		sscanf(res.get_field(0), "%lu", &count);
+	}
+
+	return count;
+}
+
+void DBHandler::copyEnv(const string &srcId, const string &dstId)
+{
+	query("INSERT INTO cg_env (id, name, val) "
+	      "  SELECT '%s', name, val"
+	      "  FROM cg_env"
+	      "  WHERE id = '%s'",
+	      dstId.c_str(),
+	      srcId.c_str());
 }

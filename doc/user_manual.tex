@@ -33,12 +33,28 @@ The 3G bridge can also be deployed as a BOINC daemon. Refer to section \ref{subs
 The 3G bridge should be placed in a separate directory under the home directory of the corresponding BOINC project and should be executed by the project administrator user, to ensure that it has the proper right to access the BOINC database. In this case there is no need to create a separate database for the 3G bridge, but the tables for the 3G bridge can be inserted in the database of the BOINC project.
 
 \subsection{EGEE}
-The 3G bridge can be executed with the EGEE backend solely. In this case, you have to create a separate MySQL database with the neccessary tables supplied in the file {\tt schema.sql}. Refer to section \ref{sec:db} on how to create the tables. If the 3G bridge is to be executed with both backends at the same time, the EGEE backend can use the database of the BOINC project. 
+The 3G bridge can be executed with the EGEE backend solely. In this case, you have to create a separate MySQL database with the neccessary tables supplied in the file {\tt schema.sql}. Refer to section \ref{sec:db} on how to create the tables. If the 3G bridge is to be executed with both backends at the same time, the EGEE backend can use the database of the BOINC project.
+
+\subsection{MetaJob}
+% TODO
+
+The MetaJob backend can be used in conjunction with any other backend. It's
+purpose is to interpret and unfold meta-jobs, submit the resulting sub-jobs to
+real backends, and to gather their status information and output. The MetaJob
+plugin will use the same database as the underlying backend.
+
+When using this feature, the database must be extended with the neccesary fields
+and tables. See \ref{sec:db-metajob} for details.
+
+Also, like other backends, the MetaJob plugin will only handle algorithms
+enabled for it. (See \ref{sec:add-algs}) This means that if one would like to
+submit a certain algorithm to an underlying backend through the MetaJob backend,
+that algorithm must be associated with MetaJob too.
 
 \section{Database}
 \label{sec:db}
 
-The 3G bridge uses database tables to communicate with the job source These tables has to be created prior to first use of the 3G bridge. A database has to be created for the tables of the 3G bridge or in case of the BOINC backend, the tables can be inserted in the database of the BOINC project. Locate the supplied file named {\tt schema.sql} and execute the command below under the administrator user account of the grid environment, to create the neccessary tables for the 3G bridge.
+The 3G bridge uses database tables to communicate with the job source. These tables has to be created prior to first use of the 3G bridge. A database has to be created for the tables of the 3G bridge or in case of the BOINC backend, the tables can be inserted in the database of the BOINC project. Locate the supplied file named {\tt schema.sql} and execute the command below under the administrator user account of the grid environment, to create the neccessary tables for the 3G bridge.
 \begin{verbatim}
 mysql <database_name> < schema.sql
 Assuming the database name is qm_db, eg.:
@@ -46,6 +62,7 @@ mysql qm_db < schema.sql
 \end{verbatim}
 
 \subsection{Adding algorithms to the database}
+\label{sec:add-algs}
 
 Prior to the first use of the 3G bridge the {\tt cg\_algqueue} table has to be populated with algrithms, so the 3G bridge will know which algorithms to handle. To insert a new algorithm into the {\tt cg\_algqueue} table execute the following command after configuring it to your needs:
 
@@ -62,6 +79,16 @@ INSERT INTO cg_algqueue (grid, alg, batchsize) VALUES
 \end{verbatim}
 
 Note that the 3G bridge is capable of managing the same algorithm in multiple grid environments so the above example can be executed multiple times by changing the value of the grid name only.
+
+\subsection{Preparing the database for the MetaJob backend}
+\label{sec:db-metajob}
+
+The MetaJob backend will require additional fields and tables to work. After
+creating the database, the database can be extended using the supplied file {\tt
+  schema-add-metajob.sql}:
+\begin{verbatim}
+mysql <database_name> < schema-add-metajob.sql
+\end{verbatim}
 
 \subsection{Removing algortihms from the database}
 
@@ -205,5 +232,15 @@ EGEE Plugin instances use the following parameters:
 \end{description}
 
 Every EGEE Plugin instance must have a unique name, but different EGEE Plugin instances are allowed to use the same virtual organizations. This is useful for cases when different proxies should be used to submit jobs to a given VO. In this case, two different EGEE Plugin instances can be created using the same \texttt{voname} and \texttt{wmproxy-endpoint}, but different MyProxy settings.
+
+\subsection{MetaJob}
+The MetaJob backend uses the following parameters:
+\begin{description}
+\item[maxJobsAtOnce] When generating jobs, the MetaJob plugin will create about
+  this many sub-jobs at once, then return, so other plugins can continue to
+  work.
+\end{description}
+
+% TODO
 
 \end{document}

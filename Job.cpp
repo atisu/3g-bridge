@@ -38,9 +38,8 @@
 
 using namespace std;
 
-
 Job::Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const vector<string> *env):
-		id(id),name(name),grid(grid),status(status)
+	id(id),name(name),grid(grid),status(status)
 {
 	if (args)
 		this->args = args;
@@ -67,7 +66,6 @@ Job::Job(const char *id, const char *name, const char *grid, const char *args, J
 		}
 	}
 }
-
 
 Job::~Job()
 {
@@ -107,6 +105,15 @@ auto_ptr< vector<string> > Job::getOutputs() const
 	return rval;
 }
 
+void Job::setMetajobId(const string &mjId)
+{
+	metajobid = mjId;
+
+	DBHandler *dbH = DBHandler::get();
+	dbH->updateJobMetajobId(id, metajobid);
+	DBHandler::put(dbH);
+}
+
 
 void Job::setGridId(const string &sID)
 {
@@ -117,6 +124,11 @@ void Job::setGridId(const string &sID)
 	DBHandler::put(dbH);
 }
 
+void Job::setArgs(const string &args)
+{
+	this->args = args;
+	DBHWrapper()->changeJobArgs(id, args);
+}
 
 void Job::setGridData(const string &sData)
 {
