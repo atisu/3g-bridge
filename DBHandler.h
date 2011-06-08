@@ -35,6 +35,7 @@
 
 #include <string>
 #include <memory>
+#include <vector>
 #include <map>
 
 #include <mysql.h>
@@ -342,6 +343,7 @@ class DBHandler {
 	map<string, size_t> getSubjobHisto(const string &jobid);
 
 	void copyEnv(const string &srcId, const string &dstId);
+	vector<string> getSubjobErrors(const string &metajobId);
 
     protected:
 	/// DBResult friend class.

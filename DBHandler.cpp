@@ -34,6 +34,7 @@
 #include "Job.h"
 #include "QMException.h"
 #include "Util.h"
+#include "mkstr"
 
 #include <string>
 
@@ -990,4 +991,24 @@ void DBHandler::copyEnv(const string &srcId, const string &dstId)
 	      "  WHERE id = '%s'",
 	      dstId.c_str(),
 	      srcId.c_str());
+}
+
+vector<string> DBHandler::getSubjobErrors(const string &metajobId)
+{
+	vector<string> result;
+	
+	query("SELECT id, griddata FROM cg_job "
+	      "WHERE metajobid='%s' AND status='ERROR'",
+	      metajobId.c_str());
+	
+	DBResult res(this);
+	res.use();
+	while (res.fetch())
+	{
+		result.push_back(MKStr()
+				 << res.get_field(0)
+				 << " " << res.get_field(1));
+	}
+
+	return result;
 }

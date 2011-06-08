@@ -125,7 +125,7 @@ private:
 		bool *cleanupNeeded) const;
 	/**
 	 * Updates the statistics file if found to be neccesary */
-	void updateStatsFileIfNeccesary(
+	void updateStatsFile(
 		Job *job, DBHWrapper &dbh, const MJStats &stats) const;
 	/**
 	 * Cancels the meta-job and its sub-jobs */

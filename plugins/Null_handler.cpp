@@ -90,7 +90,6 @@ void NullHandler::poll(Job *job) throw (BackendException *)
 
 	auto_ptr<vector<string> > outs = job->getOutputs();
 	bool failed = false;
-	int r;
 	switch (job->getStatus())
 	{
 	case Job::RUNNING:

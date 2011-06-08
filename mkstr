@@ -38,7 +38,7 @@
  *
  * Produces: apple00042
  */
-class MKStr : public std::ostringstream
+class MKStr
 {
 	std::ostringstream stream;
 public:

@@ -39,6 +39,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <vector>
 
 #include "Conf.h"
 #include "Job.h"
@@ -390,7 +391,7 @@ void MetajobHandler::poll(Job *job) throw (BackendException *)
 	// it -- query (again)
 	stats = getMetajobStatusInfo(job, dbh);
 	
-	updateStatsFileIfNeccesary(job, dbh, *stats);
+	updateStatsFile(job, dbh, *stats);
 
 	if (cleanupNeeded)
 	{
@@ -510,7 +511,7 @@ void MetajobHandler::updateJobStatus (Job *job, DBHWrapper &dbh,
 		job->setStatus(Job::ERROR);
 }
 
-void MetajobHandler::updateStatsFileIfNeccesary(
+void MetajobHandler::updateStatsFile(
 	Job *job, DBHWrapper &dbh, const MJStats &stats) const
 {
 	const string &jid = job->getId();
@@ -519,7 +520,7 @@ void MetajobHandler::updateStatsFileIfNeccesary(
 	const string statsFile = calc_file_path(outDirBase, jid, statsFilename);
 
 	const time_t now = time(NULL);
-	
+
 	const string &urlBase = MKStr()
 		<< outURLBase << '/'
 		<< jid[0] << jid[1] << '/'
@@ -565,6 +566,18 @@ void MetajobHandler::updateStatsFileIfNeccesary(
 	     << "Error:           " << pc(stats.err, count) << endl
 	     << "Finished:        " << pc(stats.finished, count) << endl
 	     << "Still need:      " << pc(stillNeed, count) << endl;
+
+	const vector<string> &errors = dbh->getSubjobErrors(jid);
+	if (errors.size())
+	{
+		stat << endl
+		     << "# Sub job error details follow" << endl;
+		typedef vector<string>::const_iterator it;
+		for (it i = errors.begin(); i != errors.end(); i++)
+		{
+			stat << *i << endl;
+		}
+	}
 
 	job->setGridData(urlBase + statsFilename);
 }
