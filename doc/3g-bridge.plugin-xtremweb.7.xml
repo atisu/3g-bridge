@@ -338,25 +338,26 @@
     <refsection>
       <title>Sources of the 3G Bridge</title>
       <para>
-        The base source package was 
-        <uri type="file">
-          http://sourceforge.net/projects/edges-3g-bridge/files/3G Bridge 1.4/3g-bridge_1.4-1.tar.gz/download
+        The source package is inside the 3G Bridge SVN at 
+        <uri type="directory">
+          http://sourceforge.net/projects/edges-3g-bridge/files/
         </uri>
+        and the current version 
+        <replaceable>X</replaceable>.<replaceable>Y</replaceable> 
+        is 1.5 at the time of writing.
       </para>
-      <para>The sources of the XtremWeb plugin are inside the 3G Bridge SVN, 
-            under the 
-            '<uri type="directory">http://edges-3g-bridge.svn.sourceforge.net/viewvc/edges-3g-bridge/3g-bridge/trunk/</uri>' 
-            folder:</para>
+      <para>The sources of the XtremWeb plugin are&nbsp;:</para>
       <screen>
-        &bull;  <filename>etc/3g-bridge.conf</filename>               --&gt;  <filename class="directory">3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/etc</filename>
-        &bull;  <filename class="headerfile">plugins/XTREMWEB_handler.h</filename>       --&gt;  <filename class="directory">3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/plugins</filename>
-        &bull;  <filename>plugins/XTREMWEB_handler.cpp</filename>     --&gt;  <filename class="directory">3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/plugins</filename>
+        &bull;  <filename>3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/etc/3g-bridge.conf</filename>
+        &bull;  <filename class="headerfile">3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/plugins/XTREMWEB_handler.h</filename>
+        &bull;  <filename>3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/plugins/XTREMWEB_handler.cpp</filename>
       </screen>
     </refsection>
     
     <refsection>
       <title>Dependencies (Debian Lenny packages)</title>
       <screen>
+        &bull;  <literal>apache2</literal>                  2.2.9-10+lenny9
         &bull;  <literal>automake1.9</literal>              1.9.6+nogfdl-3
         &bull;  <literal>docbook-xsl</literal>              1.73.2.dfsg.1-5
         &bull;  <literal>g++</literal>                      4:4.3.2-2
@@ -370,6 +371,7 @@
         &bull;  <literal>libtool</literal>                  1.5.26-4+lenny1
         &bull;  <literal>make</literal>                     3.81-5
         &bull;  <literal>mysql-server-5.0</literal>         5.0.51a-24+lenny4
+        &bull;  <literal>ntp</literal>                      1:4.2.4p4+dfsg-8lenny3
         &bull;  <literal>uuid-dev</literal>                 1.2-1.41.3-1
         &bull;  <literal>uuid-runtime</literal>             1.41.3-1
         &bull;  <literal>xsltproc</literal>                 1.1.24-2
@@ -378,27 +380,40 @@
     
     <refsection>
       <title>Application Repository and Applications</title>
-      <para>
-        From the Application Repository at 
-        <uri type="webpage">
+      <itemizedlist>
+        <listitem>
+          <para><emphasis>EDGeS</emphasis> Application Repository at 
+            <uri type="webpage">
 https://edgesar.cpc.wmin.ac.uk:8080/szupergrid/AppRepo/EDGeS-Application-Repository-ADMIN/
-        </uri>&nbsp;:
-      </para>
-      <para>DSP application&nbsp;:</para>
-      <para>
-        It can be downloaded from 
-        <uri type="webpage">
+            </uri>&nbsp;:
+          </para>
+          <itemizedlist>
+            <listitem><para><command>DSP</command> application&nbsp;:&nbsp; 
+              I have downloaded it from 
+              <uri type="webpage">
 https://edgesar.cpc.wmin.ac.uk:8080/szupergrid/AppRepo/EDGeS-Application-Repository-ADMIN/DSP_compute/dspxw.tar.gz
-        </uri>
-      </para>
-      <para></para>
-      <para>
-        I do NOT know if the EDGI Application Repository at 
-        <uri type="webpage">
+              </uri></para></listitem>
+          </itemizedlist>
+        </listitem>
+        <listitem>
+          <para>
+            <emphasis>EDGI</emphasis> Application Repository at 
+            <uri type="webpage">
 http://dev17-portal.cpc.wmin.ac.uk:8080/repository/user/welcome.xhtml
-        </uri> contains an <application>XtremWeb-HEP</application> version 
-        of DSP.
-      </para>
+            </uri>&nbsp;:
+          </para>
+          <itemizedlist>
+            <listitem><para><command>DSP</command> application&nbsp;:&nbsp; 
+              It is available at 
+              <uri type="webpage">
+http://dev17-portal.cpc.wmin.ac.uk:8080/repository/download?impid=1102&amp;filename=dsp
+              </uri></para></listitem>
+            <listitem><para><command>DART</command> application&nbsp;:&nbsp; 
+              At the time of writing, this application is 
+              <emphasis>not</emphasis> validated yet.</para></listitem>
+      </itemizedlist>
+        </listitem>
+      </itemizedlist>
     </refsection>
     
     <refsection>
@@ -424,18 +439,23 @@ http://dev17-portal.cpc.wmin.ac.uk:8080/repository/user/welcome.xhtml
     <refsection>
       <title>Environment Setup  (with administrative rights)</title>
       <para><prompt>#</prompt> <userinput>DIRS='/var/log/3g-bridge  /var/run/3g-bridge  /var/opt/3g-bridge /var/opt/3g-bridge/input  /var/opt/3g-bridge/output /var/opt/3g-bridge/xwhep'</userinput></para>
-      <para><prompt>#</prompt> <userinput><command>mkdir</command> <parameter>$DIRS</parameter></userinput></para>
-      <para><prompt>#</prompt> <userinput><command>chgrp</command> <parameter>staff</parameter> <parameter>$DIRS</parameter></userinput></para>
-      <para><prompt>#</prompt> <userinput><command>chmod</command> <option>g+ws</option>  <parameter>$DIRS</parameter></userinput></para>
       <para><prompt>#</prompt> <userinput><command>adduser</command> <option>--ingroup</option> <parameter>staff</parameter> <parameter>bridge</parameter></userinput></para>
-      <para></para>
-      <para>Inside <filename>~bridge/.bashrc</filename> &nbsp;: &nbsp; &nbsp; 
-            (works only for interactive shells)</para>
-      <programlisting>
-<command>export</command> <envar>LANG</envar>=<constant>C</constant>          #  This forces the generation of all messages in English
-<command>umask</command> <parameter>002</parameter>              #  This permits staff members to purge 3G Bridge work files
-        </programlisting>
+      <para><prompt>#</prompt> <userinput><command>mkdir</command> <parameter>$DIRS</parameter></userinput></para>
+      <para><prompt>#</prompt> <userinput><command>chmod</command> <option>g+s</option>  <parameter>$DIRS</parameter></userinput></para>
+      <para><prompt>#</prompt> <userinput><command>chown</command> <parameter>bridge:staff</parameter> <parameter>$DIRS</parameter></userinput></para>
+      <para><prompt>#</prompt> <userinput><command>chgrp</command> <parameter>www-data</parameter> <parameter><filename class="directory">/var/opt/3g-bridge/output</filename></parameter></userinput></para>
     </refsection>
+    
+    <refsection>
+      <title>File '<filename>/etc/apache2/httpd.conf</filename>'</title>
+    </refsection>
+    <para>At the beginning of '<filename>/etc/apache2/httpd.conf</filename>', 
+          add :</para>
+      <programlisting>
+# 3G-Bridge output files
+Alias /output /var/opt/3g-bridge/output
+
+      </programlisting>
     
     <refsection>
       <title>File '<filename>3g-bridge-<replaceable>X</replaceable>.<replaceable>Y</replaceable>/etc/3g-bridge.conf</filename>'</title>
@@ -462,6 +482,8 @@ http://dev17-portal.cpc.wmin.ac.uk:8080/repository/user/welcome.xhtml
 <varname>xw_https_port</varname>   = &lt;<replaceable>XtremWeb-HTTPS-server-port</replaceable>&gt;
 # Folder for XtremWeb input and output files
 <varname>xw_files_dir</varname>    = <filename class="directory">/var/opt/3g-bridge/xwhep</filename>
+# Language for messages localized according to the 'LANG' environment variable
+<varname>LANG</varname> = <literal>C</literal>
       </programlisting>
     </refsection>
     
@@ -480,7 +502,7 @@ http://dev17-portal.cpc.wmin.ac.uk:8080/repository/user/welcome.xhtml
             really connects to the server at LRI, you really need to download 
             it from the LRI server.</para>
       <para>User manual&nbsp;:&nbsp; <uri type="webpage">http://dghep.lal.in2p3.fr/lal/doc/xwhep-user-guide.pdf</uri></para>
-      <para>Installation and configuration are described at chapter 5.</para>
+      <para>Installation and configuration are described at chapter 4.</para>
     </refsection>
     
     <refsection>
@@ -489,12 +511,14 @@ http://dev17-portal.cpc.wmin.ac.uk:8080/repository/user/welcome.xhtml
       <para><prompt>$</prompt> <userinput><command>su</command> 
             <option>-l</option> <parameter>bridge</parameter> 
             <option>-c</option> 
-            '<application>/usr/local/sbin/3g-bridge</application>' 
+            '<varname>LANG</varname>=<literal>C</literal>
+             <application>/usr/local/sbin/3g-bridge</application>' 
             </userinput></para>
       <para><prompt>$</prompt> <userinput><command>su</command> 
             <option>-l</option> <parameter>bridge</parameter> 
             <option>-c</option> 
-            '<application>/usr/local/sbin/wssubmitter</application>' 
+            '<varname>LANG</varname>=<literal>C</literal>
+             <application>/usr/local/sbin/wssubmitter</application>' 
             </userinput></para>
     </refsection>
     
@@ -540,8 +564,7 @@ http://dev17-portal.cpc.wmin.ac.uk:8080/repository/user/welcome.xhtml
       <para>Submit a DSP job&nbsp;:</para>
       <para>
         <prompt>$</prompt> 
-        <userinput>
-          <command>wsclient</command>  
+        <userinput><command>wsclient</command>  
           <option>-e</option> 
           <parameter><uri type="WS">http://localhost:&lt;<replaceable>wssubmitter_port</replaceable>&gt;</uri></parameter>  
           <option>-m</option> 
@@ -555,17 +578,18 @@ http://dev17-portal.cpc.wmin.ac.uk:8080/repository/user/welcome.xhtml
           <option>-o</option> 
           <parameter>cost.txt</parameter>  
           <option>-i</option> 
-          <parameter><filename>pools.txt</filename>=<uri type="file">http://www.lpds.sztaki.hu/~zfarkas/pools.txt</uri>=7b7eb86bf50c58cbf92dc12ff5adf7f4=9652</parameter>  
+          <parameter><filename>pools.txt</filename>=<uri type="file">http://xw.lri.fr:4330/pools.txt</uri>=409cbfedee49c021f19a1260fda38230=8924</parameter>  
           <option>-E</option> 
-          <parameter><envar>_3G_BRIDGE_BATCH_ID</envar>=89f91036-d53a-453c-93d1-e2ffe9e3cfcf</parameter>
+          <parameter><envar>_3G_BRIDGE_BATCH_ID</envar>=89f91036-d53a-453c-93d1-e2ffe9e3cfcf</parameter>  
+          <option>-E</option> 
+          <parameter><envar>PROXY_USERDN</envar>=&lt;<replaceable>subject_of_my_proxy</replaceable>&gt;</parameter>
         </userinput>
       </para>
       <para></para>
       <para>Check the status of a job&nbsp;:</para>
       <para>
         <prompt>$</prompt> 
-        <userinput>
-          <command>wsclient</command>  
+        <userinput><command>wsclient</command>  
           <option>-e</option> 
           <parameter><uri type="WS">http://localhost:&lt;<replaceable>wssubmitter_port</replaceable>&gt;</uri></parameter>  
           <option>-m</option> 
@@ -581,11 +605,14 @@ http://dev17-portal.cpc.wmin.ac.uk:8080/repository/user/welcome.xhtml
       <para>Browsing of the 3G Bridge log may be performed only on the 3G 
             Bridge server.</para>
       <para></para>
-      <para>Look at the (very verbose) log&nbsp;:</para>
+      <para>Look at the (very verbose) 3G Bridge log&nbsp;:</para>
       <para><prompt>$</prompt> <userinput><command>less</command> <filename>/var/log/3g-bridge/3g-bridge.log</filename></userinput></para>
       <para></para>
-      <para>Extract only errors from the (very verbose) log&nbsp;:</para>
-      <para><prompt>$</prompt> <userinput><command>grep</command> <option>-E</option> 'CRIT:|ERROR:|NOTICE:' <filename>/var/log/3g-bridge/3g-bridge.log</filename></userinput></para>
+      <para>Extract only useful messages from the 3G Bridge log&nbsp;:</para>
+      <para><prompt>$</prompt> <userinput><command>grep</command> <option>-v</option> 'DEBUG:' <filename>/var/log/3g-bridge/3g-bridge.log</filename></userinput></para>
+      <para></para>
+      <para>Extract only errors from the 3G Bridge log&nbsp;:</para>
+      <para><prompt>$</prompt> <userinput><command>grep</command> <option>-E</option> 'CRIT:|ERROR:' <filename>/var/log/3g-bridge/3g-bridge.log</filename></userinput></para>
     </refsection>
     
   </refsection>
