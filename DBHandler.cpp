@@ -778,7 +778,7 @@ void DBHandler::updateInputPath(const string &jobid, const string &localName,
 	{
 		char *md5 = escape_string(ref.getMD5().c_str());
 		query("UPDATE cg_inputs "
-		      "SET url = '%s', md5=%s, filesize=%ld "
+		      "SET url = '%s', md5='%s', filesize=%ld "
 		      "WHERE id = '%s' AND localname = '%s'",
 		      url, md5, ref.getSize(),
 		      jobid.c_str(), localName.c_str());
