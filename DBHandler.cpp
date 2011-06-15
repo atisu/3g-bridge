@@ -484,7 +484,6 @@ void DBHandler::deleteBatch(const string &gridId)
 	query("DELETE FROM cg_job WHERE gridid = '%s'", gridId.c_str());
 }
 
-
 bool DBHandler::addJob(Job &job)
 {
 	bool success = true;

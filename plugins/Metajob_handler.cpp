@@ -191,6 +191,9 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 			// Store state for next iteration
 			updateJobGenerationData(*dbh, job, mjd, jd);
 
+			LOG(LOG_DEBUG, "Commiting TRANSACTION");
+			dbh->query("COMMIT");
+
 			// Start sub-jobs if all are done
 			if (mjd.finished) {
 				LOG(LOG_INFO,
@@ -218,9 +221,6 @@ void MetajobHandler::submitJobs(JobVector &jobs)
 				    "for meta-job '%s': %lu",
 				    jId, mjd.count);
 			}
-
-			LOG(LOG_DEBUG, "Commiting TRANSACTION");
-			dbh->query("COMMIT");
 		}
 		catch (const ParserException &ex)
 		{
