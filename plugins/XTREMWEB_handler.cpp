@@ -87,6 +87,7 @@ string    g_xw_files_folder_str;        // Folder for XW input + output files
 char *    g_requested_lang;             // Language for localized messages
 bool      g_xwclean_forced;             // Forced 'xwclean' before 'xwstatus'
 int       g_sleep_time_before_download; // Sleeping time before download in s
+string    g_xw_apps_message_str;        // XW message listing XW applications
 
 
 //============================================================================
@@ -483,7 +484,7 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
                                "%3Cuser%20login=%22" + string(g_xw_user) +
                                "%22%20password=%22" + string(g_xw_password) +
                                "%22/%3E%3C/version%3E HTTP/1.0\n"
-                               "User-Agent: 3G-Bridge_XtremWeb_plugin\n"
+                               "User-Agent: 3G-Bridge_XtremWeb-HEP_plugin\n"
                                "Host: " + string(g_xw_https_server) + ":" +
                                string(g_xw_https_port) + "\n\n";
                   const char * xw_version_request =
@@ -706,8 +707,8 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
                     (returned_values.message).c_str());
   }
   else
-    throw new BackendException("XWHandler::XWHandler  can NOT get XtremWeb "
-                               "version:  return_code = x'%X'",
+    throw new BackendException("XWHandler::XWHandler  can NOT get "
+                               "XtremWeb-HEP version:  return_code = x'%X'",
                                returned_values.retcode);
   
   //--------------------------------------------------------------------------
@@ -726,11 +727,11 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
   char * xw_files_folder = g_key_file_get_string(config, instance,
                                                  "xw_files_dir", NULL);
   if ( ! xw_files_folder )
-    throw new BackendException("XWHandler::XWHandler  No XtremWeb files "
+    throw new BackendException("XWHandler::XWHandler  No XtremWeb-HEP files "
                                "folder specified for '%s'", instance);
   
   g_strstrip(xw_files_folder);
-  LOG(LOG_NOTICE, "%s(%s)  Folder for XtremWeb files:     '%s'",
+  LOG(LOG_NOTICE, "%s(%s)  Folder for XtremWeb-HEP files: '%s'",
                   function_name, instance_name, xw_files_folder);
   
   g_xw_files_folder_str = string(xw_files_folder);
@@ -819,6 +820,11 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
     g_sleep_time_before_download = 0;
   LOG(LOG_NOTICE, "%s(%s)  Sleeping time before download: '%d'",
                   function_name, instance_name, g_sleep_time_before_download);
+  
+  //==========================================================================
+  //  g_xw_apps_message_str
+  //==========================================================================
+  g_xw_apps_message_str = "";
   
 }
 
@@ -917,7 +923,7 @@ void setJobStatusToError(const char *   function_name,
   LOG(LOG_ERR, "%s(%s)  Job '%s'  Set status of bridge job to 'ERROR'",
                function_name, instance_name, bridge_job_id);
   job->setStatus(Job::ERROR);
-  job->setGridData(simpleQuotesToDoubleQuotes(message));
+  job->setGridData(message);
 }
 
 
@@ -927,16 +933,16 @@ void setJobStatusToError(const char *   function_name,
 //
 //  @param jobs  Vector of pointers to bridge jobs to submit
 //
-//  This function submits a vector of bridge jobs to XtremWeb.
+//  This function submits a vector of bridge jobs to XtremWeb-HEP.
 //
 //============================================================================
-void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
+void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
 {
   const char * function_name = "XWHandler::submitJobs";
   const char * instance_name = name.c_str();
   
-  LOG(LOG_NOTICE, "%s(%s)  Number of job(s) to be submitted to XtremWeb :  "
-                  "%ld", function_name, instance_name, jobs.size());
+  LOG(LOG_NOTICE, "%s(%s)  Number of job(s) to be submitted to XtremWeb-HEP "
+                  ":  %ld", function_name, instance_name, jobs.size());
   
   if ( jobs.size() < 1 )
       return;
@@ -945,13 +951,28 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
   Job *         job;
   string        bridge_job_id_str;
   const char *  bridge_job_id;
+  string        bridge_job_name_str;
   string        submitter_dn_str;
+  returned_t    returned_values;
+  string        xw_message_str;
+  const char *  returned_message;
+  size_t        input_file_path_number;
+  size_t        input_file_url_number;
   auto_ptr< vector<string> > xw_label_vector(new vector<string>);
-  auto_ptr< vector<string> > local_input_file_path_str_vector
-                             (new vector<string>);
+  auto_ptr< vector<string> > input_file_path_str_vector(new vector<string>);
+  auto_ptr< vector<string> > xw_input_file_str_vector(new vector<string>);
   auto_ptr< vector<string> > arg_str_vector(new vector<string>);
   auto_ptr< vector<string> > xw_env_str_vector(new vector<string>);
   auto_ptr< vector<string> > input_file_str_vector;
+  const char *  uid_header      = "UID='";
+  const char *  name_header     = "NAME='";
+  const size_t  uid_header_len  = strlen(uid_header);
+  const size_t  name_header_len = strlen(name_header);
+  size_t        pos_quote;
+  size_t        pos_appli;
+  string        xw_app_id_str;
+  string        xw_app_name_str;
+  const char *  xw_app_id;
   bool          b_xw_data_error;
   string        input_file_name_str;
   FileRef       input_file_ref;
@@ -961,75 +982,177 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
   string        input_file_md5_str;
   const char *  input_file_md5;
   int           input_file_size;
-  string        xw_data_file_path_str;
-  const char *  xw_data_file_path;
-  FILE *        xw_data_file;
-  char          xw_data_xml[1024];
-  returned_t    returned_values;
-  const char *  returned_message;
+  string        xw_cmd_xml_file_path_str;
+  const char *  xw_cmd_xml_file_path;
+  FILE *        xw_cmd_xml_file;
+  char          xw_command_xml[BUFSIZ];
+  string        xw_input_file_path_str;
+  const char *  xw_input_file_path;
   string        xw_data_id_str;
-  size_t        local_input_files_number;
-  string        zip_file_name_str;
-  const char *  zip_file_name;
   string        job_batch_id_str;
   string        xw_group_id_str;
+  string        xw_sg_id_str;
+  string        xw_command_xml_str;
   size_t        pos_xw_id;
   string        xw_job_id_str;
   const char *  xw_job_id;
   
-  //------------------------------------------------------------------------
-  //  XtremWeb label for xwsendata and xwsubmit
-  //------------------------------------------------------------------------
+  //--------------------------------------------------------------------------
+  //  XtremWeb-HEP label for xwsubmit
+  //--------------------------------------------------------------------------
   xw_label_vector->clear();
   xw_label_vector->reserve(2);
   xw_label_vector->push_back(string("--xwlabel"));
   xw_label_vector->push_back("");
   
-  //------------------------------------------------------------------------
+  
+  //==========================================================================
+  //
   //  Loop on jobs to be submitted
-  //------------------------------------------------------------------------
+  //
+  //==========================================================================
   for ( JobVector::iterator job_iterator = jobs.begin();
         job_iterator != jobs.end();
         job_iterator++ )
   {
-    //------------------------------------------------------------------------
-    //  Retrieve bridge job id and submitter DN
-    //------------------------------------------------------------------------
-    job               = *job_iterator;
-    bridge_job_id_str = job->getId();
-    bridge_job_id     = bridge_job_id_str.c_str();
-    submitter_dn_str  = job->getEnv("PROXY_USERDN");
-    
-    const string specials_str  = " !$&()*/?[\\]^{|}~";
-    size_t submitter_dn_length = submitter_dn_str.length();
-    size_t pos_special         = submitter_dn_str.find_first_of(specials_str);
-    while ( pos_special < submitter_dn_length )
+    //========================================================================
+    //  Retrieve bridge job id and application
+    //  Retrieve submitter DN of the bridge job.  It MUST be present.
+    //========================================================================
+    job                 = *job_iterator;
+    bridge_job_id_str   = job->getId();
+    bridge_job_id       = bridge_job_id_str.c_str();
+    bridge_job_name_str = job->getName();
+    submitter_dn_str    = job->getEnv("PROXY_USERDN");
+    if ( submitter_dn_str == "" )
     {
-      submitter_dn_str[pos_special] = (submitter_dn_str[pos_special] == '/') ?
-                                        ',' :
-                                        '_';
-      pos_special++;
-      if ( pos_special < submitter_dn_length )
-        pos_special = submitter_dn_str.find_first_of(specials_str,
-                                                     pos_special);
+      LOG(LOG_ERR, "%s(%s)  Job '%s'  Environment variable 'PROXY_USERDN' "
+                   "missing", function_name, instance_name, bridge_job_id);
+      setJobStatusToError(function_name, instance_name, bridge_job_id, job,
+                          "Environment variable 'PROXY_USERDN' missing");
+      continue;
     }
-    xw_label_vector->back() = (submitter_dn_str == "") ?
-                              bridge_job_id_str:
-                              bridge_job_id_str + ":" + submitter_dn_str;
+    xw_sg_id_str = bridge_job_id_str + ":" + submitter_dn_str;
+    
+    //========================================================================
+    //  Get XtremWeb-HEP application id
+    //========================================================================
+    xw_app_id = (const char *) NULL;
+    
+    for ( char num_try = 1; num_try <= 2; num_try++ )
+    {
+      LOG(LOG_DEBUG, "%s(%s)  Job '%s'  Application = '%s'  num_try = %d",
+                     function_name, instance_name, bridge_job_id,
+                     bridge_job_name_str.c_str(), num_try);
+      //----------------------------------------------------------------------
+      //  From the list of applications displayed by XtremWeb-HEP, extract the
+      //  application id
+      //----------------------------------------------------------------------
+      pos_appli = 0;
+      pos_quote = 0;
+      
+      while ( (pos_appli != string::npos) && (pos_quote != string::npos) )
+      {
+        pos_appli = g_xw_apps_message_str.find(uid_header, pos_quote);
+        if ( pos_appli != string::npos )
+        {
+          pos_appli += uid_header_len;
+          pos_quote  = g_xw_apps_message_str.find("'", pos_appli);
+          if ( pos_quote != string::npos )
+          {
+            xw_app_id_str = g_xw_apps_message_str.substr(pos_appli,
+                                                       pos_quote - pos_appli);
+            pos_appli = g_xw_apps_message_str.find(name_header, pos_quote);
+            if ( pos_appli != string::npos )
+            {
+              pos_appli += name_header_len;
+              pos_quote  = g_xw_apps_message_str.find("'", pos_appli);
+              if ( pos_quote != string::npos )
+              {
+                xw_app_name_str = g_xw_apps_message_str.substr(pos_appli,
+                                                       pos_quote - pos_appli);
+                if ( xw_app_name_str == bridge_job_name_str )
+                {
+                  xw_app_id = xw_app_id_str.c_str();
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      //----------------------------------------------------------------------
+      //  If the application has been found in the application list, or if
+      //  the application list has already been refreshed, quit the loop.
+      //----------------------------------------------------------------------
+      if ( (xw_app_id != NULL) || (num_try > 1) )
+        break;
+      
+      //----------------------------------------------------------------------
+      //  Here the application has not been found in the application list.
+      //  Query applications from XtremWeb-HEP to refresh the application list
+      //----------------------------------------------------------------------
+      arg_str_vector->clear();
+      arg_str_vector->reserve(1);
+      arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwapps");
+      logStringVectorToDebug(function_name, instance_name, bridge_job_id,
+                             arg_str_vector);
+      
+      returned_values  = outputAndErrorFromCommand(arg_str_vector);
+      xw_message_str   = returned_values.message;
+      returned_message = xw_message_str.c_str();
+      
+      LOG(LOG_DEBUG,"%s(%s)  XtremWeb-HEP applications queried.  "
+                    "XtremWeb-HEP displayed message = '%s'",
+                    function_name, instance_name, returned_message);
+      
+      if ( returned_values.retcode != 0 )
+      {
+        LOG(LOG_ERR, "%s(%s)  return_code = x'%X' --> %d  for query of "
+                     "XtremWeb-HEP applications.  XtremWeb-HEP displayed "
+                     "message = '%s'", function_name, instance_name,
+                     returned_values.retcode, returned_values.retcode / 256,
+                     returned_message);
+        setJobStatusToError(function_name, instance_name, bridge_job_id, job,
+                            xw_message_str);
+        break;
+      }
+      
+      g_xw_apps_message_str = xw_message_str;
+    }
+    
+    if ( xw_app_id == NULL )
+    {
+      if ( returned_values.retcode != 0 )
+        continue;
+    
+      LOG(LOG_ERR, "%s(%s)  Job '%s'  XtremWeb-HEP application '%s' NOT "
+                   "found inside message displayed by XtremWeb-HEP",
+                   function_name, instance_name, bridge_job_id,
+                   bridge_job_name_str.c_str());
+      setJobStatusToError(function_name, instance_name, bridge_job_id, job,
+                          g_xw_apps_message_str);
+      continue;
+    }
+    
+    //========================================================================
+    //  Process list of input files
+    //========================================================================
+    input_file_str_vector = job->getInputs();
+    LOG(LOG_NOTICE, "%s(%s)  Job '%s'  Submitter DN = '%s'  Application = "
+                    "'%s' (%s)  Number of input files = %ld", function_name,
+                    instance_name, bridge_job_id, submitter_dn_str.c_str(),
+                    bridge_job_name_str.c_str(), xw_app_id,
+                    input_file_str_vector->size());
     
     //------------------------------------------------------------------------
     //  Retrieve list of input files
     //------------------------------------------------------------------------
-    local_input_file_path_str_vector->clear();
-    arg_str_vector->clear();
-    xw_env_str_vector->clear();
-    b_xw_data_error = false;
-    
-    input_file_str_vector = job->getInputs();
-    LOG(LOG_NOTICE, "%s(%s)  Job '%s'  Submitter DN = '%s'  Application = "
-                    "'%s'  Number of input files = %ld", function_name,
-                    instance_name, bridge_job_id, submitter_dn_str.c_str(),
-                    (job->getName()).c_str(), input_file_str_vector->size());
+    input_file_path_number = 0;
+    input_file_url_number  = 0;
+    input_file_path_str_vector->clear();
+    xw_input_file_str_vector->clear();
     
     for ( vector<string>::iterator input_file_iterator =
                                    input_file_str_vector->begin();
@@ -1039,24 +1162,144 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
       input_file_name_str = *input_file_iterator;
       input_file_ref      = job->getInputRef(input_file_name_str);
       input_file_path_str = input_file_ref.getURL();
-      input_file_name     = input_file_name_str.c_str();
-      input_file_path     = input_file_path_str.c_str();
+      LOG(LOG_DEBUG, "%s(%s)  Job '%s'  input_file_name = '%s'  "
+                     "input_file_path = '%s'", function_name, instance_name,
+                     bridge_job_id, input_file_name_str.c_str(),
+                     input_file_path_str.c_str());
       
+      //----------------------------------------------------------------------
+      //  Files beginning with '/' are local files, otherwise URLs
+      //----------------------------------------------------------------------
       if ( input_file_path_str[0] == '/' )
-      //----------------------------------------------------------------------
-      //  Files beginning with '/' are local files
-      //----------------------------------------------------------------------
       {
+        input_file_path_str_vector->push_back(input_file_path_str);
+        input_file_path_number++;
+      }
+      else
+      {
+        xw_input_file_str_vector->push_back(input_file_name_str);
+        input_file_url_number++;
+      }
+    }
+    
+    //------------------------------------------------------------------------
+    //  ATTENTION :  The XtremWeb-HEP server accepts only 1 input file.
+    //  Store multiple local input files inside 1 single ZIP input file, which
+    //  the XtremWeb-HEP worker will automatically unzip.
+    //------------------------------------------------------------------------
+    LOG(LOG_DEBUG, "%s(%s)  Job '%s'  Input file(s) :  %d local,  %d as URL",
+                   function_name, instance_name, bridge_job_id,
+                   input_file_path_number, input_file_url_number);
+      
+    if ( (input_file_url_number > 1) ||
+         ( (input_file_url_number > 0) && (input_file_path_number > 0) ) )
+    {
+      xw_message_str =
+          "The XtremWeb-HEP server accepts only 1 input file.  "
+          "Please store all your input files inside 1 single ZIP file.  "
+          "The XtremWeb-HEP worker will automatically unzip this ZIP file.";
+      LOG(LOG_ERR, "%s(%s)  Job '%s'  %s", function_name, instance_name,
+                   bridge_job_id, xw_message_str.c_str());
+      setJobStatusToError(function_name, instance_name, bridge_job_id, job,
+                          xw_message_str);
+      continue;
+    }
+    
+    xw_env_str_vector->clear();
+    
+    //------------------------------------------------------------------------
+    //  If there is exactly 1 local input file, just specify its path.
+    //  If there is more than 1 local input file, store them all inside a ZIP.
+    //------------------------------------------------------------------------
+    if ( input_file_path_number >= 1 )
+    {
+      if ( input_file_path_number == 1 )
+        xw_input_file_path_str = (*input_file_path_str_vector)[0];
+    
+      else
+      {
+        xw_input_file_path_str = g_xw_files_folder_str + "/" + bridge_job_id +
+                                 ".zip";
+        xw_input_file_path     = xw_input_file_path_str.c_str();
+        arg_str_vector->clear();
+        arg_str_vector->reserve(4 + input_file_path_number);
+        arg_str_vector->push_back(string("/usr/bin/zip"));
+        arg_str_vector->push_back(string("-v"));
+        arg_str_vector->push_back(string("-j"));
+        arg_str_vector->push_back(xw_input_file_path_str);
+        arg_str_vector->insert(arg_str_vector->end(),
+                               input_file_path_str_vector->begin(),
+                               input_file_path_str_vector->end());
+        logStringVectorToDebug(function_name, instance_name, bridge_job_id,
+                               arg_str_vector);
+        
+        returned_values  = outputAndErrorFromCommand(arg_str_vector);
+        returned_message = (returned_values.message).c_str();
+        LOG(LOG_DEBUG, "%s(%s)  Job '%s'  return_code = x'%x' --> %d  for "
+                       "zipping '%s'  ZIP displayed message = '%s'",
+                       function_name, instance_name, bridge_job_id,
+                       returned_values.retcode, returned_values.retcode / 256,
+                       xw_input_file_path, returned_message);
+        
+        if ( returned_values.retcode != 0 )
+        {
+          LOG(LOG_ERR, "%s(%s)  Job '%s'  return_code = x'%x' --> %d  for "
+                       "zipping '%s'  ZIP displayed message = '%s'",
+                       function_name, instance_name, bridge_job_id,
+                       returned_values.retcode, returned_values.retcode / 256,
+                       xw_input_file_path, returned_message);
+          setJobStatusToError(function_name, instance_name, bridge_job_id,
+                              job, returned_values.message);
+          continue;
+        }
+      }
+      
+      xw_input_file_str_vector->push_back(xw_input_file_path_str);
+      xw_env_str_vector->push_back(string("--xwenv"));
+      xw_env_str_vector->push_back(xw_input_file_path_str);
+    }
+    
+    //------------------------------------------------------------------------
+    //  All input files have to be specified to XtremWeb-HEP as data
+    //------------------------------------------------------------------------
+    b_xw_data_error = false;
+    
+    for ( vector<string>::iterator  xw_input_file_iterator =
+                                    xw_input_file_str_vector->begin();
+          xw_input_file_iterator != xw_input_file_str_vector->end();
+          xw_input_file_iterator++ )
+    {
+      input_file_name_str = *xw_input_file_iterator;
+      input_file_name     = input_file_name_str.c_str();
+      
+      //----------------------------------------------------------------------
+      //  Local files need to be sent as data to XtremWeb-HEP without options
+      //----------------------------------------------------------------------
+      if ( input_file_name_str[0] == '/' )
+      {
+        LOG(LOG_DEBUG, "%s(%s)  Job '%s'  input_file_path = '%s'",
+                       function_name, instance_name, bridge_job_id,
+                       input_file_name);
+        
+        xw_cmd_xml_file_path = NULL;
+        arg_str_vector->clear();
+        arg_str_vector->reserve(2);
+        arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwsenddata");
+        arg_str_vector->push_back(input_file_name_str);
+      }
+      
+      //----------------------------------------------------------------------
+      //  URLs need to be sent as data to XtremWeb-HEP using an XML file
+      //----------------------------------------------------------------------
+      else
+      {
+        input_file_ref      = job->getInputRef(input_file_name_str);
+        input_file_path_str = input_file_ref.getURL();
+        input_file_path     = input_file_path_str.c_str();
         LOG(LOG_DEBUG, "%s(%s)  Job '%s'  input_file_name = '%s'  "
                        "input_file_path = '%s'", function_name, instance_name,
                        bridge_job_id, input_file_name, input_file_path);
-        local_input_file_path_str_vector->push_back(input_file_path_str);
-      }
-      else
-      //----------------------------------------------------------------------
-      //  URLS have to be specified to XtremWeb as data
-      //----------------------------------------------------------------------
-      {
+        
         //  Following 2 lines work only if URL = schema://server/basename
         //  xw_env_str_vector.push_back(string("--xwenv"));
         //  xw_env_str_vector.push_back(input_file_path_str);
@@ -1064,168 +1307,119 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
         //--------------------------------------------------------------------
         //  Get MD5 and size for the URL
         //--------------------------------------------------------------------
-        input_file_md5_str    = input_file_ref.getMD5();
-        input_file_size       = input_file_ref.getSize();
-        input_file_md5        = input_file_md5_str.c_str();
-        xw_data_file_path_str = g_xw_files_folder_str +  "/" + bridge_job_id +
-                                "_" + input_file_name_str + ".xml";
-        xw_data_file_path     = xw_data_file_path_str.c_str();
-        LOG(LOG_DEBUG, "%s(%s)  Job '%s'  input_file_name = '%s'  "
-                       "input_file_url = '%s'  MD5 = '%s'  size = %d  "
-                       "xw_data_file_path = '%s'",
-                       function_name, instance_name, bridge_job_id,
-                       input_file_name, input_file_path, input_file_md5,
-                       input_file_size, xw_data_file_path);
+        input_file_md5_str = input_file_ref.getMD5();
+        input_file_size    = input_file_ref.getSize();
+        input_file_md5     = input_file_md5_str.c_str();
         
         //--------------------------------------------------------------------
-        //  Create the XML file describing XtremWeb data
+        //  Create the XML file describing XtremWeb-HEP data for URL
         //--------------------------------------------------------------------
-        xw_data_file = fopen(xw_data_file_path, "w");
-        if ( ! xw_data_file )
+        xw_cmd_xml_file_path_str = g_xw_files_folder_str +  "/" +
+                                   bridge_job_id + "_" + input_file_name_str +
+                                   ".xml";
+        xw_cmd_xml_file_path     = xw_cmd_xml_file_path_str.c_str();
+        LOG(LOG_DEBUG, "%s(%s)  Job '%s'  input_file_name = '%s'  "
+                       "input_file_url = '%s'  MD5 = '%s'  size = %d  "
+                       "xw_cmd_xml_file_path = '%s'",
+                       function_name, instance_name, bridge_job_id,
+                       input_file_name, input_file_path, input_file_md5,
+                       input_file_size, xw_cmd_xml_file_path);
+        
+        xw_cmd_xml_file = fopen(xw_cmd_xml_file_path, "w");
+        if ( ! xw_cmd_xml_file )
         {
-          LOG(LOG_ERR, "%s(%s)  Job '%s'  input_file_name = '%s'  "
-                       "input_file_path = '%s'  xw_data_file_path = '%s'  "
-                       "I/O error = %d  '%s'", function_name, instance_name,
-                       bridge_job_id, input_file_name, input_file_path,
-                       xw_data_file_path, errno, sys_errlist[errno]);
+          sprintf(xw_command_xml, "input_file_name = '%s'  input_file_path = "
+                                  "'%s'  xw_cmd_xml_file_path = '%s'  "
+                                  "I/O error = %d  '%s'", input_file_name,
+                                  input_file_path, xw_cmd_xml_file_path,
+                                  errno, sys_errlist[errno]);
+          LOG(LOG_ERR, "%s(%s)  Job '%s'  %s", function_name, instance_name,
+                                               bridge_job_id, xw_command_xml);
+          xw_message_str  = string(xw_command_xml);
           b_xw_data_error = true;
           break;
         }
         
-        sprintf(xw_data_xml,
+        sprintf(xw_command_xml,
                 "<data name=\"%s\" md5=\"%s\" size=\"%d\" uri=\"%s\"/>",
                 input_file_name, input_file_md5, input_file_size,
                 input_file_path);
-        LOG(LOG_DEBUG, "%s(%s)  Job '%s'  xw_data_xml = '%s'",
+        LOG(LOG_DEBUG, "%s(%s)  Job '%s'  DATA xw_command_xml = '%s'",
                        function_name, instance_name, bridge_job_id,
-                       xw_data_xml);
-        fprintf(xw_data_file, "%s\n", xw_data_xml);
-        fclose(xw_data_file);
-    
-        //--------------------------------------------------------------------
-        //  Send the data to XtremWeb
-        //--------------------------------------------------------------------
-        if ( arg_str_vector->size() <= 0 )
-        {
-          arg_str_vector->reserve(3 + xw_label_vector->size());
-          arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwsenddata");
-          arg_str_vector->insert(arg_str_vector->end(),
-                                 xw_label_vector->begin(),
-                                 xw_label_vector->end());
-          arg_str_vector->push_back(string("--xwxml"));
-          arg_str_vector->push_back(xw_data_file_path_str);
-        }
-        else
-          arg_str_vector->back() = xw_data_file_path_str;
-        logStringVectorToDebug(function_name, instance_name, bridge_job_id,
-                               arg_str_vector);
-        
-        returned_values  = outputAndErrorFromCommand(arg_str_vector);
-        returned_message = (returned_values.message).c_str();
-        LOG(LOG_DEBUG,"%s(%s)  Job '%s'  Data '%s' sent.  XtremWeb displayed "
-                      "message = '%s'", function_name, instance_name,
-                      bridge_job_id, input_file_name, returned_message);
-        
-        if ( returned_values.retcode != 0 )
-        {
-          LOG(LOG_ERR, "%s(%s)  Job '%s'  Data '%s'  return_code = x'%X' "
-                       "--> %d  for XtremWeb data creation",
-                       function_name, instance_name, bridge_job_id,
-                       input_file_name, returned_values.retcode,
-                       returned_values.retcode / 256);
-          b_xw_data_error = true;
-          break;
-        }
-        
-        unlink(xw_data_file_path);
+                       xw_command_xml);
+        fprintf(xw_cmd_xml_file, "%s\n", xw_command_xml);
+        fclose(xw_cmd_xml_file);
         
         //--------------------------------------------------------------------
-        //  From the message displayed by XtremWeb, extract the DATA id
+        //  Prepare the command to send the data to XtremWeb-HEP
         //--------------------------------------------------------------------
-        pos_xw_id = (returned_values.message).rfind("xw://");
-        if ( pos_xw_id == string::npos )
-        {
-          LOG(LOG_ERR, "%s(%s)  Job '%s'  'xw://' NOT found inside message "
-                       "displayed by XtremWeb",
-                       function_name, instance_name, bridge_job_id);
-          b_xw_data_error = true;
-          break;
-        }
-        
-        xw_data_id_str = (returned_values.message).substr(pos_xw_id,
-                              (returned_values.message).length() - pos_xw_id);
-        trimEol(xw_data_id_str);
-        xw_env_str_vector->push_back(string("--xwenv"));
-        xw_env_str_vector->push_back(xw_data_id_str);
+        arg_str_vector->clear();
+        arg_str_vector->reserve(3);
+        arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwsenddata");
+        arg_str_vector->push_back(string("--xwxml"));
+        arg_str_vector->push_back(xw_cmd_xml_file_path_str);
       }
+      
+      //----------------------------------------------------------------------
+      //  Send the data to XtremWeb-HEP
+      //----------------------------------------------------------------------
+      logStringVectorToDebug(function_name, instance_name, bridge_job_id,
+                             arg_str_vector);
+      
+      returned_values  = outputAndErrorFromCommand(arg_str_vector);
+      xw_message_str   = returned_values.message;
+      returned_message = xw_message_str.c_str();
+      LOG(LOG_DEBUG,"%s(%s)  Job '%s'  Data '%s' sent.  XtremWeb-HEP "
+                    "displayed message = '%s'", function_name,
+                    instance_name, bridge_job_id, input_file_name,
+                    returned_message);
+      
+      if ( returned_values.retcode != 0 )
+      {
+        LOG(LOG_ERR, "%s(%s)  Job '%s'  Data '%s'  return_code = x'%X' "
+                     "--> %d  for XtremWeb-HEP data creation",
+                     function_name, instance_name, bridge_job_id,
+                     input_file_name, returned_values.retcode,
+                     returned_values.retcode / 256);
+        b_xw_data_error = true;
+        break;
+      }
+      
+      if ( xw_cmd_xml_file_path != NULL )
+        unlink(xw_cmd_xml_file_path);
+      
+      //----------------------------------------------------------------------
+      //  From the message displayed by XtremWeb-HEP, extract the DATA id
+      //----------------------------------------------------------------------
+      pos_xw_id = xw_message_str.rfind("xw://");
+      if ( pos_xw_id == string::npos )
+      {
+        xw_message_str = "'xw://' NOT found inside message displayed by "
+                         "XtremWeb-HEP";
+        LOG(LOG_ERR, "%s(%s)  Job '%s'  %s", function_name, instance_name,
+                     bridge_job_id, xw_message_str.c_str());
+        b_xw_data_error = true;
+        break;
+      }
+      
+      xw_data_id_str = xw_message_str.substr(pos_xw_id,
+                                         xw_message_str.length() - pos_xw_id);
+      trimEol(xw_data_id_str);
+      xw_env_str_vector->push_back(string("--xwenv"));
+      xw_env_str_vector->push_back(xw_data_id_str);
     }
     
     if ( b_xw_data_error )
     {
       setJobStatusToError(function_name, instance_name, bridge_job_id, job,
-                          returned_values.message);
-      break;
+                          xw_message_str);
+      continue;
     }
     
-    //------------------------------------------------------------------------
-    //  If there is exactly 1 local input file, pass it as parameter of
-    //  '--xwenv'
-    //------------------------------------------------------------------------
-    local_input_files_number = local_input_file_path_str_vector->size();
-    if ( local_input_files_number == 1 )
-    {
-      xw_env_str_vector->push_back(string("--xwenv"));
-      xw_env_str_vector->push_back((*local_input_file_path_str_vector)[0]);
-    }
-    
-    //------------------------------------------------------------------------
-    //  If there is more than 1 local input file, store them all inside a ZIP
-    //------------------------------------------------------------------------
-    else if ( local_input_files_number >  1 )
-    {
-      zip_file_name_str = g_xw_files_folder_str + "/" + bridge_job_id +
-                          ".zip";
-      zip_file_name     = zip_file_name_str.c_str();
-      arg_str_vector->clear();
-      arg_str_vector->reserve(4 + local_input_files_number);
-      arg_str_vector->push_back(string("/usr/bin/zip"));
-      arg_str_vector->push_back(string("-v"));
-      arg_str_vector->push_back(string("-j"));
-      arg_str_vector->push_back(zip_file_name_str);
-      arg_str_vector->insert(arg_str_vector->end(),
-                             local_input_file_path_str_vector->begin(),
-                             local_input_file_path_str_vector->end());
-      logStringVectorToDebug(function_name, instance_name, bridge_job_id,
-                             arg_str_vector);
-      
-      returned_values  = outputAndErrorFromCommand(arg_str_vector);
-      returned_message = (returned_values.message).c_str();
-      LOG(LOG_DEBUG, "%s(%s)  Job '%s'  return_code = x'%x' --> %d  for "
-                     "zipping '%s'  ZIP displayed message = '%s'",
-                     function_name, instance_name, bridge_job_id,
-                     returned_values.retcode, returned_values.retcode / 256,
-                     zip_file_name, returned_message);
-      
-      if ( returned_values.retcode != 0 )
-      {
-        LOG(LOG_ERR, "%s(%s)  Job '%s'  return_code = x'%x' --> %d  for "
-                     "zipping '%s'  ZIP displayed message = '%s'",
-                     function_name, instance_name, bridge_job_id,
-                     returned_values.retcode, returned_values.retcode / 256,
-                     zip_file_name, returned_message);
-        setJobStatusToError(function_name, instance_name, bridge_job_id, job,
-                            returned_values.message);
-        break;
-      }
-      
-      xw_env_str_vector->push_back(string("--xwenv"));
-      xw_env_str_vector->push_back(zip_file_name_str);
-    }
-    
-    //------------------------------------------------------------------------
-    // If '_3G_BRIDGE_BATCH_ID' exists among the environment variables of the
-    // bridge job, it should be an already existing XtremWeb 'group_id'
-    //------------------------------------------------------------------------
+    //========================================================================
+    //  If '_3G_BRIDGE_BATCH_ID' exists among the environment variables of the
+    //  bridge job, it should be an already existing XtremWeb-HEP 'group_id'
+    //========================================================================
     job_batch_id_str = job->getEnv("_3G_BRIDGE_BATCH_ID");
     if ( job_batch_id_str.length() > 0 )
     {
@@ -1236,54 +1430,118 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
       xw_env_str_vector->push_back(xw_group_id_str);
     }
     
+    //========================================================================
+    //  Create the XML file describing XtremWeb-HEP job
+    //========================================================================
+    xw_cmd_xml_file_path_str = g_xw_files_folder_str +  "/" + bridge_job_id +
+                               ".xml";
+    xw_cmd_xml_file_path     = xw_cmd_xml_file_path_str.c_str();
+    LOG(LOG_DEBUG, "%s(%s)  Job '%s'  xw_cmd_xml_file_path = '%s'",
+                   function_name, instance_name, bridge_job_id,
+                   xw_cmd_xml_file_path);
+    
+    xw_cmd_xml_file = fopen(xw_cmd_xml_file_path, "w");
+    if ( ! xw_cmd_xml_file )
+    {
+      LOG(LOG_ERR, "%s(%s)  Job '%s'  xw_cmd_xml_file_path = '%s'  "
+                   "I/O error = %d  '%s'",
+                   function_name, instance_name, bridge_job_id,
+                   xw_cmd_xml_file_path, errno, sys_errlist[errno]);
+      setJobStatusToError(function_name, instance_name, bridge_job_id, job,
+                          sys_errlist[errno]);
+      continue;
+    }
+    
     //------------------------------------------------------------------------
-    // Submit the job to XtremWeb
+    //  As long XtremWeb-HEP accepts only one input file, 'xw_data_id_str'
+    //  has only 1 value.
     //------------------------------------------------------------------------
+    xw_command_xml_str = string("<work appuid=\"") + xw_app_id_str +
+                         string("\" cmdline=\"")   + job->getArgs()  +
+                         string("\" dirinuri=\"")  + xw_data_id_str  + "\"";
+    if ( job_batch_id_str.length() > 0 )
+      xw_command_xml_str += string(" groupUID=\"") + xw_group_id_str + "\"";
+    xw_command_xml_str   += string(" sgid=\"")     + xw_sg_id_str    + "\"/>";
+    LOG(LOG_DEBUG, "%s(%s)  Job '%s'  JOB xw_command_xml = '%s'",
+                   function_name, instance_name, bridge_job_id,
+                   xw_command_xml_str.c_str());
+    fprintf(xw_cmd_xml_file, "%s\n", xw_command_xml_str.c_str());
+    fclose(xw_cmd_xml_file);
+        
+    //========================================================================
+    //  Submit the job to XtremWeb-HEP
+    //========================================================================
     arg_str_vector->clear();
-    arg_str_vector->reserve(3 + xw_label_vector->size() +
-                            xw_env_str_vector->size());
+    arg_str_vector->reserve(3);
     arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwsubmit");
-    arg_str_vector->insert(arg_str_vector->end(),
-                           xw_label_vector->begin(),
-                           xw_label_vector->end());
-    arg_str_vector->push_back(job->getName());
-    arg_str_vector->push_back(job->getArgs());
-    arg_str_vector->insert(arg_str_vector->end(), xw_env_str_vector->begin(),
-                                                  xw_env_str_vector->end());
+    arg_str_vector->push_back(string("--xwxml"));
+    arg_str_vector->push_back(xw_cmd_xml_file_path_str);
+    
+//  const string specials_str  = " !$&()*/?[\\]^{|}~";
+//  size_t submitter_dn_length = submitter_dn_str.length();
+//  size_t pos_special         = submitter_dn_str.find_first_of(specials_str);
+//  while ( pos_special < submitter_dn_length )
+//  {
+//    submitter_dn_str[pos_special] = (submitter_dn_str[pos_special] == '/') ?
+//                                      ',' :
+//                                      '_';
+//    pos_special++;
+//    if ( pos_special < submitter_dn_length )
+//      pos_special = submitter_dn_str.find_first_of(specials_str,
+//                                                   pos_special);
+//  }
+//  xw_label_vector->back() = (submitter_dn_str == "") ?
+//                            bridge_job_id_str:
+//                            bridge_job_id_str + ":" + submitter_dn_str;
+//  
+//  arg_str_vector->reserve(3 + xw_label_vector->size() +
+//                          xw_env_str_vector->size());
+//  arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwsubmit");
+//  arg_str_vector->insert(arg_str_vector->end(),
+//                         xw_label_vector->begin(),
+//                         xw_label_vector->end());
+//  arg_str_vector->push_back(job->getName());
+//  arg_str_vector->push_back(job->getArgs());
+//  arg_str_vector->insert(arg_str_vector->end(), xw_env_str_vector->begin(),
+//                                                xw_env_str_vector->end());
+    
     logStringVectorToDebug(function_name, instance_name, bridge_job_id,
                            arg_str_vector);
     
     returned_values  = outputAndErrorFromCommand(arg_str_vector);
     returned_message = (returned_values.message).c_str();
     
-    LOG(LOG_DEBUG,"%s(%s)  Job '%s' submitted.  XtremWeb displayed message "
-                  "= '%s'", function_name, instance_name, bridge_job_id,
-                  returned_message);
+    LOG(LOG_DEBUG,"%s(%s)  Job '%s' submitted.  XtremWeb-HEP displayed "
+                  "message = '%s'", function_name, instance_name,
+                  bridge_job_id, returned_message);
     
     if ( returned_values.retcode != 0 )
     {
       LOG(LOG_ERR, "%s(%s)  Job '%s'  return_code = x'%X' --> %d  for "
-                   "XtremWeb submission.  XtremWeb displayed message "
+                   "XtremWeb-HEP submission.  XtremWeb-HEP displayed message "
                    "= '%s'", function_name, instance_name, bridge_job_id,
                    returned_values.retcode, returned_values.retcode / 256,
                    returned_message);
       setJobStatusToError(function_name, instance_name, bridge_job_id, job,
                           returned_values.message);
-      break;
+      continue;
     }
+        
+    unlink(xw_cmd_xml_file_path);
     
-    //------------------------------------------------------------------------
-    // From the message displayed by XtremWeb, extract the XtremWeb job id
-    //------------------------------------------------------------------------
+    //========================================================================
+    //  From the message displayed by XtremWeb-HEP, extract the XtremWeb-HEP
+    //  job id
+    //========================================================================
     pos_xw_id = (returned_values.message).rfind("xw://");
     if ( pos_xw_id == string::npos )
     {
       LOG(LOG_ERR, "%s(%s)  Job '%s'  'xw://' NOT found inside message "
-                   "displayed by XtremWeb",
+                   "displayed by XtremWeb-HEP",
                    function_name, instance_name, bridge_job_id);
       setJobStatusToError(function_name, instance_name, bridge_job_id, job,
                           returned_values.message);
-      break;
+      continue;
     }
     
     xw_job_id_str = (returned_values.message).substr(pos_xw_id,
@@ -1291,16 +1549,16 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     trimEol(xw_job_id_str);
     xw_job_id = xw_job_id_str.c_str();
     
-    //------------------------------------------------------------------------
-    // Insert the XtremWeb job id in the database
+    //========================================================================
+    // Insert the XtremWeb-HEP job id in the database
     // Set the bridge status of the job to RUNNING
-    //------------------------------------------------------------------------
+    //========================================================================
     LOG(LOG_NOTICE, "%s(%s)  Job '%s'  Set status of bridge job to 'RUNNING'",
                     function_name, instance_name, bridge_job_id);
     job->setGridId(xw_job_id_str);
     job->setStatus(Job::RUNNING);
     
-    LOG(LOG_NOTICE, "%s(%s)  Job '%s'  XtremWeb Job ID = '%s'",
+    LOG(LOG_NOTICE, "%s(%s)  Job '%s'  XtremWeb-HEP Job ID = '%s'",
                     function_name, instance_name, bridge_job_id, xw_job_id);
     logit_mon("event=job_submission job_id=%s job_id_dg=%s "
               "output_grid_name=%s", bridge_job_id, xw_job_id, instance_name);
@@ -1309,7 +1567,7 @@ void XWHandler::submitJobs(JobVector &jobs) throw (BackendException *)
     nb_jobs++;
   }
   LOG(LOG_NOTICE, "%s(%s)  Number of job(s) successfully submitted to "
-                  "XtremWeb :  %ld / %ld",
+                  "XtremWeb-HEP :  %ld / %ld",
                   function_name, instance_name, nb_jobs, jobs.size());
 }
 
@@ -1345,19 +1603,18 @@ void XWHandler::updateStatus(void) throw (BackendException *)
 //
 //  Member function  updateJobStatus
 //
-//  @param job            Pointer to the bridge job to update
-//  @param xw_job_status  XtremWeb status of the job
-//  @param xw_message     XtremWeb message associated to the job
+//  @param job             Pointer to the bridge job to update
+//  @param xw_job_status   XtremWeb-HEP status of the job
+//  @param xw_message_str  XtremWeb-HEP message associated to the job
 //
 //  This function updates the status of a given bridge job :
-//  - From the XtremWeb status of the job, calculate the new bridge status.
-//  - Store the new bridge status and the XtremWeb message in the database.
-//    ATTENTION: For DB, simple quotes must be changed to something else.
+//  - From the XtremWeb-HEP status of the job, calculate the new bridge status
+//  - Store the new bridge status and the XtremWeb-HEP message in the database
 //
 //============================================================================
 void XWHandler::updateJobStatus(Job *          job,
                                 const string & xw_job_current_status,
-                                const string & xw_message)
+                                const string & xw_message_str)
 {
   const char * function_name = "XWHandler::updateJobStatus";
   const char * instance_name = name.c_str();
@@ -1387,10 +1644,18 @@ void XWHandler::updateJobStatus(Job *          job,
   const char *         xw_job_status         = xw_job_current_status.c_str();
   const Job::JobStatus bridge_job_old_status = job->getStatus();
   
-  LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  XtremWeb job status = '%s'  "
+  LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  XtremWeb-HEP job status = '%s'  "
                  "Bridge job old status = %d has perhaps to be updated",
                  function_name, instance_name, bridge_job_id, xw_job_id,
                  xw_job_status, bridge_job_old_status);
+    
+  if ( xw_message_str != job->getGridData() )
+  {
+    LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb-HEP message = '%s'",
+                    function_name, instance_name, bridge_job_id, xw_job_id,
+                    xw_message_str.c_str());
+    job->setGridData(xw_message_str);
+  }
   
   for ( unsigned xw_status_no = 0;
         xw_to_bridge_status_relation[xw_status_no].xw_job_status != "";
@@ -1402,50 +1667,38 @@ void XWHandler::updateJobStatus(Job *          job,
       Job::JobStatus bridge_job_new_status =
                  xw_to_bridge_status_relation[xw_status_no].bridge_job_status;
       
-      if ( (bridge_job_new_status != bridge_job_old_status) ||
-           (xw_message != job->getGridData()) )
+      if ( bridge_job_new_status != bridge_job_old_status )
       {
-        string xw_date_str = "";
-        
         //--------------------------------------------------------------------
-        //  Try to extract the completion date of the XtremWeb job.
+        //  Try to extract the completion date of the XtremWeb-HEP job.
         //  Initial value of the 'xw_date_str' variable is the empty string.
         //--------------------------------------------------------------------
+        string xw_date_str = "";
+        
         if ( (xw_job_current_status == "COMPLETED") ||
              (xw_job_current_status == "ERROR")     ||
              (xw_job_current_status == "ABORTED")   )
         {
           const char * date_header = "COMPLETEDDATE='";
-          size_t pos_date          = xw_message.find(date_header);
+          size_t pos_date          = xw_message_str.find(date_header);
           if ( pos_date != string::npos )
           {
             pos_date += strlen(date_header);
-            size_t pos_quote = xw_message.find("'", pos_date);
+            size_t pos_quote = xw_message_str.find("'", pos_date);
             if ( pos_quote != string::npos )
-              xw_date_str = xw_message.substr(pos_date, pos_quote - pos_date);
+              xw_date_str = xw_message_str.substr(pos_date,
+                                                  pos_quote - pos_date);
           }
         }
-        
-        if ( xw_message != job->getGridData() )
-        {
-          LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb message = '%s'",
-                          function_name, instance_name, bridge_job_id,
-                          xw_job_id, xw_message.c_str());
-          job->setGridData(xw_message);
-        }
-        
-        if ( bridge_job_new_status != bridge_job_old_status )
-        {
-          LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb job status = '%s'"
-                          "  Bridge job new status = %d  Completed date = "
-                          "'%s'", function_name, instance_name, bridge_job_id,
-                          xw_job_id, xw_job_status, bridge_job_new_status,
-                          xw_date_str.c_str());
-          job->setStatus(bridge_job_new_status);
-        }
-        
-        LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  XtremWeb job status = '%s'  "
-                       "Bridge job new status = %d successfully stored",
+        LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb-HEP job status = "
+                        "'%s'  Bridge job new status = %d  Completed date = "
+                        "'%s'", function_name, instance_name, bridge_job_id,
+                        xw_job_id, xw_job_status, bridge_job_new_status,
+                        xw_date_str.c_str());
+        job->setStatus(bridge_job_new_status);
+      
+        LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  XtremWeb-HEP job status = '%s'"
+                       "  Bridge job new status = %d successfully stored",
                        function_name, instance_name, bridge_job_id, xw_job_id,
                        xw_job_status, bridge_job_new_status);
       }
@@ -1466,10 +1719,10 @@ void XWHandler::updateJobStatus(Job *          job,
 //  It is used as a callback for DBHandler::pollJobs().
 //  Depending on the bridge status of the job :
 //  - CANCEL :
-//    Destroy the corresponding XtremWeb job.
+//    Destroy the corresponding XtremWeb-HEP job.
 //  - RUNNING :
-//    Query XtremWeb for the status of the corresponding XtremWeb job.
-//    If the XtremWeb job is COMPLETED, retrieve the XtremWeb results.
+//    Query XtremWeb-HEP for the status of the corresponding XtremWeb-HEP job.
+//    If the XtremWeb-HEP job is COMPLETED, retrieve the XtremWeb-HEP results.
 //    Update the status of the bridge job accordingly.
 //
 //============================================================================
@@ -1493,7 +1746,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
   unsigned char bridge_status = job->getStatus();
   
   //--------------------------------------------------------------------------
-  //  If the bridge status of the job is CANCEL, delete it from XtremWeb
+  //  If the bridge status of the job is CANCEL, delete it from XtremWeb-HEP
   //--------------------------------------------------------------------------
   if ( bridge_status == Job::CANCEL )
   {
@@ -1514,15 +1767,15 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     //------------------------------------------------------------------------
     if ( returned_values.retcode != 0 )
     {
-      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb return code = x'%X' "
-                      "--> %d  -->  3G Bridge status left unchanged",
+      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb-HEP return code = "
+                      "x'%X' --> %d  -->  3G Bridge status left unchanged",
                       function_name, instance_name, bridge_job_id, xw_job_id,
                       returned_values.retcode, returned_values.retcode / 256);
     }
     else
     {
       LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  successfully removed from "
-                      "XtremWeb",
+                      "XtremWeb-HEP",
                       function_name, instance_name, bridge_job_id, xw_job_id);
       setJobStatusToError(function_name, instance_name, bridge_job_id, job,
                           string("Cancelled.  ") + returned_values.message);
@@ -1531,7 +1784,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
   }
   
   //--------------------------------------------------------------------------
-  //  If the bridge status of the job is RUNNING, refresh it from XtremWeb
+  //  If the bridge status of the job is RUNNING, refresh it from XtremWeb-HEP
   //--------------------------------------------------------------------------
   if ( bridge_status == Job::RUNNING )
   {
@@ -1539,7 +1792,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
                   function_name, instance_name, bridge_job_id, xw_job_id);
     
     //------------------------------------------------------------------------
-    //  Force XtremWeb to refresh its cache.
+    //  Force XtremWeb-HEP to refresh its cache.
     //  This should NOT be necessary anymore.
     //------------------------------------------------------------------------
     if ( g_xwclean_forced )
@@ -1552,7 +1805,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     }
     
     //------------------------------------------------------------------------
-    //  Query job status from XtremWeb
+    //  Query job status from XtremWeb-HEP
     //------------------------------------------------------------------------
     arg_str_vector->clear();
     arg_str_vector->reserve(2);
@@ -1564,13 +1817,13 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     returned_values = outputAndErrorFromCommand(arg_str_vector);
     
     //------------------------------------------------------------------------
-    //  Try to parse the message displayed by XtremWeb
+    //  Try to parse the message displayed by XtremWeb-HEP
     //------------------------------------------------------------------------
-    string xw_message = returned_values.message;
+    string xw_message_str = returned_values.message;
     
-    if ( xw_message.find("ERROR : object not found") != string::npos )
+    if ( xw_message_str.find("ERROR : object not found") != string::npos )
     {
-      LOG(LOG_ERR, "%s(%s)  Job '%s' (%s)  NOT found by XtremWeb",
+      LOG(LOG_ERR, "%s(%s)  Job '%s' (%s)  NOT found by XtremWeb-HEP",
                    function_name, instance_name, bridge_job_id, xw_job_id);
       setJobStatusToError(function_name, instance_name, bridge_job_id, job,
                           returned_values.message);
@@ -1579,8 +1832,8 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     
     if ( returned_values.retcode != 0 )
     {
-      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb return code = x'%X' "
-                      "--> %d  -->  3G Bridge status left unchanged",
+      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb-HEP return code = "
+                      "x'%X' --> %d  -->  3G Bridge status left unchanged",
                       function_name, instance_name, bridge_job_id, xw_job_id,
                       returned_values.retcode, returned_values.retcode / 256);
       return;
@@ -1590,69 +1843,71 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     string xw_job_label_str  = "";
     
     //------------------------------------------------------------------------
-    //  Message displayed by XtremWeb should contain:  STATUS='<status>'
+    //  Message displayed by XtremWeb-HEP should contain:  STATUS='<status>'
     //------------------------------------------------------------------------
     const char * status_header = "STATUS='";
-    size_t       pos_status    = xw_message.find(status_header);
+    size_t       pos_status    = xw_message_str.find(status_header);
     size_t       pos_quote     = 0;
     if ( pos_status != string::npos )
     {
       pos_status += strlen(status_header);
-      pos_quote   = xw_message.find("'", pos_status);
+      pos_quote   = xw_message_str.find("'", pos_status);
       if ( pos_quote != string::npos )
-        xw_job_status_str = xw_message.substr(pos_status,
-                                              pos_quote - pos_status );
+        xw_job_status_str = xw_message_str.substr(pos_status,
+                                                  pos_quote - pos_status );
     }
     
     //------------------------------------------------------------------------
-    //  Message displayed by XtremWeb should contain:  LABEL='<label>'
+    //  Message displayed by XtremWeb-HEP should contain:  LABEL='<label>'
     //------------------------------------------------------------------------
     const char * label_header = "LABEL='";
-    size_t       pos_label    = xw_message.find(label_header);
+    size_t       pos_label    = xw_message_str.find(label_header);
     pos_quote = 0;
     if ( pos_label != string::npos )
     {
       pos_label += strlen(label_header);
-      pos_quote  = xw_message.find("'", pos_label);
+      pos_quote  = xw_message_str.find("'", pos_label);
       if ( pos_quote != string::npos )
-        xw_job_label_str = xw_message.substr(pos_label,
-                                             pos_quote - pos_label );
+        xw_job_label_str = xw_message_str.substr(pos_label,
+                                                 pos_quote - pos_label );
     }
     
     //------------------------------------------------------------------------
-    //  If XtremWeb job status is NOT found, leave 3G Bridge status unchanged
+    //  If XtremWeb-HEP job status is NOT found, leave 3G Bridge status
+    //  unchanged
     //------------------------------------------------------------------------
     if ( xw_job_status_str == "" )
     {
-      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb status NOT found --> "
-                      "3G Bridge status left unchanged",
+      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb-HEP status NOT found "
+                      "--> 3G Bridge status left unchanged",
                       function_name, instance_name, bridge_job_id,
                       xw_job_id);
       return;
     }
     
     //------------------------------------------------------------------------
-    //  XtremWeb status of the job permits to update bridge job status
+    //  XtremWeb-HEP status of the job permits to update bridge job status
     //------------------------------------------------------------------------
-    LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  XtremWeb job status = '%s'",
+    LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  XtremWeb-HEP job status = '%s'",
                   function_name, instance_name, bridge_job_id, xw_job_id,
                   xw_job_status_str.c_str());
-    string xw_status_message =
-                         xw_message.substr(xw_message.find_first_not_of(' '));
+    string xw_status_message_str =
+                 xw_message_str.substr(xw_message_str.find_first_not_of(' '));
     
     //------------------------------------------------------------------------
-    //  If the XtremWeb status of the job is COMPLETED, retrieve its results
-    //  from XtremWeb, and extract the output files required by the bridge
+    //  If the XtremWeb-HEP status of the job is COMPLETED :
+    //  - Retrieve its results from XtremWeb-HEP,
+    //  - Extract the output files required by the bridge.
     //------------------------------------------------------------------------
     if ( xw_job_status_str == "COMPLETED" )
     {
-      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb job status = '%s'",
+      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb-HEP job status = '%s'",
                       function_name, instance_name, bridge_job_id, xw_job_id,
                       xw_job_status_str.c_str());
       
       //----------------------------------------------------------------------
-      //  If the current folder is not the folder for XtremWeb output files,
-      //  go there.
+      //  If the current folder is not the folder for XtremWeb-HEP output
+      //  files, go there.
       //----------------------------------------------------------------------
       char * cwd = getcwd((char*)NULL, 0);
       LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  cwd = '%s'", function_name, 
@@ -1670,7 +1925,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
       free(cwd);             // 'cwd' has been dynamically allocated by getcwd
       
       //----------------------------------------------------------------------
-      //  Retrieve the results of the XtremWeb job
+      //  Retrieve the results of the XtremWeb-HEP job
       //----------------------------------------------------------------------
       arg_str_vector->clear();
       arg_str_vector->reserve(4);
@@ -1685,19 +1940,19 @@ void XWHandler::poll(Job * job) throw (BackendException *)
       
       if ( returned_values.retcode != 0 )
       {
-        LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb return code = x'%X' "
-                        "--> %d  -->  3G Bridge status left unchanged",
+        LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb-HEP return code = "
+                        "x'%X' --> %d  -->  3G Bridge status left unchanged",
                         function_name, instance_name, bridge_job_id,
                         xw_job_id, returned_values.retcode,
                         returned_values.retcode / 256);
       }
       else
       {
-        xw_message = returned_values.message;
+        xw_message_str = returned_values.message;
         LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  Results successfully "
-                        "retrieved from XtremWeb  '%s'",
+                        "retrieved from XtremWeb-HEP  '%s'",
                         function_name, instance_name, bridge_job_id,
-                        xw_job_id, xw_message.c_str());
+                        xw_job_id, xw_message_str.c_str());
       
         //  Sleep some time before download.  Should NOT be necessary.
         if ( g_sleep_time_before_download > 0 )
@@ -1709,22 +1964,22 @@ void XWHandler::poll(Job * job) throw (BackendException *)
         }
     
         //--------------------------------------------------------------------
-        //  Message displayed by XtremWeb should contain:  resulturi="
+        //  Message displayed by XtremWeb-HEP should contain:  resulturi="
         //  Name of the result file begins with result URI after last '/'
         //--------------------------------------------------------------------
         string       xw_result_uid_str = "*";        // By default, a star
         const char * result_header     = "resulturi=\"";
-        size_t       pos_result        = xw_message.find(result_header);
+        size_t       pos_result        = xw_message_str.find(result_header);
         size_t       pos_last_slash;
         pos_quote = 0;
         if ( pos_result != string::npos )
         {
           pos_result += strlen(result_header);
-          pos_quote   = xw_message.find('"', pos_result);
+          pos_quote   = xw_message_str.find('"', pos_result);
           if ( pos_quote != string::npos )
           {
-            xw_result_uid_str = xw_message.substr(pos_result,
-                                                 pos_quote - pos_result );
+            xw_result_uid_str = xw_message_str.substr(pos_result,
+                                                      pos_quote - pos_result);
             pos_last_slash = xw_result_uid_str.rfind('/');
             LOG(LOG_DEBUG, "%s(%s)  xw_result_uri = '%s'  "
                            "pos_last_slash=%ld",
@@ -1738,7 +1993,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
         }
         
         //--------------------------------------------------------------------
-        //  XtremWeb job UID is XtremWeb job URI after last '/'
+        //  XtremWeb-HEP job UID is XtremWeb-HEP job URI after last '/'
         //--------------------------------------------------------------------
         string xw_job_uid_str = xw_job_id_str;
         pos_last_slash        = xw_job_id_str.rfind('/');
@@ -1751,8 +2006,8 @@ void XWHandler::poll(Job * job) throw (BackendException *)
         
         //--------------------------------------------------------------------
         //  Name of ZIP file :  ATTENTION :
-        //  If the XtremWeb label is not empty, it ends with it,
-        //  otherwise it ends with the XtremWeb job UID.
+        //  If the XtremWeb-HEP label is not empty, it ends with it,
+        //  otherwise it ends with the XtremWeb-HEP job UID.
         //--------------------------------------------------------------------
         if ( xw_job_label_str == "" )
           xw_job_label_str = xw_job_uid_str;
@@ -1763,11 +2018,11 @@ void XWHandler::poll(Job * job) throw (BackendException *)
                                       "/ResultsOf_" + xw_job_uid_str + ".zip";
         
         //--------------------------------------------------------------------
-        //  The XtremWeb ZIP file containing the job results should be in
-        //  the XtremWeb file folder.
+        //  The XtremWeb-HEP ZIP file containing the job results should be in
+        //  the XtremWeb-HEP file folder.
         //  Rename this ZIP file with a shorter name.
         //--------------------------------------------------------------------
-        char * command = "/bin/mv";
+        const char * command = "/bin/mv";
         int    return_code;
         
         if ( xw_result_uid_str == "*" )
@@ -1826,7 +2081,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
         {
           //------------------------------------------------------------------
           //  Get the list of bridge ouptut files to be extracted from the
-          //  XtremWeb ZIP file to the bridge output files folder.
+          //  XtremWeb-HEP ZIP file to the bridge output files folder.
           //  We suppose that all output files have to go to the same folder,
           //  otherwise we would have to generate 1 unzip command per output
           //  file.
@@ -1889,10 +2144,10 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     
     //------------------------------------------------------------------------
     //  For the bridge job, store :
-    //  -  the bridge status    inside the 'status'  attribute,
-    //  -  the XtremWeb message inside the 'griddata' attribute.
+    //  -  the bridge status        inside the 'status'  attribute,
+    //  -  the XtremWeb-HEP message inside the 'griddata' attribute.
     //------------------------------------------------------------------------
-    updateJobStatus(job, xw_job_status_str, xw_status_message);
+    updateJobStatus(job, xw_job_status_str, xw_status_message_str);
   }
 }
 
