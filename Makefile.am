@@ -86,7 +86,8 @@ noinst_HEADERS = \
 		Job.h \
 		QMException.h \
 		DLException.h \
-		Util.h
+		Util.h \
+		mkstr
 
 injector_SOURCES = \
 		injector.cpp \
