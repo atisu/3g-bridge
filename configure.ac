@@ -1,6 +1,6 @@
 AC_PREREQ(2.59)
 
-AC_INIT([3G Bridge], [1.5], [zfarkas@sztaki.hu])
+AC_INIT([3G Bridge], [1.6], [zfarkas@sztaki.hu])
 
 AC_CONFIG_AUX_DIR([scripts])
 AC_CONFIG_MACRO_DIR([cf])

@@ -310,6 +310,9 @@ fi
 %endif
 
 %changelog
+* Mon Jul 18 2011 FARKAS Zoltan <zfarkas@sztaki.hu> 1.6-1
+- Added Metajob plugin
+
 * Tue May 10 2011 FARKAS Zoltan <zfarkas@sztaki.hu> 1.5-1
 - EGEE Plugin: specify requirements for the JDL in the config
 - XtremWeb Plugin: make use of submitting user's DN

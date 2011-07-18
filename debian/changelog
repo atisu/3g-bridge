@@ -1,3 +1,10 @@
+3g-bridge (1.6-1) unstable; urgency=low
+
+  * New Debian release
+  * Added Metajob plugin
+
+ -- FARKAS Zoltán <zfarkas@sztaki.hu>  Mon, 18 Jul 2011 19:57:40 +0200
+
 3g-bridge (1.5-1) unstable; urgency=low
 
   * New Debian release
