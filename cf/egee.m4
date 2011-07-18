@@ -30,14 +30,6 @@ AC_DEFUN([CLASSADS_CONF], [
 	fi
 ])
 
-AC_DEFUN([CARES_CONF], [
-	AC_ARG_WITH([cares], AS_HELP_STRING([--with-cares],
-		[Use C-Ares in @<:@/opt/c-ares@:>@]),,
-		[with_cares=/opt/c-ares])
-	EGEE_CPPFLAGS="$EGEE_CPPFLAGS -I${with_cares}/include"
-	EGEE_LIBS="$EGEE_LIBS -L${with_cares}/lib -lcares"
-])
-
 AC_DEFUN([GLITE_CONF], [
 	AC_ARG_WITH([glite], AS_HELP_STRING([--with-glite],
 		[Use gLite in @<:@/opt/glite@:>@]),,
@@ -53,7 +45,6 @@ AC_DEFUN([GLITE_CONF], [
 AC_DEFUN([EGEE_BE], [
 	AC_REQUIRE([GLOBUS_CONF])
 	AC_REQUIRE([GLITE_CONF])
-	AC_REQUIRE([CARES_CONF])
 	AC_REQUIRE([CLASSADS_CONF])
 
 	EGEE_LIBS="$EGEE_LIBS -lxml2 -lboost_filesystem -lboost_regex"
