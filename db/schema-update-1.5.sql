@@ -1,10 +1,7 @@
 ALTER TABLE cg_job
-	ADD COLUMN      metajobid       CHAR(36) NULL,
 	ADD COLUMN	griddata	VARCHAR(2048),
 	ADD COLUMN	tag		VARCHAR(254),
-	CHANGE COLUMN	gridid gridid	VARCHAR(2048),
-	ADD FOREIGN KEY (metajobid) REFERENCES cg_job(id)
-		ON DELETE CASCADE;
+	CHANGE COLUMN	gridid gridid	VARCHAR(2048);
 
 ALTER TABLE cg_inputs
 	ADD COLUMN	md5		CHAR(32),

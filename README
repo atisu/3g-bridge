@@ -130,10 +130,14 @@ into the BOINC database by executing
 where "${prefix}" refers to the value you passwed to the "--prefix=..."
 option of configure (/usr/local by default).
 
-When upgrading the bridge, update the schema instead of recreating it by
-executing
+When upgrading the bridge, update the schema instead of recreating it. To do this,
+run each update script in order, starting from the one having a greater version
+than you're upgrading from.
+For example, if you have version 1.4, execute these commands:
 
-	mysql <name of the BOINC database> < ${prefix}/share/doc/3g-bridge/db/schema-update.sql
+	mysql <name of the BOINC database> < ${prefix}/share/doc/3g-bridge/db/schema-update-1.5.sql
+	mysql <name of the BOINC database> < ${prefix}/share/doc/3g-bridge/db/schema-update-1.6.sql
+	... # to the last update snippet
 
 If everything is ready, issue "start" to let BOINC launch the 3G Bridge.
 
