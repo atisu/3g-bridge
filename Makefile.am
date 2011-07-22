@@ -200,7 +200,8 @@ dist_doc_DATA = \
 		master.xml
 nobase_dist_doc_DATA = \
 		db/schema.sql \
-		db/schema-update.sql \
+		db/schema-update-1.5.sql \
+		db/schema-update-1.6.sql \
 		db/purge.sql \
 		examples/batch_pack \
 		examples/batch_unpack \
