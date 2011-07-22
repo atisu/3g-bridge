@@ -73,6 +73,17 @@ to different grid types. The "null" plugin simply sets new jobs to running,
 and running jobs to finished. No job execution is performed by this
 plugin, this is mainly useful for testing and benchmarking.
 
+%package plugin-metajob
+Summary: Generic Grid Grid (3G) bridge metajob plugin.
+Group: Grid
+Requires: 3g-bridge = %{version}-%{release}
+
+%description plugin-metajob
+The purpose of the 3G bridge application is to create a connection between a
+job source and a grid backend. The 3G bridge uses grid plugins to submit jobs
+to different grid types. The metajob plugin can be used to submit a number of
+jobs within one submission request.
+
 %if %{_with_egee}
 %package plugin-egee
 Summary: Generic Grid Grid (3G) bridge EGEE submission plugin.
@@ -268,6 +279,12 @@ fi
 %{_libdir}/3g-bridge/Null_monitor.a
 %{_libdir}/3g-bridge/Null_monitor.la
 %{_libdir}/3g-bridge/Null_monitor.so
+
+%files plugin-metajob
+%defattr(-, root, root)
+%{_libdir}/3g-bridge/Metajob_handler.a
+%{_libdir}/3g-bridge/Metajob_handler.la
+%{_libdir}/3g-bridge/Metajob_handler.so
 
 %if %{_with_egee}
 %files plugin-egee
