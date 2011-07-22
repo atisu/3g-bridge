@@ -96,7 +96,7 @@ steps:
 
   6. Start the boinc_jobwrapper_client in this new directory, and attach to
      the requested BOINC project. Do this as the user created for the
-     bridge, on SL4 you can get a shell with the following command
+     bridge, on SL4/SL5 you can get a shell with the following command
      'runuser -s /bin/bash 3g-bridge'):
      $ boinc_jobwrapper_client --no_gui_rpc --attach_project <URL> <KEY>
      The BOINC jobwrapper client begins fetching workunits from the BOINC
