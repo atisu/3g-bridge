@@ -327,6 +327,10 @@ fi
 %endif
 
 %changelog
+* Fri Jul 22 2011 FARKAS Zoltan <zfarkas@sztaki.hu> 1.6.1-1
+- Fixed Metajob plugin release
+- Split schema update into version-specific parts
+
 * Mon Jul 18 2011 FARKAS Zoltan <zfarkas@sztaki.hu> 1.6-1
 - Added Metajob plugin
 
