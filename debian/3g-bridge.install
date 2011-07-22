@@ -6,7 +6,8 @@ debian/tmp/usr/lib/3g-bridge/*.so
 debian/tmp/usr/share/java/*.jar
 debian/3g-bridge.conf			usr/share/3g-bridge
 db/schema.sql				usr/share/3g-bridge
-db/schema-update.sql			usr/share/3g-bridge
+db/schema-update-1.5.sql		usr/share/3g-bridge
+db/schema-update-1.6.sql		usr/share/3g-bridge
 examples/batch_pack			usr/share/3g-bridge
 examples/batch_unpack			usr/share/3g-bridge
 examples/dc-api.conf			usr/share/3g-bridge
