@@ -144,12 +144,12 @@ returned_t outputAndErrorFromCommand(const auto_ptr< vector<string> > &
   returned_t   returned_values;
   
   size_t arg_str_vector_size = arg_str_vector->size();
-  LOG(LOG_DEBUG, "%s(%s)  Command size = %ld",
+  LOG(LOG_DEBUG, "%s(%s)  Command size = %zd",
                  function_name, instance_name, arg_str_vector_size);
   
   if ( arg_str_vector_size < 1 )
   {
-    sprintf(error_buffer, "Command size = %ld  Empty comand is erroneous",
+    sprintf(error_buffer, "Command size = %zd  Empty comand is erroneous",
                           arg_str_vector_size);
     LOG(LOG_ERR, "%s(%s)  %s", function_name, instance_name, error_buffer);
     returned_values.retcode = -1;
@@ -518,7 +518,7 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
                     size_t xw_version_response_len =
                       atoi((http_response_str.substr(pos_length+15)).c_str());
                     LOG(LOG_DEBUG, "%s(%s)  XW response for version number "
-                                   "has %d bytes", function_name,
+                                   "has %zd bytes", function_name,
                                    instance_name,  xw_version_response_len);
                     
                     http_response_len = 0;
@@ -942,7 +942,7 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
   const char * instance_name = name.c_str();
   
   LOG(LOG_NOTICE, "%s(%s)  Number of job(s) to be submitted to XtremWeb-HEP "
-                  ":  %ld", function_name, instance_name, jobs.size());
+                  ":  %zd", function_name, instance_name, jobs.size());
   
   if ( jobs.size() < 1 )
       return;
@@ -981,7 +981,7 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
   const char *  input_file_path;
   string        input_file_md5_str;
   const char *  input_file_md5;
-  int           input_file_size;
+  off_t         input_file_size;
   string        xw_cmd_xml_file_path_str;
   const char *  xw_cmd_xml_file_path;
   FILE *        xw_cmd_xml_file;
@@ -1141,7 +1141,7 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
     //========================================================================
     input_file_str_vector = job->getInputs();
     LOG(LOG_NOTICE, "%s(%s)  Job '%s'  Submitter DN = '%s'  Application = "
-                    "'%s' (%s)  Number of input files = %ld", function_name,
+                    "'%s' (%s)  Number of input files = %zd", function_name,
                     instance_name, bridge_job_id, submitter_dn_str.c_str(),
                     bridge_job_name_str.c_str(), xw_app_id,
                     input_file_str_vector->size());
@@ -1187,8 +1187,8 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
     //  Store multiple local input files inside 1 single ZIP input file, which
     //  the XtremWeb-HEP worker will automatically unzip.
     //------------------------------------------------------------------------
-    LOG(LOG_DEBUG, "%s(%s)  Job '%s'  Input file(s) :  %d local,  %d as URL",
-                   function_name, instance_name, bridge_job_id,
+    LOG(LOG_DEBUG, "%s(%s)  Job '%s'  Input file(s) :  %zd local,  "
+                   "%zd as URL", function_name, instance_name, bridge_job_id,
                    input_file_path_number, input_file_url_number);
       
     if ( (input_file_url_number > 1) ||
@@ -1297,7 +1297,7 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
         input_file_path_str = input_file_ref.getURL();
         input_file_path     = input_file_path_str.c_str();
         LOG(LOG_DEBUG, "%s(%s)  Job '%s'  input_file_name = '%s'  "
-                       "input_file_path = '%s'", function_name, instance_name,
+                       "input_file_url = '%s'", function_name, instance_name,
                        bridge_job_id, input_file_name, input_file_path);
         
         //  Following 2 lines work only if URL = schema://server/basename
@@ -1310,6 +1310,19 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
         input_file_md5_str = input_file_ref.getMD5();
         input_file_size    = input_file_ref.getSize();
         input_file_md5     = input_file_md5_str.c_str();
+        if ( (input_file_md5_str == "") || (input_file_size < 0) )
+        {
+          sprintf(xw_command_xml, "input_file_name = '%s'  input_file_url = "
+                                  "'%s'  MD5 = '%s'  size = %jd  Missing MD5 "
+                                  "or size NOT supported", input_file_name,
+                                  input_file_path, input_file_md5,
+                                  (intmax_t)input_file_size);
+          LOG(LOG_ERR, "%s(%s)  Job '%s'  %s", function_name, instance_name,
+                                               bridge_job_id, xw_command_xml);
+          xw_message_str  = string(xw_command_xml);
+          b_xw_data_error = true;
+          break;
+        }
         
         //--------------------------------------------------------------------
         //  Create the XML file describing XtremWeb-HEP data for URL
@@ -1319,16 +1332,16 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
                                    ".xml";
         xw_cmd_xml_file_path     = xw_cmd_xml_file_path_str.c_str();
         LOG(LOG_DEBUG, "%s(%s)  Job '%s'  input_file_name = '%s'  "
-                       "input_file_url = '%s'  MD5 = '%s'  size = %d  "
+                       "input_file_url = '%s'  MD5 = '%s'  size = %jd  "
                        "xw_cmd_xml_file_path = '%s'",
                        function_name, instance_name, bridge_job_id,
                        input_file_name, input_file_path, input_file_md5,
-                       input_file_size, xw_cmd_xml_file_path);
+                       (intmax_t)input_file_size, xw_cmd_xml_file_path);
         
         xw_cmd_xml_file = fopen(xw_cmd_xml_file_path, "w");
         if ( ! xw_cmd_xml_file )
         {
-          sprintf(xw_command_xml, "input_file_name = '%s'  input_file_path = "
+          sprintf(xw_command_xml, "input_file_name = '%s'  input_file_url = "
                                   "'%s'  xw_cmd_xml_file_path = '%s'  "
                                   "I/O error = %d  '%s'", input_file_name,
                                   input_file_path, xw_cmd_xml_file_path,
@@ -1341,8 +1354,8 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
         }
         
         sprintf(xw_command_xml,
-                "<data name=\"%s\" md5=\"%s\" size=\"%d\" uri=\"%s\"/>",
-                input_file_name, input_file_md5, input_file_size,
+                "<data name=\"%s\" md5=\"%s\" size=\"%jd\" uri=\"%s\"/>",
+                input_file_name, input_file_md5, (intmax_t)input_file_size,
                 input_file_path);
         LOG(LOG_DEBUG, "%s(%s)  Job '%s'  DATA xw_command_xml = '%s'",
                        function_name, instance_name, bridge_job_id,
@@ -1567,7 +1580,7 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
     nb_jobs++;
   }
   LOG(LOG_NOTICE, "%s(%s)  Number of job(s) successfully submitted to "
-                  "XtremWeb-HEP :  %ld / %ld",
+                  "XtremWeb-HEP :  %zd / %zd",
                   function_name, instance_name, nb_jobs, jobs.size());
 }
 
@@ -1982,7 +1995,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
                                                       pos_quote - pos_result);
             pos_last_slash = xw_result_uid_str.rfind('/');
             LOG(LOG_DEBUG, "%s(%s)  xw_result_uri = '%s'  "
-                           "pos_last_slash=%ld",
+                           "pos_last_slash=%zd",
                            function_name, instance_name,
                            xw_result_uid_str.c_str(), pos_last_slash);
             
@@ -1997,7 +2010,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
         //--------------------------------------------------------------------
         string xw_job_uid_str = xw_job_id_str;
         pos_last_slash        = xw_job_id_str.rfind('/');
-        LOG(LOG_DEBUG, "%s(%s)  xw_job_id = '%s'  pos_last_slash=%ld",
+        LOG(LOG_DEBUG, "%s(%s)  xw_job_id = '%s'  pos_last_slash=%zd",
                        function_name, instance_name, xw_job_id,
                        pos_last_slash);
         
