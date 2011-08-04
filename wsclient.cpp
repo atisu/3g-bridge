@@ -182,6 +182,7 @@ int main(int argc, char **argv)
 	}
 
 	op_mode m;
+        // FIXME: strcmp can be problematic only if `mode' is unterminated/too long etc. If this is the case, strlen(mode) will not provide any safety. strlen should be called on the constant string, or the length of the constant string could be wired in. E.g.: use either `strlen("add")' or `3' etc..
 	if (!strncmp(mode, "add", strlen(mode)))
 		m = ADD;
 	else if (!strncmp(mode, "status", strlen(mode)))
@@ -502,6 +503,12 @@ static void handle_griddata(void)
 static void handle_gridalgs(void)
 {
 	G3BridgeSubmitter__GridAlgList resp;
+
+	if (!grid)
+	{
+		cerr << "Error: the grid name is not specified!" << endl;
+		exit(EX_USAGE);
+	}
 
 	struct soap *soap = soap_new();
 	soap_set_namespaces(soap, Submitter_namespaces);
