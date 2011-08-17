@@ -82,12 +82,11 @@ AC_ARG_WITH([egee], AS_HELP_STRING([--with-egee], [Enable EGEE backend @<:@no@:>
 	[], [with_egee=no])
 if test "$with_egee" != no; then
 	AC_DEFINE([HAVE_EGEE], [1], [Define if EGEE support is requested.])
-	GLITE_VERSION=`glite-version | tr -d '\.'`
-	if test -z "$GLITE_VERSION"; then
-		AC_MSG_ERROR([unable to determine gLite version])
-	fi
-	AC_SUBST([GLITE_VERSION])
-	EGEE_BE
+        PKG_CHECK_MODULES([EGEE], [wmproxy-api-cpp >= 3.3.3 globus-ftp-client >= 6.0 globus-gass-copy >= 5.14 myproxy >= 5.3 classad-utils >= 3.2.2 gsoapssl++ >= 2.7 jdl-api-cpp >= 3.2.5])
+        EGEE_CPPFLAGS="$EGEE_CFLAGS -I/usr/include/classad -DWANT_CLASSAD_NAMESPACE"
+        EGEE_LIBS="$EGEE_LIBS -lclassad -lclassad_ns -lboost_filesystem -lglite_lb_clientpp -lgridsite"
+        AC_SUBST([EGEE_LIBS])
+        AC_SUBST([EGEE_CPPFLAGS])
 fi
 AM_CONDITIONAL([HAVE_EGEE], [test "$with_egee" != no])
 
