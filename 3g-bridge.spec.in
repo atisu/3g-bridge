@@ -11,9 +11,7 @@
 %define _with_xtremweb  1
 %define _with_ec2  1
 
-# Additionally pass --with sl4 to build on SL4 (defaults to SL5)
-%{?_with_sl4:  %global _with_sl4  1  %global release %{rel}.sl4}
-%{!?_with_sl4: %global _with_sl4  0  %global release %{rel}.sl5}
+%global release %{rel}
 
 %{?_without_egee: %global _with_egee  0}
 %{?_without_java: %global _with_java  0}
@@ -30,20 +28,12 @@ Group: Grid
 Source: %{name}-%{version}.tar.bz2
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 BuildRequires: libstdc++-devel
-BuildRequires: mysql-devel >= 4.1
-BuildRequires: pam-devel
+BuildRequires: mysql-devel >= 5.0
 # For libuuid.so:
 BuildRequires: e2fsprogs-devel
 BuildRequires: curl-devel >= 7.12
-Source1: http://prdownloads.sourceforge.net/gsoap2/gsoap_2.7.11.tar.gz
-# For gSOAP: bison and flex
-BuildRequires: bison
-BuildRequires: flex
-%if %{_with_sl4}
-Source2: http://ftp.gnome.org/pub/gnome/sources/glib/2.12/glib-2.12.13.tar.bz2
-%else
+BuildRequires: gsoap-devel >= 2.7
 BuildRequires: glib2-devel >= 2.6
-%endif
 
 %description
 The purpose of the 3G bridge application is to create a connection between a
@@ -89,17 +79,12 @@ jobs within one submission request.
 Summary: Generic Grid Grid (3G) bridge EGEE submission plugin.
 Group: Grid
 Requires: 3g-bridge = %{version}-%{release}
-BuildRequires: vdt_globus_sdk
+BuildRequires: globus-ftp-client-devel
 BuildRequires: glite-wms-wmproxy-api-cpp
-%if %{_with_sl4}
-BuildRequires: glite-wms-utils-jobid
-%else
 BuildRequires: glite-jobid-api-cpp
-%endif
 BuildRequires: glite-jdl-api-cpp
 BuildRequires: glite-lb-client
 BuildRequires: myproxy
-BuildRequires: libxml2-devel
 BuildRequires: boost-devel
 
 %description plugin-egee
@@ -164,37 +149,12 @@ to handle virtual machine instances in Amazon EC2 compatible clouds.
 %endif
 
 %prep
-%setup -q -n %{name}-%{ver} -a 1
-%if %{_with_sl4}
-%setup -q -n %{name}-%{ver} -D -T -a 2
-%endif
+%setup -q -n %{name}-%{ver}
 
 %build
-%if %{_with_sl4}
-# Build static glib first, this can also be removed when using system glib
-cd glib-2.12.13
-./configure --host=%{_host} --build=%{_build} --target=%{_target_platform} \
-            --prefix="$PWD/installed" --enable-static --disable-shared
-make
-make install
-PKG_CONFIG_PATH=$PWD/installed/lib/pkgconfig:$PKG_CONFIG_PATH
-LD_LIBRARY_PATH=$PWD/installed/lib:$LD_LIBRARY_PATH
-cd ..
-%endif
-
-# Build gsoap
-cd gsoap-2.7
-./configure --host=%{_host} --build=%{_build} --target=%{_target_platform} \
-            --prefix="$PWD/installed" --enable-static --disable-shared
-make
-make install
-PKG_CONFIG_PATH=$PWD/installed/lib/pkgconfig:$PKG_CONFIG_PATH
-LD_LIBRARY_PATH=$PWD/installed/lib:$LD_LIBRARY_PATH
-cd ..
-export PKG_CONFIG_PATH LD_LIBRARY_PATH
 
 # Real build starts here
-%configure --with-gsoap=$PWD/gsoap-2.7/installed \
+%configure --with-gsoap=`pkg-config gsoap --variable=prefix` \
 %if %{_with_java}
            --enable-java --with-java-includes=/usr/java/default/include \
 %endif
