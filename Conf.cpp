@@ -25,61 +25,61 @@
  * version of the file, but you are not obligated to do so. If you do not wish to
  * do so, delete this exception statement from your version.
  */
-
-#ifndef CONF_H
-#define CONF_H
-
-#include <Util.h>
-#include "types.h"
-
-#ifdef __cplusplus
-
-#include <string>
-#include <exception>
-
 /*
- * This file holds definitions that are used by multiple components
-
-  @2011-09-16 -- Adam Visegradi
-  FIXME: Not quite true. There are LOTS of code duplications in this
-  project. When cleaning up, move functions, classes, etc. regarding
-  configuration here.
+  @2011-09-16 by Adam Visegradi
  */
 
-namespace config
+#include "Conf.h"
+#include "BackendException.h"
+#include <mkstr>
+
+size_t config::getConfInt(GKeyFile *config, CSTR group, CSTR key, int defVal)
 {
-	class MissingKeyException : public std::exception
+	GError *error = 0;
+	size_t value =
+		g_key_file_get_integer(config, group, key, &error);
+	if (error)
 	{
-		std::string msg;
-	public:
-		MissingKeyException(CSTR_C group,
-				    CSTR_C key);
-		virtual ~MissingKeyException() throw()
-		{}
-		virtual CSTR what() const throw()
+		if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND)
 		{
-			return msg.c_str();
+			LOG(LOG_ERR,
+			    "Metajob Handler: "
+			    "Failed to parse configuration '%s': %s",
+			    key, error->message);
 		}
-	};
-	
-	/** Gets the given int value from the config. */
-	size_t getConfInt(GKeyFile *config, CSTR group, CSTR key, int defVal);
-	
-        /** Gets the given string value from the config. */
-	std::string getConfStr(GKeyFile *config,
-			       CSTR group, CSTR key,
-			       CSTR defVal = 0);
-};
+		value = defVal;
+		g_error_free(error);
+	}
 
-#endif
+	return value;
+}
+std::string config::getConfStr(GKeyFile *config, CSTR group, CSTR key, CSTR defVal)
+{
+	GError *error = 0;
+	gchar* value =
+		g_key_file_get_string(config, group, key, &error);
+	if (value)
+		g_strstrip(value);
+	if (error)
+	{
+		LOG(LOG_ERR,
+		    "Metajob Handler: "
+		    "Failed to parse configuration '%s': %s",
+		    key, error->message);
+		if (defVal)
+			return std::string(defVal);
+		else
+			throw MissingKeyException(group, key);
+	}
 
-/* TODO: Move these in the config namespace too. */
-/* Special groups in the configuration file */
-#define GROUP_DATABASE		"database"
-#define GROUP_DEFAULTS		"defaults"
-#define GROUP_BRIDGE		"bridge"
-#define GROUP_WSSUBMITTER	"wssubmitter"
-#define GROUP_WSWATCH		"wswatch"
-#define GROUP_WSMONITOR		"wsmonitor"
+	std::string s = value ? value : std::string();
+	g_free(value);
+	return s;
+}
 
-#endif /* CONF_H */
+config::MissingKeyException::MissingKeyException(CSTR_C group,
+						 CSTR_C key)
+{
+	msg = MKStr() << "Missing configuration: ["
+		      << group << "]/[" << key << "]";
+}

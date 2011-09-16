@@ -48,9 +48,11 @@
 #include "Util.h"
 #include "DLException.h"
 #include "mkstr"
+#include "types.h"
 
 using namespace _3gbridgeParser;
 using namespace std;
+using namespace config;
 
 typedef map<string, string> Outputmap;
 
@@ -90,13 +92,6 @@ static void rmrf(string dir);
 /** Create directory */
 static void md(char const *name);
 
-/** Gets the given int value from the config. */
-static size_t getConfInt(GKeyFile *config, CSTR group, CSTR key, int defVal);
-
-/** Gets the given string value from the config. */
-static string getConfStr(GKeyFile *config,
-			 CSTR group, CSTR key,
-			 CSTR defVal = 0);
 /** Stores state information of parser to cg_job.griddata and cg_job.args */
 static void updateJobGenerationData(DBHandler *dbh, Job *job,
 				    MetaJobDef const &mjd,
@@ -114,12 +109,19 @@ MetajobHandler::MetajobHandler(GKeyFile *config, const char *instance)
 	groupByNames = false;
 
 	//Default: unlimited
-	maxJobsAtOnce = getConfInt(config, name.c_str(), CFG_MAXJOBS, 0);
+	try
+	{
+		maxJobsAtOnce = getConfInt(config, name.c_str(),
+					   CFG_MAXJOBS, 0);
 
-	outDirBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_OUTDIR);
-	inDirBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_INDIR);
-	outURLBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_OUTURL);
-
+		outDirBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_OUTDIR);
+		inDirBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_INDIR);
+		outURLBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_OUTURL);
+	}
+	catch (MissingKeyException ex)
+	{
+		throw new BackendException("%s", ex.what());
+	}
 	LOG(LOG_INFO,
 	    "Metajob Handler: instance '%s' initialized.", name.c_str());
 	LOG(LOG_INFO,
@@ -1029,51 +1031,6 @@ static void rmrf(string dir)
 		    "Couldn't remove directory: '%s'",
 		    dir.c_str());
 }
-static size_t getConfInt(GKeyFile *config, CSTR group, CSTR key, int defVal)
-{
-	GError *error = 0;
-	size_t value =
-		g_key_file_get_integer(config, group, key, &error);
-	if (error)
-	{
-		if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND)
-		{
-			LOG(LOG_ERR,
-			    "Metajob Handler: "
-			    "Failed to parse configuration '%s': %s",
-			    key, error->message);
-		}
-		value = defVal;
-		g_error_free(error);
-	}
-
-	return value;
-}
-static string getConfStr(GKeyFile *config, CSTR group, CSTR key, CSTR defVal)
-{
-	GError *error = 0;
-	gchar* value =
-		g_key_file_get_string(config, group, key, &error);
-	if (value)
-		g_strstrip(value);
-	if (error)
-	{
-		LOG(LOG_ERR,
-		    "Metajob Handler: "
-		    "Failed to parse configuration '%s': %s",
-		    key, error->message);
-		if (defVal)
-			return string(defVal);
-		else
-			throw BackendException("Missing configuration: [%s]/%s",
-					       group, key);
-	}
-
-	string s = value ? value : string();
-	g_free(value);
-	return s;
-}
-
 static void LOGJOB(const char * msg,
 		   const MetaJobDef &mjd, const JobDef &jd)
 {

@@ -36,7 +36,10 @@ endif
 
 pkglib_LTLIBRARIES += Metajob_handler.la
 
-Metajob_handler_la_SOURCES = MJ_parser.cpp MJ_parser.h Metajob_handler.cpp Metajob_handler.h autoarray
+Metajob_handler_la_SOURCES = \
+	MJ_parser.cpp MJ_parser.h \
+	Metajob_handler.cpp Metajob_handler.h \
+	autoarray $(top_builddir)/Conf.cpp
 Metajob_handler_la_LIBADD = #TODO
 
 BOINC_monitor_la_SOURCES = BOINC_monitor.cpp BOINC_monitor.h

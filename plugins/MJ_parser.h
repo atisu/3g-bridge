@@ -9,13 +9,11 @@
 #include <exception>
 #include <sstream>
 #include <vector>
+#include "types.h"
 
 #include "FileRef.h"
 
 using namespace std;
-
-#define CSTR char const *
-#define CSTR_C CSTR const
 
 /**
  * Meta-job parser interface

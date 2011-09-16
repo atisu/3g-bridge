@@ -87,6 +87,7 @@ noinst_HEADERS = \
 		QMException.h \
 		DLException.h \
 		Util.h \
+		types.h \
 		mkstr
 
 injector_SOURCES = \
@@ -138,7 +139,8 @@ wssubmitter_SOURCES = \
 		QMException.cpp \
 		DLException.cpp \
 		Util.c \
-		WSSubmitter.cpp
+		WSSubmitter.cpp \
+		Conf.cpp
 wssubmitter_LDADD = $(GLIB_LIBS) $(GTHREAD_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto -luuid
 
 wsmonitor_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
@@ -156,7 +158,9 @@ wsclient_CPPFALGS = $(GSOAP_CFLAGS)
 nodist_wsclient_SOURCES = \
 		$(SUBMITTER_SOAP_SOURCES_CLIENT)
 wsclient_SOURCES = \
-		wsclient.cpp
+		wsclient.cpp \
+		Conf.cpp \
+		Util.c
 wsclient_LDADD = $(GLIB_LIBS) $(GSOAP_LIBS) -luuid
 
 wsmonitorclient_CPPFALGS = $(GSOAP_CFLAGS)
