@@ -88,6 +88,7 @@ static G3BridgeSubmitter__JobIDList jobIDs;
 static char *jidfile;
 static int repeat;
 static int get_version;
+static int soap_timeout = 60;
 
 static GOptionEntry options[] =
 {
@@ -95,6 +96,8 @@ static GOptionEntry options[] =
 		"Service endpoint", "URL" },
 	{ "mode",		'm',	0,	G_OPTION_ARG_STRING,		&mode,
 		"Operation mode", "(add|status|griddata|gridalgs|delete|output|finished|version)" },
+	{ "timeout",		'T',	0,	G_OPTION_ARG_INT,		&soap_timeout,
+	  	"Soap connection timeout in seconds"},
 	{ "version",		'V',	0,	G_OPTION_ARG_NONE,		&get_version,
 		"Print the version and exit", NULL },
 	{ NULL }
@@ -620,6 +623,7 @@ static void handle_version(void)
 
 	struct soap *soap = soap_new();
 	soap_set_namespaces(soap, Submitter_namespaces);
+	soap->connect_timeout = soap_timeout;
 	if (SOAP_OK != soap_call___G3BridgeSubmitter__getVersion(soap, endpoint, NULL, resp))
 	{
 		soap_print_fault(soap, stderr);
