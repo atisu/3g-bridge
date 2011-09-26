@@ -922,8 +922,8 @@ void setJobStatusToError(const char *   function_name,
 {
   LOG(LOG_ERR, "%s(%s)  Job '%s'  Set status of bridge job to 'ERROR'",
                function_name, instance_name, bridge_job_id);
-  job->setStatus(Job::ERROR);
   job->setGridData(message);
+  job->setStatus(Job::ERROR);
 }
 
 
@@ -982,12 +982,13 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
   string        input_file_md5_str;
   const char *  input_file_md5;
   off_t         input_file_size;
+  string        xw_input_file_path_str;
+  const char *  xw_input_file_path;
+  FILE *        xw_input_file;
   string        xw_cmd_xml_file_path_str;
   const char *  xw_cmd_xml_file_path;
   FILE *        xw_cmd_xml_file;
   char          xw_command_xml[BUFSIZ];
-  string        xw_input_file_path_str;
-  const char *  xw_input_file_path;
   string        xw_data_id_str;
   string        job_batch_id_str;
   string        xw_group_id_str;
@@ -1032,6 +1033,9 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
                           "Environment variable 'PROXY_USERDN' missing");
       continue;
     }
+    LOG(LOG_NOTICE, "%s(%s)  Job '%s'  Submitter DN = '%s'", function_name,
+                    instance_name, bridge_job_id, submitter_dn_str.c_str());
+    
     xw_sg_id_str = bridge_job_id_str + ":" + submitter_dn_str;
     
     //========================================================================
@@ -1140,11 +1144,10 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
     //  Process list of input files
     //========================================================================
     input_file_str_vector = job->getInputs();
-    LOG(LOG_NOTICE, "%s(%s)  Job '%s'  Submitter DN = '%s'  Application = "
-                    "'%s' (%s)  Number of input files = %zd", function_name,
-                    instance_name, bridge_job_id, submitter_dn_str.c_str(),
-                    bridge_job_name_str.c_str(), xw_app_id,
-                    input_file_str_vector->size());
+    LOG(LOG_NOTICE, "%s(%s)  Job '%s'  Application = '%s' (%s)  Number of "
+                    "input files = %zd", function_name, instance_name,
+                    bridge_job_id, bridge_job_name_str.c_str(),
+                    xw_app_id, input_file_str_vector->size());
     
     //------------------------------------------------------------------------
     //  Retrieve list of input files
@@ -1171,19 +1174,15 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
       //  Files beginning with '/' are local files, otherwise URLs
       //----------------------------------------------------------------------
       if ( input_file_path_str[0] == '/' )
-      {
-        input_file_path_str_vector->push_back(input_file_path_str);
         input_file_path_number++;
-      }
       else
-      {
-        xw_input_file_str_vector->push_back(input_file_name_str);
         input_file_url_number++;
-      }
+      input_file_path_str_vector->push_back(input_file_path_str);
     }
     
     //------------------------------------------------------------------------
-    //  ATTENTION :  The XtremWeb-HEP server accepts only 1 input file.
+    //  ATTENTION :  The XtremWeb-HEP server accepts several input files
+    //               either local or as URL, but NO mix.
     //  Store multiple local input files inside 1 single ZIP input file, which
     //  the XtremWeb-HEP worker will automatically unzip.
     //------------------------------------------------------------------------
@@ -1191,13 +1190,11 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
                    "%zd as URL", function_name, instance_name, bridge_job_id,
                    input_file_path_number, input_file_url_number);
       
-    if ( (input_file_url_number > 1) ||
-         ( (input_file_url_number > 0) && (input_file_path_number > 0) ) )
+    if ( (input_file_path_number > 0) && (input_file_url_number > 0) )
     {
       xw_message_str =
-          "The XtremWeb-HEP server accepts only 1 input file.  "
-          "Please store all your input files inside 1 single ZIP file.  "
-          "The XtremWeb-HEP worker will automatically unzip this ZIP file.";
+          "The XtremWeb-HEP server accepts several input files either "
+          "local or as URL, but NO mix.";
       LOG(LOG_ERR, "%s(%s)  Job '%s'  %s", function_name, instance_name,
                    bridge_job_id, xw_message_str.c_str());
       setJobStatusToError(function_name, instance_name, bridge_job_id, job,
@@ -1207,81 +1204,148 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
     
     xw_env_str_vector->clear();
     
-    //------------------------------------------------------------------------
-    //  If there is exactly 1 local input file, just specify its path.
-    //  If there is more than 1 local input file, store them all inside a ZIP.
-    //------------------------------------------------------------------------
-    if ( input_file_path_number >= 1 )
-    {
-      if ( input_file_path_number == 1 )
-        xw_input_file_path_str = (*input_file_path_str_vector)[0];
+    b_xw_data_error = false;
     
-      else
+    //------------------------------------------------------------------------
+    //  If there is exactly 1 local input file, just specify its path
+    //------------------------------------------------------------------------
+    if ( input_file_path_number == 1 )
+      xw_input_file_path_str = (*input_file_path_str_vector)[0];
+    
+    //------------------------------------------------------------------------
+    //  If there is more than 1 local input file, store them all inside a ZIP
+    //------------------------------------------------------------------------
+    else if ( input_file_path_number >= 1 )
+    {
+      xw_input_file_path_str = g_xw_files_folder_str + "/" + bridge_job_id +
+                               ".zip";
+      xw_input_file_path     = xw_input_file_path_str.c_str();
+      LOG(LOG_DEBUG, "%s(%s)  Job '%s'  ZIP file path = '%s'",
+                     function_name, instance_name, bridge_job_id,
+                     xw_input_file_path);
+          
+      arg_str_vector->clear();
+      arg_str_vector->reserve(4 + input_file_path_number);
+      arg_str_vector->push_back(string("/usr/bin/zip"));
+      arg_str_vector->push_back(string("-v"));
+      arg_str_vector->push_back(string("-j"));
+      arg_str_vector->push_back(xw_input_file_path_str);
+      arg_str_vector->insert(arg_str_vector->end(),
+                             input_file_path_str_vector->begin(),
+                             input_file_path_str_vector->end());
+      logStringVectorToDebug(function_name, instance_name, bridge_job_id,
+                             arg_str_vector);
+      
+      returned_values  = outputAndErrorFromCommand(arg_str_vector);
+      returned_message = (returned_values.message).c_str();
+      LOG(LOG_DEBUG, "%s(%s)  Job '%s'  return_code = x'%x' --> %d  for "
+                     "zipping '%s'  ZIP displayed message = '%s'",
+                     function_name, instance_name, bridge_job_id,
+                     returned_values.retcode, returned_values.retcode / 256,
+                     xw_input_file_path, returned_message);
+      
+      if ( returned_values.retcode != 0 )
       {
-        xw_input_file_path_str = g_xw_files_folder_str + "/" + bridge_job_id +
-                                 ".zip";
-        xw_input_file_path     = xw_input_file_path_str.c_str();
-        arg_str_vector->clear();
-        arg_str_vector->reserve(4 + input_file_path_number);
-        arg_str_vector->push_back(string("/usr/bin/zip"));
-        arg_str_vector->push_back(string("-v"));
-        arg_str_vector->push_back(string("-j"));
-        arg_str_vector->push_back(xw_input_file_path_str);
-        arg_str_vector->insert(arg_str_vector->end(),
-                               input_file_path_str_vector->begin(),
-                               input_file_path_str_vector->end());
-        logStringVectorToDebug(function_name, instance_name, bridge_job_id,
-                               arg_str_vector);
-        
-        returned_values  = outputAndErrorFromCommand(arg_str_vector);
-        returned_message = (returned_values.message).c_str();
-        LOG(LOG_DEBUG, "%s(%s)  Job '%s'  return_code = x'%x' --> %d  for "
-                       "zipping '%s'  ZIP displayed message = '%s'",
-                       function_name, instance_name, bridge_job_id,
-                       returned_values.retcode, returned_values.retcode / 256,
-                       xw_input_file_path, returned_message);
-        
-        if ( returned_values.retcode != 0 )
-        {
-          LOG(LOG_ERR, "%s(%s)  Job '%s'  return_code = x'%x' --> %d  for "
-                       "zipping '%s'  ZIP displayed message = '%s'",
-                       function_name, instance_name, bridge_job_id,
-                       returned_values.retcode, returned_values.retcode / 256,
-                       xw_input_file_path, returned_message);
-          setJobStatusToError(function_name, instance_name, bridge_job_id,
-                              job, returned_values.message);
-          continue;
-        }
+        LOG(LOG_ERR, "%s(%s)  Job '%s'  return_code = x'%x' --> %d  for "
+                     "zipping '%s'  ZIP displayed message = '%s'",
+                     function_name, instance_name, bridge_job_id,
+                     returned_values.retcode, returned_values.retcode / 256,
+                     xw_input_file_path, returned_message);
+        setJobStatusToError(function_name, instance_name, bridge_job_id,
+                            job, returned_values.message);
+        continue;
       }
       
+    }
+    
+    //------------------------------------------------------------------------
+    //  If there is exactly 1 input file as URL, just specify its name
+    //------------------------------------------------------------------------
+    else if ( input_file_url_number == 1 )
+      xw_input_file_str_vector->push_back((*input_file_str_vector)[0]);
+    
+    //------------------------------------------------------------------------
+    //  If there is more than 1 input file as URL, store all URLs inside an
+    //  URIPASSTHROUGH text file.
+    //------------------------------------------------------------------------
+    else if ( input_file_url_number >= 1 )
+    {
+      xw_input_file_path_str = g_xw_files_folder_str + "/" + bridge_job_id +
+                               "_URIPASSTHROUGH.txt";
+      xw_input_file_path     = xw_input_file_path_str.c_str();
+      LOG(LOG_DEBUG, "%s(%s)  Job '%s'  URIPASSTHROUGH file path = '%s'",
+                     function_name, instance_name, bridge_job_id,
+                     xw_input_file_path);
+        
+      //----------------------------------------------------------------------
+      //  Open text file for writing
+      //----------------------------------------------------------------------
+      xw_input_file = fopen(xw_input_file_path, "w");
+      if ( ! xw_input_file )
+      {
+        sprintf(xw_command_xml, "xw_input_file_path = '%s'  I/O error = "
+                                "%d  '%s'", xw_input_file_path, errno,
+                                sys_errlist[errno]);
+        LOG(LOG_ERR, "%s(%s)  Job '%s'  %s", function_name, instance_name,
+                                             bridge_job_id, xw_command_xml);
+        xw_message_str  = string(xw_command_xml);
+        b_xw_data_error = true;
+        break;
+      }
+      
+      //----------------------------------------------------------------------
+      //  Loop on input files as URL
+      //----------------------------------------------------------------------
+      for ( vector<string>::iterator    input_file_path_iterator =
+                                        input_file_path_str_vector->begin();
+            input_file_path_iterator != input_file_path_str_vector->end();
+            input_file_path_iterator++ )
+      {
+        input_file_path_str = *input_file_path_iterator;
+        input_file_path     = input_file_path_str.c_str();
+        LOG(LOG_DEBUG, "%s(%s)  Job '%s'  input_file_url = '%s'",
+                       function_name, instance_name, bridge_job_id,
+                       input_file_path);
+        
+        fprintf(xw_input_file, "%s\n", input_file_path);
+      }
+      
+      //----------------------------------------------------------------------
+      //  Close text file
+      //----------------------------------------------------------------------
+      fclose(xw_input_file);
+      
+    }
+    
+    if ( (input_file_path_number > 0) || (input_file_url_number > 1) )
+    {
       xw_input_file_str_vector->push_back(xw_input_file_path_str);
-      xw_env_str_vector->push_back(string("--xwenv"));
-      xw_env_str_vector->push_back(xw_input_file_path_str);
+      //xw_env_str_vector->push_back(string("--xwenv"));
+      //xw_env_str_vector->push_back(xw_input_file_path_str);
     }
     
     //------------------------------------------------------------------------
     //  All input files have to be specified to XtremWeb-HEP as data
     //------------------------------------------------------------------------
-    b_xw_data_error = false;
-    
     for ( vector<string>::iterator  xw_input_file_iterator =
                                     xw_input_file_str_vector->begin();
           xw_input_file_iterator != xw_input_file_str_vector->end();
           xw_input_file_iterator++ )
     {
-      input_file_name_str = *xw_input_file_iterator;
-      input_file_name     = input_file_name_str.c_str();
+      input_file_name_str  = *xw_input_file_iterator;
+      input_file_name      = input_file_name_str.c_str();
+      xw_cmd_xml_file_path = NULL;
+      xw_cmd_xml_file      = NULL;
       
       //----------------------------------------------------------------------
       //  Local files need to be sent as data to XtremWeb-HEP without options
       //----------------------------------------------------------------------
-      if ( input_file_name_str[0] == '/' )
+      if ( (input_file_path_number > 0) && (input_file_name_str[0] == '/') )
       {
         LOG(LOG_DEBUG, "%s(%s)  Job '%s'  input_file_path = '%s'",
                        function_name, instance_name, bridge_job_id,
                        input_file_name);
         
-        xw_cmd_xml_file_path = NULL;
         arg_str_vector->clear();
         arg_str_vector->reserve(2);
         arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwsenddata");
@@ -1289,9 +1353,10 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
       }
       
       //----------------------------------------------------------------------
-      //  URLs need to be sent as data to XtremWeb-HEP using an XML file
+      //  If there is only 1 input file as URL, then retrieve MD5 and size.
+      //  Send it as data to XtremWeb-HEP using an XML file.
       //----------------------------------------------------------------------
-      else
+      else if ( input_file_url_number == 1 )
       {
         input_file_ref      = job->getInputRef(input_file_name_str);
         input_file_path_str = input_file_ref.getURL();
@@ -1357,6 +1422,7 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
                 "<data name=\"%s\" md5=\"%s\" size=\"%jd\" uri=\"%s\"/>",
                 input_file_name, input_file_md5, (intmax_t)input_file_size,
                 input_file_path);
+      
         LOG(LOG_DEBUG, "%s(%s)  Job '%s'  DATA xw_command_xml = '%s'",
                        function_name, instance_name, bridge_job_id,
                        xw_command_xml);
@@ -1371,6 +1437,19 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
         arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwsenddata");
         arg_str_vector->push_back(string("--xwxml"));
         arg_str_vector->push_back(xw_cmd_xml_file_path_str);
+      }
+      
+      //----------------------------------------------------------------------
+      //  If there is more than 1 input file as URL, then send them as data to
+      //  XtremWeb-HEP using the URIPASSTHROUGH text file.
+      //----------------------------------------------------------------------
+      else if ( input_file_url_number > 1 )
+      {
+        arg_str_vector->clear();
+        arg_str_vector->reserve(3);
+        arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwsenddata");
+        arg_str_vector->push_back(string("URIPASSTHROUGH"));
+        arg_str_vector->push_back(input_file_name_str);
       }
       
       //----------------------------------------------------------------------
