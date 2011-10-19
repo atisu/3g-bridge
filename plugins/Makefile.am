@@ -81,7 +81,11 @@ JAVA_BES_SRC = \
 		$(CLASSDIR)/plugin/bes/JsdlDocBuilder.java \
 		$(CLASSDIR)/plugin/bes/WrapperBuilder.java
 
-EXTRA_DIST = symbols.exp $(JAVA_SRC) $(JAVA_BES_SRC)
+JAVA_XWCH_SRC = \
+		$(CLASSDIR)/plugin/xwch/XWCHHandler.java \
+		$(CLASSDIR)/plugin/xwch/md5verification.java
+
+EXTRA_DIST = symbols.exp $(JAVA_SRC) $(JAVA_BES_SRC) $(JAVA_XWCH_SRC)
 
 if HAVE_JAVA
 
@@ -91,6 +95,11 @@ JAVACFLAGS =
 if HAVE_BES
 noinst_JAVA += $(JAVA_BES_SRC)
 JAVACFLAGS += -cp $(BES_LIBS)/\*:$$CLASSPATH
+endif
+
+if HAVE_XWCH
+noinst_JAVA += $(JAVA_XWCH_SRC)
+JAVACFLAGS += -cp $(XWCH_LIBS)/\*:$$CLASSPATH
 endif
 
 javadir = $(datadir)/java

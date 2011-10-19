@@ -179,6 +179,21 @@ fi
 AM_CONDITIONAL([HAVE_BES], [test "$no_bes" != yes])
 
 dnl -------------------------------------------------------------------
+dnl XWCH
+dnl -------------------------------------------------------------------
+
+AC_ARG_WITH([xwch-libs], AS_HELP_STRING([--with-xwch-libs=DIR], [Use XWCH libs in @<:@DIR@:>@]),
+	[], [with_xwch_libs=none])
+no_xwch=
+if test "$with_xwch_libs" = none; then
+	no_xwch=yes
+else
+	XWCH_LIBS="$with_xwch_libs"
+	AC_SUBST([XWCH_LIBS])
+fi
+AM_CONDITIONAL([HAVE_XWCH], [test "$no_xwch" != yes])
+
+dnl -------------------------------------------------------------------
 dnl libuuid
 dnl -------------------------------------------------------------------
 
