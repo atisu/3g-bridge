@@ -1118,8 +1118,6 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
                      "message = '%s'", function_name, instance_name,
                      returned_values.retcode, returned_values.retcode / 256,
                      returned_message);
-        setJobStatusToError(function_name, instance_name, bridge_job_id, job,
-                            xw_message_str);
         break;
       }
       
@@ -1128,15 +1126,16 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
     
     if ( xw_app_id == NULL )
     {
-      if ( returned_values.retcode != 0 )
-        continue;
-    
-      LOG(LOG_ERR, "%s(%s)  Job '%s'  XtremWeb-HEP application '%s' NOT "
-                   "found inside message displayed by XtremWeb-HEP",
-                   function_name, instance_name, bridge_job_id,
-                   bridge_job_name_str.c_str());
+      if ( returned_values.retcode == 0 )
+      {
+        xw_message_str = string("XtremWeb-HEP application '") +
+                         bridge_job_name_str + string("' NOT found "
+                         "inside message displayed by XtremWeb-HEP");
+        LOG(LOG_ERR, "%s(%s)  Job '%s'  %s", function_name, instance_name,
+                     bridge_job_id, xw_message_str.c_str());
+      }
       setJobStatusToError(function_name, instance_name, bridge_job_id, job,
-                          g_xw_apps_message_str);
+                          xw_message_str);
       continue;
     }
     
@@ -2189,9 +2188,10 @@ void XWHandler::poll(Job * job) throw (BackendException *)
                                  output_file_names->begin(),
                                  output_file_names->end());
           arg_str_vector->push_back(string("-d"));
-          string output_file_path =
-                                job->getOutputPath(output_file_names->back());
-          size_t pos_last_slash   = output_file_path.rfind('/');
+          string output_file_name = output_file_names->back();
+          string output_file_path = job->getOutputPath(output_file_name);
+          size_t pos_last_slash   = output_file_path.rfind(string("/") +
+                                                           output_file_name);
           arg_str_vector->push_back(output_file_path.substr(0,
                                                             pos_last_slash));
           
