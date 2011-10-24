@@ -39,7 +39,7 @@ CREATE TABLE cg_job (
 	INDEX (metajobid),
 	INDEX (status),
 	INDEX (creation_time),
-	FOREIGN KEY (grid) REFERENCES cg_algqueue(grid) ON DELETE RESTRICT,
+	FOREIGN KEY (grid, alg) REFERENCES cg_algqueue(grid, alg) ON DELETE RESTRICT,
 	FOREIGN KEY (metajobid) REFERENCES cg_job(id) ON DELETE CASCADE
 ) TYPE=InnoDB;
 
