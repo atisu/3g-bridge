@@ -39,6 +39,7 @@
 #include "Job.h"
 #include "Util.h"
 #include "Conf.h"
+#include "DLException.h"
 #include "LogMon.h"
 
 #include <string>
@@ -827,7 +828,9 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
   //==========================================================================
   g_xw_apps_message_str = "";
 
-  //config not stored --> Ensure LogMon instance here
+  //==========================================================================
+  //  Ensure LogMon configuration
+  //==========================================================================
   LogMon::instance(config);
 }
 
@@ -1372,7 +1375,8 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
         //  xw_env_str_vector.push_back(input_file_path_str);
         
         //--------------------------------------------------------------------
-        //  Get MD5 and size for the URL
+        //  Get MD5 and size for the URL.
+        //  If at least one of them is missing, throw a DLException.
         //--------------------------------------------------------------------
         input_file_md5_str = input_file_ref.getMD5();
         input_file_size    = input_file_ref.getSize();
@@ -1386,6 +1390,11 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
                                   (intmax_t)input_file_size);
           LOG(LOG_ERR, "%s(%s)  Job '%s'  %s", function_name, instance_name,
                                                bridge_job_id, xw_command_xml);
+          DLException * dl_exception = new DLException(bridge_job_id_str);
+          dl_exception->addInput(input_file_name_str);
+          throw dl_exception;
+          
+          // OLD code to be discarded if DLException works correctly
           xw_message_str  = string(xw_command_xml);
           b_xw_data_error = true;
           break;
