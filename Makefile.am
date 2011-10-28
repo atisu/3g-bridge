@@ -118,13 +118,15 @@ jobwrapper_LDADD = -lboinc_api -lboinc $(GLIB_LIBS) $(MYSQL_LIBS) -luuid
 		DLException.cpp \
 		QueueManager.cpp \
 		Util.c \
-		MonitorHandler.h
+		MonitorHandler.h \
+		Conf.cpp Conf.h \
+		LogMonMsg.cpp LogMonMsg.h
 
 3g_bridge_LDADD =
 if HAVE_EGEE
 3g_bridge_LDADD += $(EGEE_LIBS)
 endif
-3g_bridge_LDADD += $(GLIB_LIBS) $(GMODULE_LIBS) $(MYSQL_LIBS) -luuid
+3g_bridge_LDADD += $(GLIB_LIBS) $(GTHREAD_LIBS) $(GMODULE_LIBS) $(MYSQL_LIBS) -luuid
 3g_bridge_LDFLAGS = -export-dynamic
 
 wssubmitter_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
@@ -140,7 +142,8 @@ wssubmitter_SOURCES = \
 		DLException.cpp \
 		Util.c \
 		WSSubmitter.cpp \
-		Conf.cpp
+		Conf.cpp \
+		LogMonMsg.cpp LogMonMsg.h
 wssubmitter_LDADD = $(GLIB_LIBS) $(GTHREAD_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto -luuid
 
 wsmonitor_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)

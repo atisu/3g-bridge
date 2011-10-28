@@ -39,6 +39,7 @@
 #include "Job.h"
 #include "Util.h"
 #include "Conf.h"
+#include "LogMon.h"
 
 #include <string>
 #include <vector>
@@ -825,7 +826,9 @@ XWHandler::XWHandler(GKeyFile * config, const char * instance)
   //  g_xw_apps_message_str
   //==========================================================================
   g_xw_apps_message_str = "";
-  
+
+  //config not stored --> Ensure LogMon instance here
+  LogMon::instance(config);
 }
 
 
@@ -1651,9 +1654,18 @@ void XWHandler::submitJobs(JobVector & jobs) throw (BackendException *)
     
     LOG(LOG_NOTICE, "%s(%s)  Job '%s'  XtremWeb-HEP Job ID = '%s'",
                     function_name, instance_name, bridge_job_id, xw_job_id);
-    logit_mon("event=job_submission job_id=%s job_id_dg=%s "
-              "output_grid_name=%s", bridge_job_id, xw_job_id, instance_name);
-    logit_mon("event=job_status job_id=%s status=Running", bridge_job_id);
+
+    LogMon::instance().createMessage()
+	    .add("event", "job_submission")
+	    .add("job_id", bridge_job_id)
+	    .add("job_id_dg", xw_job_id)
+	    .add("output_grid_name", instance_name)
+	    .save();
+    LogMon::instance().createMessage()
+	    .add("event", "job_status")
+	    .add("job_id", bridge_job_id)
+	    .add("status", "Running")
+	    .save();
     
     nb_jobs++;
   }
@@ -2228,9 +2240,12 @@ void XWHandler::poll(Job * job) throw (BackendException *)
                               job, returned_message);
           return;
         }
-        
-        logit_mon("event=job_status job_id=%s status=Finished",
-                  bridge_job_id);
+
+	LogMon::instance().createMessage()
+		.add("event", "job_status")
+		.add("job_id", bridge_job_id)
+		.add("status", "Finished")
+		.save();
       }
     }
     

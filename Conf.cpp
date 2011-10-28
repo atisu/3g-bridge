@@ -31,7 +31,7 @@
 
 #include "Conf.h"
 #include "BackendException.h"
-#include <mkstr>
+#include "mkstr"
 
 size_t config::getConfInt(GKeyFile *config, CSTR group, CSTR key, int defVal)
 {
@@ -42,10 +42,10 @@ size_t config::getConfInt(GKeyFile *config, CSTR group, CSTR key, int defVal)
 	{
 		if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND)
 		{
-			LOG(LOG_ERR,
-			    "Metajob Handler: "
-			    "Failed to parse configuration '%s': %s",
-			    key, error->message);
+			throw ConfigException(
+				group, key,
+				MKStr() << "Failed to parse configuration: "
+				<< error->message);
 		}
 		value = defVal;
 		g_error_free(error);
@@ -62,10 +62,13 @@ std::string config::getConfStr(GKeyFile *config, CSTR group, CSTR key, CSTR defV
 		g_strstrip(value);
 	if (error)
 	{
-		LOG(LOG_ERR,
-		    "Metajob Handler: "
-		    "Failed to parse configuration '%s': %s",
-		    key, error->message);
+		if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND)
+		{
+			throw ConfigException(
+				group, key,
+				MKStr() << "Failed to parse configuration: "
+				<< error->message);
+		}
 		if (defVal)
 			return std::string(defVal);
 		else
@@ -77,9 +80,19 @@ std::string config::getConfStr(GKeyFile *config, CSTR group, CSTR key, CSTR defV
 	return s;
 }
 
-config::MissingKeyException::MissingKeyException(CSTR_C group,
-						 CSTR_C key)
+config::ConfigException::ConfigException(CSTR_C group,
+					 CSTR_C key,
+					 CSTR_C reason)
 {
-	msg = MKStr() << "Missing configuration: ["
-		      << group << "]/[" << key << "]";
+	msg = MKStr() << "Configuration error: ["
+		      << group << "]/[" << key << "]: "
+		      << reason;
+}
+config::ConfigException::ConfigException(CSTR_C group,
+					 CSTR_C key,
+					 const std::string &reason)
+{
+	msg = MKStr() << "Configuration error: ["
+		      << group << "]/[" << key << "]: "
+		      << reason;
 }

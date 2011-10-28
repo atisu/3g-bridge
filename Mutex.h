@@ -27,38 +27,25 @@
  * wish to do so, delete this exception statement from your version.
  */
 
-#include <sstream>
+#ifndef __MUTEX_H
+#define __MUTEX_H
 
-#ifndef __MKSTR_
-#define __MKSTR_
+#include <glib.h>
 
-/**
- * Easy-to-use stringbuilder.
- *
- * Example:
- * const string &mystr= MKStr() << "apple" << setw(5)    \
- *                              << setfill('0') << 42 << endl;
- *
- * Produces: apple00042
- */
-class MKStr
+/// Safe wrapper for a mutex { lock..unlock } block
+class CriticalSection
 {
-	std::ostringstream stream;
+	GMutex *_mutex;
 public:
-        template <class T>
-        MKStr &operator<<(const T& t)
+	CriticalSection(GMutex *mutex)
+		: _mutex(mutex)
 	{
-		stream << t;
-		return *this;
+		g_mutex_lock(_mutex);
 	}
-
-	MKStr& operator<<(std::ostream& (*f) (std::ostream&))
-	{ 
-		stream << f; 
-		return *this; 
-	} 
-
-        operator std::string() const { return stream.str(); }
+	~CriticalSection()
+	{
+		g_mutex_unlock(_mutex);
+	}
 };
 
-#endif //__MKSTR_
+#endif //__MUTEX_H

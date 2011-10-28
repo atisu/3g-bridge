@@ -48,18 +48,27 @@
 
 namespace config
 {
-	class MissingKeyException : public std::exception
+	class ConfigException : public std::exception
 	{
+	protected:
 		std::string msg;
 	public:
-		MissingKeyException(CSTR_C group,
-				    CSTR_C key);
-		virtual ~MissingKeyException() throw()
-		{}
+		ConfigException(CSTR_C group, CSTR_C key, CSTR_C reason);
+		ConfigException(CSTR_C group, CSTR_C key,
+				const std::string &reason);
+		virtual ~ConfigException() throw() {}
 		virtual CSTR what() const throw()
 		{
 			return msg.c_str();
 		}
+	};
+	class MissingKeyException : public ConfigException
+	{
+	public:
+		MissingKeyException(CSTR_C group,
+				    CSTR_C key)
+			: ConfigException(group, key, "Missing key") {}
+		virtual ~MissingKeyException() throw() {}
 	};
 	
 	/** Gets the given int value from the config. */
@@ -69,7 +78,7 @@ namespace config
 	std::string getConfStr(GKeyFile *config,
 			       CSTR group, CSTR key,
 			       CSTR defVal = 0);
-};
+}
 
 #endif
 

@@ -44,6 +44,7 @@
 #include "Job.h"
 #include "QMException.h"
 #include "Util.h"
+#include "LogMonMsg.h"
 
 #include <string>
 #include <fstream>
@@ -72,6 +73,7 @@
 #endif
 
 using namespace std;
+using logmon::LogMon;
 
 /**********************************************************************
  * Global variables
@@ -799,7 +801,11 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 		else
 			LOG(LOG_INFO, "Job %s: Accepted", jobid);
 
-		logit_mon("event=job_entry job_id=%s application=%s", jobid, qmjob->getName().c_str());
+		LogMon::instance().createMessage()
+			.add("event", "job_entry")
+			.add("job_id", jobid)
+			.add("application", qmjob->getName())
+			.save();
 
 		/// Adds the job's unique identifier to the result.
 		result->jobid.push_back(jobid);
@@ -1442,6 +1448,7 @@ int main(int argc, char **argv)
 
 	try
 	{
+		LogMon::instance(global_config);
 		DBHandler::init(global_config);
 		DownloadManager::init(global_config, GROUP_WSSUBMITTER);
 

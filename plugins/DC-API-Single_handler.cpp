@@ -34,6 +34,7 @@
 #include "Job.h"
 #include "Util.h"
 #include "DLException.h"
+#include "LogMonMsg.h"
 
 #include <dc.h>
 
@@ -54,6 +55,7 @@
 
 
 using namespace std;
+using logmon::LogMon;
 
 /* Custom project URL defined in config file */
 static gchar *projecturl;
@@ -115,7 +117,11 @@ static void result_callback_single(DC_Workunit *wu, DC_Result *result)
 
 	job->setStatus(Job::FINISHED);
 	LOG(LOG_INFO, "DC-API-Single: WU %s: Result received", wuid.c_str());
-	logit_mon("event=job_status job_id=%s status=Finished", job->getId().c_str());
+	LogMon::instance().createMessage()
+		.add("event", "job_status")
+		.add("job_id", job->getId())
+		.add("status", "Finished")
+		.save();
 	DC_destroyWU(wu);
 }
 
@@ -143,6 +149,9 @@ DCAPISingleHandler::DCAPISingleHandler(GKeyFile *config, const char *instance) t
 	DC_setMasterCb(result_callback_single, NULL, NULL);
 
 	groupByNames = false;
+
+	//config is not stored -> ensure singleton exists
+	LogMon::instance(config);
 }
 
 static bool submit_job(Job *job) throw (BackendException *)
@@ -273,9 +282,19 @@ static bool submit_job(Job *job) throw (BackendException *)
 
 	LOG(LOG_INFO, "DC-API: WU %s: Submitted to grid %s (app '%s', job %s)",
 		wu_id, job->getGrid().c_str(), algName, job->getId().c_str());
-	logit_mon("event=job_submission job_id=%s job_id_dg=%s output_grid_name=boinc/%s",
-		job->getId().c_str(), wu_id, projecturl);
-	logit_mon("event=job_status job_id=%s status=Running", job->getId().c_str());
+
+	const string &gridname = MKStr() << "boinc/" << projecturl;
+	LogMon::instance().createMessage()
+		.add("event", "job_submission")
+		.add("job_id", job->getId())
+		.add("job_id_dg", wu_id)
+		.add("output_grid_name", gridname)
+		.save();
+	LogMon::instance().createMessage()
+		.add("event", "job_status")
+		.add("job_id", job->getId())
+		.add("status", "Running")
+		.save();
 
 	free(wu_id);
 	return true;

@@ -118,8 +118,9 @@ MetajobHandler::MetajobHandler(GKeyFile *config, const char *instance)
 		inDirBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_INDIR);
 		outURLBase = getConfStr(config, GROUP_WSSUBMITTER, CFG_OUTURL);
 	}
-	catch (MissingKeyException ex)
+	catch (const ConfigException &ex)
 	{
+		LOG(LOG_ERR, "Metajob handler: Failed to parse configuration: %s", ex.what());
 		throw new BackendException("%s", ex.what());
 	}
 	LOG(LOG_INFO,

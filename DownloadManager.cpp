@@ -32,6 +32,7 @@
 #include "DownloadManager.h"
 #include "QMException.h"
 #include "Util.h"
+#include "Conf.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -141,35 +142,25 @@ void DownloadManager::init(GKeyFile *config, const char *section)
 {
 	GError *error = NULL;
 
-	int num_threads = g_key_file_get_integer(config, section, "download-threads", &error);
-	if (error)
+	int num_threads;
+	
+	try
 	{
-		if (error->code == G_KEY_FILE_ERROR_KEY_NOT_FOUND)
-		{
-			num_threads = 4;
-			g_error_free(error);
-			error = NULL;
-		}
-		else
-			throw new QMException("Failed to parse the number of download threads: %s", error->message);
-	}
-	if (num_threads <= 0 || num_threads > 1000)
-		throw new QMException("Invalid thread number (%d) specified", num_threads);
+		num_threads = config::getConfInt(config, section, "download-threads", 4);
 
-	max_retries = g_key_file_get_integer(config, section, "download-retries", &error);
-	if (error)
-	{
-		if (error->code == G_KEY_FILE_ERROR_KEY_NOT_FOUND)
-		{
-			max_retries = 10;
-			g_error_free(error);
-			error = NULL;
-		}
-		else
-			throw new QMException("Failed to parse the number of retries: %s", error->message);
+		if (num_threads <= 0 || num_threads > 1000)
+			throw new QMException("Invalid thread number (%d) specified", num_threads);
+
+		max_retries = config::getConfInt(config, section, "download-retries", 10);
+
+		if (max_retries <= 0 || max_retries > 100)
+			throw new QMException("Invalid retry number (%d) specified", max_retries);
 	}
-	if (max_retries <= 0 || max_retries > 100)
-		throw new QMException("Invalid retry number (%d) specified", max_retries);
+	catch (const config::ConfigException &ex)
+	{
+		LOG(LOG_ERR, "DM: Failed to parse configuration: %s", ex.what());
+		throw new QMException("%s", ex.what());
+	}
 
 	queue = g_queue_new();
 	queue_lock = g_mutex_new();

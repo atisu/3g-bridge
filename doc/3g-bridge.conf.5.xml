@@ -162,9 +162,48 @@
 		<glossterm><envar>monlog-target</envar></glossterm>
 		<glossdef>
 		    <para>
-			Specifies where to send monitoring log messages. Possible value is
-			<literal>file:<replaceable>FILE</replaceable></literal> that writes all messages to
-			the specified <replaceable>FILE</replaceable>.
+		      Absolute path of the file in which monitoring messages are
+		      saved. Optional. If unspecified, no log is generated and
+		      none of the monlog-* options below will be used.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>monlog-format</envar></glossterm>
+		<glossdef>
+		    <para>
+		      Either `xml' or `simple'. If unspecified, defaults to `simple'.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>monlog-timezone</envar></glossterm>
+		<glossdef>
+		    <para>
+		      Timezone string. Default value is GMT. Used by the xml backend.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>monlog-rotate-interval</envar></glossterm>
+		<glossdef>
+		    <para>
+		      Log-rotation interval in minutes. If unspecified or zero,
+		      the log will not be rotated.
+		    </para>
+		</glossdef>
+	    </glossentry>
+	    <glossentry>
+		<glossterm><envar>monlog-rotate-filenamefmt</envar></glossterm>
+		<glossdef>
+		    <para>
+		      Filename format for rotated files. The first instance of
+		      the string "{ts}" will be replaced with a
+		      millisecond-precision timestamp. Can be either an absolute
+		      or a relative path. If relative, the base directory will
+		      be the directory of monlog-target. The default value is
+		      `logfilename-{ts}' where logfilename is the basename of
+		      monlog-target.
 		    </para>
 		</glossdef>
 	    </glossentry>

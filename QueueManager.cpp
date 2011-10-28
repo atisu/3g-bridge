@@ -296,6 +296,7 @@
 #include "DBHandler.h"
 #include "DLException.h"
 #include "Util.h"
+#include "LogMonMsg.h"
 
 #include <map>
 #include <list>
@@ -795,6 +796,11 @@ int main(int argc, char **argv)
 	DBHandler::init(global_config);
 	modules = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, close_module);
 
+	/* Initialize glib's thread system */
+	g_thread_init(NULL);
+
+	logmon::startRotationThread(global_config);
+
 	if (run_as_daemon)
 	{
 		daemon(0, 0);
@@ -854,6 +860,8 @@ int main(int argc, char **argv)
 	}
 
 	LOG(LOG_NOTICE, "Exiting");
+
+	logmon::endRotationThread();
 
 	while (!gridHandlers.empty())
 	{
