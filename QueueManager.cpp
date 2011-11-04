@@ -699,6 +699,7 @@ static void init_grid_handlers(void)
  */
 
 int main(int argc, char **argv)
+try
 {
 	GOptionContext *context;
 	struct sigaction sa;
@@ -877,4 +878,14 @@ int main(int argc, char **argv)
 	g_free(plugin_dir);
 
 	return EX_OK;
+}
+catch (const exception *ex)
+{
+	LOG(LOG_CRIT, "Exiting because of unhandled exception: %s", ex->what());
+	exit(EXIT_FAILURE);
+}
+catch (const exception &ex)
+{
+	LOG(LOG_CRIT, "Exiting because of unhandled exception: %s", ex.what());
+	exit(EXIT_FAILURE);
 }
