@@ -385,6 +385,7 @@ static GCond *exitCondition = 0;
 			       ts2usec(parent->rotateInterval()));	\
 	} while (false)
 static gpointer rotate_thread_func(gpointer data)
+try
 {
 	LOG(LOG_DEBUG, "[LogMon:Rot] Thread started.");
 	LogMon *parent = reinterpret_cast<LogMon*>(data);
@@ -412,6 +413,16 @@ static gpointer rotate_thread_func(gpointer data)
 
 	LOG(LOG_DEBUG, "[LogMon:Rot] Thread done.");
 	return 0;
+}
+catch (const exception &ex)
+{
+	LOG(LOG_CRIT, "[LogMon:Rot] Unhandled exception: %s", ex.what());
+	LOG(LOG_CRIT, "[LogMon:Rot] Log-rotate thread terminated.");
+}
+catch (const exception *ex)
+{
+	LOG(LOG_CRIT, "[LogMon:Rot] Unhandled exception: %s", ex->what());
+	LOG(LOG_CRIT, "[LogMon:Rot] Log-rotate thread terminated.");
 }
 void logmon::startRotationThread(GKeyFile *conf, CSTR group)
 {
