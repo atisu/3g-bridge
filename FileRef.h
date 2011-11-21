@@ -99,6 +99,11 @@ private:
 	 * Size of the referenced file.
 	 */
 	off_t f_size;
+
+	/**
+	 * BOINC sticky flag support
+	 */
+	bool sticky;
 };
 
 

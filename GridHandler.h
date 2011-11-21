@@ -1,4 +1,4 @@
-/*
+/* -*- mode: c++; coding: utf-8-unix -*-
  * Copyright (C) 2008-2010 MTA SZTAKI LPDS
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
 
 #include "BackendException.h"
 #include "Job.h"
+#include "Plugin.h"
 
 #include <glib.h>
 
@@ -42,7 +43,7 @@ using namespace std;
  * GridHandler interface. Used by the QueueManager to submit jobs, update
  * status of jobs and get output of finished jobs using grid functions.
  */
-class GridHandler {
+class GridHandler : public Plugin {
 public:
 	/// Initialize GridHandler.
 	GridHandler() {};
@@ -134,14 +135,5 @@ private:
 	/// Time of last update
 	struct timeval last_update;
 };
-
-/* Factory function prototype */
-extern "C" typedef GridHandler* (*handler_factory_func)(GKeyFile *config, const char *instance);
-
-/* Name of the factory symbol in the loadable modules */
-#define HANDLER_FACTORY_SYMBOL get_handler_instance
-
-/* Factory function definition for modules */
-#define HANDLER_FACTORY(config, instance) extern "C" GridHandler *HANDLER_FACTORY_SYMBOL(GKeyFile *config, const char *instance)
 
 #endif /* GRIDHANDLER_H */

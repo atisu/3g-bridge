@@ -297,6 +297,8 @@
 #include "DLException.h"
 #include "Util.h"
 #include "LogMonMsg.h"
+#include "EventHandling.h"
+#include "TypeInfo.h"
 
 #include <map>
 #include <list>
@@ -390,6 +392,8 @@ static struct sigaction old_sigint;
 static struct sigaction old_sigterm;
 static struct sigaction old_sigquit;
 static struct sigaction old_sighup;
+
+events::EventPool &eventPool = events::EventPool::instance();
 
 
 /**********************************************************************
@@ -678,10 +682,15 @@ static void init_grid_handlers(void)
 		handler_factory_func fn = get_factory(handler);
 		if (!fn)
 			continue;
-		GridHandler *plugin = fn(global_config, sections[i]);
-		if (!fn)
-			continue;
-		gridHandlers.push_back(plugin);
+		Plugin *plugin = fn(global_config, sections[i]);
+		LOG(LOG_INFO, "Initializing plugin '%s' (%s)",
+		    handler, typeName(plugin).c_str());
+
+		GridHandler *asGridHandler = dynamic_cast<GridHandler*>(plugin);
+		if (asGridHandler)
+			gridHandlers.push_back(asGridHandler);
+		plugin->init(eventPool);
+			
 		LOG(LOG_DEBUG, "Initialized grid %s using %s", sections[i], handler);
 		g_free(handler);
 	}

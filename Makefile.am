@@ -120,7 +120,10 @@ jobwrapper_LDADD = -lboinc_api -lboinc $(GLIB_LIBS) $(MYSQL_LIBS) -luuid
 		Util.c \
 		MonitorHandler.h \
 		Conf.cpp Conf.h \
-		LogMonMsg.cpp LogMonMsg.h
+		LogMonMsg.cpp LogMonMsg.h \
+		Plugin.h Plugin.cpp \
+		TypeInfo.h TypeInfo.cpp \
+		EventHandling.cpp EventHandling.h
 
 3g_bridge_LDADD =
 if HAVE_EGEE

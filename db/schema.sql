@@ -52,6 +52,7 @@ CREATE TABLE cg_inputs (
 	url		VARCHAR(2048)	NOT NULL,	/* URL of the file or absolute path */
 	md5		CHAR(32),			/* MD5 hash information for the file */
 	filesize	INT,				/* Size of the file in bytes */
+	sticky		BOOL	NOT NULL DEFAULT 0,	/* BOINC sticky flag */
 	PRIMARY KEY ENTRY (id, localname),
 	INDEX (id),
 	FOREIGN KEY (id) REFERENCES cg_job(id) ON DELETE CASCADE
