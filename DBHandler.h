@@ -1,4 +1,4 @@
-/*
+/* -*- mode: c++; coding: utf-8-unix -*-
  * Copyright (C) 2008-2010 MTA SZTAKI LPDS
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -132,6 +132,8 @@ class DBHandler {
 	 * @param stat2 job status two
 	 */
 	void pollJobs(GridHandler *handler, Job::JobStatus stat1, Job::JobStatus stat2);
+	void pollJobs(void (*cb)(Job* job, void* user_data),
+		      void *user_data, const string &grid, Job::JobStatus stat);
 
 	/**
 	 * Queries the database for finished (either successfully or erronously) jobs.
@@ -314,8 +316,10 @@ class DBHandler {
 	 * Function to get all downloads and pass to a callback function.
 	 * @param cb the callback function to invode for the downloads
 	 */
-	void getAllDLs(void (*cb)(const char *jobid, const char *localName,
-			const char *url, const struct timeval *next, int retries));
+	void getAllDLs(
+		void (*cb)(void * user_data, const char *jobid, const char *localName,
+			   const char *url, const struct timeval *next, int retries),
+		void *user_data);
 
 	size_t getDLCount(const string &jobid);
 	/**

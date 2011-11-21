@@ -40,7 +40,6 @@
 
 #include "Conf.h"
 #include "DBHandler.h"
-#include "DownloadManager.h"
 #include "Job.h"
 #include "QMException.h"
 #include "Util.h"
@@ -82,15 +81,6 @@ using namespace config;
 
 /* Configuration: Name of meta-job grid */
 static CSTR_C metaJobGrid = "Metajob"; //TODO: make configurable
-
-/**
- * Database reread file's location.
- * This variable stored the location of the database reread files. The main 3G
- * Bridge service can instruct the WSSubmitter by touching this files to reread
- * downloads in the database. The value of this variable is read from the config
- * file.
- */
-static char *dbreread_file;
 
 /**
  * Finish flag.
@@ -144,11 +134,6 @@ static int get_version;
  * This variable stores the temporary location of files transferred using DIME.
  */
 static char *dime_prefix;
-
-/**
- * Database reread thread
- */
-static GThread *dbreread_thread;
 
 /**
  * Table of the command-line options
@@ -398,132 +383,6 @@ bool checkMetaJob(const G3BridgeSubmitter__Job &wsjob) throw(int)
 
 	return isMetaJob;
 }
-
-/**********************************************************************
- * Database-aware wrapper for DLItem
- */
-class DBItem: public DLItem
-{
-private:
-	/// Assigned job's identifier
-	string jobId;
-
-	/// Logical file name
-	string logicalFile;
-public:
-	/**
-	 * DBItem constructor.
-	 * @see jobId
-	 * @see logicalFile
-	 * @param jobId the job identifier the DBItem belongs to
-	 * @param logicalFile the logical file name of the given job
-	 * @param URL the URL where the file should be downloaded from
-	 */
-	DBItem(const string &jobId, const string &logicalFile, const string &URL);
-
-	/**
-	 * Destructor.
-	 */
-	virtual ~DBItem() {};
-
-	/**
-	 * Get job identifier.
-	 * @see jobId
-	 * @return job identifier of the given DBItem
-	 */
-	const string &getJobId() const { return jobId; };
-
-	/**
-	 * Report finished status of DBItem.
-	 */
-	virtual void finished();
-
-	/**
-	 * Report DBItem as failed.
-	 */
-	virtual void failed();
-
-	/**
-	 * Set retry number and download start time.
-	 * @param when time of download start
-	 * @param retries number of retries
-	 */
-	virtual void setRetry(const struct timeval &when, int retries);
-};
-
-
-DBItem::DBItem(const string &jobId, const string &logicalFile, const string &url):
-		DLItem(url, calc_input_path(jobId, logicalFile)),
-		jobId(jobId),
-		logicalFile(logicalFile)
-{
-}
-
-
-void DBItem::finished()
-{
-	try
-	{
-		DLItem::finished();
-	}
-	catch (QMException *e)
-	{
-		LOG(LOG_ERR, "Job %s: %s", jobId.c_str(), e->what());
-		delete e;
-		failed();
-		return;
-	}
-
-	DBHandler *dbh = DBHandler::get();
-	dbh->deleteDL(jobId, logicalFile);
-
-
-	/// Checks if all the input files of the job are available.
-	if (0 == dbh->getDLCount(jobId))
-	{
-		auto_ptr<Job> job = dbh->getJob(jobId);
-		job->setStatus(Job::INIT);
-		LOG(LOG_INFO, "Job %s: Preparation complete", jobId.c_str());
-	}
-
-	DBHandler::put(dbh);
-}
-
-
-void DBItem::failed()
-{
-	DLItem::failed();
-
-	DBHandler *dbh = DBHandler::get();
-	dbh->deleteDL(jobId, logicalFile);
-	auto_ptr<Job> job = dbh->getJob(jobId);
-	DBHandler::put(dbh);
-
-	if (!job.get())
-		return;
-
-	if (job->getStatus() != Job::ERROR)
-	{
-		job->setStatus(Job::ERROR);
-		LOG(LOG_NOTICE, "Job %s: Aborted due to errors", jobId.c_str());
-	}
-
-	/* Abort the download of the other input files */
-	auto_ptr< vector<string> > inputs = job->getInputs();
-	for (vector<string>::const_iterator it = inputs->begin(); it != inputs->end(); it++)
-		DownloadManager::abort((job->getInputRef(*it)).getURL());
-}
-
-
-void DBItem::setRetry(const struct timeval &when, int retries)
-{
-	DLItem::setRetry(when, retries);
-
-	DBHandler *dbh = DBHandler::get();
-	dbh->updateDL(jobId, logicalFile, when, retries);
-	DBHandler::put(dbh);
-}
-
 
 /**********************************************************************
  * Web service routines
@@ -818,39 +677,9 @@ int __G3BridgeSubmitter__delete(struct soap *soap, G3BridgeSubmitter__JobIDList 
 			continue;
 		}
 
-		/// Deletes the input and output files.
-		auto_ptr< vector<string> > files = job->getInputs();
-		for (vector<string>::const_iterator fsit = files->begin(); fsit != files->end(); fsit++)
-		{
-			string path = (job->getInputRef(*fsit)).getURL();
-			DownloadManager::abort(path);
-			unlink(path.c_str());
-		}
-		files = job->getOutputs();
-		for (vector<string>::const_iterator fsit = files->begin(); fsit != files->end(); fsit++)
-		{
-			string path = job->getOutputPath(*fsit);
-			unlink(path.c_str());
-		}
-
-		/// Deletes the input and output directories.
-		string jobdir = calc_job_path(input_dir, *it);
-		rmdir(jobdir.c_str());
-		jobdir = calc_job_path(output_dir, *it);
-		rmdir(jobdir.c_str());
-
-		if (job->getStatus() == Job::RUNNING)
-		{
-			/// Running jobs are cancelled.
-			job->setStatus(Job::CANCEL);
-			LOG(LOG_NOTICE, "Job %s: Cancelled", it->c_str());
-		}
-		else
-		{
-			/// Other jobs are simply removed.
-			dbh->deleteJob(*it);
-			LOG(LOG_NOTICE, "Job %s: Deleted", it->c_str());
-		}
+		//TODO: cancel downloads, remove files and job???
+		job->setStatus(Job::CANCEL);
+		LOG(LOG_NOTICE, "Job %s: Cancelled", it->c_str());
 	}
 
 	DBHandler::put(dbh);
@@ -1104,92 +933,6 @@ static void sighup_handler(int signal __attribute__((__unused__)))
 	reload = true;
 }
 
-
-/**
- * Restart a download.
- * Instructs WSSubmitter to restart download of an input file.
- * @param jobid the job's identifier the file belongs to
- * @param localName the file's local name
- * @param url the file's remote URL
- * @param next time of next download try
- * @param retries number of retries
- */
-static void restart_download(const char *jobid, const char *localName,
-	const char *url, const struct timeval *next, int retries)
-{
-	DBItem *item = new DBItem(jobid, localName, url);
-	item->setRetry(*next, retries);
-	DBHandler *dbh = DBHandler::get();
-	dbh->updateInputPath(jobid, localName, calc_input_path(jobid, localName));
-	DBHandler::put(dbh);
-	DownloadManager::add(item);
-}
-
-
-/**
- * Run database reread.
- * This function is run as a thread to check database reread requests.
- * @see dbreread_file
- * @param data unused
- */
-static void *run_dbreread(void *data)
-{
-	int fd;
-
-	/// Checks if dbreread_file can be accessed.
-	if (touch(dbreread_file))
-	{
-		LOG(LOG_ERR, "Failed to create DB reread trigger file '%s': %s",
-			dbreread_file, strerror(errno));
-		return NULL;
-	}
-
-	/// Initializes inotify.
-	fd = inotify_init();
-	if (-1 == fd)
-	{
-		LOG(LOG_ERR, "Failed to initialize inotify: %s",
-			strerror(errno));
-		return NULL;
-	}
-
-	/// Watches the open event on dbreread_file.
-	if (-1 ==inotify_add_watch(fd, dbreread_file, IN_OPEN))
-	{
-		LOG(LOG_ERR, "Failed to initialize inotify: %s",
-			strerror(errno));
-		close(fd);
-		return NULL;
-	}
-
-	while (!finish)
-	{
-		int rv;
-		struct pollfd pfd;
-
-		pfd.fd = fd;
-		pfd.events = POLLIN;
-
-		/// Polls the dbreread file for open events every 5 seconds, and
-		/// instructs DBHandler to reload the downloads if dbreread file
-		/// has been opened.
-		rv = poll(&pfd, 1, 5);
-		if (-1 == rv)
-			LOG(LOG_ERR, "poll() failed: %s", strerror(errno));
-		else
-		{
-			struct inotify_event ev;
-			read(fd, &ev, sizeof(ev));
-			DBHandler *dbh = DBHandler::get();
-			dbh->getAllDLs(restart_download);
-			DBHandler::put(dbh);
-		}
-	}
-	return NULL;
-}
-
-
-
 /**********************************************************************
  * The main program
  */
@@ -1282,15 +1025,6 @@ try
 
 	load_path_config(global_config);
 
-	dbreread_file = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "dbreread-file", &error);
-	if (error)
-	{
-		LOG(LOG_ERR, "Failed to get DB reread file's location: %s",
-			error->message);
-		g_error_free(error);
-		dbreread_file = NULL;
-	}
-
 	if (run_as_daemon && pid_file_create(global_config, GROUP_WSSUBMITTER))
 		exit(EX_OSERR);
 
@@ -1314,7 +1048,12 @@ try
 
 	if (run_as_daemon)
 	{
-		daemon(0, 0);
+		if (daemon(0, 0))
+		{
+			LOG(LOG_CRIT, "Failed to initialize daemon: %s",
+			    strerror(errno));
+			exit(EXIT_FAILURE);
+		}
 		pid_file_update();
 	}
 
@@ -1322,29 +1061,12 @@ try
 	{
 		LogMon::instance(global_config);
 		DBHandler::init(global_config);
-		DownloadManager::init(global_config, GROUP_WSSUBMITTER);
-
-		DBHandler *dbh = DBHandler::get();
-		dbh->getAllDLs(restart_download);
-		DBHandler::put(dbh);
 	}
 	catch (QMException *e)
 	{
 		LOG(LOG_ERR, "Fatal: %s", e->what());
 		delete e;
 		exit(EX_SOFTWARE);
-	}
-
-	/* Launch db reread thread */
-	if (dbreread_file)
-	{
-		dbreread_thread = g_thread_create(run_dbreread, NULL, TRUE, &error);
-		if (!dbreread_thread)
-		{
-			LOG(LOG_ERR, "Failed to create DB reread thread: %s",
-				error->message);
-			g_error_free(error);
-		}
 	}
 
 	soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE | SOAP_IO_CHUNK);
@@ -1405,7 +1127,6 @@ try
 
 	g_thread_pool_free(soap_pool, TRUE, TRUE);
 
-	DownloadManager::done();
 	DBHandler::done();
 
 	g_key_file_free(global_config);

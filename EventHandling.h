@@ -36,9 +36,17 @@
 #include <exception>
 #include "types.h"
 #include "TypeInfo.h"
+#include "Job.h"
 
 namespace events
 {
+	class CommonEvents
+	{
+	public:
+		static CSTR_C ProcessExiting; 
+		static CSTR_C JobCancelled;   //JobEvent
+	};
+	
 	using namespace std;
 
 	/**
@@ -68,6 +76,21 @@ namespace events
 		virtual ~EventData() {};
 	};
 
+	/**
+	 * General wrapper for arbitrary event data.
+	 */
+	template <class T>
+	class WrapperEventData : public EventData
+	{
+		T _data;
+	public:
+		WrapperEventData(T data)
+			:_data(data) {}
+		virtual ~WrapperEventData() {}
+		T get() const { return _data; }
+		operator T() { return _data; }
+	};
+
 	/// Subclasses may handle events. In design pattern terms:
 	/// Observer::Listener
 	class EventHandler : protected TypeInfo
@@ -84,7 +107,6 @@ namespace events
 		 */
 		template <class T>
 		T* check(const string &eventName, EventData *data)
-			throw (InvalidEventData)
 		{
 			if (!data) return 0;
 
@@ -110,8 +132,7 @@ namespace events
 		 *    realHandle(*d);
 		 * }
 		 */
-		virtual void handle(const string& eventName, EventData* data)
-			throw (InvalidEventData)= 0;
+		virtual void handle(const string& eventName, EventData* data) = 0;
 	};
 
 	/// Implements an event class, in design pattern terms:
@@ -121,7 +142,7 @@ namespace events
 		typedef list< EventHandler* > HandlerList;
 		typedef typename HandlerList::iterator EHLIt;
 
-		const string &_name;
+		const string _name;
 		// List of observers
 		HandlerList listeners;
 	public:
@@ -166,6 +187,8 @@ namespace events
 		///event as neccesary.
 		Event& operator[](const string &name);
 	};
+
+	typedef events::WrapperEventData<Job *> JobEventData;
 }
 
 #endif //__EVENT_HANDLING_H

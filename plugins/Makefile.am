@@ -34,13 +34,18 @@ if HAVE_EC2
 pkglib_LTLIBRARIES += EC2_handler.la
 endif
 
-pkglib_LTLIBRARIES += Metajob_handler.la
+pkglib_LTLIBRARIES += Metajob_handler.la DownloadManager_handler.la
 
 Metajob_handler_la_SOURCES = \
 	MJ_parser.cpp MJ_parser.h \
 	Metajob_handler.cpp Metajob_handler.h \
 	autoarray $(top_builddir)/Conf.cpp
-Metajob_handler_la_LIBADD = #TODO
+
+DownloadManager_handler_la_SOURCES = \
+	DownloadManager.cpp DownloadManager.h \
+	DLItem.cpp DLItem.h DLEvents.cpp
+DownloadManager_handler_la_CPPFLAGS = @GLIB_CFLAGS@ @MYSQL_CPPFLAGS@
+DownloadManager_handler_la_LIBADD = @GLIB_LIBS@ $(LIBCURL) -lcrypto
 
 BOINC_monitor_la_SOURCES = BOINC_monitor.cpp BOINC_monitor.h
 BOINC_monitor_la_LIBADD = -lsched $(AM_LIBADD)

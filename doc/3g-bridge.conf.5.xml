@@ -307,11 +307,10 @@
 		</glossdef>
 	    </glossentry>
 	    <glossentry>
-		<glossterm><envar>download-threads</envar></glossterm>
+		<glossterm><envar>download-threads [UNUSED]</envar></glossterm>
 		<glossdef>
 		    <para>
-			Number of threads to launch for downloading the input files of
-			submitted jobs.
+		      Obsoleted by the DownloadManager plugin.
 		    </para>
 		</glossdef>
 	    </glossentry>
@@ -347,11 +346,10 @@
 		</glossdef>
 	    </glossentry>
 	    <glossentry>
-		<glossterm><envar>dbreread-file</envar></glossterm>
+		<glossterm><envar>dbreread-file [UNUSED]</envar></glossterm>
 		<glossdef>
 		    <para>
-			Location of file used to indicate download table reread. Do not use BOINC reread_db
-			file for this purpose.
+		      Obsoleted by the DownloadManager plugin.
 		    </para>
 		</glossdef>
 	    </glossentry>
@@ -386,24 +384,36 @@
     </refsect1>
 
     <refsect1>
-	<title>DEFINING GRID INSTANCES</title>
+	<title>DEFINING GRID INSTANCES AND PLUGINS</title>
 	<para>
-	    If the name of a group is not one of the values described above, then it defines a
-	    grid instance where jobs can be sent. The name of the group is matched with the
-	    grid name in the database to decide where to send a specific job.
+	    If the name of a group is not one of the values described above,
+	    then it defines a grid instance where jobs can be sent or a general
+	    plugin instance. For grid plugins, the name of the group is matched
+	    with the grid name in the database to decide where to send a
+	    specific job. For general plugins, the instance name matters only
+	    when stated so in the handling plugin's specification.
 	</para>
 	<para>
-	    Every grid definition group must contain a value for <envar>handler</envar> that
-	    decides which grid plugin will handle this definition. The group may also contain
-	    additional definitions specific to the grid plugin.
+	    Every plugin definition group must contain a value for
+	    <envar>handler</envar> that decides which plugin will handle this
+	    definition. The group may also contain additional definitions
+	    specific to the plugin.
 	</para>
 	<para>
-	    Currently the following grid plugins are available (i.e. these are the allowed values
-	    for <envar>handler</envar>), provided the support for the specified plugin is compiled
-	    into the <command>3g-bridge</command>:
+	    Currently the following plugins are available (i.e. these are the
+	    allowed values for <envar>handler</envar>), provided the support for
+	    the specified plugin is compiled into the
+	    <command>3g-bridge</command>. If not stated otherwise, the plugin is
+	    a grid handler.
 	</para>
 
 	<itemizedlist>
+	  <listitem>
+	    <para>
+	      <literal>DownloadManager</literal>: General plugin. Handles
+	      download requests of other plugins.
+	    </para>
+	  </listitem>
 	    <listitem>
 		<para>
 		    <literal>DC-API</literal>: Submit jobs using DC-API with batching support.
@@ -460,7 +470,42 @@
 	    </listitem>
 	</itemizedlist>
     </refsect1>
-
+    <refsect1>
+	<title>OPTIONS FOR THE DOWNLOAD MANAGER PLUGIN</title>
+	<para>
+	  The DownloadManager plugin handles other plugins' download
+	  reqests. Reqests are queued and processed by multiple download
+	  threads.	  
+	</para>
+	<para>
+	  This plugin replaces the built-in DownloadManager of the
+	  WSSubmitter. Thus, the WSSubmitter doesn't have to be started when
+	  only the download service is required. Also, the dbreread file is
+	  obsolete, thread communication is done inside the 3G Bridge process.
+	</para>
+	<para>
+	  As the DownloadManager is a general plugin, it's not associated with
+	  any job queue. Therefore the instance name is irrelevant.
+	</para>
+	<para>
+	  The following attributes are used from the
+	  <envar>[wssubmitter]</envar> section: <envar>input-dir</envar>.
+	</para>
+	<glosslist>
+	  <glossentry>
+	    <glossterm><envar>handler</envar></glossterm>
+	    <glossdef>
+	      <para>DownloadManager</para>
+	    </glossdef>
+	  </glossentry>
+	  <glossentry>
+	    <glossterm><envar>download-threads</envar></glossterm>
+	    <glossdef>
+	      <para>Number of concurrent downloads.</para>
+	    </glossdef>
+	  </glossentry>
+	</glosslist>
+    </refsect1>
     <refsect1>
 	<title>OPTIONS FOR THE DC-API AND DC-API-SINGLE PLUGINS</title>
 

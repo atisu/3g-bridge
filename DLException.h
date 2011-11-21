@@ -83,7 +83,7 @@ public:
 	 * @see localnames
 	 * @return vector of problematic input files' local names
 	 */
-	const std::vector<std::string> getInputs() const { return localnames; };
+	const std::vector<std::string> &getInputs() const { return localnames; };
 
 	/**
 	 * Return the reason of the exception.

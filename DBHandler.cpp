@@ -366,7 +366,30 @@ void DBHandler::getFinishedJobs(JobVector &jobs, const string &grid, unsigned ba
 		return parseJobs(jobs);
 }
 
+void DBHandler::pollJobs(void (*cb)(Job*, void*), void *user_data,
+			 const string &grid, Job::JobStatus stat)
+{
+	if (!query("SELECT * FROM cg_job WHERE grid = '%s' "
+		   "AND status = '%s'", grid.c_str(), statToStr(stat)))
+	{
+		return;
+	}
 
+	DBResult res(this);
+	res.use();
+	while (res.fetch())
+	{
+		auto_ptr<Job> job(parseJob(res));
+		try {
+			cb(job.get(), user_data);
+		}
+		catch (BackendException *e) {
+			LOG(LOG_ERR, "Polling job %s: %s",
+			    job->getId().c_str(), e->what());
+			delete e;
+		}
+	}
+}
 void DBHandler::pollJobs(GridHandler *handler, Job::JobStatus stat1, Job::JobStatus stat2)
 {
 	if (!query("START TRANSACTION"))
@@ -732,8 +755,10 @@ void DBHandler::updateDL(const string &jobid, const string &localName, const str
 }
 
 
-void DBHandler::getAllDLs(void (*cb)(const char *jobid, const char *localName,
-		const char *url, const struct timeval *next, int retries))
+void DBHandler::getAllDLs(
+	void (*cb)(void *user_data, const char *jobid, const char *localName,
+		   const char *url, const struct timeval *next, int retries),
+	void *user_data)
 {
 	if (!query("SELECT jobid, localname, url, UNIX_TIMESTAMP(next_try), retries "
 			"FROM cg_download"))
@@ -753,7 +778,7 @@ void DBHandler::getAllDLs(void (*cb)(const char *jobid, const char *localName,
 		const char *retries_str = res.get_field(4);
 
 		next.tv_sec = atol(next_str);
-		cb(jobid, localName, url, &next, atoi(retries_str));
+		cb(user_data, jobid, localName, url, &next, atoi(retries_str));
 	}
 }
 

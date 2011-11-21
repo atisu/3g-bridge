@@ -81,7 +81,7 @@ noinst_HEADERS = \
 		plugins/Null_handler.h \
 		plugins/EGEE_handler.h \
 		plugins/Java_handler.h \
-		DownloadManager.h \
+		plugins/DLEvents.h \
 		GridHandler.h \
 		Job.h \
 		QMException.h \
@@ -119,11 +119,12 @@ jobwrapper_LDADD = -lboinc_api -lboinc $(GLIB_LIBS) $(MYSQL_LIBS) -luuid
 		QueueManager.cpp \
 		Util.c \
 		MonitorHandler.h \
-		Conf.cpp Conf.h \
-		LogMonMsg.cpp LogMonMsg.h \
 		Plugin.h Plugin.cpp \
 		TypeInfo.h TypeInfo.cpp \
-		EventHandling.cpp EventHandling.h
+		EventHandling.cpp \
+		Conf.cpp Conf.h \
+		LogMonMsg.cpp LogMonMsg.h \
+		plugins/DLEvents.cpp
 
 3g_bridge_LDADD =
 if HAVE_EGEE
@@ -138,11 +139,9 @@ nodist_wssubmitter_SOURCES = \
 wssubmitter_SOURCES = \
 		AlgQueue.cpp \
 		DBHandler.cpp \
-		DownloadManager.cpp \
 		Job.cpp \
 		FileRef.cpp \
 		QMException.cpp \
-		DLException.cpp \
 		Util.c \
 		WSSubmitter.cpp \
 		Conf.cpp \

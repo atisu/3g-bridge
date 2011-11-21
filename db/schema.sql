@@ -94,6 +94,7 @@ CREATE TABLE cg_download (
 	url		VARCHAR(2048)	NOT NULL,	/* Remote URL */
 	next_try	TIMESTAMP	NOT NULL DEFAULT CURRENT_TIMESTAMP,	/* Next download attempt */
 	retries		INT		NOT NULL DEFAULT 0,			/* No. of failed DL attempts */
+
 	PRIMARY KEY entry (jobid, localname),
 	INDEX (jobid),
 	FOREIGN KEY (jobid) REFERENCES cg_job(id) ON DELETE CASCADE

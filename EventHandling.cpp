@@ -1,7 +1,8 @@
 // -*- mode: c++; coding: utf-8-unix -*-
 
 #include "EventHandling.h"
-#include "../3gbridge/mkstr"
+#include "mkstr"
+#include "Util.h"
 
 using namespace events;
 
@@ -13,6 +14,9 @@ void remove(list<T> &lst, const T& item)
 	while (i!=lst.end() && *i != item) i++;
 	if (i!=lst.end()) lst.erase(i);
 }
+
+CSTR_C CommonEvents::ProcessExiting = "exiting";
+CSTR_C CommonEvents::JobCancelled = "job-cancelled";
 
 /////////////////////////////////////////////////////////////////////////
 // InvalidEventData
@@ -38,7 +42,9 @@ void Event::operator-=(EventHandler &h) { remove(listeners, &h); }
 void Event::operator()(EventData *data)
 {
 	for (EHLIt i = listeners.begin(); i!=listeners.end(); i++)
+	{
 		(*i)->handle(_name, data);
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////

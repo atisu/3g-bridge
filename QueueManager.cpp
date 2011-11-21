@@ -296,6 +296,9 @@
 #include "DBHandler.h"
 #include "DLException.h"
 #include "Util.h"
+#include "EventHandling.h"
+#include "TypeInfo.h"
+#include "plugins/DLEvents.h"
 #include "LogMonMsg.h"
 #include "EventHandling.h"
 #include "TypeInfo.h"
@@ -347,9 +350,6 @@ static char *plugin_dir;
 /* Config: min. time between calling the update method of plugins */
 static int update_interval;
 
-/* Config: DB reread trigger file path */
-static char *dbreread_file;
-
 /* Command line: Location of the config file */
 static char *config_file = (char *)SYSCONFDIR "/3g-bridge.conf";
 
@@ -395,6 +395,29 @@ static struct sigaction old_sighup;
 
 events::EventPool &eventPool = events::EventPool::instance();
 
+class QMEventHandler : protected events::EventHandler
+{
+	virtual void handle(const std::string &eventName, events::EventData *data)
+		throw (events::InvalidEventData)
+	{
+		LOG(LOG_DEBUG, "QMEventHandler: '%s'", eventName.c_str());
+		// Add event handler code here
+	}
+	QMEventHandler() {}
+	static QMEventHandler *_instance;
+public:
+	virtual ~QMEventHandler() { _instance = 0; }
+	static QMEventHandler& instance()
+	{
+		if (!_instance)
+		{
+			_instance = new QMEventHandler();
+			// Add this to eventPool as eventListener here
+		}
+		return *_instance;
+	}
+};
+QMEventHandler *QMEventHandler::_instance = 0;
 
 /**********************************************************************
  * Prototypes
@@ -498,29 +521,19 @@ static handler_factory_func get_factory(const char *handler)
 
 static void addDownload(const DLException *e)
 {
-	if (!dbreread_file)
-	{
-		LOG(LOG_WARNING, "Plugin reported not supported URL, but unable "
-			"to handle as DB reread file not set!");
-		return;
-	}
-	DBHandler *dbh = DBHandler::get();
-	vector<string> lnames = e->getInputs();
+	dlmgr::DLEventData de(e);
+	eventPool[dlmgr::EventNames::DLRequested](&de);
+
+	
+	DBHWrapper dbh;
 	auto_ptr<Job> job = dbh->getJob(e->getJobId());
 	job->setStatus(Job::PREPARE);
-	for (vector<string>::iterator it = lnames.begin(); it != lnames.end(); it++)
-	{
-		FileRef fr = job->getInputRef(*it);
-		string url = fr.getURL();
-		dbh->addDL(job->getId(), *it, url);
-	}
-	DBHandler::put(dbh);
+}
 
-	if (touch(dbreread_file))
-	{
-		LOG(LOG_WARNING, "Failed to touch DB reread trigger file '%s': %s",
-			dbreread_file, strerror(errno));
-	}
+static void job_cancel(Job *job, void *)
+{
+	events::JobEventData ed(job);
+	eventPool[events::CommonEvents::JobCancelled](&ed);
 }
 
 static bool runHandler(GridHandler *handler)
@@ -537,9 +550,8 @@ static bool runHandler(GridHandler *handler)
 		AlgQueue::getAlgs(algs, handler->getName());
 		for (vector<AlgQueue *>::iterator it = algs.begin(); it != algs.end(); it++)
 		{
-			DBHandler *dbh = DBHandler::get();
+			DBHWrapper dbh;
 			dbh->getJobs(jobs, handler->getName(), (*it)->getName(), Job::INIT, selectSizeAdv(*it));
-			DBHandler::put(dbh);
 			
 			if (!jobs.empty())
 			{
@@ -574,13 +586,20 @@ static bool runHandler(GridHandler *handler)
 				LOG(LOG_DEBUG,
 				    "Missing file(s), adding download requests");
 				addDownload(e);
+				LOG(LOG_DEBUG, "Request added.");
 				delete e;
 			}
 			work_done = true;
 			jobs.clear();
 		}
 	}
-
+	
+	{	
+		DBHWrapper dbh;
+		dbh->pollJobs(job_cancel, &eventPool,
+			      handler->getName(), Job::CANCEL);
+	}
+	
 	handler->checkUpdate(update_interval);
 
 	return work_done;
@@ -781,17 +800,6 @@ try
 	}
 	g_strstrip(plugin_dir);
 
-	dbreread_file = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "dbreread-file", &error);
-	if (!dbreread_file || error)
-	{
-		LOG(LOG_ERR, "Failed to get DB reread file's location: %s",
-			error->message);
-		g_error_free(error);
-		dbreread_file = NULL;
-	}
-	if (dbreread_file)
-		g_strstrip(dbreread_file);
-
 	if (debug_mode)
 	{
 		log_init_debug();
@@ -808,14 +816,19 @@ try
 	DBHandler::init(global_config);
 	modules = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, close_module);
 
-	/* Initialize glib's thread system */
-	g_thread_init(NULL);
+	g_thread_init(0);
+
+	QMEventHandler::instance();
 
 	logmon::startRotationThread(global_config);
 
 	if (run_as_daemon)
 	{
-		daemon(0, 0);
+		if (daemon(0, 0))
+		{
+			LOG(LOG_CRIT, "Error starting daemon: '%s'", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
 		pid_file_update();
 	}
 
@@ -882,6 +895,8 @@ try
 		delete plugin;
 	}
 
+	eventPool[events::CommonEvents::ProcessExiting](0);	
+	
 	AlgQueue::cleanUp();
 	DBHandler::done();
 	g_hash_table_destroy(modules);
