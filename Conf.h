@@ -48,37 +48,100 @@
 
 namespace config
 {
+	using std::string;
+	
 	class ConfigException : public std::exception
 	{
-	protected:
-		std::string msg;
+		string msg;
 	public:
 		ConfigException(CSTR_C group, CSTR_C key, CSTR_C reason);
-		ConfigException(CSTR_C group, CSTR_C key,
-				const std::string &reason);
 		virtual ~ConfigException() throw() {}
 		virtual CSTR what() const throw()
 		{
 			return msg.c_str();
 		}
 	};
+
 	class MissingKeyException : public ConfigException
 	{
 	public:
-		MissingKeyException(CSTR_C group,
-				    CSTR_C key)
+		MissingKeyException(CSTR_C group, CSTR_C key)
 			: ConfigException(group, key, "Missing key") {}
 		virtual ~MissingKeyException() throw() {}
-	};
+	};	
 	
 	/** Gets the given int value from the config. */
 	size_t getConfInt(GKeyFile *config, CSTR group, CSTR key, int defVal);
 	
         /** Gets the given string value from the config. */
-	std::string getConfStr(GKeyFile *config,
-			       CSTR group, CSTR key,
-			       CSTR defVal = 0);
-}
+	string getConfStr(GKeyFile *config,
+			  CSTR group, CSTR key,
+			  CSTR defVal = 0);
+
+
+	/**
+	 * Load input_dir, output_dir and output_url_prefix. Functions below
+	 * depend on this function being called first.
+	 */
+	void load_path_config(GKeyFile *global_config);
+
+	/**
+	 * Path prefix for input files' download.
+	 * This variable stores the path of the directory under which jobs' input files
+	 * are fetched. The value of this variable is read from the config file.
+	 */
+	extern char *input_dir;
+
+        /**
+	 * Path prefix for produced output files.
+	 * This variable stored the path of the directory under which jobs' output files
+	 * are placed after jobs have finished. The value of this variable is read from
+	 * the config file.
+	 * @see output_url_prefix
+	 */
+	extern char *output_dir;
+
+        /**
+	 * Availability URL prefix of output files.
+	 * This variable stores the URL prefix where output files can be downloaded
+	 * from. The URL stored in this variable should grant access to the path stored
+	 * in the output_dir variable. The value of this variable is read from the
+	 * config file.
+	 * @see output_dir
+	 */
+	extern char *output_url_prefix;
+
+	string calc_job_path(const string &basedir,
+			     const string &jobid);
+	string calc_file_path(const string &basedir,
+			      const string &jobid,
+			      const string &localName);
+	/**
+	 * Calculate an input file's path.
+	 * This function calculates (and creates) the path of a job's input file.
+	 * @see input_dir
+	 * @param jobid the job's identifier
+	 * @param localName the file's local name
+	 */
+	string calc_input_path(const string &jobid, const string &localName);
+	/**
+	 * Calculate an output file's path.
+	 * This function calculates (and creates) the path of a job's output file.
+	 * @see output_dir
+	 * @param jobid the job's identifier
+	 * @param localName the file's local name
+	 */
+	string calc_output_path(const string &jobid, const string &localName);
+	/**
+	 * Calculate the location where an output file can be downloaded from.
+	 * @see output_url_prefix
+	 * @see output_dir
+	 * @param path the file's path on the filesystem
+	 * @return the URL through which the file can be downloaded
+	 */
+	string calc_output_url(const string path);
+	
+};
 
 #endif
 

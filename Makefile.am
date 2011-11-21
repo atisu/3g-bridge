@@ -163,6 +163,7 @@ nodist_wsclient_SOURCES = \
 wsclient_SOURCES = \
 		wsclient.cpp \
 		Conf.cpp \
+		QMException.cpp \
 		Util.c
 wsclient_LDADD = $(GLIB_LIBS) $(GSOAP_LIBS) -luuid
 

@@ -75,14 +75,6 @@ CSTR_C ARCH_STDERR  = ".arch.stderr";
 CSTR_C ARCH_SCRIPT  = ".arch.create.sh";
 
 /**
- * Construct and create the path to where output shall be saved. */
-static string calc_job_path(const string &basedir, const string &jobid);
-/**
- * Construct and create the path to where output shall be saved. */
-static string calc_file_path(const string &basedir,
-			     const string &jobid,
-			     const string &localName);
-/**
  * Exception handler for submitJobs*/
 static void submit_handleError(DBHandler *dbh, const char *msg, Job *job);
 
@@ -997,31 +989,6 @@ static void md(char const *name)
 		throw new BackendException(
 			"Failed to create directory '%s': %s",
 			name, strerror(errno));
-}
-
-static string make_hashed_dir(const string &base,
-			      const string &jobid,
-			      bool create = true)
-{
-	string dir = base + '/' + jobid.at(0) + jobid.at(1);
-	if (create)
-		md(dir.c_str());
-
-	dir += '/' + jobid;
-	if (create)
-		md(dir.c_str());
-
-	return dir;
-}
-static string calc_job_path(const string &basedir, const string &jobid)
-{
-	return make_hashed_dir(basedir, jobid);
-}
-static string calc_file_path(const string &basedir,
-			     const string &jobid,
-			     const string &localName)
-{
-	return calc_job_path(basedir, jobid) + '/' + localName;
 }
 
 static void rmrf(string dir)

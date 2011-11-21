@@ -791,6 +791,8 @@ try
 	else
 		log_init(global_config, GROUP_BRIDGE);
 
+	config::load_path_config(global_config);
+
 	if (run_as_daemon && pid_file_create(global_config, GROUP_BRIDGE))
 		exit(EX_OSERR);
 
@@ -879,13 +881,13 @@ try
 
 	return EX_OK;
 }
-catch (const exception *ex)
-{
-	LOG(LOG_CRIT, "Exiting because of unhandled exception: %s", ex->what());
-	exit(EXIT_FAILURE);
-}
 catch (const exception &ex)
 {
-	LOG(LOG_CRIT, "Exiting because of unhandled exception: %s", ex.what());
+	LOG(LOG_CRIT, "%s", ex.what());
+	exit(EXIT_FAILURE);
+}
+catch (const exception *ex)
+{
+	LOG(LOG_CRIT, "%s", ex->what());
 	exit(EXIT_FAILURE);
 }

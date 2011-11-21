@@ -74,39 +74,14 @@
 
 using namespace std;
 using logmon::LogMon;
+using namespace config;
 
 /**********************************************************************
  * Global variables
  */
 
 /* Configuration: Name of meta-job grid */
-static char const * const metaJobGrid = "Metajob"; //TODO: make configurable
-
-/**
- * Path prefix for input files' download.
- * This variable stores the path of the directory under which jobs' input files
- * are fetched. The value of this variable is read from the config file.
- */
-static char *input_dir;
-
-/**
- * Path prefix for produced output files.
- * This variable stored the path of the directory under which jobs' output files
- * are placed after jobs have finished. The value of this variable is read from
- * the config file.
- * @see output_url_prefix
- */
-static char *output_dir;
-
-/**
- * Availability URL prefix of output files.
- * This variable stores the URL prefix where output files can be downloaded
- * from. The URL stored in this variable should grant access to the path stored
- * in the output_dir variable. The value of this variable is read from the
- * config file.
- * @see output_dir
- */
-static char *output_url_prefix;
+static CSTR_C metaJobGrid = "Metajob"; //TODO: make configurable
 
 /**
  * Database reread file's location.
@@ -222,70 +197,6 @@ typedef struct {
  * Calculate file locations
  */
 
-
-/**
- * Create a hashed directory.
- * This function can be used to create a hash directory for a job with a given
- * identifier on the filesystem.
- * For example, if the job identifier is 48e90506-b44f-4b09-af8b-4ea544eb32ab, a
- * directory base + '/48/48e90506-b44f-4b09-af8b-4ea544eb32ab' is created.
- * @param base the base directory path
- * @param jobid the job identifier to use
- * @param create indicates if the directory should be created or not
- * @return full path of the created directory
- */
-static string make_hashed_dir(const string &base, const string &jobid, bool create = true)
-{
-	string dir = base + '/' + jobid.at(0) + jobid.at(1);
-	if (create)
-	{
-		/// First create parent directory
-		int ret = mkdir(dir.c_str(), 0750);
-		if (ret == -1 && errno != EEXIST)
-			throw new QMException("Failed to create directory '%s': %s",
-				dir.c_str(), strerror(errno));
-	}
-	dir += '/' + jobid;
-	if (create)
-	{
-		/// Finally create job's directory
-		int ret = mkdir(dir.c_str(), 0750);
-		if (ret == -1 && errno != EEXIST)
-			throw new QMException("Failed to create directory '%s': %s",
-				dir.c_str(), strerror(errno));
-	}
-	return dir;
-}
-
-
-/**
- * Calculate an input file's path.
- * This function calculates (and creates) the path of a job's input file.
- * @see input_dir
- * @see make_hashed_dir
- * @param jobid the job's identifier
- * @param localName the file's local name
- */
-static string calc_input_path(const string &jobid, const string &localName)
-{
-	return make_hashed_dir(input_dir, jobid) + '/' + localName;
-}
-
-
-/**
- * Calculate an output file's path.
- * This function calculates (and creates) the path of a job's output file.
- * @see output_dir
- * @see make_hashed_dir
- * @param jobid the job's identifier
- * @param localName the file's local name
- */
-static string calc_output_path(const string &jobid, const string &localName)
-{
-	return make_hashed_dir(output_dir, jobid) + '/' + localName;
-}
-
-
 /**
  * Get a DIME attachment's identifier.
  * This function can be used to get the identifier of a DIME attachment. dimeid
@@ -328,21 +239,6 @@ static string getdimepath(const string &dimeid)
 	string fname = input_dir + string("/") + dime_prefix + "_" + getdimefname(dimeid) + "_" + getdimeattid(dimeid);
 	return fname;
 }
-
-
-/**
- * Calculate the location where an output file can be downloaded from.
- * @see output_url_prefix
- * @see output_dir
- * @param path the file's path on the filesystem
- * @return the URL through which the file can be downloaded
- */
-static string calc_output_url(const string path)
-{
-	/* XXX Verify the prefix */
-	return (string)output_url_prefix + "/" + path.substr(strlen(output_dir) + 1);
-}
-
 
 /**********************************************************************
  * gSOAP streaming DIME realted functions
@@ -938,9 +834,9 @@ int __G3BridgeSubmitter__delete(struct soap *soap, G3BridgeSubmitter__JobIDList 
 		}
 
 		/// Deletes the input and output directories.
-		string jobdir = make_hashed_dir(input_dir, *it, false);
+		string jobdir = calc_job_path(input_dir, *it);
 		rmdir(jobdir.c_str());
-		jobdir = make_hashed_dir(output_dir, *it, false);
+		jobdir = calc_job_path(output_dir, *it);
 		rmdir(jobdir.c_str());
 
 		if (job->getStatus() == Job::RUNNING)
@@ -1303,6 +1199,7 @@ static void *run_dbreread(void *data)
  * @param argv values of command-line arguments
  */
 int main(int argc, char **argv)
+try
 {
 	GOptionContext *context;
 	int port, ws_threads;
@@ -1383,32 +1280,7 @@ int main(int argc, char **argv)
 		exit(EX_DATAERR);
 	}
 
-	input_dir = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "input-dir", &error);
-	if (!input_dir || error)
-	{
-		LOG(LOG_ERR, "Failed to get the input directory: %s", error->message);
-		g_error_free(error);
-		exit(EX_DATAERR);
-	}
-	g_strstrip(input_dir);
-
-	output_dir = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "output-dir", &error);
-	if (!output_dir || error)
-	{
-		LOG(LOG_ERR, "Failed to get the output base directory: %s", error->message);
-		g_error_free(error);
-		exit(EX_DATAERR);
-	}
-	g_strstrip(output_dir);
-
-	output_url_prefix = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "output-url-prefix", &error);
-	if (!output_url_prefix || error)
-	{
-		LOG(LOG_ERR, "Failed to get the output URL prefix: %s", error->message);
-		g_error_free(error);
-		exit(EX_DATAERR);
-	}
-	g_strstrip(output_url_prefix);
+	load_path_config(global_config);
 
 	dbreread_file = g_key_file_get_string(global_config, GROUP_WSSUBMITTER, "dbreread-file", &error);
 	if (error)
@@ -1542,4 +1414,14 @@ int main(int argc, char **argv)
 	g_free(output_url_prefix);
 
 	return EX_OK;
+}
+catch (const exception &ex)
+{
+	LOG(LOG_CRIT, "%s", ex.what());
+	exit(EXIT_FAILURE);
+}
+catch (const exception *ex)
+{
+	LOG(LOG_CRIT, "%s", ex->what());
+	exit(EXIT_FAILURE);
 }
