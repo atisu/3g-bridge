@@ -813,10 +813,10 @@ try
 	if (run_as_daemon && pid_file_create(global_config, GROUP_BRIDGE))
 		exit(EX_OSERR);
 
+	g_thread_init(0);
+
 	DBHandler::init(global_config);
 	modules = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, close_module);
-
-	g_thread_init(0);
 
 	QMEventHandler::instance();
 
