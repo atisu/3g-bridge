@@ -78,7 +78,7 @@ static timestamp_type min2ts(int minutes)
 /// Convert timestamp_type to usecond.
 static long ts2usec(timestamp_type ts)
 {
-	return (long)(ts/60*1000);
+	return (long)(ts*1000);
 }
 
 LogMon &LogMon::instance(GKeyFile *conf, CSTR group)
