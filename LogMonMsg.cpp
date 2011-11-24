@@ -279,6 +279,7 @@ void XMLBuilder::beginFile(const timestamp_type &)
 
 	// Create header
 	const string & startLine = MKStr()
+		<< "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" << endl
 		<< "<report timestamp=" << TS_PLACEHOLDER << " timezone=\""
 		<< p.timezone() << "\" version=\"1.1\">" << endl;
 
