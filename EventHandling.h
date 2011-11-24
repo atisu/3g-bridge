@@ -140,7 +140,7 @@ namespace events
 	class Event
 	{
 		typedef list< EventHandler* > HandlerList;
-		typedef typename HandlerList::iterator EHLIt;
+		typedef HandlerList::iterator EHLIt;
 
 		const string _name;
 		// List of observers
