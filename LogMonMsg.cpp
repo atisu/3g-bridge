@@ -212,7 +212,7 @@ Message::Message(Builder &builder)
 	struct tm t;
 	char timebuf[34];
 	localtime_r(&now, &t);
-	strftime(timebuf, sizeof(timebuf), "%F_%T", &t);
+	strftime(timebuf, sizeof(timebuf), "%F %T", &t);
 
 	_items.push_back(KVP("dt", timebuf));
 }
