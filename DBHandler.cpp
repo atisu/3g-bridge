@@ -713,6 +713,7 @@ void DBHandler::getCompleteWUsSingle(vector<string> &ids, const string &grid, Jo
 	if (!query("SELECT gridid "
 			"FROM cg_job "
 			"WHERE grid = '%s' AND status = '%s' "
+			"      AND gridid IS NOT NULL "
 			"LIMIT 100",
 			grid.c_str(), statToStr(stat)))
 		return;
