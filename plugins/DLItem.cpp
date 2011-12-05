@@ -127,6 +127,8 @@ void DLItem::finished(DBHWrapper &dbh)
 		close(_fd);
 		_fd = -1;
 	}
+	LOG(LOG_DEBUG, "Renaming input file '%s' -> '%s'",
+	    tmp_path.c_str(), _path.c_str());
 	if (rename(tmp_path.c_str(), _path.c_str()))
 	{
 		throw new QMException("Failed to rename '%s' to '%s': %s",

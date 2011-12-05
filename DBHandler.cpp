@@ -495,7 +495,6 @@ void DBHandler::updateJobStat(const string &ID, Job::JobStatus newstat)
 	query("UPDATE cg_job SET status='%s' WHERE id='%s'", statToStr(newstat), ID.c_str());
 }
 
-
 void DBHandler::deleteJob(const string &ID)
 {
 	query("DELETE FROM cg_job WHERE id='%s'", ID.c_str());
