@@ -169,6 +169,10 @@ void DownloadManager::dladded(DLEventData *data)
 	const string &jobId = ex.getJobId();
 	auto_ptr<Job> job = dbh->getJob(jobId);
 
+	CriticalSection cs(_jobLock[jobId]);
+
+	job->setStatus(Job::PREPARE);
+	
 	const fnList &lst = ex.getInputs();
 	for (fnList::const_iterator i = lst.begin(); i != lst.end(); i++)
 	{
@@ -281,10 +285,11 @@ try
 		
 		// DBHWrapper scope
 		DBHWrapper dbh;
+		CriticalSection cs(parent.jobLock()[item.jobId()]);
 		dbh->deleteDL(item.jobId(), item.logicalFile());
 		auto_ptr<Job> job = dbh->getJob(item.jobId());
 		JobEventData ed(job.get());
-
+		
 		if (item.cancelled())
 		{
 			//Remove files

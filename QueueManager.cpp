@@ -521,10 +521,6 @@ static handler_factory_func get_factory(const char *handler)
 
 static void addDownload(const DLException *e)
 {
-	DBHWrapper dbh;
-	auto_ptr<Job> job = dbh->getJob(e->getJobId());
-	job->setStatus(Job::PREPARE);
-
 	dlmgr::DLEventData de(e);
 	eventPool[dlmgr::EventNames::DLRequested](&de);
 }

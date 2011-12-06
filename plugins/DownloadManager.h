@@ -34,6 +34,7 @@
 #include "DLItem.h"
 #include "QMException.h"
 #include <glib.h>
+#include "Mutex.h"
 #include "types.h"
 #include "DLEvents.h"
 
@@ -44,6 +45,7 @@ namespace dlmgr
 		static int inst_count;
 
 		GThreadPool *thread_pool;
+		NamedMutexContainer _jobLock;
 
 		const std::string instance;
 		const int num_threads;
@@ -67,6 +69,7 @@ namespace dlmgr
 		void queueItem(const string &jobId, const string &logicalFile,
 			       const string &URL);
 		bool aborted() const { return _aborted; }
+		NamedMutexContainer &jobLock() { return _jobLock; }
 	};
 }
 

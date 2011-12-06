@@ -31,6 +31,8 @@
 #define __MUTEX_H
 
 #include <glib.h>
+#include <map>
+#include <string>
 
 /// Safe wrapper for a mutex { lock..unlock } block
 class CriticalSection
@@ -45,6 +47,19 @@ public:
 	~CriticalSection()
 	{
 		g_mutex_unlock(_mutex);
+	}
+};
+
+class NamedMutexContainer
+{
+	std::map<std::string, GMutex*> _mutexes;
+public:
+	GMutex* operator[] (const string &name)
+	{
+		GMutex* res = _mutexes[name];
+		if (!res)
+			_mutexes[name] = res = g_mutex_new();
+		return res;
 	}
 };
 
