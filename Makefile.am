@@ -86,6 +86,8 @@ noinst_HEADERS = \
 		Job.h \
 		QMException.h \
 		DLException.h \
+		EventHandling.h \
+		Mutex.h \
 		Util.h \
 		types.h \
 		mkstr
