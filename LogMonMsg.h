@@ -88,6 +88,8 @@ namespace logmon
 		virtual string message(const KVPList& items) = 0;
 
 	public:
+		virtual ~Builder() {}
+		
 		/// Creates Builder instance according to type
 		static Builder *create(const string &type);
 		/**
@@ -123,6 +125,8 @@ namespace logmon
 		SimpleBuilder() {}
 	protected:
 		virtual string message(const KVPList& items);
+	public:
+		virtual ~SimpleBuilder() {}
 	};
 	/**
 	 * XML log format. Keys may be transformed by pre-defined mapping. If
@@ -163,6 +167,8 @@ namespace logmon
 		 * Must only be called from inside a CriticalSection(..)
 		 */
 		virtual void endFile(const timestamp_type &now);
+	public:
+		virtual ~XMLBuilder() {}
 	};
 
 	/**

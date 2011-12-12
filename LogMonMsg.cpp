@@ -419,11 +419,13 @@ catch (const exception &ex)
 {
 	LOG(LOG_CRIT, "[LogMon:Rot] Unhandled exception: %s", ex.what());
 	LOG(LOG_CRIT, "[LogMon:Rot] Log-rotate thread terminated.");
+	return 0;
 }
 catch (const exception *ex)
 {
 	LOG(LOG_CRIT, "[LogMon:Rot] Unhandled exception: %s", ex->what());
 	LOG(LOG_CRIT, "[LogMon:Rot] Log-rotate thread terminated.");
+	return 0;
 }
 void logmon::startRotationThread(GKeyFile *conf, CSTR group)
 {
