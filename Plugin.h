@@ -37,7 +37,7 @@
 class Plugin
 {
 public:
-	virtual ~Public() {}
+	virtual ~Plugin() {}
 	virtual void init(events::EventPool &) {}
 };
 
