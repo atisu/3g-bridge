@@ -211,6 +211,9 @@ fi
 %{_sbindir}/3g-bridge
 %{_sbindir}/wsmonitor
 %{_sbindir}/wssubmitter
+%{_libdir}/3g-bridge/DownloadManager_handler.a
+%{_libdir}/3g-bridge/DownloadManager_handler.la
+%{_libdir}/3g-bridge/DownloadManager_handler.so
 %doc %{_mandir}/man1/injector.1*
 %doc %{_mandir}/man5/3g-bridge.conf.5*
 %doc %{_mandir}/man8/3g-bridge.8*
