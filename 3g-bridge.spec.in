@@ -84,8 +84,10 @@ BuildRequires: glite-wms-wmproxy-api-cpp
 BuildRequires: glite-jobid-api-cpp
 BuildRequires: glite-jdl-api-cpp
 BuildRequires: glite-lb-client
-BuildRequires: myproxy
+BuildRequires: myproxy-devel
 BuildRequires: boost-devel
+BuildRequires: globus-gass-copy-devel
+BuildRequires: classads-devel
 
 %description plugin-egee
 The purpose of the 3G bridge application is to create a connection between a
