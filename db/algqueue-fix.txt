@@ -1,0 +1,37 @@
+2012-01-13
+Applies to version: 1.6 and before
+
+The foreign key in cg_job referencing cg_algqueue(grid) is flawed. This
+manifests in the following bug:
+
+Consider there are two records in cg_algqueue:
+1) [ grid=mygrid, alg=myalg1 ]
+2) [ grid=mygrid, alg=myalg2 ]
+And a record exists in cg_job referencing 1).
+
+When you try to delete record 2), the foreign key constraint will fail, because
+there is a job with grid=mygrid; although, there is no job referencing 2)
+itself.
+
+The solution is to remove this foreign key.
+
+First, we must determine its name. The schema.sql doesn't explicitly set its
+name, so we have to query it from the database. For this, login to your bridge
+database and issue this command:
+
+mysql> SHOW CREATE TABLE cg_job;
+
+You will see something like this:
+
+CREATE TABLE `cg_job` (
+-- Fields will be listed here
+  PRIMARY KEY (`id`),
+-- Indexes, keys, etc. here
+  CONSTRAINT `cg_job_ibfk_2` FOREIGN KEY (`metajobid`) REFERENCES `cg_job` (`id`),
+  CONSTRAINT `cg_job_ibfk_3` FOREIGN KEY (`grid`) REFERENCES `cg_algqueue` (`grid`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+
+You will have to remove the one referencing cg_algqueue(grid).
+In this case, `cg_job_ibfk_3`:
+
+mysql> ALTER TABLE cg_job DROP FOREIGN KEY cg_job_ibfk_3;
