@@ -292,6 +292,10 @@ fi
 %endif
 
 %changelog
+* Mon Jan 16 2012 FARKAS Zoltan <zfarkas@sztaki.hu> 1.7-1
+- Implemented DownloadManager as a separate plugin
+- Reorganized logging
+
 * Fri Jul 22 2011 FARKAS Zoltan <zfarkas@sztaki.hu> 1.6.1-1
 - Fixed Metajob plugin release
 - Split schema update into version-specific parts

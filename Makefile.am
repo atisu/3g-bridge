@@ -211,6 +211,8 @@ dist_doc_DATA = \
 		doc/README-BOINC2EGEE \
 		master.xml
 nobase_dist_doc_DATA = \
+		db/add-job-log.sql \
+		db/algqueue-fix.txt \
 		db/schema.sql \
 		db/schema-update-1.5.sql \
 		db/schema-update-1.6.sql \

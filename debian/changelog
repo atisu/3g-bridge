@@ -1,3 +1,11 @@
+3g-bridge (1.7-1) unstable; urgency=low
+
+  * New Debian release
+  * Implemented DownloadManager as a separate plugin
+  * Reorganized logging
+
+ -- FARKAS Zoltán <zfarkas@sztaki.hu>  Mon, 16 Jan 2012 07:59:50 +0100
+
 3g-bridge (1.6.1-1) unstable; urgency=low
 
   * New Debian release
