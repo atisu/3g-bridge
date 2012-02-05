@@ -185,6 +185,8 @@ void DownloadManager::dladded(DLEventData *data)
 		dbh->addDL(jobId, *i, URL);
 		queueItem(jobId, *i, URL);
 	}
+
+	data->setHandled(true);
 }
 void DownloadManager::dlcancelled(JobEventData *data)
 {

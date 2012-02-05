@@ -1,4 +1,4 @@
-/*
+/* -*- mode: c++; coding: utf-8-unix -*-
  * Copyright (C) 2008-2010 MTA SZTAKI LPDS
  *
  * This program is free software; you can redistribute it and/or modify it

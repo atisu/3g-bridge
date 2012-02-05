@@ -523,6 +523,17 @@ static void addDownload(const DLException *e)
 {
 	dlmgr::DLEventData de(e);
 	eventPool[dlmgr::EventNames::DLRequested](&de);
+	if (!de.handled())
+	{
+		LOG(LOG_ERR, "The job %s has input files which should be "
+		    "downloaded by the DLMGr, but it's not configured.",
+		    e->getJobId().c_str());
+		DBHWrapper dbh;
+		auto_ptr<Job> job = dbh->getJob(e->getJobId());
+		job->setStatus(Job::ERROR);
+		job->setGridData("Neither the middleware nor the Bridge "
+				 "supports downloading these input files.");
+	}
 }
 
 static void job_cancel(Job *job, void *)

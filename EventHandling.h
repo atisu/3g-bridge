@@ -72,8 +72,13 @@ namespace events
 	 */
 	class EventData
 	{
+		bool _handled;
 	public:
+		EventData() : _handled(false) {}
 		virtual ~EventData() {};
+
+		bool handled() const { return _handled; }
+		void setHandled(bool newVal) { _handled = newVal; }
 	};
 
 	/**
