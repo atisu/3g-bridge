@@ -410,6 +410,12 @@
 	<itemizedlist>
 	  <listitem>
 	    <para>
+	      <literal>ForeignProbe</literal>: General plugin. Runs predefined
+	      queries on the BOINC database periodically.
+	    </para>
+	  </listitem>
+	  <listitem>
+	    <para>
 	      <literal>DownloadManager</literal>: General plugin. Handles
 	      download requests of other plugins.
 	    </para>
@@ -469,6 +475,73 @@
 	      </para>
 	    </listitem>
 	</itemizedlist>
+    </refsect1>
+    <refsect1>
+      <title>OPTIONS FOR THE FOREIGNPROBE PLUGIN</title>
+      	<para>
+	  ***********
+	</para>
+	<glosslist>
+	  <glossentry>
+	    <glossterm><envar>handler</envar></glossterm>
+	    <glossdef>
+	      <para>ForeignProbe</para>
+	    </glossdef>
+	  </glossentry>
+	  <glossentry>
+	    <glossterm><envar>reporting_interval</envar></glossterm>
+	    <glossdef>
+	      <para>Optional. Time interval between two query executions in
+	      seconds. Default is 600 (10 minutes, that is).</para>
+	    </glossdef>
+	  </glossentry>
+	  <glossentry>
+	    <glossterm><envar>max_threads</envar></glossterm>
+	    <glossdef>
+	      <para>Optional. Maximum number of parallel query threads. Default
+	      is 5.</para>
+	    </glossdef>
+	  </glossentry>
+	  <glossentry>
+	    <glossterm><envar>target_filenamefmt</envar></glossterm>
+	    <glossdef>
+	      <para>Output filename format. Its value must be an absolute path;
+	      the directory must exist. The string `{ts}' will be replaced by
+	      the current unix timestamp. If `{ts}' is not present, the
+	      timestamp will be appended to the filename. E.g.:
+	      <literal>/my/path/to/directory/filename_{ts}.xml</literal></para>
+	    </glossdef>
+	  </glossentry>
+	  <glossentry>
+	    <glossterm><envar>apps</envar></glossterm>
+	    <glossdef>
+	      <para>Comma separated list of application names, referencing
+	      applications in the BOINC database (field [app].[name]).</para>
+	    </glossdef>
+	  </glossentry>
+	  <glossentry>
+	    <glossterm><envar>host_ident</envar></glossterm>
+	    <glossdef>
+	      <para>Required in the output. Identifies the from which the data
+	      is originated.</para>
+	    </glossdef>
+	  </glossentry>
+	  <glossentry>
+	    <glossterm><envar>middleware</envar></glossterm>
+	    <glossdef>
+	      <para>Optional. Required in the output. The default value is
+	      `boinc'.</para>
+	    </glossdef>
+	  </glossentry>
+	  <glossentry>
+	    <glossterm><envar>direction</envar></glossterm>
+	    <glossdef>
+	      <para>Optional. Required in the output. The default value is
+	      `sgdg'.</para>
+	    </glossdef>
+	  </glossentry>
+	</glosslist>
+
     </refsect1>
     <refsect1>
 	<title>OPTIONS FOR THE DOWNLOAD MANAGER PLUGIN</title>

@@ -140,21 +140,16 @@ const char *DBResult::get_field(const char *name)
  * Class: DBHandler
  */
 
-bool DBHandler::query(const char *fmt, ...)
+
+bool DBHandler::query(const char *fmt, va_list ap)
 {
-	va_list ap;
 	char *qstr;
 
-	if (!conn)
-		throw new QMException("Not connected to the database");
-
-	va_start(ap, fmt);
 	if (0 > vasprintf(&qstr, fmt, ap))
 	{
 		LOG(LOG_ERR, "Query [%s] has failed: vasprintf failed.", qstr);
 		return false;
 	}
-	va_end(ap);
 
 	if (mysql_query(conn, qstr))
 	{
@@ -164,6 +159,40 @@ bool DBHandler::query(const char *fmt, ...)
 	}
 	free(qstr);
 	return true;
+}
+
+bool DBHandler::query(const char *fmt, ...)
+{
+	va_list ap;
+
+	if (!conn)
+		throw new QMException("Not connected to the database");
+
+	va_start(ap, fmt);
+	bool result = query(fmt, ap);
+	va_end(ap);
+
+	return result;
+}
+
+float DBHandler::executeScalar_Float(float defval, const char *fmt, ...)
+{
+	va_list ap;
+	float val = defval;
+
+	va_start(ap, fmt);
+	bool result = query(fmt, ap);
+	va_end(ap);
+	if (!result)
+		throw new QMException("The query has failed.");
+
+	DBResult res(this);
+	res.use();
+	if (res.fetch())
+		sscanf(res.get_field(0), "%f", &val);
+
+	return val;
+
 }
 
 
@@ -1035,4 +1064,19 @@ vector<string> DBHandler::getSubjobErrors(const string &metajobId)
 	}
 
 	return result;
+}
+
+int DBHandler::getBOINCAppId(const string &appname)
+{
+	char *n = escape_string(appname.c_str());
+	query("SELECT id FROM app WHERE name='%s' AND deprecated=0", n);
+	free(n);
+
+	DBResult res(this);
+	res.use();
+	if (!res.fetch()) throw BOINCAppNotFoundException(appname);
+	
+	int id;
+	sscanf(res.get_field(0), "%d", &id);
+	return id;
 }

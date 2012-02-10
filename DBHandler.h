@@ -32,6 +32,7 @@
 #include "AlgQueue.h"
 #include "GridHandler.h"
 #include "QMException.h"
+#include "mkstr"
 
 #include <string>
 #include <memory>
@@ -55,6 +56,19 @@ class DBResult;
  * Histogram for the statuses of a meta-job's existing sub-jobs.  */
 typedef map<Job::JobStatus, size_t> MJHistogram;
 
+class BOINCAppNotFoundException : public exception
+{
+	string msg;
+public:
+	BOINCAppNotFoundException(const string &name)
+	{
+		msg = MKStr() << "BOINC application '"
+			      << name << "' not found";
+	}
+	virtual ~BOINCAppNotFoundException() throw() {}
+	const char *what() const throw() { return msg.c_str(); }
+};
+
 /**
  * Database handler class. This class is responsible for providing an interface
  * for the bride's database.
@@ -72,12 +86,17 @@ class DBHandler {
 	 */
 	bool query(const char *fmt, ...) __attribute__((__format__(printf, 2, 3)));
 
+	bool query(const char *fmt, va_list ap);
+
 	/**
 	 * Execute a query using the string argument.
 	 * @param str the query to execute
 	 * @return true is the query succeeded, false otherwise
 	 */
 	bool query(const string &str) { return query("%s", str.c_str()); }
+
+	float executeScalar_Float(float defval, const char *fmt, ...)
+		__attribute__((__format__(printf, 3, 4)));
 
 	/**
 	 * Get job from the database.
@@ -348,6 +367,8 @@ class DBHandler {
 
 	void copyEnv(const string &srcId, const string &dstId);
 	vector<string> getSubjobErrors(const string &metajobId);
+
+	int getBOINCAppId(const string &appname);
 
     protected:
 	/// DBResult friend class.

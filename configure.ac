@@ -73,6 +73,19 @@ if test "$with_dcapi" != no; then
 fi
 AM_CONDITIONAL([HAVE_DCAPI], [test "$with_dcapi" != no])
 
+
+dnl -------------------------------------------------------------------
+dnl ForeignProbe
+dnl -------------------------------------------------------------------
+
+AC_ARG_WITH([foreignprobe], AS_HELP_STRING([--with-foreignprobe], [Enable ForeignProbe @<:@no@:>@]),
+	[], [with_foreignprobe=no])
+if test "$with_foreignprobe" != no; then
+	AC_DEFINE([HAVE_FOREIGNPROBE], [1], [Define if ForeignProbe is requested.])
+fi
+AM_CONDITIONAL([HAVE_FOREIGNPROBE], [test "$with_foreignprobe" != no])
+
+
 dnl -------------------------------------------------------------------
 dnl EGEE/gLite
 dnl -------------------------------------------------------------------

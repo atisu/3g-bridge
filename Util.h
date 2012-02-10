@@ -93,6 +93,8 @@ int pid_file_kill(GKeyFile *config, const char *section);
  */
 int touch(const char *fname);
 
+
+
 #ifdef __cplusplus
 }
 #endif
