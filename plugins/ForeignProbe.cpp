@@ -79,7 +79,7 @@ ForeignProbe::~ForeignProbe()
 
 void ForeignProbe::init(events::EventPool&)
 {
-	LOG(LOG_INFO, "[ForeignProbe] Initializing main thread");
+	LOG(LOG_INFO, "[MonLog-BOINC] Initializing main thread");
 	GError *error = 0;
 	_main_thread = g_thread_create(th_main, this, true, &error);
 	checkGError("ForeignProbe::init", error);
@@ -94,7 +94,7 @@ gpointer ForeignProbe::th_main(gpointer data)
 
 	while (running)
 	{
-		LOG(LOG_INFO, "[ForeignProbe] Running queries");
+		LOG(LOG_INFO, "[MonLog-BOINC] Running queries");
 			
 		timeval t;
 		gettimeofday(&t, 0);
@@ -109,14 +109,14 @@ gpointer ForeignProbe::th_main(gpointer data)
 		else
 			path.replace(tsp, 4, ts_s);
 
-		LOG(LOG_DEBUG, "[ForeignProbe] Creating '%s'", path.c_str());
+		LOG(LOG_DEBUG, "[MonLog-BOINC] Creating '%s'", path.c_str());
 		
 		{
 			ofstream os(path.c_str(), ios::trunc|ios::out);
 			if (!os.good())
 			{
 				LOG(LOG_ERR,
-				    "[ForeignProbe] Couldn't open "
+				    "[MonLog-BOINC] Couldn't open "
 				    "file '%s' for writing",
 				    path.c_str());
 			}
@@ -182,7 +182,7 @@ const string MetricData::getcurrent(CR_AppDesc app,
 float SimpleMetricData::runquery(CR_AppDesc app) const
 {
 	LOG(LOG_DEBUG,
-	    "[ForeignProbe] Executing query '%s' for app '%s'",
+	    "[MonLog-BOINC] Executing query '%s' for app '%s'",
 	    name().c_str(), app.appname.c_str());
 	DBHWrapper dbh;
 	return dbh->executeScalar_Float(0, query().c_str(), app.appid);
@@ -289,7 +289,7 @@ ForeignProbe::Configuration::Configuration(GKeyFile *config, CSTR instance)
 		buf << m->first;
 	}
 	CR_string s = buf;
-	LOG(LOG_DEBUG, "[ForeignProbe] Configuration: %s", s.c_str());
+	LOG(LOG_DEBUG, "[MonLog-BOINC] Configuration: %s", s.c_str());
 }
 
 /************************************************************************
@@ -322,11 +322,11 @@ static void th_runmetrics(gpointer data, gpointer userdata)
 	ThreadUserData *ud = reinterpret_cast<ThreadUserData*>(userdata);
 	ThreadData *d = reinterpret_cast<ThreadData*>(data);
 
-	LOG(LOG_DEBUG, "[ForeignProbe] Thread execute query start");
+	LOG(LOG_DEBUG, "[MonLog-BOINC] Thread execute query start");
 	CR_string result = d->metric->getcurrent(d->app, ud->direction, ud->ts);
 	CriticalSection cs(d->results_mutex);
 	d->results.push_back(result);
-	LOG(LOG_DEBUG, "[ForeignProbe] Thread execute query done");
+	LOG(LOG_DEBUG, "[MonLog-BOINC] Thread execute query done");
 }
 
 const string ForeignProbe::metrics(t_timestamp ts) const

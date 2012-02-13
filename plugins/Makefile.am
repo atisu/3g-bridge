@@ -11,8 +11,8 @@ BUILT_SOURCES =
 # Override automake defaults
 JAVAROOT = $(top_builddir)/plugins
 
-if HAVE_FOREIGNPROBE
-pkglib_LTLIBRARIES += ForeignProbe_handler.la
+if HAVE_MONLOG_BOINC
+pkglib_LTLIBRARIES += MonLogBOINC_handler.la
 endif
 
 if HAVE_DCAPI
@@ -51,10 +51,10 @@ DownloadManager_handler_la_SOURCES = \
 DownloadManager_handler_la_CPPFLAGS = @GLIB_CFLAGS@ @MYSQL_CPPFLAGS@
 DownloadManager_handler_la_LIBADD = @GLIB_LIBS@ $(LIBCURL) -lcrypto
 
-ForeignProbe_handler_la_SOURCES = \
+MonLogBOINC_handler_la_SOURCES = \
 	ForeignProbe.cpp FP_queries.cpp ForeignProbe.h FP_queries.h
-ForeignProbe_handler_la_CPPFLAGS = @GLIB_CFLAGS@ @MYSQL_CPPFLAGS@
-ForeignProbe_handler_la_LIBADD = @GLIB_LIBS@
+MonLogBOINC_handler_la_CPPFLAGS = @GLIB_CFLAGS@ @MYSQL_CPPFLAGS@
+MonLogBOINC_handler_la_LIBADD = @GLIB_LIBS@
 
 BOINC_monitor_la_SOURCES = BOINC_monitor.cpp BOINC_monitor.h
 BOINC_monitor_la_LIBADD = -lsched $(AM_LIBADD)

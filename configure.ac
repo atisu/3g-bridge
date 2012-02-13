@@ -78,12 +78,12 @@ dnl -------------------------------------------------------------------
 dnl ForeignProbe
 dnl -------------------------------------------------------------------
 
-AC_ARG_WITH([foreignprobe], AS_HELP_STRING([--with-foreignprobe], [Enable ForeignProbe @<:@no@:>@]),
-	[], [with_foreignprobe=no])
-if test "$with_foreignprobe" != no; then
-	AC_DEFINE([HAVE_FOREIGNPROBE], [1], [Define if ForeignProbe is requested.])
+AC_ARG_WITH([monlog-boinc], AS_HELP_STRING([--with-monlog-boinc], [Enable MonLog-BOINC @<:@no@:>@]),
+	[], [with_monlog_boinc=no])
+if test "$with_monlog_boinc" != no; then
+	AC_DEFINE([HAVE_MONLOG_BOINC], [1], [Define if MonLog-BOINC is requested.])
 fi
-AM_CONDITIONAL([HAVE_FOREIGNPROBE], [test "$with_foreignprobe" != no])
+AM_CONDITIONAL([HAVE_MONLOG_BOINC], [test "$with_monlog_boinc" != no])
 
 
 dnl -------------------------------------------------------------------

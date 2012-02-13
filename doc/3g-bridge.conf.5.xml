@@ -410,8 +410,11 @@
 	<itemizedlist>
 	  <listitem>
 	    <para>
-	      <literal>ForeignProbe</literal>: General plugin. Runs predefined
-	      queries on the BOINC database periodically.
+	      <literal>MonLog-BOINC</literal>: General plugin. Runs predefined
+	      queries on the BOINC database periodically. Before using this
+	      plugin, install the necessary indexes in the BOINC database so the
+	      plugin will run efficiently. The indexes are defined in
+	      <literal>db/monlog-boinc-indexes.sql</literal>
 	    </para>
 	  </listitem>
 	  <listitem>
@@ -477,7 +480,7 @@
 	</itemizedlist>
     </refsect1>
     <refsect1>
-      <title>OPTIONS FOR THE FOREIGNPROBE PLUGIN</title>
+      <title>OPTIONS FOR THE MONLOG-BOINC PLUGIN</title>
       	<para>
 	  ***********
 	</para>
@@ -485,14 +488,14 @@
 	  <glossentry>
 	    <glossterm><envar>handler</envar></glossterm>
 	    <glossdef>
-	      <para>ForeignProbe</para>
+	      <para>MonLogBOINC</para>
 	    </glossdef>
 	  </glossentry>
 	  <glossentry>
 	    <glossterm><envar>reporting_interval</envar></glossterm>
 	    <glossdef>
 	      <para>Optional. Time interval between two query executions in
-	      seconds. Default is 600 (10 minutes, that is).</para>
+	      seconds. Default is 600 seconds.</para>
 	    </glossdef>
 	  </glossentry>
 	  <glossentry>
@@ -524,13 +527,6 @@
 	    <glossdef>
 	      <para>Required in the output. Identifies the from which the data
 	      is originated.</para>
-	    </glossdef>
-	  </glossentry>
-	  <glossentry>
-	    <glossterm><envar>middleware</envar></glossterm>
-	    <glossdef>
-	      <para>Optional. Required in the output. The default value is
-	      `boinc'.</para>
 	    </glossdef>
 	  </glossentry>
 	  <glossentry>
