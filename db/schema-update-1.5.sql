@@ -1,7 +1,8 @@
 ALTER TABLE cg_job
 	ADD COLUMN	griddata	VARCHAR(2048),
 	ADD COLUMN	tag		VARCHAR(254),
-	CHANGE COLUMN	gridid gridid	VARCHAR(2048);
+	CHANGE COLUMN	gridid gridid	VARCHAR(2048),
+	ADD INDEX idx_cgjob_griddata (griddata);
 
 ALTER TABLE cg_inputs
 	ADD COLUMN	md5		CHAR(32),

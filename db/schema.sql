@@ -34,7 +34,6 @@ CREATE TABLE cg_job (
 	creation_time	TIMESTAMP	NULL DEFAULT CURRENT_TIMESTAMP,	/* Creation time of job descriptor */
 	PRIMARY KEY (id),
 	INDEX (grid, alg),
-	INDEX (grid),
 	INDEX (gridid),
 	INDEX (metajobid),
 	INDEX (status),
