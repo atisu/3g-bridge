@@ -108,7 +108,7 @@ size_t DLItem::write(void *buf, size_t size)
 		char buf[PATH_MAX];
 		size_t dirlen = _path.find_last_of('/');
 		CSTR_C pth = _path.c_str();
-		
+
 		if (dirlen == string::npos)
 			snprintf(buf, sizeof(buf), ".%s_XXXXXX", pth);
 		else
@@ -139,7 +139,7 @@ void DLItem::finished(DBHWrapper &dbh)
 		// to the file. If tmp_path is not set, but the DLItem is
 		// finished, it means that the remote file had zero size.
 	{
-		LOG(LOG_DEBUG, "Creating input file '%s'", _path.c_str());		
+		LOG(LOG_DEBUG, "[DlMgr] Creating input file '%s'", _path.c_str());
 		if (FILE *f = fopen(_path.c_str(), "w"))
 			fclose(f);
 		else
@@ -149,7 +149,7 @@ void DLItem::finished(DBHWrapper &dbh)
 	}
 	else
 	{
-		LOG(LOG_DEBUG, "Renaming input file '%s' -> '%s'",
+		LOG(LOG_DEBUG, "[DlMgr] Renaming input file '%s' -> '%s'",
 		    tmp_path.c_str(), _path.c_str());
 		if (rename(tmp_path.c_str(), _path.c_str()))
 		{
@@ -160,13 +160,13 @@ void DLItem::finished(DBHWrapper &dbh)
 				strerror(errno));
 		}
 	}
-	
+
 	dbh->updateInputPath(_jobId, _logicalFile, _path);
 	auto_ptr<Job> job = dbh->getJob(jobId());
 	if (0 == dbh->getDLCount(jobId()))
 	{
 		job->setStatus(Job::INIT);
-		LOG(LOG_INFO, "Job downloads completed for job '%s'",
+		LOG(LOG_INFO, "[DlMgr] Job downloads completed for job '%s'",
 		    job->getId().c_str());
 	}
 }
@@ -175,7 +175,7 @@ void DLItem::failed(DBHWrapper &dbh, const string &msg)
 	auto_ptr<Job> job = dbh->getJob(jobId());
 	job->setStatus(Job::ERROR);
 	job->setGridData(msg);
-	LOG(LOG_INFO, "Job download failed for job '%s'",
+	LOG(LOG_INFO, "[DlMgr] Job download failed for job '%s'",
 	    job->getId().c_str());
 }
 void DLItem::cancel()
