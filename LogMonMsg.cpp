@@ -113,7 +113,7 @@ LogMon &LogMon::instance(GKeyFile *conf, CSTR group)
 		timestamp_type rotateInterval = min2ts(rotint_min);
 		const string &rotateFilenameFmt =
 			config::getConfStr(conf, group, CFG_ROTATE_FN,
-					   (logfilename + "-{ts}").c_str());
+					   logfilename.c_str());
 
 		if (logfilename.empty())
 			LOG(LOG_DEBUG, "[LogMon] Disabled");
@@ -178,7 +178,11 @@ void LogMon::logrotate()
 	sprintf(now_s, "%lu", now);
 
 	string filename = _rotateFilenameFmt;
-	filename.replace(filename.find("{ts}"), 4, now_s);
+	string::size_type tsp = filename.find("{ts}");
+	if (tsp == string::npos)
+		filename = filename + now_s;
+	else
+		filename.replace(tsp, 4, now_s);
 	if (filename[0] != '/')
 	{
 		auto_ptr<gchar> dirname(g_path_get_dirname(
