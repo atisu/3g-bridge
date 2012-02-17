@@ -115,16 +115,23 @@ LogMon &LogMon::instance(GKeyFile *conf, CSTR group)
 			config::getConfStr(conf, group, CFG_ROTATE_FN,
 					   (logfilename + "-{ts}").c_str());
 
-		LOG(LOG_DEBUG, "[LogMon] config: '%s'->'%s' (%s) %s @%dmin",
-		    logfilename.c_str(),
-		    rotateFilenameFmt.c_str(),
-		    buildertype.c_str(),
-		    timezone.c_str(),
-		    rotint_min);
+		if (logfilename.empty())
+			LOG(LOG_DEBUG, "[LogMon] Disabled");
+		else
+			LOG(LOG_DEBUG,
+			    "[LogMon] config: '%s'->'%s' (%s) %s @%dmin",
+			    logfilename.c_str(),
+			    rotateFilenameFmt.c_str(),
+			    buildertype.c_str(),
+			    timezone.c_str(),
+			    rotint_min);
 
-		_instance = new LogMon(Builder::create(buildertype),
-				       group, logfilename, timezone,
-				       rotateInterval, rotateFilenameFmt);
+		_instance = new LogMon(
+			Builder::create(logfilename.empty()
+					? "dummy"
+					: buildertype),
+			group, logfilename, timezone,
+			rotateInterval, rotateFilenameFmt);
 	}
 
 	return *_instance;
@@ -226,7 +233,9 @@ void Message::save()
  ****************************************************************/
 Builder *Builder::create(const string &buildertype)
 {
-	if (buildertype.empty() || buildertype == "simple")
+	if (buildertype == "dummy")
+		return new DummyBuilder();
+	else if (buildertype.empty() || buildertype == "simple")
 		return new SimpleBuilder();
 	else if (buildertype == "xml")
 		return new XMLBuilder();
@@ -434,21 +443,18 @@ void logmon::startRotationThread(GKeyFile *conf, CSTR group)
 				      "has already been started");
 	GError *err;
 	LogMon &lm = LogMon::instance(conf, group);
-	if (lm.rotateInterval())
+	if (!(lm.logfilename().empty()) && lm.rotateInterval())
 	{
 		exitCondition = g_cond_new();
-		if (!(lm.logfilename().empty()))
+		if (!(_rotate_th = g_thread_create(rotate_thread_func,
+						   &lm, true, &err)))
 		{
-			if (!(_rotate_th = g_thread_create(rotate_thread_func,
-							   &lm, true, &err)))
-			{
-				QMException *ex = new QMException(
-					"Couldn't start thread for "
-					"log rotation: %s",
-					err->message);
-				g_error_free(err);
-				throw ex;
-			}
+			QMException *ex = new QMException(
+				"Couldn't start thread for "
+				"log rotation: %s",
+				err->message);
+			g_error_free(err);
+			throw ex;
 		}
 	}
 }

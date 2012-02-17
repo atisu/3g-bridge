@@ -171,6 +171,18 @@ namespace logmon
 		virtual ~XMLBuilder() {}
 	};
 
+	/// For when logging is turned off
+	class DummyBuilder : public Builder
+	{
+	protected:
+		virtual string message(const KVPList&) { return string(); }
+		virtual void beginFile(const timestamp_type &) {}
+		virtual void endFile(const timestamp_type &) {}
+		virtual void saveMessage(const Message&) {}
+	public:
+		virtual ~DummyBuilder() {}
+	};
+
 	/**
 	 * Convenience class to build lists of key-value-pairs.
 	 * The `dt=<current datetime>' pair is always added automatically.
