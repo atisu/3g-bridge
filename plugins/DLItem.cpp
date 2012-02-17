@@ -127,14 +127,32 @@ void DLItem::finished(DBHWrapper &dbh)
 		close(_fd);
 		_fd = -1;
 	}
-	LOG(LOG_DEBUG, "Renaming input file '%s' -> '%s'",
-	    tmp_path.c_str(), _path.c_str());
-	if (rename(tmp_path.c_str(), _path.c_str()))
+
+	if (tmp_path.empty())
+		// The tmp file is created and tmp_path is set upon first write
+		// to the file. If tmp_path is not set, but the DLItem is
+		// finished, it means that the remote file had zero size.
 	{
-		throw new QMException("Failed to rename '%s' to '%s': %s",
-				      tmp_path.c_str(),
-				      _path.c_str(),
-				      strerror(errno));
+		LOG(LOG_DEBUG, "Creating input file '%s'", _path.c_str());		
+		if (FILE *f = fopen(_path.c_str(), "w"))
+			fclose(f);
+		else
+			throw new QMException(
+				"Failed to create input file '%s': '%s'",
+				_path.c_str(), strerror(errno));
+	}
+	else
+	{
+		LOG(LOG_DEBUG, "Renaming input file '%s' -> '%s'",
+		    tmp_path.c_str(), _path.c_str());
+		if (rename(tmp_path.c_str(), _path.c_str()))
+		{
+			throw new QMException(
+				"Failed to rename '%s' to '%s': %s",
+				tmp_path.c_str(),
+				_path.c_str(),
+				strerror(errno));
+		}
 	}
 	
 	dbh->updateInputPath(_jobId, _logicalFile, _path);
