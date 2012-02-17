@@ -110,7 +110,7 @@ public:
 	static DLItem &getNew(const string &jobId, const string &logicalFile,
 			      const string &URL, const string &path)
 		throw (ItemExists);
-	static void cancelJobDownloads(const string &jobId);
+	static bool cancelJobDownloads(const string &jobId);
 	static void remove(DLItem &item);
 
 	virtual ~DLItem();

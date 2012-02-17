@@ -190,9 +190,9 @@ void DownloadManager::dladded(DLEventData *data)
 }
 void DownloadManager::dlcancelled(JobEventData *data)
 {
-	LOG(LOG_DEBUG, "[DlMgr] Cancelling downloads for job %s",
-	    data->get()->getId().c_str());
-	DLItem::cancelJobDownloads(data->get()->getId());
+	if (DLItem::cancelJobDownloads(data->get()->getId()))
+		LOG(LOG_DEBUG, "[DlMgr] Canceled downloads for job %s",
+		    data->get()->getId().c_str());
 }
 void DownloadManager::quit()
 {

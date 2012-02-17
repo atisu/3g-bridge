@@ -81,18 +81,24 @@ DLItem &DLItem::getNew(const string &jobId, const string &logicalFile,
 	return *m[logicalFile];
 }
 
-void DLItem::cancelJobDownloads(const string &jobId)
+bool DLItem::cancelJobDownloads(const string &jobId)
 {
 	ItemMap::iterator jm = _instances.find(jobId);
 	if (jm != _instances.end())
 	{
+		bool had_any = false;
 		filename_item_map &m = jm->second;
 		for (filename_item_map::iterator i = m.begin();
 		     i != m.end(); i++)
 		{
 			i->second->cancel();
+			had_any=true;
 		}
+
+		return had_any;
 	}
+	else
+		return false;
 }
 
 size_t DLItem::write(void *buf, size_t size)
