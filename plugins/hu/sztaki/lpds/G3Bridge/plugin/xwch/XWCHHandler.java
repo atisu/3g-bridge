@@ -1,27 +1,17 @@
 /**
  *
- * @author jaime
+ * @author Jaime Garcia + David Fischer
  */
 package hu.sztaki.lpds.G3Bridge.plugin.xwch;
 
-import java.io.*;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-
-import java.util.Date;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import hu.sztaki.lpds.G3Bridge.*;
-
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
-import java.util.List;
-import java.util.Map;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -31,33 +21,35 @@ import xwchclientapi.util.PlateformEnumType;
 
 public class XWCHHandler extends GridHandler
 {
-  protected static final String XWCH_STDOUT_FILENAME = "xwch_stdout.log";
-  protected static final String XWCH_STDERR_FILENAME = "xwch_stderr.log";
-  
+  private static final String FSEP = File.separator;
+  private static final String XWCH_STDOUT_FILENAME = "xwch_stdout.log";
+  private static final String XWCH_STDERR_FILENAME = "xwch_stderr.log";
+
   protected XWCHClient c;
-  private static final Map<String, String> propertyNames =
-               new HashMap<String, String>();
-   
+
+  // Checklist used by checkConfiguration()
+  private static final String[] configurationChecklist =
+  {
+    "client_id", "server_address", "base_path"
+  };
+  private String CFG_XWCH_CLIENT_ID;
+  private String CFG_XWCH_SERVER_ADDRESS;
+  private String CFG_XWCH_BASE_PATH;
+
   // It is needed to keep the list of alive jobs.
   // This way, we keep a list of jobs for each application.
   // When the last job of an application finished, the application is deleted.
   private HashMap<String, ArrayList<String>> aliveJobs =
       new HashMap<String, ArrayList<String>>();
-  
+
+  // Maps Job (grid) ID to XtremWeb-CH Module ID
+  private HashMap<String, String> jobsModules = new HashMap<String, String>();
+
   // Suffix for the logs messages
   private String logSuffix;
-
-  private File tmp;
+  private File   basePath;
   
-  static
-  {
-    // name of the requested property keys:
-    propertyNames.put ("XWCH_CLIENT_ID",          "client_id");
-    propertyNames.put ("XWCH_SERVER_ADDRESS",     "server_address");
-    propertyNames.put ("XWCH_TMP_DIRECTORY_PATH", "tmp_directory_path");
-
-  }
-  // mapping between 3g-bridge statuses and xwch statuses
+  // Mapping between 3g-bridge statuses and xwch statuses
   private static final Map<JobStatsEnumType, Integer> statusRelations =
                new HashMap<JobStatsEnumType, Integer>();
 
@@ -70,50 +62,71 @@ public class XWCHHandler extends GridHandler
     statusRelations.put (JobStatsEnumType.WAITING,    new Integer(Job.RUNNING));
   }
 
+  private void LogDebug (String line)
+  { // FIXME method's parameters validation (not null, ...)
+    Logger.logit (LogLevel.DEBUG, logSuffix + line);
+  }
+
+  private void LogInfo (String line)
+  { // FIXME method's parameters validation (not null, ...)
+    Logger.logit (LogLevel.INFO, logSuffix + line);
+  }
+
+  private void LogError (String line)
+  { // FIXME method's parameters validation (not null, ...)
+    Logger.logit (LogLevel.ERROR, logSuffix + line);
+  }
+
   /**
    * Initializes the AbstractGridHandler superclass.
    */
   public XWCHHandler (String instance) throws RuntimeBridgeException, Exception
-  {
+  { // FIXME method's parameters validation (not null, ...)
     super (instance);
     setPolling (true);
-    
+
     logSuffix = "XWCH plugin (" + pluginInstance + "): ";
 
-    // Create temporary directory for input/output files.
-    // There will be a directory for each job inside this directory.
-    tmp = new File (getConfig (propertyNames.get ("XWCH_TMP_DIRECTORY_PATH")));
-    tmp.mkdirs();
-    tmp.deleteOnExit();
+    // Load current configuration
+    CFG_XWCH_CLIENT_ID      = getConfig ("client_id");
+    CFG_XWCH_SERVER_ADDRESS = getConfig ("server_address");
+    CFG_XWCH_BASE_PATH      = getConfig ("base_path");
 
-    Logger.logit (LogLevel.INFO, logSuffix +
-                  "Temporary directory created " + tmp.getAbsolutePath());
+    LogInfo ("Current configuration is \n" +
+             "CFG_XWCH_CLIENT_ID      : " + CFG_XWCH_CLIENT_ID      +"\n"+
+             "CFG_XWCH_SERVER_ADDRESS : " + CFG_XWCH_SERVER_ADDRESS +"\n"+
+             "CFG_XWCH_BASE_PATH      : " + CFG_XWCH_BASE_PATH      +"\n");
+
+    // Create base directory for input/output files.
+    // There will be a directory for each job inside this directory.
+    basePath = new File (CFG_XWCH_BASE_PATH);
+    basePath.mkdirs();
+    basePath.deleteOnExit();
+    CFG_XWCH_BASE_PATH = basePath.getAbsolutePath() + FSEP;
+
+    LogInfo ("Base directory created " + basePath.getAbsolutePath());
     try
     {
-      checkProperties();
+      checkConfiguration();
 
-      c = new XWCHClient (getConfig (propertyNames.get ("XWCH_SERVER_ADDRESS")),
-                     "/", getConfig (propertyNames.get ("XWCH_CLIENT_ID")));
+      c = new XWCHClient (CFG_XWCH_SERVER_ADDRESS,
+                          CFG_XWCH_BASE_PATH, CFG_XWCH_CLIENT_ID);
       if (!c.Init())
       {
-        Logger.logit
-          (LogLevel.ERROR,
-           "Cannot initialize client with the following parameters:" +
-           "\nServer address: " + propertyNames.get("XWCH_SERVER_ADDRESS") +
-           "\nClient ID: "      + propertyNames.get("XWCH_CLIENT_ID") +
-           " \nexit");
+        LogError ("Cannot initialize client with the following parameters:" +
+                  "\nServer endpoint: " + CFG_XWCH_SERVER_ADDRESS +
+                  "\nData folder: "     + CFG_XWCH_BASE_PATH      +
+                  "\nClient ID: "       + CFG_XWCH_CLIENT_ID      +
+                  " \nexit");
         throw new Exception();
       }
 
-      Logger.logit (LogLevel.INFO, logSuffix +
-                    "Is warehouse reachable ? " + c.PingWarehouse());
-      
-      Logger.logit (LogLevel.INFO, logSuffix + "Plugin ready for usage.");
+      LogInfo ("Warehouse is " + (c.PingWarehouse() ? "":"NOT ") + "recheable");
+      LogInfo ("Plugin ready for usage.");
     }
     catch (RuntimeBridgeException e)
     {
-      Logger.logit (LogLevel.ERROR, logSuffix +
-                    "Runtine exception occured: " + e.getMessage());
+      LogError ("Runtine exception occured: " + e.getMessage());
       throw e;
     }
   }
@@ -124,234 +137,124 @@ public class XWCHHandler extends GridHandler
    * @throws RuntimeBridgeException
    */
   public void submitJobs (ArrayList<Job> jobs) throws RuntimeBridgeException
-  {
+  { // FIXME method's parameters validation (not null, ...)
+    LogDebug ("submitJobs (" + jobs.toString() + ")");
+
     if (jobs.isEmpty()) return;
 
     // A new application is created in each call of this method.
-    String appName = "3G-Bridge_" + getDateTime();
-    String appId   = null;
+    String xwchAppName = "3G-Bridge_" + getDateTime();
+    String xwchAppId   = null;
     try
     {
-      appId = c.AddApplication (appName);
+      xwchAppId = c.AddApplication (xwchAppName);
     }
     catch (Exception ex)
     {
-      Logger.logit (LogLevel.ERROR, logSuffix +
-                    "Failed to create application: " + ex.getMessage());
+      LogError ("Failed to create application: " + ex.getMessage());
     }
 
-    if (appId != null)
+    if (xwchAppId != null)
     {
-      aliveJobs.put (appId, new ArrayList<String>());
+      aliveJobs.put (xwchAppId, new ArrayList<String>());
+      int cpt = 0;
       for (Job job : jobs)
       {
         try
         {
-          String fileGeneratorModuleId = c.AddModule (job.getId());
+          String xwchModuleId = c.AddModule (job.getId());
           xwchclientapi.XWCHClient.fileref inputRef = null;
 
           // Create a directory for the job files.
           // The name of the directory will be the job id.
-          File jobDir = new File (tmp.getAbsolutePath() + "/" + job.getId());
-          jobDir.mkdir();
-          jobDir.deleteOnExit();
+          File jobPath = new File (CFG_XWCH_BASE_PATH + job.getId());
+          jobPath.mkdir();
+          jobPath.deleteOnExit();
 
-          String zipPath       = jobDir.getAbsolutePath() + "/" + job.getId();
-          String inputZip      = zipPath + "_inputs.zip";
-          String binaryFileZip = zipPath + "_binary.zip";
+          String binaryZipRelPath = job.getId()+FSEP+"binary.zip";
+          String inputsZipRelPath = job.getId()+FSEP+"inputs.zip";
+          String binaryZipAbsPath = jobPath.getAbsolutePath()+FSEP+"binary.zip";
+          String inputsZipAbsPath = jobPath.getAbsolutePath()+FSEP+"inputs.zip";
 
-          if (prepareBinaryFile (job, binaryFileZip))
+
+          if (prepareBinaryFile (job, binaryZipAbsPath))
           {
-            c.AddModuleApplication (fileGeneratorModuleId, binaryFileZip,
+            LogDebug ("Executing c.AddModuleApplication (" + xwchModuleId + ", "
+                      + binaryZipRelPath + ", PlateformEnumType.LINUX_x86_32)");
+            c.AddModuleApplication (xwchModuleId, binaryZipRelPath,
                                     PlateformEnumType.LINUX_x86_32);
           }
 
-          if (prepareInputFiles (job, inputZip))
+          if (prepareInputFiles (job, inputsZipAbsPath))
           {
-            inputRef = c.AddData (inputZip);
+            LogDebug ("Executing c.AddData (" + inputsZipRelPath + ")");
+            inputRef = c.AddData (inputsZipRelPath);
           }
 
-          // Alternative line, depending on how the jobs are sent.
-          // job.getName() contains the binary name.
-          // If job.getArgs() looks like "binary_name arg1 arg2 arg3", use the commented one.
-          // If job.getArgs() looks like "arg1 arg2 arg3" use the enabled one.
-
-          // String processCmdLine = job.getArgs();
-          String processCmdLine = job.getName() + " " + job.getArgs();
-
+          // Create a list containing output files names according to the job
           String listOutputFiles = "";
           HashMap<String, String> outputs = job.getOutputs();
-          
           for (String outputName : outputs.keySet())
           {
             listOutputFiles += outputName + ";";
           }
 
-          String jobId = null;
-          try
-          {
-            jobId = c.AddJob (job.getId(), appId, fileGeneratorModuleId,
-                              processCmdLine, inputRef.toJobReference(),
-                              listOutputFiles, job.getId(), "");
-          }
-          catch (Exception e)
-          {
-            Logger.logit (LogLevel.ERROR, logSuffix +
-                          "Failed to submit job:" + e.getMessage());
-          }
+          String processCmdLine = job.getName() + " " + job.getArgs();
+          // listOutputFiles = "regexp:.*"; // FIXME output files: match all
 
-          try
-          {
-            // The grid ID is set to be "jobId:appId"
-            // This way there is no need to keep a map with this information,
-            // and it is also kept in the db.
-            job.setGridId (jobId + ":" + appId);
-          }
-          catch (Exception e)
-          {
-            Logger.logit (LogLevel.ERROR, logSuffix + e.getMessage());
-          }
+          String xwchJobId = null;
+          String outputFilename = xwchAppId + "_" + (cpt++);
+          LogDebug ("executing c.AddJob (" + job.getId()               + ", " +
+                                             xwchAppId                 + ", " +
+                                             xwchModuleId              + ", " +
+                                             processCmdLine            + ", " +
+                                             inputRef.toJobReference() + ", " +
+                                             listOutputFiles           + ", " +
+                                             outputFilename + ", \"\");");
+
+          xwchJobId = c.AddJob (job.getId(), xwchAppId, xwchModuleId,
+                                processCmdLine, inputRef.toJobReference(),
+                                listOutputFiles, outputFilename, "");
+
+          // The grid ID is set to be "xwchJobId:xwchAppId:outputFilename"
+          // This way there is no need to keep a map with this information,
+          // and it is also kept in the db.
+          job.setGridId (xwchJobId + ":" + xwchAppId + ":" + outputFilename);
           job.setStatus (Job.RUNNING);
-          aliveJobs.get (appId).add (jobId);
+          aliveJobs.get (xwchAppId).add (xwchJobId);
+          jobsModules.put (job.getId(), xwchModuleId);
         }
         catch (Exception e)
         {
-          Logger.logit (LogLevel.ERROR, logSuffix +
-                        "Failed to submit job:" + e.getMessage());
+          LogError ("Failed to submit job:" + e.getMessage());
           job.setStatus (Job.ERROR);
         }
       }
     } else
     {
-      Logger.logit (LogLevel.ERROR, logSuffix +
-                    "Failed to create application: " +
-                    "Failed to create XWCH application.");
+      LogError ("Failed to create application: " +
+                "Failed to create XWCH application.");
       for (Job job : jobs) { job.setStatus (Job.ERROR); }
     }
   }
 
   /**
-   * According to the local status of the parameter job it asks the actual status
-   * of the job from XWCH or requests the termination of the job.
+   * According to the local status of the parameter job it asks the actual
+   * status of the job from XWCH or requests the termination of the job.
    * @param job
    * @throws RuntimeBridgeException
    */
   public void poll (Job job) throws RuntimeBridgeException
-  {
+  { // FIXME method's parameters validation (not null, ...)
+    LogDebug ("poll (" + job.getId() + ")");
+
+    LogInfo ("Status of job " + job.getId() + " is " + job.getStatus());
     int status = job.getStatus();
-    if (status == Job.RUNNING) updateJob (job);
-    // In case the bridge has cancelled the job, xwch also cancels the job.
-    else if (status == Job.CANCEL) cancelJob (job);
-  }
+    if      (status == Job.RUNNING) updateJob (job);
+    else if (status == Job.CANCEL)  cancelJob (job);
 
-  /**
-   * Prepares a zip file with the input files of a given job
-   * @param job
-   * @param outFileName
-   * @return Boolean if the files have been downloaded and the zip created succesfully
-   */
-  private boolean prepareInputFiles (Job job, String outFileName)
-  {
-    Logger.logit (LogLevel.INFO, logSuffix + "Preparing input files of job " + job.getId());
-    List<String> list_of_input_paths = new ArrayList<String>();
-
-    HashMap<String, FileRef> inputs = job.getInputs();
-
-    for (String inputName : inputs.keySet())
-    {
-      String inputPath =
-        tmp.getAbsolutePath() + "/" + job.getId() + "/" + inputName;
-
-      if (!inputName.equals (job.getName()))
-      {
-        FileRef inputRef = inputs.get (inputName);
-        wget (inputRef.getURL(), inputPath);
-
-        if (!checkDownloadedFile (inputPath, inputRef))
-        {
-          Logger.logit (LogLevel.ERROR, logSuffix +
-                        "Error downloading '" + inputName +
-                        "' in job "           + job.getId());
-          return false;
-        }
-
-        list_of_input_paths.add (inputPath);
-      }
-    }
-
-    return createZipFile (list_of_input_paths, outFileName);
-  }
-
-  /**
-   * Prepares a zip file with the binary file of a given job
-   * @param job
-   * @return String with the name of zip file
-   */
-  private boolean prepareBinaryFile (Job job, String outFileName)
-  {
-    Logger.logit (LogLevel.INFO, logSuffix +
-                  "Preparing binary file of job " + job.getId());
-    
-    List<String>             list_of_input_paths = new ArrayList<String>();
-    HashMap<String, FileRef> inputs              = job.getInputs();
-    FileRef                  binary              = inputs.get (job.getName());
-    
-    String binaryPath =
-      tmp.getAbsolutePath() + "/" + job.getId() + "/" + job.getName();
-
-    wget (binary.getURL(), binaryPath);
-    if (!checkDownloadedFile(binaryPath, binary))
-    {
-      Logger.logit (LogLevel.ERROR, logSuffix +
-                    "Error downloading '" + job.getName() +
-                    "' in job "           + job.getId());
-      return false;
-    }
-
-    list_of_input_paths.add (binaryPath);
-
-    return createZipFile (list_of_input_paths, outFileName);
-  }
-
-  /**
-   * Checks if all of the requested output files have arrived
-   * @param job
-   */
-  private boolean haveOutputFilesArrived (Job job)
-  {
-    Logger.logit (LogLevel.INFO, logSuffix +
-                  "Checking output files of job " + job.getId());
-    
-    HashMap<String, String> outputs = job.getOutputs();
-    for (String outputName : outputs.keySet())
-    {
-      String outputPath = outputs.get (outputName);
-      File   file       = new File (outputPath);
-      if (!file.exists()) return false;
-    }
-    return true;
-  }
-
-  /**
-   * Asks XWCH to abort the parameter job.
-   * @param job
-   */
-  private void cancelJob (Job job)
-  {
-    Logger.logit (LogLevel.INFO, logSuffix + "About to cancel job " +
-                  job.getId());
-    
-    String appId = job.getGridId().split(":")[1];
-    try
-    {
-      c.KillJob (job.getGridId(), appId);
-      job.deleteJob();
-    }
-    catch (Exception e)
-    {
-      Logger.logit (LogLevel.ERROR, logSuffix + "Unable to cancel job " +
-                    job.getId() + ": " + e.getMessage());
-    }
+    // Remark : We must use actual job status !
+    if (job.getStatus() > Job.RUNNING) cleanJob (job);
   }
 
   /**
@@ -361,133 +264,287 @@ public class XWCHHandler extends GridHandler
    * @throws RuntimeBridgeException
    */
   private void updateJob (Job job) throws RuntimeBridgeException
-  {
-    JobStatsEnumType jobStatusXWCH = null;
+  { // FIXME method's parameters validation (not null, ...)
+    LogDebug ("updateJob (" + job.getId() + ")");
+    LogInfo  ("Updating job status for job " + job.getId() + " (GridId is " +
+              job.getGridId() + ")");
+
+    String           xwchJobId      = null;
+    String           xwchAppId      = null;
+    String           outputFilename = null;
+    JobStatsEnumType xwchJobStatus  = null;
     try
     {
-      jobStatusXWCH = c.GetJobStatus (job.getGridId().split(":")[0]);
+      xwchJobId      = job.getGridId().split(":")[0];
+      xwchAppId      = job.getGridId().split(":")[1];
+      outputFilename = job.getGridId().split(":")[2];
+      xwchJobStatus  = c.GetJobStatus (xwchJobId);
     }
-    catch (Exception ex)
+    catch (Exception e)
     {
-      Logger.logit (LogLevel.ERROR, logSuffix + ex.getMessage());
+      LogError ("Unable to update job " + job.getId() + ": " + getException(e));
     }
-    Logger.logit (LogLevel.INFO, logSuffix +
-                  "Status of job " + job.getId() + " is: " + jobStatusXWCH);
 
-    if (jobStatusXWCH == null)
+    LogInfo ("Status of job " + job.getId() + " is " + job.getStatus() + "/" +
+             xwchJobStatus);
+
+    if (xwchJobStatus == null)
     {
       job.setStatus (Job.ERROR);
     }
-    else if (jobStatusXWCH == JobStatsEnumType.COMPLETE)
+    else if (xwchJobStatus == JobStatsEnumType.COMPLETE)
     {
       try
       {
-        //job id was used as the name for the output zip file
-        String appId = job.getGridId().split(":")[1];
-        c.GetJobResult (appId, job.getId());
-        File file   = new File (job.getId());
-        File jobDir = new File (tmp.getAbsolutePath() + "/" + job.getId());
+        c.GetJobResult (xwchJobId, outputFilename);
+        File outputFile = new File (CFG_XWCH_BASE_PATH + outputFilename);
+        File jobPath    = new File (CFG_XWCH_BASE_PATH + job.getId());
 
-        Logger.logit (LogLevel.INFO,
-                      "Extracting " + file.getAbsolutePath() +
-                      " into "      + jobDir.getAbsolutePath());
-        
-        decompressZipFile (file, jobDir, true);
+        LogInfo ("Extracting " + outputFile.getAbsolutePath() +
+                 " into "      + jobPath.getAbsolutePath());
+
+        decompressZipFile (outputFile, jobPath, true);
 
         String                  outputPath = null;
         HashMap<String, String> outputs    = job.getOutputs();
 
         for (String outputName : outputs.keySet())
         {
-          outputPath = outputs.get(outputName);
-          copyFile (jobDir.getAbsolutePath() + '/' + outputName, outputPath);
+          outputPath = outputs.get (outputName);
+          copyFile (jobPath.getAbsolutePath() + FSEP + outputName, outputPath);
+
+          LogInfo ("Copying output file '"+ outputName + "' from " +
+                   jobPath.getAbsolutePath() + " to " + outputPath);
         }
- 
+
         if (haveOutputFilesArrived (job))
-        {  
+        {
+          LogInfo ("Job " + job.getId() + " successful !");
           job.setStatus (Job.FINISHED);
         } else
         {
+          LogInfo ("Job " + job.getId() + " unsucessful !");
           job.setStatus (Job.ERROR);
         }
 
-        aliveJobs.get (appId).remove (job.getId());
-        // if this is the last job alive for this application -> end the application
-        if (aliveJobs.get(appId).isEmpty())
+        aliveJobs.get (xwchAppId).remove (xwchJobId);
+        // if this is the last job alive for this application -> end application
+        if (aliveJobs.get (xwchAppId).isEmpty())
         {
-          c.EndApplication (appId);
-          aliveJobs.remove (appId);
+          LogInfo ("Application " + xwchAppId + " ended");
+          c.EndApplication (xwchAppId + ";true");
+          aliveJobs.remove (xwchAppId);
         }
       }
-      catch (Exception ex)
+      catch (Exception e)
       {
-        Logger.logit (LogLevel.ERROR,
-                      logSuffix + "Error getting results. " + ex.getMessage());
+        LogError ("Error getting results for job " + job.getId() + ": " +
+                  getException (e));
         job.setStatus (Job.ERROR);
       }
     }
     else
     {
-      job.setStatus (statusRelations.get (jobStatusXWCH));
+      job.setStatus (statusRelations.get (xwchJobStatus));
     }
   }
 
-  private boolean createZipFile (List<String> filenames, String outFilename)
+  /**
+   * Asks XWCH to abort the parameter job.
+   * @param job
+   */
+  private void cancelJob (Job job)
   {
+    LogDebug ("cancelJob (" + job.getId() + ")");
+    LogInfo  ("About to cancel job " + job.getId());
+
+    String xwchAppId = null;
+    try
+    {
+      xwchAppId = job.getGridId().split(":")[1];
+      c.KillJob (job.getGridId(), xwchAppId);
+      job.deleteJob();
+
+      LogDebug ("Job " + job.getId() + " deleted");
+    }
+    catch (Exception e)
+    {
+      LogError ("Unable to cancel job " + job.getId() + ": " + e.getMessage());
+    }
+  }
+
+  /**
+   * Remove job's working directory and remove job's module from XWCH
+   * @param job
+   */
+  private void cleanJob (Job job)
+  { // FIXME method's parameters validation (not null, ...)
+    LogDebug ("cleanJob (" + job.getId() + ")");
+    LogDebug ("Removing job directory for job " + job.getId());
+    RecursiveRemove (new File (CFG_XWCH_BASE_PATH + job.getId()));
+    String xwchModuleId = jobsModules.get (job.getId());
+    // FIXME -> XWCH call to remove module [id=xwchModuleId]
+    jobsModules.remove (job.getId());
+  }
+
+  /**
+   * Prepares a zip file with the binary file of a given job
+   * @param job
+   * @return String with the name of zip file
+   */
+  private boolean prepareBinaryFile (Job job, String dstFilename)
+  { // FIXME method's parameters validation (not null, ...)
+    LogDebug ("prepareBinaryFile (" + job.getId() + ", " + dstFilename + ")");
+    LogInfo  ("Preparing binary file of job " + job.getId());
+
+    List<String>             inputsPathsList = new ArrayList<String>();
+    HashMap<String, FileRef> inputs          = job.getInputs();
+    FileRef                  binary          = inputs.get (job.getName());
+
+    String binaryPath = job.getName();
+    // FIXME if the name of the binary != job.getName() -> BUG
+    LogInfo ("Downloading binary file '" + job.getName() + "'");
+
+    wget (binary.getURL(), binaryPath);
+    if (!checkDownloadedFile (binaryPath, binary))
+    {
+      LogError ("Error downloading '" + job.getName() + "' in job " +
+                job.getId());
+      return false;
+    }
+
+    inputsPathsList.add (binaryPath);
+
+    return createZipFile (inputsPathsList, dstFilename);
+  }
+  
+  /**
+   * Prepares a zip file with the input files of a given job
+   * @param job
+   * @param outFileName
+   * @return Boolean if files have been downloaded and zip succesfully created
+   */
+  private boolean prepareInputFiles (Job job, String dstFilename)
+  { // FIXME method's parameters validation (not null, ...)
+    LogDebug ("prepareInputFiles (" + job.getId() + ", " + dstFilename + ")");
+    LogInfo  ("Preparing input files of job " + job.getId());
+
+    List<String> inputsPathsList = new ArrayList<String>();
+
+    HashMap<String, FileRef> inputs = job.getInputs();
+
+    for (String inputName : inputs.keySet())
+    {
+      String inputPath = inputName;
+      if (!inputName.equals (job.getName()))
+      {
+        FileRef inputRef = inputs.get (inputName);
+        wget (inputRef.getURL(), inputPath);
+
+        LogInfo ("Downloading input file '" + inputName + "'");
+
+        if (!checkDownloadedFile (inputPath, inputRef))
+        {
+          LogError ("Error downloading '" + inputName + "' in job " +
+                    job.getId());
+          return false;
+        }
+
+        inputsPathsList.add (inputPath);
+      }
+    }
+
+    return createZipFile (inputsPathsList, dstFilename);
+  }
+
+  /**
+   * Checks if all of the requested output files have arrived
+   * @param job
+   */
+  private boolean haveOutputFilesArrived (Job job)
+  { // FIXME method's parameters validation (not null, ...)
+    LogDebug ("haveOutputFilesArrived (" + job.getId() + ")");
+    LogInfo  ("Checking output files of job " + job.getId());
+
+    HashMap<String, String> outputs = job.getOutputs();
+    for (String outputName : outputs.keySet())
+    {
+      String outputPath = outputs.get (outputName);
+      File   file       = new File (outputPath);
+
+      LogDebug ("Output file '" + outputName + "' does exist ? " +
+                (file.exists() ? "yes" : "no"));
+
+      if (!file.exists()) return false;
+    }
+    return true;
+  }
+
+  private boolean createZipFile (List<String> srcFilenames, String dstFilename)
+  { // FIXME method's parameters validation (not null, ...)
+    LogDebug ("createZipFile (" + srcFilenames.toString() + ", " +
+              dstFilename + ")");
+
     // Create a buffer for reading the files
     byte[] buf = new byte[1024];
     try
     {
       // Create the ZIP file
-      ZipOutputStream out =
-        new ZipOutputStream (new FileOutputStream (outFilename));
-      
+      ZipOutputStream zipStream =
+        new ZipOutputStream (new FileOutputStream (dstFilename));
+
       // Compress the files
-      for (int i = 0; i < filenames.size(); i++)
+      for (int i = 0; i < srcFilenames.size(); i++)
       {
-        FileInputStream in = new FileInputStream (filenames.get (i));
-        
+        FileInputStream srcStream = new FileInputStream (srcFilenames.get (i));
+
         // Add ZIP entry to output stream.
-        File f = new File (filenames.get (i));
-        out.putNextEntry (new ZipEntry (f.getName()));
-        
+        File srcFile = new File (srcFilenames.get (i));
+        zipStream.putNextEntry (new ZipEntry (srcFile.getName()));
+
         // Transfer bytes from the file to the ZIP file
         int len;
-        while ((len = in.read (buf)) > 0) { out.write (buf, 0, len); }
-        
+        while ((len = srcStream.read (buf)) > 0)
+        {
+          zipStream.write (buf, 0, len);
+        }
+
         // Complete the entry
-        out.closeEntry();
-        in. close     ();
+        zipStream.closeEntry();
+        srcStream.close     ();
       } // Complete the ZIP file
-      out.close();
+      zipStream.close();
       return true;
     }
     catch (IOException e)
     {
-      Logger.logit (LogLevel.ERROR, logSuffix + e.getMessage());
+      LogError ("Unable to create zip file: " + e.getMessage());
       return false;
     }
   }
 
-  public void decompressZipFile (final File file, final File folder,
+  public void decompressZipFile (final File zipFile, final File dstPath,
                                  final boolean deleteZipAfter)
      throws IOException
-  {
-    final ZipInputStream zis =
-      new ZipInputStream (new BufferedInputStream
-     (new FileInputStream (file.getCanonicalFile())));
-    
-    ZipEntry ze;
+  { // FIXME method's parameters validation (not null, ...)
+    LogDebug ("decompressZipFile (" + zipFile.getAbsolutePath() + ", " +
+                                      dstPath.getPath()         + ", " +
+                                     (deleteZipAfter ? "yes" : "no")  + ")");
+
+    final ZipInputStream zipStream = new ZipInputStream (new BufferedInputStream
+                                   (new FileInputStream (zipFile)));
+
+    ZipEntry zipEntry;
     try
     {
       // Parcourt tous les fichiers
-      while (null != (ze = zis.getNextEntry()))
+      while ((zipEntry = zipStream.getNextEntry()) != null)
       {
-        final File f = new File (folder.getCanonicalPath(), ze.getName());
+        final File f = new File (dstPath.getCanonicalPath(),zipEntry.getName());
         if (f.exists()) { f.delete(); }
-          
+
         // Creation of directories
-        if (ze.isDirectory())
+        if (zipEntry.isDirectory())
         {
           f.mkdirs();
           continue;
@@ -503,7 +560,7 @@ public class XWCHHandler extends GridHandler
           {
             final byte[] buf = new byte[8192];
             int bytesRead;
-            while (-1 != (bytesRead = zis.read (buf)))
+            while (-1 != (bytesRead = zipStream.read (buf)))
             {
               fos.write (buf, 0, bytesRead);
             }
@@ -516,33 +573,46 @@ public class XWCHHandler extends GridHandler
           throw ioe;
         }
       }
-    } finally { zis.close(); }
-    
-    if (deleteZipAfter) file.delete();
+    } finally { zipStream.close(); }
+
+    if (deleteZipAfter) zipFile.delete();
   }
 
-  private void wget (String urlString, String name)
-  {
+  private void RecursiveRemove (File path)
+  { // FIXME method's parameters validation (not null, ...)
+    if (path.isDirectory())
+    {
+      String[] files = path.list();
+      for (int i = 0; i < files.length; i++)
+      {
+        RecursiveRemove (new File (path + File.separator + files[i]));
+      }
+    }
+    path.delete();
+  }
+
+  private void wget (String srcUrlString, String dstFilename)
+  { // FIXME method's parameters validation (not null, ...)
     try
     {
-      URL url = new URL (urlString);
+      URL url = new URL (srcUrlString);
       ReadableByteChannel rbc = Channels.newChannel (url.openStream());
-      FileOutputStream    fos = new FileOutputStream (name);
+      FileOutputStream    fos = new FileOutputStream (dstFilename);
       fos.getChannel().transferFrom (rbc, 0, 1 << 24);
     }
     catch (IOException ex)
     {
-      Logger.logit (LogLevel.ERROR, logSuffix + ex.getMessage());
+      LogError ("wget ("+srcUrlString+", "+dstFilename+"): " + ex.getMessage());
     }
   }
 
-  private void checkProperties()
-  {
+  private void checkConfiguration()
+  { // FIXME method's parameters validation (not null, ...)
     String errorMsg = "";
-    for (String propertyName : propertyNames.values())
+    for (String propertyName : configurationChecklist)
     {
       String value = getConfig (propertyName);
-      if (value == null || value.trim().equals(""))
+      if (value == null || value.trim().equals (""))
       {
         errorMsg += " " + propertyName;
       }
@@ -556,29 +626,28 @@ public class XWCHHandler extends GridHandler
   }
 
   private String getDateTime()
-  {
+  { // FIXME method's parameters validation (not null, ...)
     DateFormat dateFormat = new SimpleDateFormat ("yyyy-MM-dd_HH:mm:ss");
     Date       date       = new Date();
     return dateFormat.format (date);
   }
 
   private boolean checkDownloadedFile (String inputFile, FileRef inputRef)
-  {
+  { // FIXME method's parameters validation (not null, ...)
     inputRef.getMD5();
     md5verification md5      = new md5verification();
     String          checksum = md5.createChecksum (inputFile);
-
-    return (checksum == null ? inputRef.getMD5() == null :
-                               checksum.equals (inputRef.getMD5()));
-    //return true;
+    return true; // FIXME this is for debugging purpose, please remove on prod.
+    // return (checksum == null ? inputRef.getMD5() == null :
+    //                            checksum.equals (inputRef.getMD5()));
   }
 
-  private void copyFile (String sourceFile, String destinationFile)
-  {
+  private void copyFile (String srcFile, String dstFile)
+  { // FIXME method's parameters validation (not null, ...)
     try
     {
-      File         f1  = new File (sourceFile);
-      File         f2  = new File (destinationFile);
+      File         f1  = new File (srcFile);
+      File         f2  = new File (dstFile);
       InputStream  in  = new FileInputStream  (f1);
       OutputStream out = new FileOutputStream (f2);
 
@@ -590,11 +659,11 @@ public class XWCHHandler extends GridHandler
     }
     catch (FileNotFoundException ex)
     {
-      Logger.logit (LogLevel.ERROR, logSuffix + ex.getMessage());
+      LogError ("copyFile("+srcFile+", "+dstFile+"): " + ex.getMessage());
     }
     catch (IOException e)
     {
-      Logger.logit (LogLevel.ERROR, logSuffix + e.getMessage());
+      LogError ("copyFile("+srcFile+", "+dstFile+"): " + e.getMessage());
     }
   }
 
@@ -602,5 +671,17 @@ public class XWCHHandler extends GridHandler
   public void updateStatus()
   {
     throw new UnsupportedOperationException ("Not supported yet.");
+  }
+
+  /**
+   * Returns the stack trace of an exception as a string
+   * @param e
+   */
+  private static String getException (Exception e)
+  {
+    // FIXME method's parameters validation (not null, ...)
+    StringWriter w = new StringWriter();
+    e.printStackTrace (new PrintWriter (w));
+    return w.toString();
   }
 }
