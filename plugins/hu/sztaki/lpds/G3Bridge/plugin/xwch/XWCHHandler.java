@@ -327,6 +327,10 @@ public class XWCHHandler extends GridHandler
           job.setStatus (Job.ERROR);
         }
 
+        // Allow apache daemon to read output files by changing file's ownership
+        // FIXME chown of the output path of the job instead of the whole work path !
+        RecursiveChown (new File (CFG_XWCH_BASE_PATH), "www-data:www-data");
+
         aliveJobs.get (xwchAppId).remove (xwchJobId);
         // if this is the last job alive for this application -> end application
         if (aliveJobs.get (xwchAppId).isEmpty())
@@ -383,7 +387,7 @@ public class XWCHHandler extends GridHandler
     LogDebug ("Removing job directory for job " + job.getId());
     RecursiveRemove (new File (CFG_XWCH_BASE_PATH + job.getId()));
     String xwchModuleId = jobsModules.get (job.getId());
-    // FIXME -> XWCH call to remove module [id=xwchModuleId]
+    c.RemoveModule     (job.getId());
     jobsModules.remove (job.getId());
   }
 
@@ -589,6 +593,23 @@ public class XWCHHandler extends GridHandler
       }
     }
     path.delete();
+  }
+
+  private void RecursiveChown (File path, String owner)
+  {
+    try
+    {
+      String command =
+        "chown " + owner + " " + path.getAbsolutePath() + " -R";
+      LogDebug ("RecursiveChown : " + command);
+      Runtime r = Runtime.getRuntime();
+      Process p = r.exec (command);
+      //p.waitfor();
+    }
+    catch (IOException ex)
+    {
+      LogError ("RecursiveChown (" + path + "): " + ex.getMessage());
+    }
   }
 
   private void wget (String srcUrlString, String dstFilename)
