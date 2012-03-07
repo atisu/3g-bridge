@@ -350,7 +350,10 @@ try
 		} // cancelled/!cancelled
 	} // aborted/!aborted
 	
-	DLItem::remove(item);	
+	DLItem::remove(item);
+
+	curl_easy_cleanup(curl);
+	ERR_remove_state(0);
 }
 catch (const exception &ex)
 {
