@@ -292,6 +292,13 @@ fi
 %endif
 
 %changelog
+* Tue Mar 13 2012 FARKAS Zoltan <zfarkas@sztaki.hu> 1.8-1
+- Updated indexes in the SQL schema
+- Cleaned up cURL usage
+- Fixed input file download problems
+- LogMon updates
+- EGEE Plugin input file handling problem fixes
+
 * Mon Jan 16 2012 FARKAS Zoltan <zfarkas@sztaki.hu> 1.7-1
 - Implemented DownloadManager as a separate plugin
 - Reorganized logging
