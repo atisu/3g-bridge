@@ -217,6 +217,7 @@ nobase_dist_doc_DATA = \
 		db/schema-update-1.5.sql \
 		db/schema-update-1.6.sql \
 		db/purge.sql \
+		db/monlog-boinc-indexes.sql \
 		examples/batch_pack \
 		examples/batch_unpack \
 		examples/dc-api.conf \
