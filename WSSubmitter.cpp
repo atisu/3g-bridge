@@ -55,9 +55,7 @@
 #include <poll.h>
 #include <sys/stat.h>
 
-#include <openssl/crypto.h>
 #include <openssl/md5.h>
-#include <curl/curl.h>
 #include <uuid/uuid.h>
 
 #include "soap/SubmitterH.h"

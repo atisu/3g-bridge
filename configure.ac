@@ -158,8 +158,7 @@ else
 	fi
 fi
 if test "$no_gsoap" != yes; then
-	LIBCURL_CHECK_CONFIG([yes], [7.12.0], [],
-		[AC_MSG_ERROR([CURL development files are missing])])
+	PKG_CHECK_MODULES([CURL], [libcurl >= 7.12.0], [], [AC_MSG_ERROR([CURL development files are missing])])
 
 	AC_PATH_PROG([SOAPCPP2], [soapcpp2], [false], "$with_gsoap/bin:$PATH")
 	AC_PATH_PROG([WSDL2H], [wsdl2h], [false], "$with_gsoap/bin:$PATH")

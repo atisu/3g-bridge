@@ -48,8 +48,8 @@ Metajob_handler_la_SOURCES = \
 DownloadManager_handler_la_SOURCES = \
 	DownloadManager.cpp DownloadManager.h \
 	DLItem.cpp DLItem.h DLEvents.cpp
-DownloadManager_handler_la_CPPFLAGS = @GLIB_CFLAGS@ @MYSQL_CPPFLAGS@
-DownloadManager_handler_la_LIBADD = @GLIB_LIBS@ $(LIBCURL) -lcrypto
+DownloadManager_handler_la_CPPFLAGS = @GLIB_CFLAGS@ @MYSQL_CPPFLAGS@ @CURL_CFLAGS@
+DownloadManager_handler_la_LIBADD = @GLIB_LIBS@ @CURL_LIBS@ -lcrypto
 
 MonLogBOINC_handler_la_SOURCES = \
 	ForeignProbe.cpp FP_queries.cpp ForeignProbe.h FP_queries.h

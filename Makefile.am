@@ -135,7 +135,7 @@ endif
 3g_bridge_LDADD += $(GLIB_LIBS) $(GTHREAD_LIBS) $(GMODULE_LIBS) $(MYSQL_LIBS) -luuid
 3g_bridge_LDFLAGS = -export-dynamic
 
-wssubmitter_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
+wssubmitter_CPPFALGS = $(GSOAP_CFLAGS)
 nodist_wssubmitter_SOURCES = \
 		$(SUBMITTER_SOAP_SOURCES_SERVER)
 wssubmitter_SOURCES = \
@@ -148,9 +148,9 @@ wssubmitter_SOURCES = \
 		WSSubmitter.cpp \
 		Conf.cpp \
 		LogMonMsg.cpp LogMonMsg.h
-wssubmitter_LDADD = $(GLIB_LIBS) $(GTHREAD_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto -luuid
+wssubmitter_LDADD = $(GLIB_LIBS) $(GTHREAD_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) -lcrypto -luuid
 
-wsmonitor_CPPFALGS = $(GSOAP_CFLAGS) $(LIBCURL_CPPFLAGS)
+wsmonitor_CPPFALGS = $(GSOAP_CFLAGS)
 nodist_wsmonitor_SOURCES = \
 		$(MONITOR_SOAP_SOURCES_SERVER)
 wsmonitor_SOURCES = \
@@ -158,7 +158,7 @@ wsmonitor_SOURCES = \
 		QMException.cpp \
 		BackendException.cpp \
 		WSMonitor.cpp
-wsmonitor_LDADD = $(GLIB_LIBS) $(GMODULE_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) $(LIBCURL) -lcrypto
+wsmonitor_LDADD = $(GLIB_LIBS) $(GMODULE_LIBS) $(MYSQL_LIBS) $(GSOAP_LIBS) -lcrypto
 wsmonitor_LDFLAGS = -export-dynamic
 
 wsclient_CPPFALGS = $(GSOAP_CFLAGS)
