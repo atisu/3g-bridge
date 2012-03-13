@@ -30,6 +30,7 @@
 #endif
 
 #include "DBHandler.h"
+#include "DLException.h"
 #include "EGEE_handler.h"
 #include "GridHandler.h"
 #include "Job.h"
@@ -266,6 +267,29 @@ void EGEEHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 
 	LOG(LOG_INFO, "EGEE Plugin (%s): about to submit %zd job(s).",
 		name.c_str(), jobs.size());
+
+    	/* Check for unsupported URLs */
+	for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
+	{
+		Job *actJ = *it;
+		auto_ptr<vector<string> > ins  = actJ->getInputs();
+                DLException *dle = NULL;
+                for (vector<string>::iterator init = ins->begin(); init != ins->end(); init++)
+                {
+            		FileRef fr = actJ->getInputRef(*init);
+                        string url = fr.getURL();
+                        string md5 = fr.getMD5();
+                        int size = fr.getSize();
+                        if ("gsiftp://" != url.substr(0, 9) && '/' != url[0])
+                        {
+                                if (!dle)
+                            		dle = new DLException(actJ->getId());
+                                dle->addInput(*init);
+                        }
+                }
+                if (dle)
+			throw dle;
+	}
 
 	try
 	{
