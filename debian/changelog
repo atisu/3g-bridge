@@ -1,3 +1,9 @@
+3g-bridge (1.8.1-1) unstable; urgency=low
+
+  * Added missing BOINC monitoring-related files
+
+ -- FARKAS Zoltán <zfarkas@sztaki.hu>  Wed, 14 Mar 2012 15:07:12 +0100
+
 3g-bridge (1.8-1) unstable; urgency=low
 
   * Updated indexes in the SQL schema
