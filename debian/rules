@@ -17,6 +17,7 @@ binary: configure
 		--localstatedir=/var \
 		--libexecdir=/usr/lib/3g-bridge \
 		--with-dcapi \
+		--with-monlog-boinc \
 		--with-xtremweb \
 		--with-ec2 \
 		--with-monlog-boinc \
