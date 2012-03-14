@@ -602,8 +602,8 @@ static bool runHandler(GridHandler *handler)
 	
 	{	
 		DBHWrapper dbh;
-		dbh->pollJobs(job_cancel, &eventPool,
-			      handler->getName(), Job::CANCEL);
+		dbh->pollCanceledJobsWithPendingDownload(job_cancel, &eventPool,
+							 handler->getName());
 	}
 	
 	handler->checkUpdate(update_interval);

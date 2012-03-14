@@ -153,8 +153,10 @@ class DBHandler {
 	void pollJobs(GridHandler *handler, Job::JobStatus stat1, Job::JobStatus stat2);
 	void pollJobs(void (*cb)(Job* job, void* user_data),
 		      void *user_data, const string &grid, Job::JobStatus stat);
+	void pollCanceledJobsWithPendingDownload(void (*cb)(Job* job, void* user_data),
+						 void *user_data, const string &grid);
 
-	/**
+      	/**
 	 * Queries the database for finished (either successfully or erronously) jobs.
 	 * @param[out] jobs JobVector storage for the jobs read
 	 * @param grid grid name to use

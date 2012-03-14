@@ -395,6 +395,34 @@ void DBHandler::getFinishedJobs(JobVector &jobs, const string &grid, unsigned ba
 		return parseJobs(jobs);
 }
 
+void DBHandler::pollCanceledJobsWithPendingDownload(
+	void (*cb)(Job*, void*), void *user_data,
+	const string &grid)
+{
+	if (!query("SELECT cg_job.* FROM cg_job WHERE grid = '%s' "
+		   "AND status = 'CANCEL' "
+		   "AND exists (select * from cg_download where jobid=id)",
+		   grid.c_str()))
+	{
+		return;
+	}
+
+	DBResult res(this);
+	res.use();
+	while (res.fetch())
+	{
+		auto_ptr<Job> job(parseJob(res));
+		try {
+			cb(job.get(), user_data);
+		}
+		catch (BackendException *e) {
+			LOG(LOG_ERR, "Polling job w/ pending download %s: %s",
+			    job->getId().c_str(), e->what());
+			delete e;
+		}
+	}
+}
+
 void DBHandler::pollJobs(void (*cb)(Job*, void*), void *user_data,
 			 const string &grid, Job::JobStatus stat)
 {
