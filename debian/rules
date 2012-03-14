@@ -19,6 +19,7 @@ binary: configure
 		--with-dcapi \
 		--with-xtremweb \
 		--with-ec2 \
+		--with-monlog-boinc \
 		CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" JAVA_HOME=/usr/lib/jvm/java-6-openjdk
 	dh $@ --after dh_auto_configure --until dh_auto_install
 	# Install the schema for dbconfig-common

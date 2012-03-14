@@ -10,6 +10,7 @@ db/algqueue-fix.txt			usr/share/3g-bridge
 db/schema.sql				usr/share/3g-bridge
 db/schema-update-1.5.sql		usr/share/3g-bridge
 db/schema-update-1.6.sql		usr/share/3g-bridge
+db/monlog-boinc-indexes.sql		usr/share/3g-bridge
 examples/batch_pack			usr/share/3g-bridge
 examples/batch_unpack			usr/share/3g-bridge
 examples/dc-api.conf			usr/share/3g-bridge
