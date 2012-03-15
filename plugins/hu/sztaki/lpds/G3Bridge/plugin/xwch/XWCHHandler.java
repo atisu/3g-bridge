@@ -48,7 +48,7 @@ public class XWCHHandler extends GridHandler
   // Suffix for the logs messages
   private String logSuffix;
   private File   basePath;
-  
+
   // Mapping between 3g-bridge statuses and xwch statuses
   private static final Map<JobStatsEnumType, Integer> statusRelations =
                new HashMap<JobStatsEnumType, Integer>();
@@ -124,9 +124,10 @@ public class XWCHHandler extends GridHandler
       LogInfo ("Warehouse is " + (c.PingWarehouse() ? "":"NOT ") + "recheable");
       LogInfo ("Plugin ready for usage.");
     }
-    catch (RuntimeBridgeException e)
+    catch (Exception e)
     {
-      LogError ("Runtine exception occured: " + e.getMessage());
+      LogError ("Exception thrown during the registration process: " +
+                e.getMessage());
       throw e;
     }
   }
@@ -179,10 +180,10 @@ public class XWCHHandler extends GridHandler
 
           if (prepareBinaryFile (job, binaryZipAbsPath))
           {
-            LogDebug ("Executing c.AddModuleApplication (" + xwchModuleId + ", "
+            LogDebug ("Executing c.AddBinary (" + xwchModuleId + ", "
                       + binaryZipRelPath + ", PlateformEnumType.LINUX_x86_32)");
-            c.AddModuleApplication (xwchModuleId, binaryZipRelPath,
-                                    PlateformEnumType.LINUX_x86_32);
+            c.AddBinary (xwchModuleId, binaryZipRelPath,
+                         PlateformEnumType.LINUX_x86_32);
           }
 
           if (prepareInputFiles (job, inputsZipAbsPath))
@@ -246,15 +247,22 @@ public class XWCHHandler extends GridHandler
    */
   public void poll (Job job) throws RuntimeBridgeException
   { // FIXME method's parameters validation (not null, ...)
-    LogDebug ("poll (" + job.getId() + ")");
+    try
+    {
+      LogDebug ("poll (" + job.getId() + ")");
+      LogInfo  ("Status of job " + job.getId() + " is " + job.getStatus());
+      int status = job.getStatus();
+      if      (status == Job.RUNNING) updateJob (job);
+      else if (status == Job.CANCEL)  cancelJob (job);
 
-    LogInfo ("Status of job " + job.getId() + " is " + job.getStatus());
-    int status = job.getStatus();
-    if      (status == Job.RUNNING) updateJob (job);
-    else if (status == Job.CANCEL)  cancelJob (job);
-
-    // Remark : We must use actual job status !
-    if (job.getStatus() > Job.RUNNING) cleanJob (job);
+      // Remark : We must use actual job status !
+      if (job.getStatus() > Job.RUNNING) cleanJob (job);
+    }
+    catch (Exception e)
+    {
+      LogError ("Exception thrown during polling: " +
+                e.getMessage());
+    }
   }
 
   /**
@@ -330,7 +338,15 @@ public class XWCHHandler extends GridHandler
         // Allow apache daemon to read output files by changing file's ownership
         // FIXME chown of the output path of the job instead of the whole work path !
         RecursiveChown (new File (CFG_XWCH_BASE_PATH), "www-data:www-data");
-
+      }
+      catch (Exception e)
+      {
+        LogError ("Error getting results for job " + job.getId() + ": " +
+                  getException (e));
+        job.setStatus (Job.ERROR);
+      }
+      finally
+      {
         aliveJobs.get (xwchAppId).remove (xwchJobId);
         // if this is the last job alive for this application -> end application
         if (aliveJobs.get (xwchAppId).isEmpty())
@@ -339,12 +355,6 @@ public class XWCHHandler extends GridHandler
           c.EndApplication (xwchAppId + ";true");
           aliveJobs.remove (xwchAppId);
         }
-      }
-      catch (Exception e)
-      {
-        LogError ("Error getting results for job " + job.getId() + ": " +
-                  getException (e));
-        job.setStatus (Job.ERROR);
       }
     }
     else
@@ -384,7 +394,7 @@ public class XWCHHandler extends GridHandler
   private void cleanJob (Job job)
   { // FIXME method's parameters validation (not null, ...)
     LogDebug ("cleanJob (" + job.getId() + ")");
-    LogDebug ("Removing job directory for job " + job.getId());
+    LogDebug ("Removing module & directory for job " + job.getId());
     RecursiveRemove (new File (CFG_XWCH_BASE_PATH + job.getId()));
     String xwchModuleId = jobsModules.get (job.getId());
     c.RemoveModule     (job.getId());
@@ -405,7 +415,7 @@ public class XWCHHandler extends GridHandler
     HashMap<String, FileRef> inputs          = job.getInputs();
     FileRef                  binary          = inputs.get (job.getName());
 
-    String binaryPath = job.getName();
+    String binaryPath = CFG_XWCH_BASE_PATH + job.getId() + FSEP + job.getName();
     // FIXME if the name of the binary != job.getName() -> BUG
     LogInfo ("Downloading binary file '" + job.getName() + "'");
 
@@ -421,7 +431,7 @@ public class XWCHHandler extends GridHandler
 
     return createZipFile (inputsPathsList, dstFilename);
   }
-  
+
   /**
    * Prepares a zip file with the input files of a given job
    * @param job
@@ -439,7 +449,7 @@ public class XWCHHandler extends GridHandler
 
     for (String inputName : inputs.keySet())
     {
-      String inputPath = inputName;
+      String inputPath = CFG_XWCH_BASE_PATH + job.getId() + FSEP + inputName;
       if (!inputName.equals (job.getName()))
       {
         FileRef inputRef = inputs.get (inputName);
