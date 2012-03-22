@@ -180,6 +180,7 @@ class DBHandler {
 	 * @param stat job status to look at
 	 */
 	void getCompleteWUsSingle(vector<string> &ids, const string &grid, Job::JobStatus stat);
+	void getUnsubmittedCanceledJobs(vector<string> &ids, const string &grid);
 
 	/**
 	 * Update a job's parent meta-job id

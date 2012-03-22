@@ -108,7 +108,7 @@ static void md(char const *name)
  * @param create indicates if the directory should be created or not
  * @return full path of the created directory
  */
-static string make_hashed_dir(const string &base, const string &jobid, bool create = true)
+string config::make_hashed_dir(const string &base, const string &jobid, bool create)
 {
 	string dir = base + '/' + jobid.at(0) + jobid.at(1);
 	if (create)

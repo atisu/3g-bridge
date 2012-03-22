@@ -34,6 +34,7 @@
 #include "Job.h"
 #include "Util.h"
 #include "DLException.h"
+#include "Conf.h"
 #include "LogMonMsg.h"
 
 #include <dc.h>
@@ -56,6 +57,11 @@
 
 using namespace std;
 using logmon::LogMon;
+
+CSTR_C CFG_OUTDIR = "output-dir";
+CSTR_C CFG_INDIR = "input-dir";
+
+static void rmrf(string dir);
 
 /* Custom project URL defined in config file */
 static gchar *projecturl;
@@ -149,6 +155,9 @@ DCAPISingleHandler::DCAPISingleHandler(GKeyFile *config, const char *instance) t
 	DC_setMasterCb(result_callback_single, NULL, NULL);
 
 	groupByNames = false;
+
+	outDirBase = config::getConfStr(config, GROUP_WSSUBMITTER, CFG_OUTDIR);
+	inDirBase = config::getConfStr(config, GROUP_WSSUBMITTER, CFG_INDIR);
 
 	//config is not stored -> ensure singleton exists
 	LogMon::instance(config);
@@ -315,8 +324,10 @@ void DCAPISingleHandler::updateStatus(void) throw (BackendException *)
 
 	/* Cancel WUs where all the contained tasks are in state CANCEL */
 	vector<string> ids;
+	typedef vector<string>::const_iterator svcit;
+	
 	dbh->getCompleteWUsSingle(ids, name, Job::CANCEL);
-	for (vector<string>::const_iterator it = ids.begin(); it != ids.end(); it++)
+	for (svcit it = ids.begin(); it != ids.end(); it++)
 	{
 		DC_Workunit *wu;
 
@@ -330,12 +341,45 @@ void DCAPISingleHandler::updateStatus(void) throw (BackendException *)
 		dbh->deleteBatch(*it);
 	}
 
+	try
+	{
+		ids.clear();
+		dbh->getUnsubmittedCanceledJobs(ids, name);
+		for (svcit it = ids.begin(); it != ids.end(); it++)
+		{
+			LOG(LOG_DEBUG, "Canceling unsubmitted job: %s", it->c_str());
+			rmrf(config::make_hashed_dir(outDirBase, *it, false));
+			rmrf(config::make_hashed_dir(inDirBase, *it, false));
+			dbh->deleteJob(*it);
+		}
+	}
+	catch (QMException *ex)
+	{
+		string msg = ex->what();
+		delete ex;
+		throw new BackendException("%s", msg.c_str());
+	}
+
 	DBHandler::put(dbh);
 
 	int ret = DC_processMasterEvents(0);
 	if (ret && ret != DC_ERR_TIMEOUT)
 		throw new BackendException("DC_processMasterEvents() returned failure");
 }
+
+static void rmrf(string dir)
+{
+	//TODO: implement recursive deleting
+	struct stat st;
+	if(stat(dir.c_str(), &st) == 0)
+	{
+		if (system(("rm -rf '" + dir + "' 2>/dev/null").c_str()))
+			LOG(LOG_WARNING,
+			    "Couldn't remove directory: '%s'",
+			    dir.c_str());
+	}
+}
+
 
 /**********************************************************************
  * Factory function

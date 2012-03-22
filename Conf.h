@@ -111,6 +111,9 @@ namespace config
 	 */
 	extern char *output_url_prefix;
 
+	string make_hashed_dir(const string &base, const string &jobid,
+			       bool create = true);
+
 	string calc_job_path(const string &basedir,
 			     const string &jobid);
 	string calc_file_path(const string &basedir,

@@ -780,6 +780,21 @@ void DBHandler::getCompleteWUsSingle(vector<string> &ids, const string &grid, Jo
 		ids.push_back(res.get_field(0));
 }
 
+void DBHandler::getUnsubmittedCanceledJobs(vector<string> &ids, const string &grid)
+{
+	if (!query("SELECT id FROM cg_job"
+		   " WHERE grid='%s' "
+		   "  AND status='CANCEL' "
+		   "  AND gridid IS NULL",
+		   grid.c_str()))
+		return;
+
+	DBResult res(this);
+	res.use();
+	while (res.fetch())
+		ids.push_back(res.get_field(0));
+}
+
 
 void DBHandler::addDL(const string &jobid, const string &localName, const string &url)
 {
