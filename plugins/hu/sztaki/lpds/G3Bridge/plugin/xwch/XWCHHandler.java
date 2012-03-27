@@ -180,6 +180,7 @@ public class XWCHHandler extends GridHandler
 
           if (prepareBinaryFile (job, binaryZipAbsPath))
           {
+            // FIXME only LINUX 32, what about LINUX 64 & WINDOWS 32 ??
             LogDebug ("Executing c.AddBinary (" + xwchModuleId + ", "
                       + binaryZipRelPath + ", PlateformEnumType.LINUX_x86_32)");
             c.AddBinary (xwchModuleId, binaryZipRelPath,
@@ -402,10 +403,22 @@ public class XWCHHandler extends GridHandler
   }
 
   /**
-   * Prepares a zip file with the binary file of a given job
+   * TODO Prepares a zip file with the binary file of a given job
    * @param job
-   * @return String with the name of zip file
+   * @return Boolean if binaries zip file successfully copied
    */
+  private boolean prepareBinaryFile (Job job, String dstFilename)
+  { // FIXME method's parameters validation (not null, ...)
+    LogDebug ("prepareBinaryFile (" + job.getId() + ", " + dstFilename + ")");
+    LogInfo  ("Preparing binaries file of job " + job.getId());
+
+    String srcFilename = // FIXME linux64 & windows32 ?
+      CFG_XWCH_BASE_PATH + "bin" + FSEP + job.getName() + FSEP + "linux32.zip";
+    LogInfo ("Using binaries archive '" + srcFilename + "'");
+    return copyFile (srcFilename, dstFilename);
+  }
+
+  /* OBSOLETTE VERSION WITH BINARY DOWNLOADING FROM URL (INPUTS)
   private boolean prepareBinaryFile (Job job, String dstFilename)
   { // FIXME method's parameters validation (not null, ...)
     LogDebug ("prepareBinaryFile (" + job.getId() + ", " + dstFilename + ")");
@@ -417,8 +430,7 @@ public class XWCHHandler extends GridHandler
 
     String binaryPath = CFG_XWCH_BASE_PATH + job.getId() + FSEP + job.getName();
     // FIXME if the name of the binary != job.getName() -> BUG
-    LogInfo ("Downloading binary file '" + job.getName() + "'");
-
+    LogInfo ("Downloading binary file from '" + binary.getURL() + "'");
     wget (binary.getURL(), binaryPath);
     if (!checkDownloadedFile (binaryPath, binary))
     {
@@ -431,6 +443,7 @@ public class XWCHHandler extends GridHandler
 
     return createZipFile (inputsPathsList, dstFilename);
   }
+  */
 
   /**
    * Prepares a zip file with the input files of a given job
@@ -443,8 +456,7 @@ public class XWCHHandler extends GridHandler
     LogDebug ("prepareInputFiles (" + job.getId() + ", " + dstFilename + ")");
     LogInfo  ("Preparing input files of job " + job.getId());
 
-    List<String> inputsPathsList = new ArrayList<String>();
-
+    List   <String> inputsPathsList = new ArrayList<String>();
     HashMap<String, FileRef> inputs = job.getInputs();
 
     for (String inputName : inputs.keySet())
@@ -453,8 +465,7 @@ public class XWCHHandler extends GridHandler
       if (!inputName.equals (job.getName()))
       {
         FileRef inputRef = inputs.get (inputName);
-        wget (inputRef.getURL(), inputPath);
-
+        wget    (inputRef.getURL(), inputPath);
         LogInfo ("Downloading input file '" + inputName + "'");
 
         if (!checkDownloadedFile (inputPath, inputRef))
@@ -673,15 +684,15 @@ public class XWCHHandler extends GridHandler
     //                            checksum.equals (inputRef.getMD5()));
   }
 
-  private void copyFile (String srcFile, String dstFile)
+  private boolean copyFile (String srcFile, String dstFile)
   { // FIXME method's parameters validation (not null, ...)
+    LogDebug ("copyFile (" + srcFile + ", " + dstFile + ")");
+    InputStream  in  = null;
+    OutputStream out = null;
     try
     {
-      File         f1  = new File (srcFile);
-      File         f2  = new File (dstFile);
-      InputStream  in  = new FileInputStream  (f1);
-      OutputStream out = new FileOutputStream (f2);
-
+      File f1 = new File (srcFile); in  = new FileInputStream  (f1);
+      File f2 = new File (dstFile); out = new FileOutputStream (f2);
       byte[] buf = new byte[1024];
       int len;
       while ((len = in.read(buf)) > 0) { out.write (buf, 0, len); }
@@ -691,11 +702,14 @@ public class XWCHHandler extends GridHandler
     catch (FileNotFoundException ex)
     {
       LogError ("copyFile("+srcFile+", "+dstFile+"): " + ex.getMessage());
+      return false;
     }
     catch (IOException e)
     {
       LogError ("copyFile("+srcFile+", "+dstFile+"): " + e.getMessage());
+      return false;
     }
+    return true;
   }
 
   @Override
