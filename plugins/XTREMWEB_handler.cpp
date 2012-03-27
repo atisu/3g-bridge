@@ -1875,16 +1875,12 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     returned_values = outputAndErrorFromCommand(arg_str_vector);
     
     //------------------------------------------------------------------------
-    //  Only if cancellation is successful, update the bridge job status
+    //  Update the bridge job status only if cancellation is successful or
+    //  if XtremWeb-HEP error message contains 'not enough rights to delete'
     //------------------------------------------------------------------------
-    if ( returned_values.retcode != 0 )
-    {
-      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb-HEP return code = "
-                      "x'%X' --> %d  -->  3G Bridge status left unchanged",
-                      function_name, instance_name, bridge_job_id, xw_job_id,
-                      returned_values.retcode, returned_values.retcode / 256);
-    }
-    else
+    string xw_message_str = returned_values.message;
+    
+    if      ( returned_values.retcode == 0 )
     {
       LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  successfully removed from "
                       "XtremWeb-HEP",
@@ -1892,6 +1888,22 @@ void XWHandler::poll(Job * job) throw (BackendException *)
       setJobStatusToError(function_name, instance_name, bridge_job_id, job,
                           string("Cancelled.  ") + returned_values.message);
     }
+    else if ( xw_message_str.find("not enough rights to delete") !=
+              string::npos)
+    {
+      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  ABSENT from XtremWeb-HEP",
+                      function_name, instance_name, bridge_job_id, xw_job_id);
+      setJobStatusToError(function_name, instance_name, bridge_job_id, job,
+                          string("Cancelled  (ABSENT from XtremWeb-HEP)"));
+    }
+    else
+    {
+      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb-HEP return code = "
+                      "x'%X' --> %d  -->  3G Bridge status left unchanged",
+                      function_name, instance_name, bridge_job_id, xw_job_id,
+                      returned_values.retcode, returned_values.retcode / 256);
+    }
+    
     return;
   }
   
