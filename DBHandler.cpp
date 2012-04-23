@@ -763,21 +763,39 @@ void DBHandler::getCompleteWUs(vector<string> &ids, const string &grid, Job::Job
 
 }
 
-
-void DBHandler::getCompleteWUsSingle(vector<string> &ids, const string &grid, Job::JobStatus stat)
+bool DBHandler::queryCompleteWUsSingle(const string &grid, Job::JobStatus stat)
 {
-	if (!query("SELECT gridid "
-			"FROM cg_job "
-			"WHERE grid = '%s' AND status = '%s' "
-			"      AND gridid IS NOT NULL "
-			"LIMIT 100",
-			grid.c_str(), statToStr(stat)))
+	return query("SELECT gridid, id "
+		     "FROM cg_job "
+		     "WHERE grid = '%s' AND status = '%s' "
+		     "      AND gridid IS NOT NULL "
+		     "LIMIT 100",
+		     grid.c_str(), statToStr(stat));
+}
+
+void DBHandler::getCompleteWUsSingle(vector<string> &ids,
+				     const string &grid, Job::JobStatus stat)
+{
+	if (!queryCompleteWUsSingle(grid, stat))
 		return;
 
 	DBResult res(this);
 	res.use();
 	while (res.fetch())
 		ids.push_back(res.get_field(0));
+}
+
+void DBHandler::getCompleteWUsSingle(vector<pair<string, string> > &ids,
+					     const string &grid, Job::JobStatus stat)
+{
+	if (!queryCompleteWUsSingle(grid, stat))
+		return;
+
+	DBResult res(this);
+	res.use();
+	while (res.fetch())
+		ids.push_back(pair<string, string>(res.get_field(0),
+						   res.get_field(1)));
 }
 
 void DBHandler::getUnsubmittedCanceledJobs(vector<string> &ids, const string &grid)

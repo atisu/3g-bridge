@@ -43,6 +43,7 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <utility>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -317,39 +318,62 @@ void DCAPISingleHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 			(*i)->setStatus(Job::ERROR);
 	}
 }
-
-void DCAPISingleHandler::updateStatus(void) throw (BackendException *)
+void DCAPISingleHandler::rmrfFiles(const string &jobid)
 {
-	DBHandler *dbh = DBHandler::get();
+	const string outdir(config::make_hashed_dir(outDirBase, jobid, false));
+	const string indir(config::make_hashed_dir(inDirBase, jobid, false));
+	LOG(LOG_DEBUG, "Removing job directories: '%s' and '%s'",
+	    indir.c_str(), outdir.c_str());
+	rmrf(indir);
+	rmrf(outdir);
+}
 
+void DCAPISingleHandler::cancelSubmittedWUs()
+{	
 	/* Cancel WUs where all the contained tasks are in state CANCEL */
-	vector<string> ids;
-	typedef vector<string>::const_iterator svcit;
+	typedef vector<pair<string, string> > job_list;
+	typedef job_list::const_iterator svcit;
 	
+	job_list ids;
+	
+	DBHWrapper dbh;	
 	dbh->getCompleteWUsSingle(ids, name, Job::CANCEL);
 	for (svcit it = ids.begin(); it != ids.end(); it++)
 	{
 		DC_Workunit *wu;
+		const string &gridid = it->first;
+		const string &jobid = it->second;
 
-		wu = DC_deserializeWU(it->c_str());
+		wu = DC_deserializeWU(gridid.c_str());
 		if (wu)
 		{
-			LOG(LOG_DEBUG, "DC-API-Single: WU %s: Cancelling", it->c_str());
+			LOG(LOG_DEBUG, "DC-API-Single: WU %s: Cancelling", gridid.c_str());
 			DC_cancelWU(wu);
 			DC_destroyWU(wu);
 		}
-		dbh->deleteBatch(*it);
-	}
+		dbh->deleteBatch(gridid);
 
+		rmrfFiles(jobid);
+	}
+}
+
+void DCAPISingleHandler::cancelUnsubmittedWUs()
+{
+	typedef vector<string> job_list;
+	typedef job_list::const_iterator svcit;
+
+	job_list ids;
+	
 	try
 	{
+		DBHWrapper dbh;
+		
 		ids.clear();
 		dbh->getUnsubmittedCanceledJobs(ids, name);
 		for (svcit it = ids.begin(); it != ids.end(); it++)
 		{
 			LOG(LOG_DEBUG, "Canceling unsubmitted job: %s", it->c_str());
-			rmrf(config::make_hashed_dir(outDirBase, *it, false));
-			rmrf(config::make_hashed_dir(inDirBase, *it, false));
+			rmrfFiles(*it);
 			dbh->deleteJob(*it);
 		}
 	}
@@ -359,8 +383,12 @@ void DCAPISingleHandler::updateStatus(void) throw (BackendException *)
 		delete ex;
 		throw new BackendException("%s", msg.c_str());
 	}
+}
 
-	DBHandler::put(dbh);
+void DCAPISingleHandler::updateStatus(void) throw (BackendException *)
+{
+	cancelSubmittedWUs();
+	cancelUnsubmittedWUs();
 
 	int ret = DC_processMasterEvents(0);
 	if (ret && ret != DC_ERR_TIMEOUT)

@@ -38,6 +38,7 @@
 #include <memory>
 #include <vector>
 #include <map>
+#include <utility>
 
 #include <mysql.h>
 #include <glib.h>
@@ -180,6 +181,7 @@ class DBHandler {
 	 * @param stat job status to look at
 	 */
 	void getCompleteWUsSingle(vector<string> &ids, const string &grid, Job::JobStatus stat);
+	void getCompleteWUsSingle(vector<pair<string, string> > &ids, const string &grid, Job::JobStatus stat);
 	void getUnsubmittedCanceledJobs(vector<string> &ids, const string &grid);
 
 	/**
@@ -419,6 +421,9 @@ class DBHandler {
 	 * @return a newly allocated memory buffer containing the escaped string
 	 */
 	char *escape_string(const char *input);
+
+	/// Common code for the two overloads of getCompleteWUsSingle
+	bool queryCompleteWUsSingle(const string &grid, Job::JobStatus stat);
 };
 
 
@@ -482,7 +487,7 @@ class DBResult {
 	MYSQL_FIELD *fields;
 
 	/// Number of fields in the result
-	int field_num;
+	int field_num; 
 };
 
 /**

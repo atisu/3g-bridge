@@ -44,6 +44,9 @@ using namespace std;
  */
 class DCAPISingleHandler: public GridHandler {
 	string inDirBase, outDirBase;
+	void cancelSubmittedWUs();
+	void cancelUnsubmittedWUs();
+	void rmrfFiles(const string &jobid);
 public:
 	/**
 	 * Constructor of the DC-API-Single plugin.
