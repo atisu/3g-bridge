@@ -1067,7 +1067,7 @@ try
 		exit(EX_SOFTWARE);
 	}
 
-	soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE | SOAP_IO_CHUNK);
+	soap_init2(&soap, SOAP_IO_KEEPALIVE, SOAP_IO_KEEPALIVE);
 	soap_set_namespaces(&soap, Submitter_namespaces);
 	soap.send_timeout = 60;
 	soap.recv_timeout = 60;
