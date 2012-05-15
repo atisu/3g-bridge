@@ -1821,6 +1821,15 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  Bridge job status = 'CANCEL'",
                     function_name, instance_name, bridge_job_id, xw_job_id);
     
+    if ( xw_job_id_str.empty() )
+    {
+      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  has NO XtremWeb-HEP id",
+                      function_name, instance_name, bridge_job_id, xw_job_id);
+      setJobStatusToError(function_name, instance_name, bridge_job_id, job,
+                          string("Cancelled  (NO XtremWeb-HEP id)"));
+      return;
+    }
+    
     arg_str_vector->clear();
     arg_str_vector->reserve(2);
     arg_str_vector->push_back(g_xw_client_bin_folder_str + "xwrm");
@@ -1836,7 +1845,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     //------------------------------------------------------------------------
     string xw_message_str = returned_values.message;
     
-    if      ( returned_values.retcode == 0 )
+    if ( returned_values.retcode == 0 )
     {
       LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  successfully removed from "
                       "XtremWeb-HEP",
@@ -1847,10 +1856,10 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     else if ( xw_message_str.find("not enough rights to delete") !=
               string::npos)
     {
-      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  ABSENT from XtremWeb-HEP",
+      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  NOT found by XtremWeb-HEP",
                       function_name, instance_name, bridge_job_id, xw_job_id);
       setJobStatusToError(function_name, instance_name, bridge_job_id, job,
-                          string("Cancelled  (ABSENT from XtremWeb-HEP)"));
+                          string("Cancelled  (NOT found by XtremWeb-HEP)"));
     }
     else
     {
