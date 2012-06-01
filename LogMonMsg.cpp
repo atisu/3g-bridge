@@ -54,6 +54,7 @@ const string TS_PLACEHOLDER(TS_LEN, '?');
 
 // Configuration keys
 static CSTR_C CFG_DEFAULT_GROUP = GROUP_DEFAULTS;
+static CSTR_C CFG_SEMAPHORENAME = "monlog-semaphore-name";
 static CSTR_C CFG_LOGFILENAME = "monlog-target";
 static CSTR_C CFG_BUILDERTYPE = "monlog-format";
 static CSTR_C CFG_TIMEZONE = "monlog-timezone";
@@ -104,6 +105,8 @@ LogMon &LogMon::instance(GKeyFile *conf, CSTR group)
 			config::getConfStr(conf, group, CFG_LOGFILENAME, "");
 		const string &timezone =
 			config::getConfStr(conf, group, CFG_TIMEZONE, "GMT");
+		const string &semname =
+			config::getConfStr(conf, group, CFG_SEMAPHORENAME, "default");
 		int rotint_min = config::getConfInt(conf, group,
 						    CFG_ROTATE_IV, 0);
 		if (rotint_min < 0)
@@ -130,7 +133,7 @@ LogMon &LogMon::instance(GKeyFile *conf, CSTR group)
 			Builder::create(logfilename.empty()
 					? "dummy"
 					: buildertype),
-			group, logfilename, timezone,
+			semname, logfilename, timezone,
 			rotateInterval, rotateFilenameFmt);
 	}
 
