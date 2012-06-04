@@ -25,6 +25,12 @@ public class XWCHHandler extends GridHandler
   private static final String XWCH_STDOUT_FILENAME = "xwch_stdout.log";
   private static final String XWCH_STDERR_FILENAME = "xwch_stderr.log";
 
+  private static final String LIN_32 = "linux32.zip";
+  private static final String LIN_64 = "linux64.zip";
+  private static final String WIN_32 = "windows32.zip";
+  private static final String WIN_64 = "windows64.zip";
+  private static final String INPUTS = "inputsXYZ.zip";
+
   protected XWCHClient c;
 
   // Checklist used by checkConfiguration()
@@ -93,9 +99,9 @@ public class XWCHHandler extends GridHandler
     CFG_XWCH_BASE_PATH      = getConfig ("base_path");
 
     LogInfo ("Current configuration is \n" +
-             "CFG_XWCH_CLIENT_ID      : " + CFG_XWCH_CLIENT_ID      +"\n"+
-             "CFG_XWCH_SERVER_ADDRESS : " + CFG_XWCH_SERVER_ADDRESS +"\n"+
-             "CFG_XWCH_BASE_PATH      : " + CFG_XWCH_BASE_PATH      +"\n");
+             "\tCFG_XWCH_CLIENT_ID      : " + CFG_XWCH_CLIENT_ID      + "\n" +
+             "\tCFG_XWCH_SERVER_ADDRESS : " + CFG_XWCH_SERVER_ADDRESS + "\n" +
+             "\tCFG_XWCH_BASE_PATH      : " + CFG_XWCH_BASE_PATH      + "\n");
 
     // Create base directory for input/output files.
     // There will be a directory for each job inside this directory.
@@ -113,11 +119,10 @@ public class XWCHHandler extends GridHandler
                           CFG_XWCH_BASE_PATH, CFG_XWCH_CLIENT_ID);
       if (!c.Init())
       {
-        LogError ("Cannot initialize client with the following parameters:" +
-                  "\nServer endpoint: " + CFG_XWCH_SERVER_ADDRESS +
-                  "\nData folder: "     + CFG_XWCH_BASE_PATH      +
-                  "\nClient ID: "       + CFG_XWCH_CLIENT_ID      +
-                  " \nexit");
+        LogError ("Cannot initialize client with the following parameters :\n"+
+                  "\tCFG_XWCH_CLIENT_ID      : "+CFG_XWCH_CLIENT_ID      +"\n"+
+                  "\tCFG_XWCH_SERVER_ADDRESS : "+CFG_XWCH_SERVER_ADDRESS +"\n"+
+                  "\tCFG_XWCH_BASE_PATH      : "+CFG_XWCH_BASE_PATH      +"\n");
         throw new Exception();
       }
 
@@ -126,7 +131,7 @@ public class XWCHHandler extends GridHandler
     }
     catch (Exception e)
     {
-      LogError ("Exception thrown during the registration process: " +
+      LogError ("Exception thrown during the registration process : " +
                 e.getMessage());
       throw e;
     }
@@ -152,7 +157,7 @@ public class XWCHHandler extends GridHandler
     }
     catch (Exception ex)
     {
-      LogError ("Failed to create application: " + ex.getMessage());
+      LogError ("Failed to create application : " + ex.getMessage());
     }
 
     if (xwchAppId != null)
@@ -172,19 +177,44 @@ public class XWCHHandler extends GridHandler
           jobPath.mkdir();
           jobPath.deleteOnExit();
 
-          String binaryZipRelPath = job.getId()+FSEP+"binary.zip";
-          String inputsZipRelPath = job.getId()+FSEP+"inputs.zip";
-          String binaryZipAbsPath = jobPath.getAbsolutePath()+FSEP+"binary.zip";
-          String inputsZipAbsPath = jobPath.getAbsolutePath()+FSEP+"inputs.zip";
+          String lin32_ZipRelPath = job.getId() + FSEP + LIN_32;
+          String lin64_ZipRelPath = job.getId() + FSEP + LIN_64;
+          String win32_ZipRelPath = job.getId() + FSEP + WIN_32;
+          String win64_ZipRelPath = job.getId() + FSEP + WIN_64;
+          String inputsZipRelPath = job.getId() + FSEP + INPUTS;
+          String lin32_ZipAbsPath = jobPath.getAbsolutePath() + FSEP + LIN_32;
+          String lin64_ZipAbsPath = jobPath.getAbsolutePath() + FSEP + LIN_64;
+          String win32_ZipAbsPath = jobPath.getAbsolutePath() + FSEP + WIN_32;
+          String win64_ZipAbsPath = jobPath.getAbsolutePath() + FSEP + WIN_64;
+          String inputsZipAbsPath = jobPath.getAbsolutePath() + FSEP + INPUTS;
 
-
-          if (prepareBinaryFile (job, binaryZipAbsPath))
+          if (prepareBinaryFile (job, LIN_32, lin32_ZipAbsPath))
           {
-            // FIXME only LINUX 32, what about LINUX 64 & WINDOWS 32 ??
-            LogDebug ("Executing c.AddBinary (" + xwchModuleId + ", "
-                      + binaryZipRelPath + ", PlateformEnumType.LINUX_x86_32)");
-            c.AddBinary (xwchModuleId, binaryZipRelPath,
+            LogDebug ("Executing c.AddBinary (" + xwchModuleId + ", " +
+                      lin32_ZipRelPath + ", PlateformEnumType.LINUX_x86_32)");
+            c.AddBinary (xwchModuleId, lin32_ZipRelPath,
                          PlateformEnumType.LINUX_x86_32);
+          }
+          if (prepareBinaryFile (job, LIN_64, lin64_ZipAbsPath))
+          {
+            LogDebug ("Executing c.AddBinary (" + xwchModuleId + ", " +
+                      lin64_ZipRelPath + ", PlateformEnumType.LINUX_x86_64)");
+            c.AddBinary (xwchModuleId, lin64_ZipRelPath,
+                         PlateformEnumType.LINUX_x86_64);
+          }
+          if (prepareBinaryFile (job, WIN_32, win32_ZipAbsPath))
+          {
+            LogDebug ("Executing c.AddBinary (" + xwchModuleId + ", " +
+                      win32_ZipRelPath + ", PlateformEnumType.WINDOWS_x86_32)");
+            c.AddBinary (xwchModuleId, win32_ZipRelPath,
+                         PlateformEnumType.WINDOWS_x86_32);
+          }
+          if (prepareBinaryFile (job, WIN_64, win64_ZipAbsPath))
+          {
+            LogDebug ("Executing c.AddBinary (" + xwchModuleId + ", " +
+                      win64_ZipRelPath + ", PlateformEnumType.WINDOWS_x86_64)");
+            c.AddBinary (xwchModuleId, win64_ZipRelPath,
+                         PlateformEnumType.WINDOWS_x86_64);
           }
 
           if (prepareInputFiles (job, inputsZipAbsPath))
@@ -228,13 +258,13 @@ public class XWCHHandler extends GridHandler
         }
         catch (Exception e)
         {
-          LogError ("Failed to submit job:" + e.getMessage());
+          LogError ("Failed to submit job :" + e.getMessage());
           job.setStatus (Job.ERROR);
         }
       }
     } else
     {
-      LogError ("Failed to create application: " +
+      LogError ("Failed to create application : " +
                 "Failed to create XWCH application.");
       for (Job job : jobs) { job.setStatus (Job.ERROR); }
     }
@@ -251,7 +281,7 @@ public class XWCHHandler extends GridHandler
     try
     {
       LogDebug ("poll (" + job.getId() + ")");
-      LogInfo  ("Status of job " + job.getId() + " is " + job.getStatus());
+      LogInfo  (job.getId() + " Status is " + job.getStatus());
       int status = job.getStatus();
       if      (status == Job.RUNNING) updateJob (job);
       else if (status == Job.CANCEL)  cancelJob (job);
@@ -261,8 +291,7 @@ public class XWCHHandler extends GridHandler
     }
     catch (Exception e)
     {
-      LogError ("Exception thrown during polling: " +
-                e.getMessage());
+      LogError ("Exception thrown during polling : " + e.getMessage());
     }
   }
 
@@ -275,8 +304,7 @@ public class XWCHHandler extends GridHandler
   private void updateJob (Job job) throws RuntimeBridgeException
   { // FIXME method's parameters validation (not null, ...)
     LogDebug ("updateJob (" + job.getId() + ")");
-    LogInfo  ("Updating job status for job " + job.getId() + " (GridId is " +
-              job.getGridId() + ")");
+    LogInfo  (job.getId() + " Updating status");
 
     String           xwchJobId      = null;
     String           xwchAppId      = null;
@@ -291,10 +319,10 @@ public class XWCHHandler extends GridHandler
     }
     catch (Exception e)
     {
-      LogError ("Unable to update job " + job.getId() + ": " + getException(e));
+      LogError (job.getId() + " Unable to update status : " + getException(e));
     }
 
-    LogInfo ("Status of job " + job.getId() + " is " + job.getStatus() + "/" +
+    LogInfo (job.getId() + " Status is " + job.getStatus() + "/" +
              xwchJobStatus);
 
     if (xwchJobStatus == null)
@@ -309,8 +337,8 @@ public class XWCHHandler extends GridHandler
         File outputFile = new File (CFG_XWCH_BASE_PATH + outputFilename);
         File jobPath    = new File (CFG_XWCH_BASE_PATH + job.getId());
 
-        LogInfo ("Extracting " + outputFile.getAbsolutePath() +
-                 " into "      + jobPath.getAbsolutePath());
+        LogInfo (job.getId() + " Extracting " + outputFile.getAbsolutePath() +
+                 " into " + jobPath.getAbsolutePath());
 
         decompressZipFile (outputFile, jobPath, true);
 
@@ -322,17 +350,17 @@ public class XWCHHandler extends GridHandler
           outputPath = outputs.get (outputName);
           copyFile (jobPath.getAbsolutePath() + FSEP + outputName, outputPath);
 
-          LogInfo ("Copying output file '"+ outputName + "' from " +
-                   jobPath.getAbsolutePath() + " to " + outputPath);
+          LogInfo (job.getId() + " Copying output file '" + outputName +
+                   "' from " + jobPath.getAbsolutePath() + " to " + outputPath);
         }
 
         if (haveOutputFilesArrived (job))
         {
-          LogInfo ("Job " + job.getId() + " successful !");
+          LogInfo (job.getId() + " Job successful !");
           job.setStatus (Job.FINISHED);
         } else
         {
-          LogInfo ("Job " + job.getId() + " unsucessful !");
+          LogInfo (job.getId() + " Job unsucessful !");
           job.setStatus (Job.ERROR);
         }
 
@@ -342,7 +370,7 @@ public class XWCHHandler extends GridHandler
       }
       catch (Exception e)
       {
-        LogError ("Error getting results for job " + job.getId() + ": " +
+        LogError (job.getId() + " Error getting results : " +
                   getException (e));
         job.setStatus (Job.ERROR);
       }
@@ -371,7 +399,7 @@ public class XWCHHandler extends GridHandler
   private void cancelJob (Job job)
   {
     LogDebug ("cancelJob (" + job.getId() + ")");
-    LogInfo  ("About to cancel job " + job.getId());
+    LogInfo  (job.getId() + " About to cancel job");
 
     String xwchAppId = null;
     try
@@ -380,11 +408,11 @@ public class XWCHHandler extends GridHandler
       c.KillJob (job.getGridId(), xwchAppId);
       job.deleteJob();
 
-      LogDebug ("Job " + job.getId() + " deleted");
+      LogDebug (job.getId() + " Job deleted");
     }
     catch (Exception e)
     {
-      LogError ("Unable to cancel job " + job.getId() + ": " + e.getMessage());
+      LogError (job.getId() + " Unable to cancel job : " + e.getMessage());
     }
   }
 
@@ -395,7 +423,7 @@ public class XWCHHandler extends GridHandler
   private void cleanJob (Job job)
   { // FIXME method's parameters validation (not null, ...)
     LogDebug ("cleanJob (" + job.getId() + ")");
-    LogDebug ("Removing module & directory for job " + job.getId());
+    LogInfo  (job.getId() + " Removing module & directory");
     RecursiveRemove (new File (CFG_XWCH_BASE_PATH + job.getId()));
     String xwchModuleId = jobsModules.get (job.getId());
     c.RemoveModule     (job.getId());
@@ -407,43 +435,18 @@ public class XWCHHandler extends GridHandler
    * @param job
    * @return Boolean if binaries zip file successfully copied
    */
-  private boolean prepareBinaryFile (Job job, String dstFilename)
+  private boolean prepareBinaryFile
+    (Job job, String srcZipName, String dstFilename)
   { // FIXME method's parameters validation (not null, ...)
-    LogDebug ("prepareBinaryFile (" + job.getId() + ", " + dstFilename + ")");
-    LogInfo  ("Preparing binaries file of job " + job.getId());
+    LogDebug
+      ("prepareBinaryFile ("+job.getId()+", "+srcZipName+", "+dstFilename+")");
+    LogInfo (job.getId() + " Preparing " + srcZipName + " binaries file");
 
-    String srcFilename = // FIXME linux64 & windows32 ?
-      CFG_XWCH_BASE_PATH + "bin" + FSEP + job.getName() + FSEP + "linux32.zip";
-    LogInfo ("Using binaries archive '" + srcFilename + "'");
+    String srcFilename =
+      CFG_XWCH_BASE_PATH + "bin" + FSEP + job.getName() + FSEP + srcZipName;
+    LogInfo (job.getId() + " Using (if exists) '" + srcFilename + "'");
     return copyFile (srcFilename, dstFilename);
   }
-
-  /* OBSOLETTE VERSION WITH BINARY DOWNLOADING FROM URL (INPUTS)
-  private boolean prepareBinaryFile (Job job, String dstFilename)
-  { // FIXME method's parameters validation (not null, ...)
-    LogDebug ("prepareBinaryFile (" + job.getId() + ", " + dstFilename + ")");
-    LogInfo  ("Preparing binary file of job " + job.getId());
-
-    List<String>             inputsPathsList = new ArrayList<String>();
-    HashMap<String, FileRef> inputs          = job.getInputs();
-    FileRef                  binary          = inputs.get (job.getName());
-
-    String binaryPath = CFG_XWCH_BASE_PATH + job.getId() + FSEP + job.getName();
-    // FIXME if the name of the binary != job.getName() -> BUG
-    LogInfo ("Downloading binary file from '" + binary.getURL() + "'");
-    wget (binary.getURL(), binaryPath);
-    if (!checkDownloadedFile (binaryPath, binary))
-    {
-      LogError ("Error downloading '" + job.getName() + "' in job " +
-                job.getId());
-      return false;
-    }
-
-    inputsPathsList.add (binaryPath);
-
-    return createZipFile (inputsPathsList, dstFilename);
-  }
-  */
 
   /**
    * Prepares a zip file with the input files of a given job
@@ -454,7 +457,12 @@ public class XWCHHandler extends GridHandler
   private boolean prepareInputFiles (Job job, String dstFilename)
   { // FIXME method's parameters validation (not null, ...)
     LogDebug ("prepareInputFiles (" + job.getId() + ", " + dstFilename + ")");
-    LogInfo  ("Preparing input files of job " + job.getId());
+    LogInfo  (job.getId() + " Preparing input files");
+
+    // FIXME use DLException when implemented for java by Zoltan Farkas
+    // The exception class  : DLException.cpp
+    // The download manager : plugins/DownloadManager.cpp
+    // An example of usage  : plugins/XTREMWEB_handler.cpp
 
     List   <String> inputsPathsList = new ArrayList<String>();
     HashMap<String, FileRef> inputs = job.getInputs();
@@ -465,13 +473,31 @@ public class XWCHHandler extends GridHandler
       if (!inputName.equals (job.getName()))
       {
         FileRef inputRef = inputs.get (inputName);
-        wget    (inputRef.getURL(), inputPath);
-        LogInfo ("Downloading input file '" + inputName + "'");
-
-        if (!checkDownloadedFile (inputPath, inputRef))
+        String  inputUrl = inputRef.getURL();
+        LogInfo (job.getId() + " Downloading input file '" + inputName +
+                 "' from '" + inputUrl + "'");
+        try // to download input file locally
         {
-          LogError ("Error downloading '" + inputName + "' in job " +
-                    job.getId());
+          URL url = new URL (inputUrl);
+          ReadableByteChannel rbc = Channels.newChannel (url.openStream());
+          FileOutputStream    fos = new FileOutputStream (inputPath);
+          fos.getChannel().transferFrom (rbc, 0, 1 << 24);
+        }
+        catch (IOException ex)
+        {
+          LogError (job.getId() + " Error downloading '" + inputName + "' : " +
+                    ex.getMessage());
+          return false;
+        }
+        // check downloaded file consistency
+        md5verification md5      = new md5verification();
+        String          checksum = md5.createChecksum (inputPath);
+        boolean ok = checksum == null ? inputRef.getMD5() == null :
+                                        checksum.equals (inputRef.getMD5());
+        ok = true; // FIXME for for debugging purpose, remove in production
+        if (!ok)
+        {
+          LogError (job.getId() + " Bad file hash '" + inputName + "'");
           return false;
         }
 
@@ -489,7 +515,7 @@ public class XWCHHandler extends GridHandler
   private boolean haveOutputFilesArrived (Job job)
   { // FIXME method's parameters validation (not null, ...)
     LogDebug ("haveOutputFilesArrived (" + job.getId() + ")");
-    LogInfo  ("Checking output files of job " + job.getId());
+    LogInfo  (job.getId() + " Checking output files");
 
     HashMap<String, String> outputs = job.getOutputs();
     for (String outputName : outputs.keySet())
@@ -497,8 +523,8 @@ public class XWCHHandler extends GridHandler
       String outputPath = outputs.get (outputName);
       File   file       = new File (outputPath);
 
-      LogDebug ("Output file '" + outputName + "' does exist ? " +
-                (file.exists() ? "yes" : "no"));
+      LogDebug (job.getId() + " Output file '" + outputName +
+                "' does exist ? " + (file.exists() ? "yes" : "no"));
 
       if (!file.exists()) return false;
     }
@@ -543,7 +569,7 @@ public class XWCHHandler extends GridHandler
     }
     catch (IOException e)
     {
-      LogError ("Unable to create zip file: " + e.getMessage());
+      LogError ("Unable to create zip file : " + e.getMessage());
       return false;
     }
   }
@@ -633,21 +659,6 @@ public class XWCHHandler extends GridHandler
     }
   }
 
-  private void wget (String srcUrlString, String dstFilename)
-  { // FIXME method's parameters validation (not null, ...)
-    try
-    {
-      URL url = new URL (srcUrlString);
-      ReadableByteChannel rbc = Channels.newChannel (url.openStream());
-      FileOutputStream    fos = new FileOutputStream (dstFilename);
-      fos.getChannel().transferFrom (rbc, 0, 1 << 24);
-    }
-    catch (IOException ex)
-    {
-      LogError ("wget ("+srcUrlString+", "+dstFilename+"): " + ex.getMessage());
-    }
-  }
-
   private void checkConfiguration()
   { // FIXME method's parameters validation (not null, ...)
     String errorMsg = "";
@@ -672,16 +683,6 @@ public class XWCHHandler extends GridHandler
     DateFormat dateFormat = new SimpleDateFormat ("yyyy-MM-dd_HH:mm:ss");
     Date       date       = new Date();
     return dateFormat.format (date);
-  }
-
-  private boolean checkDownloadedFile (String inputFile, FileRef inputRef)
-  { // FIXME method's parameters validation (not null, ...)
-    inputRef.getMD5();
-    md5verification md5      = new md5verification();
-    String          checksum = md5.createChecksum (inputFile);
-    return true; // FIXME this is for debugging purpose, please remove on prod.
-    // return (checksum == null ? inputRef.getMD5() == null :
-    //                            checksum.equals (inputRef.getMD5()));
   }
 
   private boolean copyFile (String srcFile, String dstFile)
