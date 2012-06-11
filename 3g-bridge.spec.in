@@ -80,9 +80,9 @@ Summary: Generic Grid Grid (3G) bridge EGEE submission plugin.
 Group: Grid
 Requires: 3g-bridge = %{version}-%{release}
 BuildRequires: globus-ftp-client-devel
-BuildRequires: glite-wms-wmproxy-api-cpp
+BuildRequires: glite-wms-wmproxy-api-cpp-devel
 BuildRequires: glite-jobid-api-cpp
-BuildRequires: glite-jdl-api-cpp
+BuildRequires: glite-jdl-api-cpp-devel
 BuildRequires: glite-lb-client
 BuildRequires: myproxy-devel
 BuildRequires: boost-devel
@@ -292,6 +292,10 @@ fi
 %endif
 
 %changelog
+* Mon Jun 11 2012 FARKAS Zoltan <zfarkas@sztaki.hu> 1.9-1
+- Job cancel fixed (pending jobs and full DC-API-SINGLE job purge)
+- Removed chunked IO for SOAP output communication
+
 * Tue Mar 13 2012 FARKAS Zoltan <zfarkas@sztaki.hu> 1.8-1
 - Updated indexes in the SQL schema
 - Cleaned up cURL usage
