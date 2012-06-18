@@ -25,10 +25,11 @@ public class XWCHHandler extends GridHandler
   private static final String XWCH_STDOUT_FILENAME = "xwch_stdout.log";
   private static final String XWCH_STDERR_FILENAME = "xwch_stderr.log";
 
+  /* OBSOLETE dynamic modules
   private static final String LIN_32 = "linux32.zip";
   private static final String LIN_64 = "linux64.zip";
   private static final String WIN_32 = "windows32.zip";
-  private static final String WIN_64 = "windows64.zip";
+  private static final String WIN_64 = "windows64.zip";*/
   private static final String INPUTS = "inputsXYZ.zip";
 
   protected XWCHClient c;
@@ -36,11 +37,12 @@ public class XWCHHandler extends GridHandler
   // Checklist used by checkConfiguration()
   private static final String[] configurationChecklist =
   {
-    "client_id", "server_address", "base_path"
+    "client_id", "server_address", "base_path", "modules_file"
   };
   private String CFG_XWCH_CLIENT_ID;
   private String CFG_XWCH_SERVER_ADDRESS;
   private String CFG_XWCH_BASE_PATH;
+  private String CFG_XWCH_MODULES_FILE;
 
   // It is needed to keep the list of alive jobs.
   // This way, we keep a list of jobs for each application.
@@ -48,8 +50,9 @@ public class XWCHHandler extends GridHandler
   private HashMap<String, ArrayList<String>> aliveJobs =
       new HashMap<String, ArrayList<String>>();
 
+  /* OBSOLETE dynamic modules
   // Maps Job (grid) ID to XtremWeb-CH Module ID
-  private HashMap<String, String> jobsModules = new HashMap<String, String>();
+  private HashMap<String, String> jobsModules = new HashMap<String, String>();*/
 
   // Suffix for the logs messages
   private String logSuffix;
@@ -97,20 +100,17 @@ public class XWCHHandler extends GridHandler
     CFG_XWCH_CLIENT_ID      = getConfig ("client_id");
     CFG_XWCH_SERVER_ADDRESS = getConfig ("server_address");
     CFG_XWCH_BASE_PATH      = getConfig ("base_path");
+    CFG_XWCH_MODULES_FILE   = getConfig ("modules_file");
 
     LogInfo ("Current configuration is \n" +
              "\tCFG_XWCH_CLIENT_ID      : " + CFG_XWCH_CLIENT_ID      + "\n" +
              "\tCFG_XWCH_SERVER_ADDRESS : " + CFG_XWCH_SERVER_ADDRESS + "\n" +
-             "\tCFG_XWCH_BASE_PATH      : " + CFG_XWCH_BASE_PATH      + "\n");
+             "\tCFG_XWCH_BASE_PATH      : " + CFG_XWCH_BASE_PATH      + "\n" +
+             "\tCFG_XWCH_MODULES_FILE   : " + CFG_XWCH_MODULES_FILE   + "\n");
 
-    // Create base directory for input/output files.
-    // There will be a directory for each job inside this directory.
+    // The base directory for binary, input and output files
     basePath = new File (CFG_XWCH_BASE_PATH);
-    basePath.mkdirs();
-    basePath.deleteOnExit();
     CFG_XWCH_BASE_PATH = basePath.getAbsolutePath() + FSEP;
-
-    LogInfo ("Base directory created " + basePath.getAbsolutePath());
     try
     {
       checkConfiguration();
@@ -122,7 +122,8 @@ public class XWCHHandler extends GridHandler
         LogError ("Cannot initialize client with the following parameters :\n"+
                   "\tCFG_XWCH_CLIENT_ID      : "+CFG_XWCH_CLIENT_ID      +"\n"+
                   "\tCFG_XWCH_SERVER_ADDRESS : "+CFG_XWCH_SERVER_ADDRESS +"\n"+
-                  "\tCFG_XWCH_BASE_PATH      : "+CFG_XWCH_BASE_PATH      +"\n");
+                  "\tCFG_XWCH_BASE_PATH      : "+CFG_XWCH_BASE_PATH      +"\n"+
+                  "\tCFG_XWCH_MODULES_FILE   : "+CFG_XWCH_MODULES_FILE   +"\n");
         throw new Exception();
       }
 
@@ -168,7 +169,8 @@ public class XWCHHandler extends GridHandler
       {
         try
         {
-          String xwchModuleId = c.AddModule (job.getId());
+          /* OBSOLETE dynamic modules
+          String xwchModuleId = c.AddModule (job.getId()); */
           xwchclientapi.XWCHClient.fileref inputRef = null;
 
           // Create a directory for the job files.
@@ -177,17 +179,26 @@ public class XWCHHandler extends GridHandler
           jobPath.mkdir();
           jobPath.deleteOnExit();
 
+          /* NEW static modules */
+          Properties modulesFile = new Properties();
+          modulesFile.load (new FileInputStream (CFG_XWCH_MODULES_FILE));
+          String xwchModuleId = modulesFile.getProperty (job.getName());
+
+          /* OBSOLETE dynamic modules
           String lin32_ZipRelPath = job.getId() + FSEP + LIN_32;
           String lin64_ZipRelPath = job.getId() + FSEP + LIN_64;
           String win32_ZipRelPath = job.getId() + FSEP + WIN_32;
-          String win64_ZipRelPath = job.getId() + FSEP + WIN_64;
+          String win64_ZipRelPath = job.getId() + FSEP + WIN_64; */
           String inputsZipRelPath = job.getId() + FSEP + INPUTS;
+
+          /* OBSOLETE dynamic modules
           String lin32_ZipAbsPath = jobPath.getAbsolutePath() + FSEP + LIN_32;
           String lin64_ZipAbsPath = jobPath.getAbsolutePath() + FSEP + LIN_64;
           String win32_ZipAbsPath = jobPath.getAbsolutePath() + FSEP + WIN_32;
-          String win64_ZipAbsPath = jobPath.getAbsolutePath() + FSEP + WIN_64;
+          String win64_ZipAbsPath = jobPath.getAbsolutePath() + FSEP + WIN_64;*/
           String inputsZipAbsPath = jobPath.getAbsolutePath() + FSEP + INPUTS;
 
+          /* OBSOLETE dynamic modules
           if (prepareBinaryFile (job, LIN_32, lin32_ZipAbsPath))
           {
             LogDebug ("Executing c.AddBinary (" + xwchModuleId + ", " +
@@ -215,7 +226,7 @@ public class XWCHHandler extends GridHandler
                       win64_ZipRelPath + ", PlateformEnumType.WINDOWS_x86_64)");
             c.AddBinary (xwchModuleId, win64_ZipRelPath,
                          PlateformEnumType.WINDOWS_x86_64);
-          }
+          }*/
 
           if (prepareInputFiles (job, inputsZipAbsPath))
           {
@@ -254,7 +265,8 @@ public class XWCHHandler extends GridHandler
           job.setGridId (xwchJobId + ":" + xwchAppId + ":" + outputFilename);
           job.setStatus (Job.RUNNING);
           aliveJobs.get (xwchAppId).add (xwchJobId);
-          jobsModules.put (job.getId(), xwchModuleId);
+          /* OBSOLETE dynamic modules
+          jobsModules.put (job.getId(), xwchModuleId);*/
         }
         catch (Exception e)
         {
@@ -423,11 +435,12 @@ public class XWCHHandler extends GridHandler
   private void cleanJob (Job job)
   { // FIXME method's parameters validation (not null, ...)
     LogDebug ("cleanJob (" + job.getId() + ")");
-    LogInfo  (job.getId() + " Removing module & directory");
+    LogInfo  (job.getId() + " Removing job temporary directory");
     RecursiveRemove (new File (CFG_XWCH_BASE_PATH + job.getId()));
+    /* OBSOLETE dynamic modules
     String xwchModuleId = jobsModules.get (job.getId());
     c.RemoveModule     (job.getId());
-    jobsModules.remove (job.getId());
+    jobsModules.remove (job.getId());*/
   }
 
   /**
@@ -435,6 +448,7 @@ public class XWCHHandler extends GridHandler
    * @param job
    * @return Boolean if binaries zip file successfully copied
    */
+  /* OBSOLETE dynamic modules
   private boolean prepareBinaryFile
     (Job job, String srcZipName, String dstFilename)
   { // FIXME method's parameters validation (not null, ...)
@@ -446,7 +460,7 @@ public class XWCHHandler extends GridHandler
       CFG_XWCH_BASE_PATH + "bin" + FSEP + job.getName() + FSEP + srcZipName;
     LogInfo (job.getId() + " Using (if exists) '" + srcFilename + "'");
     return copyFile (srcFilename, dstFilename);
-  }
+  }*/
 
   /**
    * Prepares a zip file with the input files of a given job
@@ -661,6 +675,7 @@ public class XWCHHandler extends GridHandler
 
   private void checkConfiguration()
   { // FIXME method's parameters validation (not null, ...)
+    // Check that all properties are setted (and not empty)
     String errorMsg = "";
     for (String propertyName : configurationChecklist)
     {
@@ -670,6 +685,16 @@ public class XWCHHandler extends GridHandler
         errorMsg += " " + propertyName;
       }
     }
+
+    // Check that base directory exists
+    if (!(new File (CFG_XWCH_BASE_PATH)).exists())
+      errorMsg += "\nBase directory doesn't exist : " + CFG_XWCH_BASE_PATH;
+
+    // Check that XtremWeb-CH modules file exists
+    if (!(new File (CFG_XWCH_MODULES_FILE)).exists())
+      errorMsg += "\nModules file doesn't exist : " + CFG_XWCH_MODULES_FILE;
+
+    // Throw an exception in case of configuration error
     if (errorMsg.length() > 0)
     {
       errorMsg = "Could not initialize XWCH plugin! The following properties " +
