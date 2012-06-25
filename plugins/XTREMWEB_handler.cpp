@@ -1853,8 +1853,9 @@ void XWHandler::poll(Job * job) throw (BackendException *)
       setJobStatusToError(function_name, instance_name, bridge_job_id, job,
                           string("Cancelled.  ") + returned_values.message);
     }
-    else if ( xw_message_str.find("not enough rights to delete") !=
-              string::npos)
+    else if ( ( xw_message_str.find("not found") != string::npos ) ||
+              ( xw_message_str.find("not enough rights to delete") !=
+                string::npos ) )
     {
       LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  NOT found by XtremWeb-HEP",
                       function_name, instance_name, bridge_job_id, xw_job_id);
