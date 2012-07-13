@@ -80,7 +80,7 @@ void EC2Handler::submitJob(Job *job) throw (BackendException *)
     GOptionEntry entries[] = 
     {
         {"image", 'i', 0, G_OPTION_ARG_STRING, &image_id, "Machine Image", "AMI"},
-        {"kernel", 'k', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &kernel_id, "Kernel Image", "AKI"},       
+        {"kernel", 0, G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &kernel_id, "Kernel Image", "AKI"},       
         {"ramdisk", 'r', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &ramdisk_id, "Ramdisk Image", "ARI"},
         {"instance-type", 't', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &instance_type, "Instance Type", "TYPE"},
         {"group", 'g', G_OPTION_FLAG_OPTIONAL_ARG, G_OPTION_ARG_STRING, &group, "Security Group", "GROUP"},     
