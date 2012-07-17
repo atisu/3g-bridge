@@ -768,8 +768,7 @@ bool DBHandler::queryCompleteWUsSingle(const string &grid, Job::JobStatus stat)
 	return query("SELECT gridid, id "
 		     "FROM cg_job "
 		     "WHERE grid = '%s' AND status = '%s' "
-		     "      AND gridid IS NOT NULL "
-		     "LIMIT 100",
+		     "      AND gridid IS NOT NULL ",
 		     grid.c_str(), statToStr(stat));
 }
 
