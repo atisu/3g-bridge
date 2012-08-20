@@ -1813,9 +1813,16 @@ void XWHandler::poll(Job * job) throw (BackendException *)
   const char *  returned_message;
   unsigned char bridge_status = job->getStatus();
   
-  //--------------------------------------------------------------------------
-  //  If the bridge status of the job is CANCEL, delete it from XtremWeb-HEP
-  //--------------------------------------------------------------------------
+  
+  //==========================================================================
+  //
+  //  If the bridge status of the job is CANCEL, then perform CANCEL + PURGE :
+  //  -  Try to delete it from XtremWeb-HEP,
+  //  -  After that, if the job is NOT present in XtremWeb-HEP anymore,
+  //     delete all local input files, all output files, and purge the job
+  //     from the 3G Bridge database.
+  //
+  //==========================================================================
   if ( bridge_status == Job::CANCEL )
   {
     LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  Bridge job status = 'CANCEL'",
@@ -1840,42 +1847,97 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     returned_values = outputAndErrorFromCommand(arg_str_vector);
     
     //------------------------------------------------------------------------
-    //  Update the bridge job status only if cancellation is successful or
-    //  if XtremWeb-HEP error message contains 'not enough rights to delete'
+    //  Purge the bridge job only if cancellation is successful or if
+    //  XtremWeb-HEP error message contains 'not found' or 'not enough rights
+    //  to delete'
     //------------------------------------------------------------------------
     string xw_message_str = returned_values.message;
     
     if ( returned_values.retcode == 0 )
-    {
-      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  successfully removed from "
-                      "XtremWeb-HEP",
-                      function_name, instance_name, bridge_job_id, xw_job_id);
-      setJobStatusToError(function_name, instance_name, bridge_job_id, job,
-                          string("Cancelled.  ") + returned_values.message);
-    }
+    { LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  successfully removed from "
+                      "XtremWeb-HEP", function_name, instance_name,
+                                      bridge_job_id, xw_job_id); }
     else if ( ( xw_message_str.find("not found") != string::npos ) ||
               ( xw_message_str.find("not enough rights to delete") !=
                 string::npos ) )
-    {
-      LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  NOT found by XtremWeb-HEP",
-                      function_name, instance_name, bridge_job_id, xw_job_id);
-      setJobStatusToError(function_name, instance_name, bridge_job_id, job,
-                          string("Cancelled  (NOT found by XtremWeb-HEP)"));
-    }
+    { LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  NOT found by XtremWeb-HEP",
+                      function_name, instance_name, bridge_job_id,
+                      xw_job_id); }
     else
     {
       LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  XtremWeb-HEP return code = "
                       "x'%X' --> %d  -->  3G Bridge status left unchanged",
                       function_name, instance_name, bridge_job_id, xw_job_id,
                       returned_values.retcode, returned_values.retcode / 256);
+      return;
     }
+    
+    vector<string>::iterator file_iterator;
+    string                   file_name_str;
+    FileRef                  file_ref;
+    string                   file_path_str;
+    const char *             file_path;
+    
+    //------------------------------------------------------------------------
+    //  For the 3G Bridge job, delete all local 3G Bridge input files
+    //  (whose path begins with '/')
+    //------------------------------------------------------------------------
+    auto_ptr< vector<string> > input_file_str_vector = job->getInputs();
+    
+    for ( file_iterator  = input_file_str_vector->begin();
+          file_iterator != input_file_str_vector->end();
+          file_iterator++ )
+    {
+      file_name_str = *file_iterator;
+      file_ref      = job->getInputRef(file_name_str);
+      file_path_str = file_ref.getURL();
+      
+      if ( file_path_str[0] == '/' )
+      {
+        file_path = file_path_str.c_str();
+        LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  input_file_name = '%s'  "
+                       "input_file_path = '%s'  Delete it",
+                       function_name, instance_name, bridge_job_id,
+                       xw_job_id, file_name_str.c_str(), file_path);
+        unlink(file_path);
+      }
+    }
+    
+    //------------------------------------------------------------------------
+    //  For the 3G Bridge job, delete all 3G Bridge output files
+    //------------------------------------------------------------------------
+    auto_ptr< vector<string> > output_file_str_vector = job->getOutputs();
+    
+    for ( file_iterator  = output_file_str_vector->begin();
+          file_iterator != output_file_str_vector->end();
+          file_iterator++ )
+    {
+      file_name_str = *file_iterator;
+      file_path_str = job->getOutputPath(file_name_str);
+      file_path     = file_path_str.c_str();
+      LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  output_file_name = '%s'  "
+                     "output_file_path = '%s'  Delete it",
+                     function_name, instance_name, bridge_job_id,
+                     xw_job_id, file_name_str.c_str(), file_path);
+      unlink(file_path);
+    }
+    
+    //------------------------------------------------------------------------
+    //  Purge the job from the 3G Bridge database
+    //------------------------------------------------------------------------
+    LOG(LOG_NOTICE, "%s(%s)  Job '%s' (%s)  Purge it",
+                    function_name, instance_name, bridge_job_id, xw_job_id);
+    job->deleteJob();
     
     return;
   }
   
-  //--------------------------------------------------------------------------
+  
+  //==========================================================================
+  //
   //  If the bridge status of the job is RUNNING, refresh it from XtremWeb-HEP
-  //--------------------------------------------------------------------------
+  //
+  //==========================================================================
   if ( bridge_status == Job::RUNNING )
   {
     LOG(LOG_INFO, "%s(%s)  Job '%s' (%s)  Bridge job status = 'RUNNING'",
@@ -1996,16 +2058,32 @@ void XWHandler::poll(Job * job) throw (BackendException *)
                       xw_job_status_str.c_str());
       
       //----------------------------------------------------------------------
-      //  If the current folder is not the folder for XtremWeb-HEP output
-      //  files, go there.
+      //  XtremWeb-HEP job UID is XtremWeb-HEP job URI after last '/'
+      //----------------------------------------------------------------------
+      string xw_job_uid_str = xw_job_id_str;
+      size_t pos_last_slash = xw_job_id_str.rfind('/');
+      LOG(LOG_DEBUG, "%s(%s)  xw_job_id = '%s'  pos_last_slash=%zd",
+                     function_name, instance_name, xw_job_id,
+                     pos_last_slash);
+      
+      if ( pos_last_slash != string::npos )
+        xw_job_uid_str = xw_job_id_str.substr(pos_last_slash + 1);
+      
+      //----------------------------------------------------------------------
+      //  The target folder is 'folder for XtremWeb-HEP output files' /
+      //  'first 2 chars of the XW job UID'.
+      //  If the current folder is not the target folder, go there.
       //----------------------------------------------------------------------
       char * cwd = getcwd((char*)NULL, 0);
       LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  cwd = '%s'", function_name, 
                      instance_name, bridge_job_id, xw_job_id, cwd);
       
-      const char * workdir = g_xw_files_folder_str.c_str();
+      string       workdir_str = g_xw_files_folder_str + "/" +
+                                 xw_job_uid_str.substr(0, 2);
+      const char * workdir     = workdir_str.c_str();
       if  ( strcmp(cwd, workdir) != 0 )
       {
+        mkdir(workdir, 0770);
         LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  Executing chdir('%s')",
                        function_name, instance_name, bridge_job_id, xw_job_id,
                        workdir);
@@ -2060,7 +2138,6 @@ void XWHandler::poll(Job * job) throw (BackendException *)
         string       xw_result_uid_str = "*";        // By default, a star
         const char * result_header     = "resulturi=\"";
         size_t       pos_result        = xw_message_str.find(result_header);
-        size_t       pos_last_slash;
         pos_quote = 0;
         if ( pos_result != string::npos )
         {
@@ -2083,18 +2160,6 @@ void XWHandler::poll(Job * job) throw (BackendException *)
         }
         
         //--------------------------------------------------------------------
-        //  XtremWeb-HEP job UID is XtremWeb-HEP job URI after last '/'
-        //--------------------------------------------------------------------
-        string xw_job_uid_str = xw_job_id_str;
-        pos_last_slash        = xw_job_id_str.rfind('/');
-        LOG(LOG_DEBUG, "%s(%s)  xw_job_id = '%s'  pos_last_slash=%zd",
-                       function_name, instance_name, xw_job_id,
-                       pos_last_slash);
-        
-        if ( pos_last_slash != string::npos )
-          xw_job_uid_str = xw_job_id_str.substr(pos_last_slash + 1);
-        
-        //--------------------------------------------------------------------
         //  Name of ZIP file :  ATTENTION :
         //  If the XtremWeb-HEP label is not empty, it ends with it,
         //  otherwise it ends with the XtremWeb-HEP job UID.
@@ -2104,7 +2169,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
         
         string xw_zip_file_name_str = xw_result_uid_str + "_ResultsOf_" +
                                       xw_job_label_str + ".zip";
-        string xw_zip_file_path_str = g_xw_files_folder_str +
+        string xw_zip_file_path_str = workdir_str +
                                       "/ResultsOf_" + xw_job_uid_str + ".zip";
         
         //--------------------------------------------------------------------
@@ -2122,7 +2187,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
           arg_str_vector->push_back(string("/bin/sh"));
           arg_str_vector->push_back(string("-c"));
           arg_str_vector->push_back(string(command)       + "  " +
-                                    g_xw_files_folder_str + "/"  +
+                                    workdir_str           + "/"  +
                                     xw_zip_file_name_str  + "  " +
                                     xw_zip_file_path_str);
           logStringVectorToDebug(function_name, instance_name, bridge_job_id,
@@ -2139,8 +2204,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
         }
         else
         {
-          xw_zip_file_name_str = g_xw_files_folder_str + "/" +
-                                 xw_zip_file_name_str;
+          xw_zip_file_name_str = workdir_str + "/" + xw_zip_file_name_str;
           LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  rename('%s', '%s')",
                          function_name, instance_name, bridge_job_id,
                          xw_job_id, xw_zip_file_name_str.c_str(),
