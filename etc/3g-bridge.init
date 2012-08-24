@@ -7,18 +7,45 @@
 # description: 3g-bridge connects various grid infrastructures
 # processname: bridge
 # config: /etc/3g-bridge.conf
-# pidfile: /var/run/3g-bridge.pid
+# pidfile: Read in the config file
 
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-[ -f /usr/sbin/3g-bridge ] || exit 0
-[ -f /etc/3g-bridge.conf ] || exit 0
+#-----------------------------------------------------------------------------
+#  Installation by 'rpm  -i'      is in '/usr/sbin'
+#  Installation by 'make install' is in '/usr/local/bin'
+#-----------------------------------------------------------------------------
+exec_3g_bridge=/usr/sbin/3g-bridge
+conf_3g_bridge=/etc/3g-bridge.conf
+if [ -r /usr/local/sbin/3g-bridge ]; then
+  if [ /usr/local/sbin/3g-bridge -nt /usr/sbin/3g-bridge ]; then
+    exec_3g_bridge=/usr/local/sbin/3g-bridge
+    conf_3g_bridge=/usr/local/etc/3g-bridge.conf
+  fi
+fi
+
+[ -f "$exec_3g_bridge" ] || exit 0
+[ -f "$conf_3g_bridge" ] || exit 0
 
 RETVAL=0
 prog=3g-bridge
 user=3g-bridge
-pidfile=/var/run/3g-bridge.pid
+#-----------------------------------------------------------------------------
+#  In the configuration file, read the path of 'pidfile' and 'logfile'
+#-----------------------------------------------------------------------------
+pidfile_pattern="^ *pid-file *= *\([^ ]*bridge.pid\) *$"
+pidfile="$(grep  "$pidfile_pattern"  "$conf_3g_bridge"  |  head  -1  |  \
+           sed  -e "s|$pidfile_pattern|\1|")"
+
+logfile_pattern="^ *log-target *= *\([^ ]*bridge.log\) *$"
+logfile="$(grep  "$logfile_pattern"  "$conf_3g_bridge"  |  head  -1  |  \
+           sed  -e "s|$logfile_pattern|\1|")"
+
+bad_pattern=".*DEBUG: \\[LogMon\\] config: .$(dirname "$logfile")/monitor.log.->.* (xml)"
+[ "$pidfile" ] || exit 1
+[ "$logfile" ] || exit 1
+
 
 start() {
 	# Start daemons.
@@ -31,9 +58,17 @@ start() {
 		/sbin/restorecon "$pidfile"
 	    fi
 	fi
-	daemon --user $user /usr/sbin/3g-bridge -c /etc/3g-bridge.conf
-	RETVAL=$?
-        echo
+	while true; do
+		daemon --user $user "$exec_3g_bridge" -c "$conf_3g_bridge"
+		RETVAL=$?
+		echo
+		sleep 2
+		expr  "$(tail -1 "$logfile")"  :  "$bad_pattern"  > /dev/null  ||  break
+		echo -n $"Shutting down $prog STUCK with 'LogMon': "
+		killproc "$prog"
+		echo
+		echo -n $"Starting $prog: "
+	done
         [ $RETVAL -eq 0 ] && touch /var/lock/subsys/3g-bridge
 	return $RETVAL
 }
@@ -41,7 +76,7 @@ start() {
 reload() {
 	# Stop daemons.
     	echo -n $"reloading $prog: "
-	if pidfileofproc /usr/sbin/3g-bridge; then
+	if pidfileofproc "$exec_3g_bridge"; then
 		killproc "$prog" -HUP
 	else
 		failure $"Reloading $prog"
