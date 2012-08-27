@@ -177,8 +177,7 @@ void LogMon::logrotate()
 	FileLock lock = lockFile();
 
 	timestamp_type now = getnow();
-	char now_s[16];
-	sprintf(now_s, "%lu", now);
+	const string now_s = MKStr() << now;
 
 	string filename = _rotateFilenameFmt;
 	string::size_type tsp = filename.find("{ts}");

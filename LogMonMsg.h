@@ -36,6 +36,7 @@
 #include <string>
 #include <glib.h>
 #include "mkstr"
+#include <stdint.h>
 #include "types.h"
 
 /**
@@ -64,7 +65,7 @@ namespace logmon
 	using std::map;
 	using std::pair;
 
-	typedef unsigned long timestamp_type;
+	typedef uint64_t timestamp_type;
 	// KVP == key-value-pair
 	typedef pair<string,string> KVP;
 	typedef list<KVP> KVPList;

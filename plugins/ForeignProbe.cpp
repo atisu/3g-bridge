@@ -99,8 +99,7 @@ gpointer ForeignProbe::th_main(gpointer data)
 		timeval t;
 		gettimeofday(&t, 0);
 		t_timestamp ts = t.tv_sec * 1000 + t.tv_usec/1000;
-		char ts_s[16];
-		sprintf(ts_s, "%lu", ts);
+		const string ts_s = MKStr() << ts;
 
 		string path = probe->_conf.targetpath();
 		string::size_type tsp = path.find("{ts}");

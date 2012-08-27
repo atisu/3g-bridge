@@ -34,6 +34,7 @@
 #include <string>
 #include <glib.h>
 #include "types.h"
+#include <stdint.h>
 
 namespace foreignprobe
 {
@@ -41,7 +42,7 @@ namespace foreignprobe
 	using std::map;
 	using std::string;
 
-	typedef unsigned long t_timestamp;
+	typedef uint64_t t_timestamp;
 	typedef const string &CR_string;
 
 	struct AppDesc
