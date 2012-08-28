@@ -42,7 +42,8 @@ logfile_pattern="^ *log-target *= *\([^ ]*bridge.log\) *$"
 logfile="$(grep  "$logfile_pattern"  "$conf_3g_bridge"  |  head  -1  |  \
            sed  -e "s|$logfile_pattern|\1|")"
 
-bad_pattern=".*DEBUG: \\[LogMon\\] config: .$(dirname "$logfile")/monitor.log.->.* (xml)"
+stuck_pattern_1=".*DEBUG: \\[LogMon\\] config: .$(dirname "$logfile")/monitor.log.->.* (xml)"
+stuck_pattern_2=".*DEBUG: \\[LogMon\\] Semaphore ./mon-log-lock--default. has been successfully created; closing it."
 [ "$pidfile" ] || exit 1
 [ "$logfile" ] || exit 1
 
@@ -63,7 +64,9 @@ start() {
 		RETVAL=$?
 		echo
 		sleep 2
-		expr  "$(tail -1 "$logfile")"  :  "$bad_pattern"  > /dev/null  ||  break
+    logfile_last_line="$(tail -1 "$logfile")"
+		expr  "$logfile_last_line"  :  "$stuck_pattern_1"  > /dev/null  ||  \
+		expr  "$logfile_last_line"  :  "$stuck_pattern_2"  > /dev/null  ||  break
 		echo -n $"Shutting down $prog STUCK with 'LogMon': "
 		killproc "$prog"
 		echo
