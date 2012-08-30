@@ -75,21 +75,11 @@ struct returned_t
 
 
 //============================================================================
-//  Global variables.  In fact, they should probably be private attributes.
+//  Global variable which should be a private attribute, but currently has a
+//  chicken and egg issue :  It is used by function 'outputAndErrorFromCommand'
+//  used by the class constructor setting the value of the global variable.
 //============================================================================
-char *    g_xw_https_server;            // XtremWeb-HEP HTTPS server
-char *    g_xw_https_port;              // XtremWeb-HEP HTTPS port
-char *    g_xw_user;                    // XtremWeb-HEP user login
-char *    g_xw_password;                // XtremWeb-HEP user password
-int       g_xw_socket_fd;               // Socket to XtremWeb-HEP server
-SSL_CTX * g_ssl_context;                // SSL context
-SSL *     g_ssl_xw;                     // SSL object for XtremWeb-HEP server
-string    g_xw_client_bin_folder_str;   // XtremWeb-HEP client binaries folder
-string    g_xw_files_folder_str;        // Folder for XW input + output files
-char *    g_requested_lang;             // Language for localized messages
-bool      g_xwclean_forced;             // Forced 'xwclean' before 'xwstatus'
-int       g_sleep_time_before_download; // Sleeping time before download in s
-string    g_xw_apps_message_str;        // XW message listing XW applications
+char *    g_requested_lang = NULL;      // Language for localized messages
 
 
 //============================================================================
@@ -124,7 +114,7 @@ void trimEol(string & my_string)
 
 //============================================================================
 //
-//  Function  outputAndErrorFromCommand     
+//  Function  outputAndErrorFromCommand
 //  @param arg_str_vector  Vector of strings containing the command to execute
 //  @return                Struct containing return code and message displayed
 //
@@ -1877,12 +1867,17 @@ void XWHandler::poll(Job * job) throw (BackendException *)
     FileRef                  file_ref;
     string                   file_path_str;
     const char *             file_path;
+    size_t                   pos_last_slash;
+    string                   folder_path_str;
+    const char *             folder_path;
     
     //------------------------------------------------------------------------
-    //  For the 3G Bridge job, delete all local 3G Bridge input files
-    //  (whose path begins with '/')
+    //  For the 3G Bridge job :
+    //  -  Delete all local 3G Bridge input files (whose path begins with '/')
+    //  -  Delete containing folder
     //------------------------------------------------------------------------
     auto_ptr< vector<string> > input_file_str_vector = job->getInputs();
+    file_path_str = "";
     
     for ( file_iterator  = input_file_str_vector->begin();
           file_iterator != input_file_str_vector->end();
@@ -1903,10 +1898,26 @@ void XWHandler::poll(Job * job) throw (BackendException *)
       }
     }
     
+    if ( (file_path_str != "") && (file_path_str[0] == '/') )
+    {
+      pos_last_slash = file_path_str.rfind('/');
+      if ( (pos_last_slash != string::npos) && (pos_last_slash != 0) )
+      {
+        folder_path_str = file_path_str.substr(0, pos_last_slash);
+        folder_path     = folder_path_str.c_str();
+        LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  input_folder_path = '%s'  "
+                       "Delete it", function_name, instance_name,
+                       bridge_job_id, xw_job_id, folder_path);
+        rmdir(folder_path);
+      }
+    }
+    
     //------------------------------------------------------------------------
-    //  For the 3G Bridge job, delete all 3G Bridge output files
+    //  For the 3G Bridge job :  - Delete all 3G Bridge output files
+    //                           - Delete containing folder
     //------------------------------------------------------------------------
     auto_ptr< vector<string> > output_file_str_vector = job->getOutputs();
+    file_path_str = "";
     
     for ( file_iterator  = output_file_str_vector->begin();
           file_iterator != output_file_str_vector->end();
@@ -1920,6 +1931,20 @@ void XWHandler::poll(Job * job) throw (BackendException *)
                      function_name, instance_name, bridge_job_id,
                      xw_job_id, file_name_str.c_str(), file_path);
       unlink(file_path);
+    }
+    
+    if ( file_path_str != "" )
+    {
+      pos_last_slash = file_path_str.rfind('/');
+      if ( (pos_last_slash != string::npos) && (pos_last_slash != 0) )
+      {
+        folder_path_str = file_path_str.substr(0, pos_last_slash);
+        folder_path     = folder_path_str.c_str();
+        LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  output_folder_path = '%s'  "
+                       "Delete it", function_name, instance_name,
+                       bridge_job_id, xw_job_id, folder_path);
+        rmdir(folder_path);
+      }
     }
     
     //------------------------------------------------------------------------
@@ -2081,12 +2106,13 @@ void XWHandler::poll(Job * job) throw (BackendException *)
       string       workdir_str = g_xw_files_folder_str + "/" +
                                  xw_job_uid_str.substr(0, 2);
       const char * workdir     = workdir_str.c_str();
+      
       if  ( strcmp(cwd, workdir) != 0 )
       {
+        LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  Executing mkdir('%s') "
+                       "then chdir('%s')", function_name, instance_name,
+                       bridge_job_id, xw_job_id, workdir, workdir);
         mkdir(workdir, 0770);
-        LOG(LOG_DEBUG, "%s(%s)  Job '%s' (%s)  Executing chdir('%s')",
-                       function_name, instance_name, bridge_job_id, xw_job_id,
-                       workdir);
         chdir(workdir);
       }
       
@@ -2253,7 +2279,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
           arg_str_vector->push_back(string("-d"));
           string output_file_name = output_file_names->back();
           string output_file_path = job->getOutputPath(output_file_name);
-          size_t pos_last_slash   = output_file_path.rfind(string("/") +
+          pos_last_slash          = output_file_path.rfind(string("/") +
                                                            output_file_name);
           arg_str_vector->push_back(output_file_path.substr(0,
                                                             pos_last_slash));
@@ -2291,7 +2317,7 @@ void XWHandler::poll(Job * job) throw (BackendException *)
                               job, returned_message);
           return;
         }
-
+        
 	logmon::LogMon::instance().createMessage()
 		.add("event", "job_status")
 		.add("job_id", bridge_job_id)

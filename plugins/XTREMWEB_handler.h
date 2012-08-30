@@ -6,6 +6,7 @@
 
 #include <string>
 #include <vector>
+#include <openssl/ssl.h>
 
 
 using namespace std;
@@ -63,6 +64,20 @@ class XWHandler : public GridHandler {
     
     
   private:
+    
+    char *    g_xw_https_server;            // XtremWeb-HEP HTTPS server
+    char *    g_xw_https_port;              // XtremWeb-HEP HTTPS port
+    char *    g_xw_user;                    // XtremWeb-HEP user login
+    char *    g_xw_password;                // XtremWeb-HEP user password
+    int       g_xw_socket_fd;               // Socket to XtremWeb-HEP server
+    SSL_CTX * g_ssl_context;                // SSL context
+    SSL *     g_ssl_xw;                     // SSL object for XtremWeb-HEP server
+    string    g_xw_client_bin_folder_str;   // XtremWeb-HEP client binaries folder
+    string    g_xw_files_folder_str;        // Folder for XW input + output files
+    bool      g_xwclean_forced;             // Forced 'xwclean' before 'xwstatus'
+    int       g_sleep_time_before_download; // Sleeping time before download in s
+    string    g_xw_apps_message_str;        // XW message listing XW applications
+    
     /**
      * Update the status of a given bridge job :
      * - From the XtremWeb status of the job, calculate the new bridge status.
