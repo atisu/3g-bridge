@@ -79,7 +79,7 @@ static timestamp_type getnow()
 /// Convert minutes to timestamp_type.
 static timestamp_type min2ts(int minutes)
 {
-	return (timestamp_type)(minutes*60*1000);
+	return (timestamp_type)minutes * 60 * 1000;
 }
 /// Convert timestamp_type to usecond.
 static long ts2usec(timestamp_type ts)
@@ -331,10 +331,10 @@ void XMLBuilder::endFile(const timestamp_type &now)
 
 	// Change timestamp
 
-	char timestamp[TS_LEN+1], formattedTimestamp[TS_LEN+1];
-	sprintf(timestamp, "\"%lu\"", now);
+	string timestamp = MKStr() << '"' << now << '"';
+	char formattedTimestamp[TS_LEN+1];
 	// Padding right with spaces to overwrite whole placeholder
-	sprintf(formattedTimestamp, "%-*s", TS_LEN, timestamp);
+	snprintf(formattedTimestamp, TS_LEN, "%-*s", TS_LEN, timestamp.c_str());
 
 	//Map first page of the file to modify timestamp
 	// !! Assuming placeholder is in first page (if exists)
