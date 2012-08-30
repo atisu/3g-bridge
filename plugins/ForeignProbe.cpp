@@ -98,7 +98,12 @@ gpointer ForeignProbe::th_main(gpointer data)
 			
 		timeval t;
 		gettimeofday(&t, 0);
-		t_timestamp ts = t.tv_sec * 1000 + t.tv_usec/1000;
+		
+		// This conversion is required, as on 32 bit architectures the
+		// expression would be calculated using 32 bit arithmetic,
+		// truncating the result.
+		t_timestamp s = t.tv_sec, u = t.tv_usec;
+		t_timestamp ts = s*1000 + u/1000;
 		const string ts_s = MKStr() << ts;
 
 		string path = probe->_conf.targetpath();

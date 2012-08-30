@@ -69,7 +69,12 @@ static timestamp_type getnow()
 {
 	timeval t;
 	gettimeofday(&t, 0);
-	return t.tv_sec * 1000 + t.tv_usec/1000;
+	
+	// This conversion is required, as on 32 bit architectures the
+	// expression would be calculated using 32 bit arithmetic, truncating
+	// the result.
+	timestamp_type s = t.tv_sec, u = t.tv_usec;
+	return s*1000 + u/1000;
 }
 /// Convert minutes to timestamp_type.
 static timestamp_type min2ts(int minutes)
@@ -492,18 +497,24 @@ class SemOpen
 public:
 	SemOpen()
 	{
+		LOG(LOG_DEBUG, "[LogMon] Opening semaphore");
 		if (!(s = sem_open(semaphore_name.c_str(), 0)))
 			throw new QMException(
 				"[LogMon] Error opening file-lock semaphore: %s",
 				strerror(errno));
 	}
-	~SemOpen() { sem_close(s); }
+	~SemOpen()
+	{
+		LOG(LOG_DEBUG, "[LogMon] Closing sempahore");
+		sem_close(s);
+	}
 	operator sem_t*() { return s; }
 };
 void LogMon::FileLock::init(const LogMon &parent)
 {
 	semaphore_name = MKStr() << "/mon-log-lock--" << parent.name();
-	
+
+	LOG(LOG_DEBUG, "[LogMon] Creating semaphore '%s'.", semaphore_name.c_str());
 	// Create/overwrite/ semaphore. Actually, mutex: it's initialized to 1.
 	sem_t *s;
 	if (!(s = sem_open(semaphore_name.c_str(), O_CREAT, 00660, 1)))
@@ -513,17 +524,26 @@ void LogMon::FileLock::init(const LogMon &parent)
 			strerror(errno));
 	}
 	else
+	{
+		LOG(LOG_DEBUG,
+		    "[LogMon] Semaphore '%s' has been "
+		    "successfully created; closing it.",
+		    semaphore_name.c_str());
 		sem_close(s);
+	}
 }
 void LogMon::FileLock::destroy()
 {
+	LOG(LOG_DEBUG, "Deleting semaphore '%s'", semaphore_name.c_str());
 	sem_unlink(semaphore_name.c_str());
 }
 LogMon::FileLock::FileLock(const LogMon &parent)
 {
 	sem_wait(SemOpen());
+	LOG(LOG_DEBUG, "[LogMon] Semaphore acquired");
 }
 LogMon::FileLock::~FileLock()
 {
+	LOG(LOG_DEBUG, "[LogMon] Semaphore released");
 	sem_post(SemOpen());
 }
