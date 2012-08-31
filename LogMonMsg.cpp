@@ -334,7 +334,7 @@ void XMLBuilder::endFile(const timestamp_type &now)
 	string timestamp = MKStr() << '"' << now << '"';
 	char formattedTimestamp[TS_LEN+1];
 	// Padding right with spaces to overwrite whole placeholder
-	snprintf(formattedTimestamp, TS_LEN, "%-*s", TS_LEN, timestamp.c_str());
+	snprintf(formattedTimestamp, TS_LEN+1, "%-*s", TS_LEN, timestamp.c_str());
 
 	//Map first page of the file to modify timestamp
 	// !! Assuming placeholder is in first page (if exists)
