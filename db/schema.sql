@@ -16,7 +16,7 @@ CREATE TABLE cg_algqueue (
 	batchsize	INT		NOT NULL,	/* Maximum batch size */
 	statistics	TEXT,				/* Statistics data */
 	PRIMARY KEY entry (grid, alg)
-) TYPE=InnoDB;
+) ENGINE=InnoDB;
 
 /*
  * Job table
@@ -39,7 +39,7 @@ CREATE TABLE cg_job (
 	INDEX (status),
 	INDEX (creation_time),
 	FOREIGN KEY (metajobid) REFERENCES cg_job(id) ON DELETE CASCADE
-) TYPE=InnoDB;
+) ENGINE=InnoDB;
 
 /*
  * Job input table
@@ -54,7 +54,7 @@ CREATE TABLE cg_inputs (
 	PRIMARY KEY ENTRY (id, localname),
 	INDEX (id),
 	FOREIGN KEY (id) REFERENCES cg_job(id) ON DELETE CASCADE
-) TYPE=InnoDB;
+) ENGINE=InnoDB;
 
 
 /*
@@ -67,7 +67,7 @@ CREATE TABLE cg_env (
 	PRIMARY KEY ENTRY (id, name),
 	INDEX (id),
 	FOREIGN KEY (id) REFERENCES cg_job(id) ON DELETE CASCADE
-) TYPE=InnoDB;
+) ENGINE=InnoDB;
 
 
 /*
@@ -80,7 +80,7 @@ CREATE TABLE cg_outputs (
 	PRIMARY KEY ENTRY (id, localname),
 	INDEX (id),
 	FOREIGN KEY (id) REFERENCES cg_job(id) ON DELETE CASCADE
-) TYPE=InnoDB;
+) ENGINE=InnoDB;
 
 
 /*
@@ -96,4 +96,4 @@ CREATE TABLE cg_download (
 	PRIMARY KEY entry (jobid, localname),
 	INDEX (jobid),
 	FOREIGN KEY (jobid) REFERENCES cg_job(id) ON DELETE CASCADE
-) TYPE=InnoDB;
+) ENGINE=InnoDB;
