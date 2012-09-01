@@ -35,8 +35,10 @@
 
 #include "Job.h"
 #include "DBHandler.h"
+#include "LogMonMsg.h"
 
 using namespace std;
+using logmon::LogMon;
 
 Job::Job(const char *id, const char *name, const char *grid, const char *args, JobStatus status, const vector<string> *env):
 	id(id),name(name),grid(grid),status(status)
@@ -155,14 +157,35 @@ void Job::setStatus(JobStatus nStat, bool updateDB)
 	if (status == nStat)
 		return;
 
+	if (nStat == FINISHED)
+	{
+		LogMon::instance().createMessage()
+			.add("event", "job_status")
+			.add("job_id", getId())
+			.add("status", "Finished")
+			.save();
+	}
+	if (nStat == RUNNING)
+	{
+		LogMon::instance().createMessage()
+			.add("event", "job_submission")
+			.add("job_id", getId())
+			.add("job_id_dg", getGridId())
+			.add("output_grid_name", getGrid())
+			.save();
+		LogMon::instance().createMessage()
+			.add("event", "job_status")
+			.add("job_id", getId())
+			.add("status", "Running")
+			.save();
+	}
+
 	status = nStat;
 
 	if (!updateDB)
 		return;
 
-	DBHandler *dbH = DBHandler::get();
-	dbH->updateJobStat(id, status);
-	DBHandler::put(dbH);
+	DBHWrapper()->updateJobStat(id, status);
 }
 
 

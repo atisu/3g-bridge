@@ -97,6 +97,8 @@ injector_SOURCES = \
 		AlgQueue.cpp \
 		DBHandler.cpp \
 		Job.cpp \
+		LogMonMsg.cpp \
+		Conf.cpp \
 		FileRef.cpp \
 		QMException.cpp \
 		Util.c
