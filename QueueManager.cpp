@@ -826,8 +826,6 @@ try
 
 	QMEventHandler::instance();
 
-	logmon::startRotationThread(global_config);
-
 	if (run_as_daemon)
 	{
 		if (daemon(0, 0))
@@ -837,6 +835,8 @@ try
 		}
 		pid_file_update();
 	}
+
+	logmon::startRotationThread(global_config);
 
 	try {
 		init_grid_handlers();
