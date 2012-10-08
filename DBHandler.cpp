@@ -365,6 +365,24 @@ auto_ptr<Job> DBHandler::getJob(const string &id)
 	return job;
 }
 
+string DBHandler::getJobCreationTime(const string &jobid)
+{
+	if (query("SELECT creation_time FROM cg_job WHERE id='%s'", jobid.c_str()))
+	{
+		DBResult res(this);
+		res.store();
+		if (res.fetch())
+		{
+			const char *crt = res.get_field("creation_time");
+			if (crt)
+				return string(crt);
+		}
+
+		throw new QMException("Creation time for job '%s' is not set", jobid.c_str());
+	}
+
+	throw new QMException("Querying job creation time for job '%s' has failed.", jobid.c_str());
+}
 
 void DBHandler::getJobs(JobVector &jobs, const string &grid, const string &alg, Job::JobStatus stat, unsigned batch)
 {

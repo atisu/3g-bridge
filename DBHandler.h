@@ -374,6 +374,7 @@ class DBHandler {
 	vector<string> getSubjobErrors(const string &metajobId);
 
 	int getBOINCAppId(const string &appname);
+	string getJobCreationTime(const string &jobid);
 
     protected:
 	/// DBResult friend class.

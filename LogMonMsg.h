@@ -206,7 +206,19 @@ namespace logmon
 		Message& add(const std::string &key, const T& value)
 		{
 			const string &val = MKStr() << value;
-			_items.push_back(KVP(key, val));
+			typedef KVPList::iterator iter;
+			bool found = false;
+			for (iter i = _items.begin(); i != _items.end(); i++)
+			{
+				if (i->first == key)
+				{
+					i->second = value;
+					found=true;
+					break;
+				}
+			}
+			if (!found)
+				_items.push_back(KVP(key, val));
 			return *this;
 		}
 		/// Instructs the associated Builder to append this message to

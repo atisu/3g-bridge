@@ -167,15 +167,22 @@ void Job::setStatus(JobStatus nStat, bool updateDB)
 	}
 	if (nStat == RUNNING)
 	{
+		const string &jobid = getId();
+		LogMon::instance().createMessage()
+			.add("dt", DBHWrapper()->getJobCreationTime(jobid))
+			.add("event", "job_entry")
+			.add("job_id", jobid)
+			.add("application", getName())
+			.save();
 		LogMon::instance().createMessage()
 			.add("event", "job_submission")
-			.add("job_id", getId())
+			.add("job_id", jobid)
 			.add("job_id_dg", getGridId())
 			.add("output_grid_name", getGrid())
 			.save();
 		LogMon::instance().createMessage()
 			.add("event", "job_status")
-			.add("job_id", getId())
+			.add("job_id", jobid)
 			.add("status", "Running")
 			.save();
 	}

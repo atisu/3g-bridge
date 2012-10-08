@@ -43,7 +43,6 @@
 #include "Job.h"
 #include "QMException.h"
 #include "Util.h"
-#include "LogMonMsg.h"
 
 #include <string>
 #include <fstream>
@@ -70,7 +69,6 @@
 #endif
 
 using namespace std;
-using logmon::LogMon;
 using namespace config;
 
 /**********************************************************************
@@ -553,12 +551,6 @@ int __G3BridgeSubmitter__submit(struct soap *soap, G3BridgeSubmitter__JobList *j
 			LOG(LOG_INFO, "Job %s: Accepted as meta-job", jobid);
 		else
 			LOG(LOG_INFO, "Job %s: Accepted", jobid);
-
-		LogMon::instance().createMessage()
-			.add("event", "job_entry")
-			.add("job_id", jobid)
-			.add("application", qmjob->getName())
-			.save();
 
 		/// Adds the job's unique identifier to the result.
 		result->jobid.push_back(jobid);
@@ -1057,7 +1049,6 @@ try
 
 	try
 	{
-		LogMon::instance(global_config);
 		DBHandler::init(global_config);
 	}
 	catch (QMException *e)
