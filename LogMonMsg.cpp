@@ -34,15 +34,13 @@
 #include <time.h>
 #include <sys/time.h>
 #include <string.h>
-#include <errno.h>
 #include <fcntl.h>
-#include <semaphore.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
 #include "mkstr"
 #include "Conf.h"
 #include "QMException.h"
 #include "Util.h"
+#include "Mutex.h"
 
 using namespace std;
 using namespace logmon;
@@ -158,13 +156,13 @@ LogMon::LogMon(Builder *builder,
 	  _rotateFilenameFmt(rotateFilenameFmt),
 	  _rotateInterval(rotateInterval)
 {
-	FileLock::init(*this);
+	_mutex = g_mutex_new();
 }
 LogMon::~LogMon()
 {
 	delete _builder;
 	_instance = 0;
-	FileLock::destroy();
+	g_mutex_free(_mutex);
 }
 
 Message LogMon::createMessage()
@@ -178,9 +176,9 @@ void LogMon::logrotate()
 {
 	if (!_rotateInterval)
 		return;
-	
-	FileLock lock = lockFile();
 
+	CriticalSection cs(_mutex);
+	
 	timestamp_type now = getnow();
 	const string now_s = MKStr() << now;
 
@@ -212,11 +210,6 @@ void LogMon::logrotate()
 
 	LOG(LOG_DEBUG, "[LogMon] Rotated log file '%s' -> '%s'",
 	    _logfilename.c_str(), filename.c_str());
-}
-
-LogMon::FileLock LogMon::lockFile() const
-{
-	return FileLock(*this);
 }
 
 /****************************************************************
@@ -261,8 +254,7 @@ LogMon &Builder::parent() const
 void Builder::saveMessage(const Message &msg)
 {
 	const LogMon &p = parent();
-
-	LogMon::FileLock lock = p.lockFile();
+	CriticalSection cs(p._mutex);
 
 	// Create and initialize file if empty
 	if (!g_file_test(p._logfilename.c_str(), G_FILE_TEST_EXISTS))
@@ -478,72 +470,4 @@ void logmon::endRotationThread()
 	g_cond_signal(exitCondition);
 	g_thread_join(_rotate_th);
 	g_cond_free(exitCondition);
-}
-
-/****************************************************************
- *  Exclusive locking of temporary log file
- ****************************************************************/
-
-//
-// Locking is implemented using POSIX semaphores
-//
-
-static string semaphore_name;
-
-/// Semaphore checked-open -- close wrapper (try-finally)
-class SemOpen
-{
-	sem_t *s;
-public:
-	SemOpen()
-	{
-		LOG(LOG_DEBUG, "[LogMon] Opening semaphore");
-		if (!(s = sem_open(semaphore_name.c_str(), 0)))
-			throw new QMException(
-				"[LogMon] Error opening file-lock semaphore: %s",
-				strerror(errno));
-	}
-	~SemOpen()
-	{
-		LOG(LOG_DEBUG, "[LogMon] Closing sempahore");
-		sem_close(s);
-	}
-	operator sem_t*() { return s; }
-};
-void LogMon::FileLock::init(const LogMon &parent)
-{
-	semaphore_name = MKStr() << "/mon-log-lock--" << parent.name();
-
-	LOG(LOG_DEBUG, "[LogMon] Creating semaphore '%s'.", semaphore_name.c_str());
-	// Create/overwrite/ semaphore. Actually, mutex: it's initialized to 1.
-	sem_t *s;
-	if (!(s = sem_open(semaphore_name.c_str(), O_CREAT, 00660, 1)))
-	{
-		throw new QMException(
-			"[LogMon] Error creating file-lock semaphore: %s",
-			strerror(errno));
-	}
-	else
-	{
-		LOG(LOG_DEBUG,
-		    "[LogMon] Semaphore '%s' has been "
-		    "successfully created; closing it.",
-		    semaphore_name.c_str());
-		sem_close(s);
-	}
-}
-void LogMon::FileLock::destroy()
-{
-	LOG(LOG_DEBUG, "Deleting semaphore '%s'", semaphore_name.c_str());
-	sem_unlink(semaphore_name.c_str());
-}
-LogMon::FileLock::FileLock(const LogMon &parent)
-{
-	sem_wait(SemOpen());
-	LOG(LOG_DEBUG, "[LogMon] Semaphore acquired");
-}
-LogMon::FileLock::~FileLock()
-{
-	LOG(LOG_DEBUG, "[LogMon] Semaphore released");
-	sem_post(SemOpen());
 }

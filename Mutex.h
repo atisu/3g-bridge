@@ -54,7 +54,7 @@ class NamedMutexContainer
 {
 	std::map<std::string, GMutex*> _mutexes;
 public:
-	GMutex* operator[] (const string &name)
+	GMutex* operator[] (const std::string &name)
 	{
 		GMutex* res = _mutexes[name];
 		if (!res)

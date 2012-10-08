@@ -258,35 +258,7 @@ namespace logmon
 		// Configuration
 		const string _name, _logfilename, _timezone, _rotateFilenameFmt;
 		const timestamp_type _rotateInterval;
-
-		/**
-		 * Abstraction of file locking. Lock is acquired on
-		 * instantiation and released safely when the FileLock object is
-		 * destroyed.
-		 */
-		class FileLock
-		{
-			friend class LogMon;
-
-			/// Lock is acquired (waited) here
-			FileLock(const LogMon &parent);
-
-			// These must be called before and after first and last
-			// use respectively
-
-			/// Initialize locking algorithm
-			static void init(const LogMon& parent);
-			/// Release resources
-			static void destroy();
-		public:
-			/// Lock is released here
-			virtual ~FileLock();
-		};
-		/**
-		 * Creates a file lock object, which locks the output file, and
-		 * when destructed, unlocks it.
-		 */
-		FileLock lockFile() const;
+		GMutex *_mutex;
 
 	public:
 
