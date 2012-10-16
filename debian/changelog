@@ -1,3 +1,17 @@
+3g-bridge (1.10-1) unstable; urgency=low
+
+  * Removed logmon from WSSubmitter
+  * FIX: Rotation thread does not start if the Bridge is 
+    started as a daemon
+  * XtremWeb-HEP plugin updates
+  * Fixed timestamp overflow issue on 32 bit architectures 
+    in ForeignProbe and MonLog
+  * DC-API-Single: Fixed: Some jobs in CANCEL status may not 
+    be deleted in time by the plugin
+  * EC2: -k parameter for key-pairs
+
+ -- Attila Csaba Marosi <atisu@sztaki.hu>  Mon, 16 Oct 2012 17:35:18 +0200
+
 3g-bridge (1.9-1) unstable; urgency=low
 
   * Job cancel fixed (pending jobs and full DC-API-SINGLE job purge)
