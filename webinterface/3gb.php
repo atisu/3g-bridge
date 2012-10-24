@@ -3,7 +3,9 @@
 ini_set('display_errors','On');
 error_reporting(E_ALL);
 
-include('common.php');
+require_once('error.php');
+require_once('common.php');
+require_once('restbase.php');
 
 class JobsHandler extends RESTHandler
 {
@@ -15,11 +17,18 @@ class JobsHandler extends RESTHandler
 	protected function allowed() {
 		return "GET, POST";
 	}
+	protected function renderform()
+	{
+	}
+	public static function pathRegex() {
+		return '|^/jobs/?$|';
+	}
 }
 
 class JobHandler extends RESTHandler
-{	
+{
 	protected function handleGet() {
+		CacheControl::setCacheable(FALSE);
 		p($this, '$this');
 	}
 	protected function handlePost() {
@@ -27,27 +36,22 @@ class JobHandler extends RESTHandler
 	protected function allowed() {
 		return "GET";
 	}
+	public static function pathRegex() {
+		return '|^/jobs/(?<id>[^/]+)(/(?<attr>[^/]*)/?)?$|';
+	}
 }
 
-$r=new RESTRequest;
-
-RESTHandler::addHandler('/jobs', 'JobsHandler');
-RESTHandler::addHandler('/jobs/.*', 'JobHandler');
-
-$hndlr=RESTHandler::create($r);
-if ($hndlr === FALSE)
-	httpcode(404);
-
-if (isset($r->parameters['format']) && $r->parameters['format'] == 'plain')
-	header("Content-Type: text/plain");
+RESTHandler::addHandler('JobsHandler');
+RESTHandler::addHandler('JobHandler');
 
 try {
+	$r=new RESTRequest;
+	$hndlr=RESTHandler::create($r);
 	$hndlr->handle();
 }
-catch (NotSupported $ns) {
-	header("Allow: " . $ns->allowed);
-	httpcode(405);
-	exit(0);
+catch (HTTPException $ex) {
+	$ex->render($r);
+	exit(1);
 }
 
 ?>
