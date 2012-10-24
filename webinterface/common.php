@@ -28,8 +28,8 @@ class RESTRequest {
 
 	public function __construct() {
 		$this->verb = $_SERVER['REQUEST_METHOD'];
-		$this->path = $_SERVER['PATH_INFO'];
-		$this->path_elements = explode('/', $_SERVER['PATH_INFO']);
+		$this->path = preg_replace('|/+$|', '', $_SERVER['PATH_INFO']);
+		$this->path_elements = explode('/', $this->path);
 		$this->parseIncomingParams();
 		$this->format = 'json';
 		if (isset($this->parameters['format']))
@@ -72,13 +72,18 @@ class RESTRequest {
 abstract class RESTHandler
 {
 	public static $handlers = array();
+	public static function addHandler($regex, $type)
+	{
+		array_push(RESTHandler::$handlers, array($regex, $type));
+	}
 	public static function create($request)
 	{
-		for ($i=count($request->path_elements); $i>0; $i--)
+		arsort(RESTHandler::$handlers);
+		foreach (RESTHandler::$handlers as $key=>$value)
 		{
-			$key = join('/', array_slice($request->path_elements, 0, $i));
-			if (array_key_exists($key, RESTHandler::$handlers))
-				return new RESTHandler::$handlers[$key]($request);
+			if (preg_match('|^'.$value[0].'|',
+				       $request->path))
+				return new $value[1]($request);
 		}
 
 		return FALSE;

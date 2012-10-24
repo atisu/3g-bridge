@@ -8,7 +8,7 @@ include('common.php');
 class JobsHandler extends RESTHandler
 {
 	protected function handleGet() {
-		p($this->request, "Request");
+		p($this, '$this');
 	}
 	protected function handlePost() {
 	}
@@ -17,9 +17,22 @@ class JobsHandler extends RESTHandler
 	}
 }
 
+class JobHandler extends RESTHandler
+{	
+	protected function handleGet() {
+		p($this, '$this');
+	}
+	protected function handlePost() {
+	}
+	protected function allowed() {
+		return "GET";
+	}
+}
+
 $r=new RESTRequest;
 
-RESTHandler::$handlers['/jobs'] = 'JobsHandler';
+RESTHandler::addHandler('/jobs', 'JobsHandler');
+RESTHandler::addHandler('/jobs/.*', 'JobHandler');
 
 $hndlr=RESTHandler::create($r);
 if ($hndlr === FALSE)
