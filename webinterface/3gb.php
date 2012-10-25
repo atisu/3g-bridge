@@ -17,9 +17,12 @@ function err_logger($errcode, $msg) {
 class JobsHandler extends RESTHandler
 {
 	protected function handleGet() {
+		CacheControl::setCacheable(FALSE);
 		$q = 'SELECT * FROM cg_job';
 		$r = mysql_query($q);
-		C::p($this, '$this');
+		while ($line = mysql_fetch_array($r, MYSQL_ASSOC)) {
+			$this->render_dataitem($line, $line['id']);
+		}
 	}
 	protected function handlePost() {
 	}
@@ -38,9 +41,16 @@ class JobHandler extends RESTHandler
 {
 	protected function handleGet() {
 		CacheControl::setCacheable(FALSE);
-		C::p($this, '$this');
-	}
-	protected function handlePost() {
+		$id = $this->matches['id'];
+		$full = !array_key_exists('attr', $this->matches);
+		$field = $full ? '*' : $this->matches['attr'];
+		$q = "SELECT {$field} FROM cg_job WHERE id='{$id}'";
+		$r = mysql_query($q);
+		
+		if (!($line = mysql_fetch_array($r, MYSQL_ASSOC)))
+			throw NotFound("Job: {$id}");
+			
+		$this->render_dataitem($full ? $line : array($id) + $line);
 	}
 	protected function allowed() {
 		return "GET";

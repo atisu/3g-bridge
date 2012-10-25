@@ -9,6 +9,16 @@ class CacheControl {
 	}
 }
 
+class RESTParser {
+	public function __construct($request) {
+	}
+}
+
+class RESTRenderer {
+	public function __construct($request) {
+	}
+}
+
 class RESTRequest {
 	public $path;
 	public $path_elements;
@@ -21,14 +31,20 @@ class RESTRequest {
 			RESTRequest::$inst = new RESTRequest;
 		return RESTRequest::$inst;
 	}
+	private function getpar($key, $dest, $default) {
+		if (isset($this->parameters[$key]))
+			$this->$dest = $this->parameters[$key];
+		else
+			$this->$dest = $default;
+	}
 	private function __construct() {
 		$this->verb = $_SERVER['REQUEST_METHOD'];
 		$this->path = preg_replace('|/+$|', '', $_SERVER['PATH_INFO']);
 		$this->path_elements = explode('/', $this->path);
-		$this->format = 'plain';
 		$this->parseIncomingParams();
-		if (isset($this->parameters['format']))
-			$this->format = $this->parameters['format'];
+		$this->getpar('format', 'format', 'plain');
+		$this->getpar('sep', 'plain_separator', ' ');
+		$this->getpar('hdr', 'header', $this->format == 'html' ? TRUE : FALSE);
 		return true;
 	}
 	private function parseIncomingParams() {
@@ -103,7 +119,9 @@ abstract class RESTHandler {
 	public static function pathRegex() { return '|^.*$|'; }
 
 	public function handle() {
-		return $this->render($this->handle_inner());
+		$this->render_header($data);
+		$this->handle_inner();
+		$this->render_footer($data);
 	}
 
 	private function handle_inner() {
@@ -120,20 +138,23 @@ abstract class RESTHandler {
 
 	protected function renderform() { /* NOOP; to be overridden */ }
 	protected function render_header($data) {
+		// For dataitem separators
+		$this->first = TRUE;
 
 		switch ($this->request->format) {
 		case 'html':
 			header("Content-Type: text/html");
-			print C::$HTML_HEAD;
+			print C::$HTML_HEADER;
 			print "<body>\n";
 			$this->renderform();
+			print '<table id="data">';
 			break;
 		case 'plain':
 			header("Content-Type: text/plain");
 			break;
 		case 'json':
-			throw new NotImplemented("format: '{$this->request->format}'");
 			header("Content-Type: application/json");
+			print '[';
 			break;
 		default:
 			throw new BadRequest("format: '{$this->request->format}'");
@@ -141,39 +162,67 @@ abstract class RESTHandler {
 	}
 	protected function render_footer($data) {
 		switch ($this->request->format) {
-		case 'html':
-			print "</body></html>\n";
-			break;
-		case 'plain':
-		case 'json':
-			// NOOP
-			break;
-		default:
-			throw new BadRequest("format: '{$this->request->format}'");
+		case 'html': print "</table></body></html>\n"; break;
+		case 'plain': /* NOOP */ break;
+		case 'json': print ']'; break;
+		default: throw new BadRequest("format: '{$this->request->format}'");
 		}
 	}
 
-	protected function render_data($data) {
+	protected function render_dataitem($data, $id=Null) {
 		switch ($this->request->format) {
 		case 'html':
+			// Print header if needed
+			if ($this->first and $this->request->header) {
+				print '<tr class="header"';
+				if ($id) print " id=\"{$id}\"";
+				print '>';
+				foreach ($data as $key=>$value)
+					print "<th id=\"{$key}\">{$key}</th>";
+				print "</tr>\n";
+			}
+
+			//Print dataitem
+			print '<tr class="dataitem"';
+			if ($id) print " id=\"{$id}\"";
+			print '>';
+			foreach ($data as $key=>$value)
+				print "<td id=\"{$key}\">{$value}</td>";
+			print "</tr>\n";
 			break;
 		case 'plain':
-			//TODO
-			throw new NotImplemented("format: '{$this->request->format}'");
+			$sep = $this->request->plain_separator;
+
+			// Separate dataitems
+			if (!$this->first)
+				print "\n";
+			// Print header if needed
+			elseif ($this->request->header) {
+				$f = TRUE;
+				foreach ($data as $key=>$value) {
+					if ($f) $f=FALSE; else print $sep;
+					print $key;
+				}
+				print "\n";
+			}
+
+			//Print dataitem
+			$f = TRUE;
+			foreach ($data as $value) {
+				if ($f) $f=FALSE; else print $sep;
+				print $value;
+			}
 			break;
 		case 'json':
-			//TODO
-			throw new NotImplemented("format: '{$this->request->format}'");
+			if (!$this->first) print ', ';
+			print json_encode($data);
 			break;
 		default:
 			throw new BadRequest("format: '{$this->request->format}'");
 		}
-	}
 
-	private function render($data) {
-		$this->render_header($data);
-		$this->render_data($data);
-		$this->render_footer($data);
+		// For dataitem separators
+		if ($this->first) $this->first = FALSE;
 	}
 }
 ?>
