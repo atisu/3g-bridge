@@ -9,14 +9,27 @@ class CacheControl {
 	}
 }
 
-class RESTParser {
+abstract class RESTParser {
+	public static function create($request) {
+		// TODO: factory($format)
+	}
+	
 	public function __construct($request) {
 	}
+	public abstract function parse();
+	     
 }
 
-class RESTRenderer {
-	public function __construct($request) {
+abstract class RESTRenderer {
+	public static function create($request) {
+		// TODO: factory($format)
 	}
+		
+	public function __construct($request) {
+	}	
+	protected abstract function render_header($handler);
+	protected abstract function render_footer();
+	protected abstract function render_dataitem($data, $id=Null);
 }
 
 class RESTRequest {
@@ -136,8 +149,8 @@ abstract class RESTHandler {
 		}
 	}
 
-	protected function renderform() { /* NOOP; to be overridden */ }
-	protected function render_header($data) {
+	protected function render_html_form() { /* NOOP; to be overridden */ }
+	protected function render_header() {
 		// For dataitem separators
 		$this->first = TRUE;
 
@@ -160,7 +173,7 @@ abstract class RESTHandler {
 			throw new BadRequest("format: '{$this->request->format}'");
 		}
 	}
-	protected function render_footer($data) {
+	protected function render_footer() {
 		switch ($this->request->format) {
 		case 'html': print "</table></body></html>\n"; break;
 		case 'plain': /* NOOP */ break;
