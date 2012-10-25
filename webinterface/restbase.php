@@ -15,7 +15,13 @@ class RESTRequest {
 	public $verb;
 	public $parameters;
 
-	public function __construct() {
+	private static $inst = Null;
+	public static function instance() {
+		if (!RESTRequest::$inst)
+			RESTRequest::$inst = new RESTRequest;
+		return RESTRequest::$inst;
+	}
+	private function __construct() {
 		$this->verb = $_SERVER['REQUEST_METHOD'];
 		$this->path = preg_replace('|/+$|', '', $_SERVER['PATH_INFO']);
 		$this->path_elements = explode('/', $this->path);
@@ -25,7 +31,6 @@ class RESTRequest {
 			$this->format = $this->parameters['format'];
 		return true;
 	}
-
 	private function parseIncomingParams() {
 		$parameters=array();
 		if (isset($_SERVER['QUERY_STRING']))
@@ -80,11 +85,9 @@ abstract class RESTHandler {
 		throw new NotFound();
 	}
 
-	public $request;
-
-	private function __construct($request, $path_parts=array()) {
+	private function __construct($request, $matches) {
 		$this->request = $request;
-		$this->path_parts = $path_parts;
+		$this->matches = $matches;
 	}
 
 	protected function handleGet() {
@@ -115,15 +118,15 @@ abstract class RESTHandler {
 		}
 	}
 
-	protected function renderform() {}
+	protected function renderform() { /* NOOP; to be overridden */ }
 	protected function render_header($data) {
 
 		switch ($this->request->format) {
 		case 'html':
 			header("Content-Type: text/html");
-			print "<html>\n";
-			print "<head><title>{$data['title']}</title></head>\n";
+			print C::$HTML_HEAD;
 			print "<body>\n";
+			$this->renderform();
 			break;
 		case 'plain':
 			header("Content-Type: text/plain");
@@ -139,28 +142,31 @@ abstract class RESTHandler {
 	protected function render_footer($data) {
 		switch ($this->request->format) {
 		case 'html':
-			print "</html>\n";
+			print "</body></html>\n";
 			break;
 		case 'plain':
-			break;
 		case 'json':
+			// NOOP
 			break;
 		default:
-			throw new NotImplemented("format: '{$this->request->format}'");
+			throw new BadRequest("format: '{$this->request->format}'");
 		}
 	}
 
 	protected function render_data($data) {
 		switch ($this->request->format) {
 		case 'html':
-			$this->renderform();
 			break;
 		case 'plain':
+			//TODO
+			throw new NotImplemented("format: '{$this->request->format}'");
 			break;
 		case 'json':
+			//TODO
+			throw new NotImplemented("format: '{$this->request->format}'");
 			break;
 		default:
-			throw new NotImplemented("format: '{$this->request->format}'");
+			throw new BadRequest("format: '{$this->request->format}'");
 		}
 	}
 
