@@ -44,7 +44,7 @@ class NotSupported extends HTTPException {
 	public $allowed;
 	public $what;
 	public function __construct($what, $allowed) {
-		parent::__cosntruct(405, C::cond_join("Operation not supported",
+		parent::__construct(405, C::cond_join("Operation not supported",
 						      $what));
 		$this->allowed = $allowed;
 	}
