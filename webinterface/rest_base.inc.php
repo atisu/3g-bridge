@@ -93,6 +93,18 @@ abstract class RESTHandler {
 	public static function pathRegex() { return '|^.*$|'; }
 	public function render_html_form() { /* NOOP; to be overridden */ }
 
+	protected function get_selected_attrs() {
+		$lsep = $this->request->list_separator;
+		if (array_key_exists('attr', $this->matches)
+		    and $this->matches['attr'])
+		{
+			return join(', ',
+				    explode($lsep,
+					    $this->matches['attr']));
+		}
+		return '*';
+	}
+
 	public function handle() {
 		$this->request->renderer->render_header($this);
 

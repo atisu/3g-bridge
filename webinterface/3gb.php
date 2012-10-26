@@ -40,6 +40,21 @@ class JobsHandler extends RESTHandler
 	}
 }
 
+class FinishedJobsHandler extends JobsHandler
+{
+	protected function handleGet() {
+		$field = $this->get_selected_attrs();
+		$q = "SELECT {$field} FROM cg_job WHERE status='FINISHED'";
+		$r = mysql_query($q);
+		while ($line = mysql_fetch_array($r, MYSQL_ASSOC)) {
+			$this->output_dataitem($line, $line['id']);
+		}
+	}
+	public static function pathRegex() {
+		return '|^/jobs/finished(/(?<attr>[^/]*)/?)?$|';
+	}
+}
+
 class JobHandler extends RESTHandler
 {
 	public function __construct($request, $matches) {
@@ -48,14 +63,12 @@ class JobHandler extends RESTHandler
 	}
 	
 	protected function handleGet() {
-		$lsep = $this->request->list_separator;
+		$ids = join(', ',
+			    array_map('DB::stringify',
+				      explode($this->request->list_separator,
+					      $this->matches['id'])));
+		$field = $this->get_selected_attrs();
 		
-		$ids = join(', ', array_map('DB::stringify',
-					    explode($lsep, $this->matches['id'])));
-		$full = !array_key_exists('attr', $this->matches);
-		$field = $full
-			? '*'
-			: join(', ', explode($lsep, $this->matches['attr']));
 		$q = "SELECT {$field} FROM cg_job WHERE id in ({$ids})";
 		$r = new ResWrapper(mysql_query($q));
 		
@@ -79,6 +92,7 @@ class JobHandler extends RESTHandler
 
 RESTHandler::addHandler('JobsHandler');
 RESTHandler::addHandler('JobHandler');
+RESTHandler::addHandler('FinishedJobsHandler');
 
 set_error_handler('err_logger');
 set_exception_handler('final_handler');
