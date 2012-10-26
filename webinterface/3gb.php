@@ -26,7 +26,7 @@ RESTHandler::addHandler('GridHandler');
 set_error_handler('err_logger');
 set_exception_handler('final_handler');
 
-try {
+try {	
 	$db = DB::instance(CONFIG_FILE);
 	$r = RESTRequest::instance();
 	$hndlr = RESTHandler::create($r);
