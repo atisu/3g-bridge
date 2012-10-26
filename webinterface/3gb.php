@@ -29,10 +29,6 @@ class VersionHandler extends RESTHandler {
 
 class JobsHandler extends RESTHandler
 {
-	public function __construct($request, $matches) {
-		CacheControl::setCacheable(FALSE);
-		parent::__construct($request, $matches);
-	}
 	protected function handleGet() {
 		$q = 'SELECT * FROM cg_job';
 		$r = mysql_query($q);
@@ -70,11 +66,6 @@ class FinishedJobsHandler extends JobsHandler
 
 class JobHandler extends RESTHandler
 {
-	public function __construct($request, $matches) {
-		CacheControl::setCacheable(FALSE);
-		parent::__construct($request, $matches);
-	}
-	
 	protected function handleGet() {
 		$ids = join(', ',
 			    array_map('DB::stringify',
@@ -127,11 +118,6 @@ class GridsHandler extends RESTHandler
 
 class GridHandler extends RESTHandler
 {
-	public function __construct($request, $matches) {
-		CacheControl::setCacheable(FALSE);
-		parent::__construct($request, $matches);
-	}
-	
 	protected function handleGet() {
 		$ids = join(', ',
 			    array_map('DB::stringify',

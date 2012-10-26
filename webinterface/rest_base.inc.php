@@ -76,6 +76,7 @@ abstract class RESTHandler {
 	}
 
 	protected function __construct($request, $matches) {
+		CacheControl::setCacheable(FALSE);
 		$this->request = $request;
 		$this->matches = $matches;
 	}
