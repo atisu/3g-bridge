@@ -25,7 +25,6 @@ class VersionHandler extends RESTHandler {
 	public static function pathRegex() {
 		return '|^/version/?$|';
 	}
-
 }
 
 class JobsHandler extends RESTHandler
@@ -104,10 +103,69 @@ class JobHandler extends RESTHandler
 	}
 }
 
+class GridsHandler extends RESTHandler
+{
+	protected function handleGet() {
+		$q = 'SELECT * FROM cg_algqueue';
+		$r = mysql_query($q);
+		while ($line = mysql_fetch_array($r, MYSQL_ASSOC))
+			$this->output_dataitem($line);
+	}
+	protected function handlePost() {
+		throw NotImplemented();
+	}
+	protected function allowed() {
+		return "GET, POST";
+	}
+	protected function renderform()
+	{
+	}
+	public static function pathRegex() {
+		return '|^/grids/?$|';
+	}
+}
+
+class GridHandler extends RESTHandler
+{
+	public function __construct($request, $matches) {
+		CacheControl::setCacheable(FALSE);
+		parent::__construct($request, $matches);
+	}
+	
+	protected function handleGet() {
+		$ids = join(', ',
+			    array_map('DB::stringify',
+				      explode($this->request->list_separator,
+					      $this->matches['id'])));
+		$field = $this->get_selected_attrs();
+		
+		$q = "SELECT {$field} FROM cg_algqueue WHERE grid in ({$ids})";
+		$r = new ResWrapper(mysql_query($q));
+		
+		$found = FALSE;
+		while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC)) {
+			$found=TRUE;
+			$this->output_dataitem($line);
+		}
+
+		if (!$found) 
+			throw new NotFound("Grid: {$ids}");
+		
+	}	
+	protected function allowed() {
+		return "GET";
+	}
+	public static function pathRegex() {
+		return '|^/grids/(?<id>[^/]+)(/(?<attr>[^/]*)/?)?$|';
+	}
+}
+
 RESTHandler::addHandler('JobsHandler');
 RESTHandler::addHandler('JobHandler');
 RESTHandler::addHandler('FinishedJobsHandler');
 RESTHandler::addHandler('VersionHandler');
+RESTHandler::addHandler('GridsHandler');
+RESTHandler::addHandler('GridHandler');
 
 set_error_handler('err_logger');
 set_exception_handler('final_handler');
