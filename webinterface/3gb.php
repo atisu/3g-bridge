@@ -1,6 +1,7 @@
 <?php
 
-$CONFIG_FILE='/home/avisegradi/Inst/etc/3g-bridge.conf';
+define(CONFIG_FILE, '/home/avisegradi/Inst/etc/3g-bridge.conf');
+define(BRIDGE_PATH, '/home/avisegradi/Inst/sbin/3g-bridge');
 
 ini_set('display_errors','On');
 error_reporting(E_ALL);
@@ -12,6 +13,19 @@ require_once('db.inc.php');
 require_once('auth.inc.php');
 
 function err_logger($errcode, $msg) {
+}
+
+class VersionHandler extends RESTHandler {
+	protected function handleGet() {
+		$this->output_dataitem(array('version'=>exec(BRIDGE_PATH . ' -V')));
+	}
+	protected function allowed() {
+		return "GET";
+	}
+	public static function pathRegex() {
+		return '|^/version/?$|';
+	}
+
 }
 
 class JobsHandler extends RESTHandler
@@ -93,12 +107,13 @@ class JobHandler extends RESTHandler
 RESTHandler::addHandler('JobsHandler');
 RESTHandler::addHandler('JobHandler');
 RESTHandler::addHandler('FinishedJobsHandler');
+RESTHandler::addHandler('VersionHandler');
 
 set_error_handler('err_logger');
 set_exception_handler('final_handler');
 
 try {
-	$db = DB::instance($CONFIG_FILE);
+	$db = DB::instance(CONFIG_FILE);
 	
 	$r = RESTRequest::instance();
 	
