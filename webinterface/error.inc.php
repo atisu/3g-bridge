@@ -1,7 +1,7 @@
 <?php
 
-require_once('common.php');
-require_once('restbase.php');
+require_once('common.inc.php');
+require_once('rest_base.inc.php');
 
 class HTTPException extends Exception {
 	public $code;
@@ -12,10 +12,9 @@ class HTTPException extends Exception {
 		$this->what = $what;
 	}
 	public function render() {
-		$req = RESTRequest::instance();
 		$code = $this->code;
 		$msg = C::cond_join("HTTP {$code}", C::defval($this->what, ''));
-		$t = C::defval($req, 'html', 'format');
+		$t = RESTRequest::get_output_format();
 
 		header('Status: '.$code);
 		header('X-PHP-Response-Code: $code', true, $code);

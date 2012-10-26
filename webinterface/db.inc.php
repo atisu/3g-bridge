@@ -1,6 +1,6 @@
 <?php
 
-require_once('error.php');
+require_once('error.inc.php');
 
 class DB {
 	private $db_link = Null;
@@ -44,5 +44,4 @@ class DB {
 		throw $exc;
 	}
 }
-
 ?>

@@ -5,11 +5,11 @@ $CONFIG_FILE='/home/avisegradi/Inst/etc/3g-bridge.conf';
 ini_set('display_errors','On');
 error_reporting(E_ALL);
 
-require_once('error.php');
-require_once('common.php');
-require_once('restbase.php');
-require_once('db.php');
-require_once('auth.php');
+require_once('error.inc.php');
+require_once('common.inc.php');
+require_once('rest_base.inc.php');
+require_once('db.inc.php');
+require_once('auth.inc.php');
 
 function err_logger($errcode, $msg) {
 }
@@ -21,7 +21,7 @@ class JobsHandler extends RESTHandler
 		$q = 'SELECT * FROM cg_job';
 		$r = mysql_query($q);
 		while ($line = mysql_fetch_array($r, MYSQL_ASSOC)) {
-			$this->render_dataitem($line, $line['id']);
+			$this->output_dataitem($line, $line['id']);
 		}
 	}
 	protected function handlePost() {

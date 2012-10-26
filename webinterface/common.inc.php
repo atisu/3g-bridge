@@ -30,5 +30,4 @@ EOF;
 		return $reply;
 	}
 }
-
 ?>
