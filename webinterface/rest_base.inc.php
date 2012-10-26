@@ -43,6 +43,7 @@ class RESTRequest {
 		$this->format = RESTRequest::get_output_format();
 		$this->field_separator = RESTRequest::getpar('sep', ' ');
 		$this->record_separator = RESTRequest::getpar('rsep', "\n");
+		$this->list_separator = RESTRequest::getpar('lsep', '+');
 		$this->header = RESTRequest::getpar(
 			'hdr', $this->format == 'html' ? TRUE : FALSE);
 
@@ -74,7 +75,7 @@ abstract class RESTHandler {
 		throw new NotFound();
 	}
 
-	private function __construct($request, $matches) {
+	protected function __construct($request, $matches) {
 		$this->request = $request;
 		$this->matches = $matches;
 	}

@@ -2,9 +2,24 @@
 
 require_once('error.inc.php');
 
+class ResWrapper {
+	public $res;
+	public function __construct($result) {
+		$this->res = $result;
+	}
+	public function __destruct() {
+		try { mysql_free_result($this->res); }
+		catch (Exception $ex) {}
+	}
+}
+
 class DB {
 	private $db_link = Null;
 	private static $inst = Null;
+
+	public static function stringify($str) {
+		return '\'' . mysql_real_escape_string($str) . '\'';
+	}
 
 	public function instance($config_file = Null) {
 		if (DB::$inst == Null) {

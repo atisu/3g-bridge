@@ -16,8 +16,11 @@ function err_logger($errcode, $msg) {
 
 class JobsHandler extends RESTHandler
 {
-	protected function handleGet() {
+	public function __construct($request, $matches) {
 		CacheControl::setCacheable(FALSE);
+		parent::__construct($request, $matches);
+	}
+	protected function handleGet() {
 		$q = 'SELECT * FROM cg_job';
 		$r = mysql_query($q);
 		while ($line = mysql_fetch_array($r, MYSQL_ASSOC)) {
@@ -39,19 +42,33 @@ class JobsHandler extends RESTHandler
 
 class JobHandler extends RESTHandler
 {
-	protected function handleGet() {
+	public function __construct($request, $matches) {
 		CacheControl::setCacheable(FALSE);
-		$id = $this->matches['id'];
-		$full = !array_key_exists('attr', $this->matches);
-		$field = $full ? '*' : $this->matches['attr'];
-		$q = "SELECT {$field} FROM cg_job WHERE id='{$id}'";
-		$r = mysql_query($q);
-		
-		if (!($line = mysql_fetch_array($r, MYSQL_ASSOC)))
-			throw NotFound("Job: {$id}");
-			
-		$this->render_dataitem($full ? $line : array($id) + $line);
+		parent::__construct($request, $matches);
 	}
+	
+	protected function handleGet() {
+		$lsep = $this->request->list_separator;
+		
+		$ids = join(', ', array_map('DB::stringify',
+					    explode($lsep, $this->matches['id'])));
+		$full = !array_key_exists('attr', $this->matches);
+		$field = $full
+			? '*'
+			: join(', ', explode($lsep, $this->matches['attr']));
+		$q = "SELECT {$field} FROM cg_job WHERE id in ({$ids})";
+		$r = new ResWrapper(mysql_query($q));
+		
+		$found = FALSE;
+		while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC)) {
+			$found=TRUE;
+			$this->output_dataitem($line);
+		}
+
+		if (!$found) 
+			throw new NotFound("Job: {$ids}");
+		
+	}	
 	protected function allowed() {
 		return "GET";
 	}
