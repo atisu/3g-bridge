@@ -109,16 +109,17 @@ abstract class RESTHandler {
 		$this->request->renderer->render_header($this);
 
 		switch ($this->request->verb) {
-		case 'GET': return $this->handleGet();
-		case 'PUT': return $this->handlePut();
-		case 'POST': return $this->handlePost();
-		case 'DELETE': return $this->handleDelete();
+		case 'GET': $retval = $this->handleGet(); break;
+		case 'PUT': $retval = $this->handlePut(); break;
+		case 'POST': $retval = $this->handlePost(); break;
+		case 'DELETE': $retval = $this->handleDelete(); break;
 		default:
 			throw new NotSupported($this->request->verb,
 					       $this->allowed());
 		}
 
 		$this->request->renderer->render_footer();
+		return $retval;
 	}
 	protected function output_dataitem($data, $id=Null) {
 		$this->request->renderer->render_dataitem($data, $id);
