@@ -1,7 +1,8 @@
 <?php
 
-define(CONFIG_FILE, '/home/avisegradi/Inst/etc/3g-bridge.conf');
-define(BRIDGE_PATH, '/home/avisegradi/Inst/sbin/3g-bridge');
+define('CONFIG_FILE', '/home/avisegradi/Inst/etc/3g-bridge.conf');
+define('BRIDGE_PATH', '/home/avisegradi/Inst/sbin/3g-bridge');
+define('BASE_URL', 'https://canopus.lpds.sztaki.hu/t');
 
 ini_set('display_errors','On');
 error_reporting(E_ALL);
@@ -26,9 +27,10 @@ RESTHandler::addHandler('GridHandler');
 set_error_handler('err_logger');
 set_exception_handler('final_handler');
 
-try {	
-	$db = DB::instance(CONFIG_FILE);
-	$r = RESTRequest::instance();
+try {
+	$cfg = parse_ini_file(CONFIG_FILE, true, INI_SCANNER_RAW);
+	$db = DB::instance($cfg);
+	$r = RESTRequest::instance($cfg);
 	$hndlr = RESTHandler::create($r);
 	$hndlr->handle();
 }

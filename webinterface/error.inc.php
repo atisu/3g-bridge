@@ -25,6 +25,7 @@ class HTTPException extends Exception {
 			break;
 		case 'json':
 			header("Content-Type: application/json");
+			print json_encode(array('error'=>$msg));
 			break;
 		case 'plain':
 		default:
@@ -67,15 +68,20 @@ class BadRequest extends HTTPException {
 		parent::__construct(400, C::cond_join("Bad request", $what));
 	}
 }
-class DBError extends HTTPException {
+class ServerError extends HTTPException {
 	public function __construct($what) {
-		parent::__construct(500, C::cond_join("Database error", $what));
-	}
+		parent::__construct(500, C::cond_join("Server error", $what));
+	}	
 }
 
-class UnknownError extends HTTPException {
+class DBError extends ServerError {
 	public function __construct($what) {
-		parent::__construct(500, C::cond_join("Unknown error", $what));
+		parent::__construct(C::cond_join("Database error", $what));
+	}
+}
+class UnknownError extends ServerError {
+	public function __construct($what) {
+		parent::__construct(C::cond_join("Unknown error", $what));
 	}
 }
 

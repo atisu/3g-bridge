@@ -17,8 +17,11 @@ class DB {
 	private $db_link = Null;
 	private static $inst = Null;
 
-	public static function stringify($str) {
-		return '\'' . mysql_real_escape_string($str) . '\'';
+	public static function stringify($str, $empty_as_null = TRUE) {
+		if ($str===Null or ($empty_as_null and $str==''))
+			return 'NULL';
+		else
+			return '\'' . mysql_real_escape_string($str) . '\'';
 	}
 
 	public function instance($config_file = Null) {
@@ -30,9 +33,7 @@ class DB {
 		return DB::$inst;
 	}
 
-	private function __construct($config_file) {
-		$cfg = parse_ini_file($config_file, true, INI_SCANNER_RAW);
-		
+	private function __construct($cfg) {
 		$this->db=$cfg['database'];
 		if (!($this->db_link = mysql_connect($this->db['host'],
 						     $this->db['user'],
@@ -52,6 +53,21 @@ class DB {
 		}
 		catch (Exception $ex) {}
 	}
+
+	public static function begin() {
+		DB::q("BEGIN");
+	}
+	public static function commit() {
+		DB::q("COMMIT");
+	}
+	public static function rollback() {
+		DB::q("ROLLBACK");
+	}
+	public static function q($query) {
+		if (!mysql_query($query))
+			DB::derr();
+	}
+
 	public static function derr() {
 		$exc = new DBError("Database error: " . mysql_error());
 		if (DB::$inst)

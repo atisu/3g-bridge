@@ -1,5 +1,7 @@
 <?php
 
+define('JOBDEFS', 'jobdefs');
+
 require_once('error.inc.php');
 require_once('rest_renderer.inc.php');
 require_once('rest_parser.inc.php');
@@ -18,9 +20,9 @@ class RESTRequest {
 	public $parameters;
 
 	private static $inst = Null;
-	public static function instance() {
+	public static function instance($cfg) {
 		if (!RESTRequest::$inst)
-			RESTRequest::$inst = new RESTRequest;
+			RESTRequest::$inst = new RESTRequest($cfg);
 		return RESTRequest::$inst;
 	}
 	private static function getpar($key, $default) {
@@ -34,13 +36,15 @@ class RESTRequest {
 		return RESTRequest::getpar('format', 'plain');
 	}
 
-	private function __construct() {
+	private function __construct($cfg) {
 		$this->verb = $_SERVER['REQUEST_METHOD'];
 		$this->path = preg_replace('|/+$|', '', $_SERVER['PATH_INFO']);
 		$this->path_elements = explode('/', $this->path);
+		$this->cfg=$cfg;
 
 		// Parse GET parameters
 		$this->format = RESTRequest::get_output_format();
+		$this->redirect_after_submit = RESTRequest::getpar('redir', 0);
 		$this->field_separator = RESTRequest::getpar('sep', ' ');
 		$this->record_separator = RESTRequest::getpar('rsep', "\n");
 		$this->list_separator = RESTRequest::getpar('lsep', '+');
@@ -107,20 +111,37 @@ abstract class RESTHandler {
 	}
 
 	public function handle() {
+		ob_start();
 		$this->request->renderer->render_header($this);
 
-		switch ($this->request->verb) {
-		case 'GET': $retval = $this->handleGet(); break;
-		case 'PUT': $retval = $this->handlePut(); break;
-		case 'POST': $retval = $this->handlePost(); break;
-		case 'DELETE': $retval = $this->handleDelete(); break;
-		default:
-			throw new NotSupported($this->request->verb,
-					       $this->allowed());
-		}
+		try {
+			$header_only = FALSE;
+			switch ($this->request->verb) {
+			case 'GET':
+				$header_only = $this->handleGet(); break;
+			case 'PUT':
+				$header_only = $this->handlePut(); break;
+			case 'POST':
+				$header_only = $this->handlePost(); break;
+			case 'DELETE':
+				$header_only = $this->handleDelete(); break;
+			default:
+				throw new NotSupported($this->request->verb,
+						       $this->allowed());
+			}
 
-		$this->request->renderer->render_footer();
-		return $retval;
+			if ($header_only) {
+				ob_end_clean();
+			}
+			else {
+				$this->request->renderer->render_footer();
+				ob_end_flush();		
+			}
+		}
+		catch (Exception $ex) {
+			ob_end_flush();
+			throw $ex;
+		}
 	}
 	protected function output_dataitem($data, $id=Null) {
 		$this->request->renderer->render_dataitem($data, $id);
