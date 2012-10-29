@@ -230,14 +230,11 @@ class FinishedJobsHandler extends JobsHandler
 class JobHandler extends RESTHandler
 {
 	protected function handleGet() {
-		$ids = join(', ',
-			    array_map('DB::stringify',
-				      explode($this->request->list_separator,
-					      $this->matches['id'])));
+		$ids = $this->get_selected_ids();
 		$field = $this->get_selected_attrs();
 
-		$q = "SELECT {$field} FROM cg_job WHERE id in ({$ids})";
-		$r = new ResWrapper(mysql_query($q));
+		$r = new ResWrapper(DB::q("SELECT {$field} FROM cg_job "
+					  . "WHERE id in ({$ids})"));
 
 		$found = FALSE;
 		while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC)) {
@@ -250,7 +247,9 @@ class JobHandler extends RESTHandler
 
 	}
 	protected function handleDelete() {
-		throw new NotImplemented();
+		$ids = $this->get_selected_ids();
+
+		DB::q("UPDATE cg_job SET status='CANCEL' WHERE id in ({$ids})");
 	}
 	protected function allowed() {
 		return "GET, DELETE";

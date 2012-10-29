@@ -64,8 +64,9 @@ class DB {
 		DB::q("ROLLBACK");
 	}
 	public static function q($query) {
-		if (!mysql_query($query))
+		if (!($r = mysql_query($query)))
 			DB::derr();
+		return $r;
 	}
 
 	public static function derr() {

@@ -110,6 +110,13 @@ abstract class RESTHandler {
 		return '*';
 	}
 
+	public function get_selected_ids() {
+		return join(', ',
+			    array_map('DB::stringify',
+				      explode($this->request->list_separator,
+					      $this->matches['id'])));
+	}
+
 	public function handle() {
 		ob_start();
 		$this->request->renderer->render_header($this);
