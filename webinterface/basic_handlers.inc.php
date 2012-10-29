@@ -137,30 +137,48 @@ class JobsHandler extends RESTHandler
 		return $vars;
 	}
 
-	private function build_queries($id, $name, $grid, $args, $tag) {
+	private function build_queries($id, $name, $grid,
+				       $gridid, $args, $tag) {
 		$safe_id = DB::stringify($id);
 		return array(
-			sprintf("INSERT INTO cg_job " .
-				"(id, alg, grid, args, tag, status, userid) " .
-				"VALUES (%s, %s, %s, %s, %s, %s, %s)",
+			sprintf("INSERT INTO cg_job "
+				. "(id, alg, grid, gridid, args, "
+				. "tag, status, userid) "
+				. "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
 				$safe_id,
 				DB::stringify($name),
 				DB::stringify($grid),
+				DB::stringify($gridid),
 				DB::stringify($args),
 				DB::stringify($tag),
 				DB::stringify('INIT'),
 				DB::stringify($this->userid)),
-			sprintf("INSERT INTO cg_inputs " .
-				"(id, localname, url, md5, filesize) " .
-				"VALUES (%s, %%s, %%s, %%s, %%d)",
+			sprintf("INSERT INTO cg_inputs "
+				. "(id, localname, url, md5, filesize) "
+				. "VALUES (%s, %%s, %%s, %%s, %%d)",
 				$safe_id),
-			sprintf("INSERT INTO cg_outputs ".
-				"(id, localname, path) " .
-				"VALUES (%s, %%s, %%s)",
+			sprintf("INSERT INTO cg_outputs "
+				. "(id, localname, path) "
+				. "VALUES (%s, %%s, %%s)",
 				$safe_id),
-			sprintf("INSERT INTO cg_env (id, name, val) " .
-				"VALUES (%s, %%s, %%s)",
+			sprintf("INSERT INTO cg_env (id, name, val) "
+				. "VALUES (%s, %%s, %%s)",
 				$safe_id));
+	}
+
+	private function is_mj_def($fname) {
+		return preg_match('/^_3gb-metajob/', $fname);
+	}
+	private function chk_metajob($infiles, $realgrid) {
+		$mjd_cnt = count(array_filter(array_keys($infiles),
+					      array($this, 'is_mj_def')));
+		if ($mjd_cnt == 0)
+			return array($realgrid, '');
+		elseif ($mjd_cnt == 1)
+			return array(METAJOB_GRID, $realgrid);
+		else
+			throw new BadRequest(
+				'Too many meta-job definition files');
 	}
 
 	private function submit_job($descr) {
@@ -168,16 +186,21 @@ class JobsHandler extends RESTHandler
 		$id = C::gen_uuid();
 		$p['id'] = $id;
 
-		list($addjob, $addinput_fmt, $addoutput_fmt, $addenv_fmt) =
-			$this->build_queries($id,
-					     $this->checked_get($p, 'name'),
-					     $this->checked_get($p, 'grid'),
-					     $this->checked_get($p, 'args', ''),
-					     $this->checked_get($p, 'tag', ''));
-
 		$infiles = $this->input_files($p);
 		$outfiles = $this->output_files($p);
 		$envvars = $this->envvars($p);
+
+		list($grid, $gridid) =
+			$this->chk_metajob($infiles,
+					   $this->checked_get($p, 'grid'));
+		 
+		list($addjob, $addinput_fmt, $addoutput_fmt, $addenv_fmt) =
+			$this->build_queries($id,
+					     $this->checked_get($p, 'name'),
+					     $grid, $gridid,
+					     $this->checked_get($p, 'args', ''),
+					     $this->checked_get($p, 'tag', ''));
+		
 
 		DB::begin();
 		try {
