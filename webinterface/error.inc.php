@@ -73,6 +73,11 @@ class ServerError extends HTTPException {
 		parent::__construct(500, C::cond_join("Server error", $what));
 	}	
 }
+class ConfigError extends ServerError {
+	public function __construct($key) {
+		parent::__construct("Server configuration error ({$key})");
+	}
+}
 
 class DBError extends ServerError {
 	public function __construct($what) {

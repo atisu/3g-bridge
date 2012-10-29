@@ -34,10 +34,10 @@ class JobsHandler extends RESTHandler
 		$p=$r->parameters;
 		$this->input_directory = $r->cfg['wssubmitter']['input-dir'];
 		if (!$this->input_directory)
-			throw new ServerError('Configuration error');
+			throw new ConfigError('wssubmitter/input-dir');
 		$this->output_directory = $r->cfg['wssubmitter']['output-dir'];
 		if (!$this->output_directory)
-			throw new ServerError('Configuration error');
+			throw new ConfigError('wssubmitter/output-dir');
 		$ai=AuthInfo::instance();
 		$this->userid = $ai->userid();
 
@@ -253,21 +253,33 @@ class FinishedJobsHandler extends JobsHandler
 class JobHandler extends RESTHandler
 {
 	protected function handleGet() {
-		$ids = $this->get_selected_ids();
+		$ids = $this->get_selected_ids(); 
 		$field = $this->get_selected_attrs();
+		if ($field == 'output')
+			$this->handleGetOutput($ids);
+		else {
+			$r = new ResWrapper(DB::q("SELECT {$field} FROM cg_job "
+						  . "WHERE id in ({$ids})"));
 
-		$r = new ResWrapper(DB::q("SELECT {$field} FROM cg_job "
-					  . "WHERE id in ({$ids})"));
-
-		$found = FALSE;
-		while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC)) {
-			$found=TRUE;
-			$this->output_dataitem($line);
+			while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC))
+				$this->output_dataitem($line);
 		}
+	}
+	private function handleGetOutput($ids) {
+		$c = $this->request->cfg;
+		$urlprefix = $c['wssubmitter']['output-url-prefix'];
+		if (!$urlprefix)
+			throw new ConfigError('wssubmitter/output-url-prefix');
+		$r = new ResWrapper(
+			DB::q("SELECT id, concat('{$urlprefix}/', "
+			      .                  "substr(id, 1, 2), "
+			      .                  "'/', id, "
+			      .                  " '/', localname) URL "
+			      . "FROM cg_outputs "
+			      . "WHERE id in ({$ids})"));
 
-		if (!$found)
-			throw new NotFound("Job: {$ids}");
-
+		while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC))
+			$this->output_dataitem($line);
 	}
 	protected function handleDelete() {
 		$ids = $this->get_selected_ids();
@@ -285,8 +297,7 @@ class JobHandler extends RESTHandler
 class GridsHandler extends RESTHandler
 {
 	protected function handleGet() {
-		$q = 'SELECT DISTINCT grid FROM cg_algqueue';
-		$r = mysql_query($q);
+		$r = DB::q('SELECT DISTINCT grid FROM cg_algqueue');
 		while ($line = mysql_fetch_array($r, MYSQL_ASSOC))
 			$this->output_dataitem($line);
 	}
@@ -310,8 +321,9 @@ class GridHandler extends RESTHandler
 					      $this->matches['id'])));
 		$field = $this->get_selected_attrs();
 
-		$q = "SELECT {$field} FROM cg_algqueue WHERE grid in ({$ids})";
-		$r = new ResWrapper(mysql_query($q));
+		$r = new ResWrapper(DB::q("SELECT {$field} "
+					  . "FROM cg_algqueue "
+					  . "WHERE grid in ({$ids})"));
 
 		$found = FALSE;
 		while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC)) {
