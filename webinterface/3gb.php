@@ -8,7 +8,8 @@
 
 
 define('CONFIG_FILE', '/home/avisegradi/Inst/etc/3g-bridge.conf');
-define('BRIDGE_PATH', '/home/avisegradi/Inst/sbin/3g-bridge');
+define('BRIDGE_VER_CMD',
+       '/bin/bash -c /home/avisegradi/Inst/sbin/3g-bridge\ -V');
 define('BASE_URL', 'https://canopus.lpds.sztaki.hu/t');
 define('METAJOB_GRID', 'Metajob');
 

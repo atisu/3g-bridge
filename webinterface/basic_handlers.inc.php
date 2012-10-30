@@ -7,7 +7,7 @@ require_once('auth.inc.php');
 class VersionHandler extends RESTHandler {
 	protected function handleGet() {
 		$this->output_dataitem(
-			array('version' => exec(BRIDGE_PATH . ' -V')));
+			array('version' => exec(BRIDGE_VER_CMD)));
 	}
 	protected function allowed() {
 		return "GET";
@@ -220,7 +220,7 @@ class JobsHandler extends cg_job_Handler
 	/*
 	  Determines actual cg_job.grid and cg_job.grid_id values to be
 	  inserted, based on whether the submitted job is a meta-job.
-	 */ 
+	 */
 	private function chk_metajob($infiles, $realgrid) {
 		$mjd_cnt = count(array_filter(array_keys($infiles),
 					      array($this, 'is_mj_def')));
@@ -295,12 +295,33 @@ class FinishedJobsHandler extends JobsHandler
 {
 	protected function handleGet() {
 		$field = $this->get_selected_attrs();
+		if ($field == 'output')
+			$this->handleGetOutput($ids);
 		$q = "SELECT {$field} FROM cg_job WHERE status='FINISHED'"
 			. $this->auth_sql_filter(' AND ');
 		$r = mysql_query($q);
 		while ($line = mysql_fetch_array($r, MYSQL_ASSOC)) {
 			$this->output_dataitem($line, $line['id']);
 		}
+	}
+	private function handleGetOutput($ids) {
+		$c = $this->request->cfg;
+		$urlprefix = $c['wssubmitter']['output-url-prefix'];
+		if (!$urlprefix)
+			throw new ConfigError('wssubmitter/output-url-prefix');
+		$r = new ResWrapper(
+			DB::q("SELECT j.id, concat('{$urlprefix}/', "
+			      .                  "substr(j.id, 1, 2), "
+			      .                  "'/', j.id, "
+			      .                  " '/', localname) URL "
+			      . "FROM cg_outputs o "
+			      . "  JOIN cg_job j ON o.id=j.id "
+			      . "WHERE status='FINISHED' "
+			      . $this->auth_sql_filter(' AND ')
+				. " ORDER by j.id"));
+
+		while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC))
+			$this->output_dataitem($line);
 	}
 	public static function pathRegex() {
 		return '|^/jobs/finished(/(?<attr>[^/]*)/?)?$|';
@@ -334,12 +355,13 @@ class JobHandler extends cg_job_Handler
 		if (!$urlprefix)
 			throw new ConfigError('wssubmitter/output-url-prefix');
 		$r = new ResWrapper(
-			DB::q("SELECT id, concat('{$urlprefix}/', "
-			      .                  "substr(id, 1, 2), "
-			      .                  "'/', id, "
+			DB::q("SELECT j.id, concat('{$urlprefix}/', "
+			      .                  "substr(j.id, 1, 2), "
+			      .                  "'/', j.id, "
 			      .                  " '/', localname) URL "
-			      . "FROM cg_outputs "
-			      . "WHERE id in ({$ids}) "
+			      . "FROM cg_outputs o "
+			      . "  JOIN cg_job j ON o.id=j.id "
+			      . "WHERE j.id in ({$ids}) "
 			      . $this->auth_sql_filter(' AND ')));
 
 		while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC))

@@ -32,7 +32,7 @@ class DB {
 			return '\'' . mysql_real_escape_string($str) . '\'';
 	}
 
-	public function instance($config_file = Null) {
+	public static function instance($config_file = Null) {
 		if (DB::$inst == Null) {
 			if ($config_file == Null) { 
 				throw new ServerError(
