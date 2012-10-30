@@ -2,6 +2,9 @@
 
 require_once('error.inc.php');
 
+/*
+  Try-finally for mysql result
+ */
 class ResWrapper {
 	public $res;
 	public function __construct($result) {
@@ -13,10 +16,15 @@ class ResWrapper {
 	}
 }
 
+/*
+  3GBridge related related methods with safe close.
+  Needs 3g-bridge.conf to work.
+ */
 class DB {
 	private $db_link = Null;
 	private static $inst = Null;
 
+	// Convert string to mysql string literal
 	public static function stringify($str, $empty_as_null = TRUE) {
 		if ($str===Null or ($empty_as_null and $str==''))
 			return 'NULL';
@@ -26,8 +34,10 @@ class DB {
 
 	public function instance($config_file = Null) {
 		if (DB::$inst == Null) {
-			if ($config_file == Null)
-				throw new Exception('DB handler is not initialized');
+			if ($config_file == Null) { 
+				throw new ServerError(
+					'DB handler is not initialized');
+			}
 			DB::$inst = new DB($config_file);
 		}
 		return DB::$inst;

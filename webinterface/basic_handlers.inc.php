@@ -6,11 +6,8 @@ require_once('auth.inc.php');
 
 class VersionHandler extends RESTHandler {
 	protected function handleGet() {
-		$this->output_dataitem(array('version'=>exec(BRIDGE_PATH . ' -V')));
-	}
-	protected function handlePost() {
-		C::p($this->request->parameters, "PARAMS");
-		print "\n";
+		$this->output_dataitem(
+			array('version' => exec(BRIDGE_PATH . ' -V')));
 	}
 	protected function allowed() {
 		return "GET";
@@ -20,16 +17,36 @@ class VersionHandler extends RESTHandler {
 	}
 }
 
-class JobsHandler extends RESTHandler
+/*
+  Methods used both by Jobs and Jobs/* handlers
+ */
+class cg_job_Handler extends RESTHandler {
+	protected function auth_sql_filter($prefix='', $postfix='') {
+		$ai = AuthInfo::instance();
+
+		if (!$ai->do_authorization())
+			return '';
+
+		$uid=DB::stringify($ai->userid());
+
+		return "{$prefix} (userid <=> {$uid}) {$postfix}";
+	}
+}
+
+/*
+  Handle job listing and submission
+ */
+class JobsHandler extends cg_job_Handler
 {
 	protected function handleGet() {
-		$q = 'SELECT * FROM cg_job';
+		$q = 'SELECT * FROM cg_job' . $this->auth_sql_filter(' WHERE ');
 		$r = mysql_query($q);
 		while ($line = mysql_fetch_array($r, MYSQL_ASSOC)) {
 			$this->output_dataitem($line, $line['id']);
 		}
 	}
 	protected function handlePost() {
+		// Cache information
 		$r = $this->request;
 		$p=$r->parameters;
 		$this->input_directory = $r->cfg['wssubmitter']['input-dir'];
@@ -41,15 +58,22 @@ class JobsHandler extends RESTHandler
 		$ai=AuthInfo::instance();
 		$this->userid = $ai->userid();
 
+		// Submit jobs; ids are collected
 		$ids = array();
 
+		// If the regular POST request contained a special job list
+		// (_GET['json'] for example), only use that.
 		if (isset($p[JOBDEFS])) {
 			foreach ($p[JOBDEFS] as $job)
 				C::cond_push($ids, $this->submit_job($job));
 		}
 		else
+			// There was no special job list, the POST request
+			// itself must be a job definition
 			C::cond_push($ids, $this->submit_job($p));
 
+		// Simply print newly generated job ids or redirect to a page
+		// fully describing them, as requested.
 		if ($r->redirect_after_submit) {
 			header("Location: " . BASE_URL
 			       . "/jobs/" . join('+', $ids)
@@ -65,6 +89,7 @@ class JobsHandler extends RESTHandler
 	}
 	protected function renderform()
 	{
+		//TODO: submission GUI
 	}
 	public static function pathRegex() {
 		return '|^/jobs/?$|';
@@ -73,16 +98,21 @@ class JobsHandler extends RESTHandler
 	private function checked_get(&$p, $key, $defval=Null) {
 		if (isset($p[$key]))
 			return $p[$key];
-		elseif ($defval===Null) {
+		elseif ($defval===Null)
 			throw new BadRequest("Missing job attribute: '{$key}'");
-		}
 		else
 			return $defval;
 	}
 
 	private function input_files($p) {
 		$id=$p['id'];
-		$infiles=array(); 
+		$infiles=array();
+
+		// Prepare input files uploaded in POST request
+		// TODO: solve file upload issues:
+		//       - logical name is incorrect (priority!)
+		//       - if an error happens, move_upload_file provides
+		//         no information about what happened
 		foreach ($_FILES as $logicalName => $info) {
 			$tmppath = $info['tmp_name'];
 			$outdir = "{$this->input_directory}/".C::hash_dir($id);
@@ -100,20 +130,26 @@ class JobsHandler extends RESTHandler
 			else throw ServerError('File upload error ');
 		}
 
+		// Prepare remote files
+		// TODO: parse URL (not sure if really necessary)
 		foreach ($p['input'] as $logicalName => $info__) {
 			$info = (array)$info__;
+			// Report unknown attributes
 			foreach ($info as $key=>$value) {
-				if (!in_array($key, array('md5', 'size', 'url')))
+				if (!in_array($key,
+					      array('md5', 'size', 'url')))
 				{
 					throw new BadRequest(
-						"Invalid attribute for input ".
-						"file '{$logicalName}': '{$key}'");
+						"Invalid attribute for input "
+						. "file '{$logicalName}': "
+						. "'{$key}'");
 				}
 			}
+			// URL is the only mandatory attribute
 			if (!isset($info['url']))
 				throw new BadRequest(
-					"Missing attribute 'url' for input file ".
-					"'{$logicalName}'");
+					"Missing attribute 'url' "
+					. "for input file '{$logicalName}'");
 
 			$infiles[$logicalName] = $info;
 		}
@@ -123,6 +159,7 @@ class JobsHandler extends RESTHandler
 	private function output_files($p) {
 		$id=$p['id'];
 		$outdir = "{$this->output_directory}/" . C::hash_dir($id);
+		mkdir($outdir, 0755, true);
 		$outfiles = array();
 		foreach ($p['output'] as $logicalName) {
 			$outfiles[$logicalName] =
@@ -137,6 +174,17 @@ class JobsHandler extends RESTHandler
 		return $vars;
 	}
 
+	/*
+	  Returns array containing submission query strings:
+
+	  0: complete CG_JOB insert statement
+	  1: format string for CG_INPUTS insert, template args:
+	       (localname, url, md5, size:int)
+	  2: format string for CG_OUTPUTS insert, template args:
+	       (localname, path)
+	  3: format string for CG_ENV insert, template args:
+	       (name, value)
+	 */
 	private function build_queries($id, $name, $grid,
 				       $gridid, $args, $tag) {
 		$safe_id = DB::stringify($id);
@@ -169,6 +217,10 @@ class JobsHandler extends RESTHandler
 	private function is_mj_def($fname) {
 		return preg_match('/^_3gb-metajob/', $fname);
 	}
+	/*
+	  Determines actual cg_job.grid and cg_job.grid_id values to be
+	  inserted, based on whether the submitted job is a meta-job.
+	 */ 
 	private function chk_metajob($infiles, $realgrid) {
 		$mjd_cnt = count(array_filter(array_keys($infiles),
 					      array($this, 'is_mj_def')));
@@ -193,14 +245,14 @@ class JobsHandler extends RESTHandler
 		list($grid, $gridid) =
 			$this->chk_metajob($infiles,
 					   $this->checked_get($p, 'grid'));
-		 
+
 		list($addjob, $addinput_fmt, $addoutput_fmt, $addenv_fmt) =
 			$this->build_queries($id,
 					     $this->checked_get($p, 'name'),
 					     $grid, $gridid,
 					     $this->checked_get($p, 'args', ''),
 					     $this->checked_get($p, 'tag', ''));
-		
+
 
 		DB::begin();
 		try {
@@ -235,11 +287,16 @@ class JobsHandler extends RESTHandler
 	}
 }
 
+/*
+  Handle listing of finished jobs. Also handles normal job submission, but it's
+  irrelevant.
+ */
 class FinishedJobsHandler extends JobsHandler
 {
 	protected function handleGet() {
 		$field = $this->get_selected_attrs();
-		$q = "SELECT {$field} FROM cg_job WHERE status='FINISHED'";
+		$q = "SELECT {$field} FROM cg_job WHERE status='FINISHED'"
+			. $this->auth_sql_filter(' AND ');
 		$r = mysql_query($q);
 		while ($line = mysql_fetch_array($r, MYSQL_ASSOC)) {
 			$this->output_dataitem($line, $line['id']);
@@ -250,16 +307,22 @@ class FinishedJobsHandler extends JobsHandler
 	}
 }
 
-class JobHandler extends RESTHandler
+/*
+  Handles querying individual jobs and attribute (field) selection.
+  Also handles job deletion.
+ */
+class JobHandler extends cg_job_Handler
 {
 	protected function handleGet() {
-		$ids = $this->get_selected_ids(); 
+		$ids = $this->get_selected_ids();
 		$field = $this->get_selected_attrs();
 		if ($field == 'output')
 			$this->handleGetOutput($ids);
 		else {
-			$r = new ResWrapper(DB::q("SELECT {$field} FROM cg_job "
-						  . "WHERE id in ({$ids})"));
+			$r = new ResWrapper(
+				DB::q("SELECT {$field} FROM cg_job "
+				      . "WHERE id in ({$ids})"
+				      . $this->auth_sql_filter(' AND ')));
 
 			while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC))
 				$this->output_dataitem($line);
@@ -276,13 +339,30 @@ class JobHandler extends RESTHandler
 			      .                  "'/', id, "
 			      .                  " '/', localname) URL "
 			      . "FROM cg_outputs "
-			      . "WHERE id in ({$ids})"));
+			      . "WHERE id in ({$ids}) "
+			      . $this->auth_sql_filter(' AND ')));
 
 		while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC))
 			$this->output_dataitem($line);
 	}
 	protected function handleDelete() {
 		$ids = $this->get_selected_ids();
+
+		$ai = AuthInfo::instance();
+		if ($ai->do_authorization())
+		{
+			$uid = DB::stringify($ai->userid());
+			$r = new ResWrapper(
+				DB::q("SELECT COUNT(*) FROM cg_job "
+				      . "WHERE id IN ({$ids})"
+				      . $this->auth_sql_filter(' AND NOT ')));
+			if (!($line = mysql_fetch_array($r->res))) {
+				DB::derr();
+			}
+
+			if ($line[0]) //exists
+				throw new AuthorizationError;
+		}
 
 		DB::q("UPDATE cg_job SET status='CANCEL' WHERE id in ({$ids})");
 	}
@@ -294,6 +374,39 @@ class JobHandler extends RESTHandler
 	}
 }
 
+
+/*
+  Lists available queues
+ */
+class QueuesHandler extends RESTHandler
+{
+	protected function handleGet() {
+		$ids = join(', ',
+			    array_map('DB::stringify',
+				      explode($this->request->list_separator,
+					      $this->matches['id'])));
+		$field = $this->get_selected_attrs();
+
+		$r = new ResWrapper(DB::q("SELECT {$field} "
+					  . "FROM cg_algqueue "));
+
+		$found = FALSE;
+		while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC)) {
+			$found=TRUE;
+			$this->output_dataitem($line);
+		}
+	}
+	protected function allowed() {
+		return "GET";
+	}
+	public static function pathRegex() {
+		return '|^/queues(/(?<attr>[^/]*)/?)?$|';
+	}
+}
+
+/*
+  Lists available grids
+ */
 class GridsHandler extends RESTHandler
 {
 	protected function handleGet() {
@@ -312,6 +425,9 @@ class GridsHandler extends RESTHandler
 	}
 }
 
+/*
+  Lists available algorithms in a specified grid with their attributes
+ */
 class GridHandler extends RESTHandler
 {
 	protected function handleGet() {

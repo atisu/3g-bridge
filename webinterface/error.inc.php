@@ -5,15 +5,16 @@ require_once('rest_base.inc.php');
 
 class HTTPException extends Exception {
 	public $code;
-	public $what;	
-	
+	public $what;
+
 	public function __construct($code, $what=Null) {
 		$this->code = $code;
 		$this->what = $what;
 	}
 	public function render() {
 		$code = $this->code;
-		$msg = C::cond_join("HTTP {$code}", C::defval($this->what, ''));
+		$msg = C::cond_join("HTTP {$code}",
+				    C::defval($this->what, ''));
 		$t = RESTRequest::get_output_format();
 
 		header('Status: '.$code);
@@ -21,7 +22,8 @@ class HTTPException extends Exception {
 		switch ($t) {
 		case 'html':
 			header("Content-Type: text/html");
-			print C::$HTML_HEADER."<body><h1>{$msg}</h1></body></html>";
+			print C::$HTML_HEADER
+				. "<body><h1>{$msg}</h1></body></html>";
 			break;
 		case 'json':
 			header("Content-Type: application/json");
@@ -38,7 +40,8 @@ class HTTPException extends Exception {
 
 class NotImplemented extends HTTPException {
 	public function __construct($what) {
-		parent::__construct(501, C::cond_join("Not implemented", $what));
+		parent::__construct(501, C::cond_join("Not implemented",
+						      $what));
 	}
 }
 class NotSupported extends HTTPException {
@@ -59,19 +62,28 @@ class NotFound extends HTTPException {
 	public function __construct($what=Null) {
 		parent::__construct(
 			404,
-			C::cond_join("Resource, collection or attribute not found",
-				     $what));
+			C::cond_join(
+				"Resource, collection or attribute not found",
+				$what));
+	}
+}
+class AuthorizationError extends HTTPException {
+	public function __construct($what=Null) {
+		parent::__construct(403, C::cond_join("Not authorized",
+						      $what));
 	}
 }
 class BadRequest extends HTTPException {
-	public function __construct($what) {
-		parent::__construct(400, C::cond_join("Bad request", $what));
+	public function __construct($what=Null) {
+		parent::__construct(400, C::cond_join("Bad request",
+						      $what));
 	}
 }
 class ServerError extends HTTPException {
 	public function __construct($what) {
-		parent::__construct(500, C::cond_join("Server error", $what));
-	}	
+		parent::__construct(500, C::cond_join("Server error",
+						      $what));
+	}
 }
 class ConfigError extends ServerError {
 	public function __construct($key) {
@@ -81,12 +93,14 @@ class ConfigError extends ServerError {
 
 class DBError extends ServerError {
 	public function __construct($what) {
-		parent::__construct(C::cond_join("Database error", $what));
+		parent::__construct(C::cond_join("Database error",
+						 $what));
 	}
 }
 class UnknownError extends ServerError {
 	public function __construct($what) {
-		parent::__construct(C::cond_join("Unknown error", $what));
+		parent::__construct(C::cond_join("Unknown error",
+						 $what));
 	}
 }
 

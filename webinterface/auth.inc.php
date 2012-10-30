@@ -12,11 +12,14 @@ class AuthInfo {
 	}
 	private function __construct() {
 	}
-	public function userid() {
-		if ($_SERVER['SSL_CLIENT_VERIFY'] == 'SUCCESS')
-			return $_SERVER['SSL_CLIENT_S_DN'];
-		else
-			return Null;
+	public function do_authorization() {
+		$uid = $this->userid();
+		return !($uid === Null) and ($uid != '');
 	}
+	public function userid() {
+		return ($_SERVER['SSL_CLIENT_VERIFY'] == 'SUCCESS')
+			? $_SERVER['SSL_CLIENT_S_DN']
+			: Null;
+}
 }
 ?>

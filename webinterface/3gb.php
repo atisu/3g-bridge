@@ -1,5 +1,12 @@
 <?php
 
+/*
+
+  curl https://canopus.lpds.sztaki.hu/t/jobs -F json='[{"name":"dsp", "grid":"test", "env":{"a":"b", "c":"d"}, "input":{"pools.txt":{"url":"urlabcd","md5":"md5abcd"}, "_3gb-metajob-1":{"url":"url2abcd222", "md5": "md52abcd222"}}, "output":["result.txt", "res2.txt"]}]' && echo
+  
+ */
+
+
 define('CONFIG_FILE', '/home/avisegradi/Inst/etc/3g-bridge.conf');
 define('BRIDGE_PATH', '/home/avisegradi/Inst/sbin/3g-bridge');
 define('BASE_URL', 'https://canopus.lpds.sztaki.hu/t');
@@ -24,6 +31,7 @@ RESTHandler::addHandler('FinishedJobsHandler');
 RESTHandler::addHandler('VersionHandler');
 RESTHandler::addHandler('GridsHandler');
 RESTHandler::addHandler('GridHandler');
+RESTHandler::addHandler('QueuesHandler');
 
 set_error_handler('err_logger');
 set_exception_handler('final_handler');
