@@ -1,12 +1,29 @@
 create view accouting_info as
-	select id
-	from cg_job, workunit;
+  select
+    r.sent_time     "start_time",
+    r.received_time "stop_time",
+    r.received_time-r.sent_time
+                    "wallclock_time",
+    r.cpu_time      "cpu_time",
+    w.rsc_memory_bound
+                    "memory",
+    h.p_fpops       "host_flops",
+    h.p_iops        "host_intops",
+    h.p_ncpus       "host_ncpus"
+  from
+    cg_job j,
+    join workunit w on w.name=j.gridid
+    join result r on r.workunitid = w.id and ???
+    join host h on h.id = r.hostid;
 
 
--- cg_job --[?]-- workunit 
---                        \__[workunitid]__workunit
---                                                |
---                                host__[hostid]__/
+-- cg_job --[gridid<>name]-- workunit 
+--                            |
+--                            \__[workunitid]__workunit
+--                                                    |
+--                              result__[workunitid]__/
+--                              |
+--                              \__[hostid]__host
 --
 -- start time ? result.sent_time
 -- stop time  ? result.received_time
