@@ -14,7 +14,7 @@ create view accounting_info as
   from
     cg_job j
     join workunit w on w.name=j.gridid
-    join result r on r.workunitid = w.id and ???
+    join result r on r.workunitid = w.id and r.outcome=1
     join host h on h.id = r.hostid;
 
 
