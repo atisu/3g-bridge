@@ -1,5 +1,6 @@
 create view accouting_info as
   select
+    j.id            "id",
     r.sent_time     "start_time",
     r.received_time "stop_time",
     r.received_time-r.sent_time
