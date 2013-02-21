@@ -1,4 +1,4 @@
-create view accouting_info as
+create view accounting_info as
   select
     j.id            "id",
     r.sent_time     "start_time",
@@ -12,7 +12,7 @@ create view accouting_info as
     h.p_iops        "host_intops",
     h.p_ncpus       "host_ncpus"
   from
-    cg_job j,
+    cg_job j
     join workunit w on w.name=j.gridid
     join result r on r.workunitid = w.id and ???
     join host h on h.id = r.hostid;
