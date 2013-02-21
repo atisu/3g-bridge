@@ -32,12 +32,15 @@ CREATE TABLE cg_job (
 	griddata	VARCHAR(2048),			/* Grid-related data, such as internal ID, job destination, etc.  */
 	tag		VARCHAR(254),			/* Tag: identify together belonging jobs (part of a batch, workflow, etc) */
 	creation_time	TIMESTAMP	NULL DEFAULT CURRENT_TIMESTAMP,	/* Creation time of job descriptor */
+	userid		VARCHAR(256),
+	error_info	VARCHAR(2048),
 	PRIMARY KEY (id),
 	INDEX (grid, alg),
 	INDEX (gridid),
 	INDEX (metajobid),
 	INDEX (status),
 	INDEX (creation_time),
+	INDEX (userid),
 	FOREIGN KEY (metajobid) REFERENCES cg_job(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
