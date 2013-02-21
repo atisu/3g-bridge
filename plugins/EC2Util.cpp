@@ -39,6 +39,7 @@
 #include <string.h>
 #include <cstdlib>
 #include "EC2Util.h"
+#include "Util.h"
 
 
 using namespace std;
@@ -46,41 +47,47 @@ using namespace std;
 
 int invoke_cmd(const char *const argv[], const char *const env[], string *stdoe) throw (BackendException *)
 {
-    int sock[2];                                                                                               
-    if (socketpair(AF_UNIX, SOCK_STREAM, 0, sock) == -1)                                                       
-        throw new BackendException("socketpair() failed: %s", strerror(errno));
-    pid_t pid = fork();                                                                                        
-    if (pid)                                                                                                   
-    {
-        /* Parent */                                                                                       
-        int status;                                                                                        
-        char buf[1024];                                                                                    
-        close(sock[0]);                                                                                    
-        if (stdoe)                                                                                         
-        {
-            *stdoe = "";                                                                               
-            while ((status = read(sock[1], buf, sizeof(buf))) > 0)                                     
-                stdoe->append(buf, status);                                                        
-        }
-        close(sock[1]);                                                                                    
-        if (waitpid(pid, &status, 0) == -1)                                                                
-            throw new BackendException("waitpid() failed: %s", strerror(errno));
-        if (WIFSIGNALED(status))
-            throw new BackendException("Command %s died with signal %d", 
-                argv[0], WTERMSIG(status));
-        return WEXITSTATUS(status);                                                                        
+    int sock[2];
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, sock) == -1) {
+        //throw new BackendException("socketpair() failed: %s", strerror(errno));
+        logit(LOG_WARNING, "socketpair() failed: %s", strerror(errno));
+        return -1;
     }
-    /* Child */                                                                                                
-    int fd = open("/dev/null", O_RDWR);                                                                        
-    dup2(fd, 0);                                                                                               
-    close(fd);                                                                                                 
+    pid_t pid = fork();
+    if (pid)
+    {
+        /* Parent */
+        int status;
+        char buf[1024];
+        close(sock[0]);
+        if (stdoe)
+        {
+            *stdoe = "";
+            while ((status = read(sock[1], buf, sizeof(buf))) > 0)
+                stdoe->append(buf, status);
+        }
+        close(sock[1]);
+        if (waitpid(pid, &status, 0) == -1) {
+           logit(LOG_WARNING, "waitpid() failed: %s", strerror(errno));
+           return -1;
+        }
+        if (WIFSIGNALED(status)) {
+           logit(LOG_WARNING, "Command %s died with signal %d", argv[0], WTERMSIG(status));
+           return -1;
+        }
+        return WEXITSTATUS(status);
+    }
+    /* Child */
+    int fd = open("/dev/null", O_RDWR);
+    dup2(fd, 0);
+    close(fd);
 
-    dup2(sock[0], 1);                                                                                          
-    dup2(sock[0], 2);                                                                                          
-    close(sock[0]);                                                                                            
-    close(sock[1]);                                                                                            
+    dup2(sock[0], 1);
+    dup2(sock[0], 2);
+    close(sock[0]);
+    close(sock[1]);
 
-    /* 
+    /*
      * execve() takes envp[], but does not search for file in path,
      * so stick with execvp() and set environment manually.
      */
@@ -91,8 +98,8 @@ int invoke_cmd(const char *const argv[], const char *const env[], string *stdoe)
             env_data++;
         }
     }
-    
+
     execvp(argv[0], (char *const *)argv);
     perror("execvp");
-    _Exit(255);                                                                                                
+    _Exit(255);
 }
