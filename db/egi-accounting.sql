@@ -13,7 +13,7 @@ create view accounting_info as
     h.p_ncpus       "host_ncpus"
   from
     cg_job j
-    join workunit w on w.name=j.gridid
+    join workunit w on w.name=concat(j.gridid, "_", j.id)
     join result r on r.id = w.canonical_resultid
     join host h on h.id = r.hostid;
 
