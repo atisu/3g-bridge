@@ -17,7 +17,21 @@ create view accounting_info as
     join result r on r.id = w.canonical_resultid
     join host h on h.id = r.hostid
   where
-    j.grid <> 'Metajob';
+    j.grid <> 'Metajob'
+union
+  select
+    metajobid        "id",
+    min(start_time)  "start_time",
+    max(stop_time)   "stop_time",
+    max(stop_time) - min(start_time)
+                     "wallclock_time",
+    sum(cpu_time)    "cpu_time",
+    sum(memory)      "memory",
+    sum(host_flops)  "host_flops",
+    sum(host_intops) "host_intops",
+    sum(host_ncpus)  "host_ncpus"
+  from accounting_info_metajob
+  group by metajobid;
 
 create table accounting_info_metajob (
   metajobid   char(36),
