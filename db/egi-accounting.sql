@@ -4,10 +4,10 @@ create view accounting_info as
     r.sent_time     "start_time",
     r.received_time "stop_time",
     r.received_time-r.sent_time
-                    "wallclock_time",
+		    "wallclock_time",
     r.cpu_time      "cpu_time",
     w.rsc_memory_bound
-                    "memory",
+		    "memory",
     h.p_fpops       "host_flops",
     h.p_iops        "host_intops",
     h.p_ncpus       "host_ncpus"
@@ -19,8 +19,24 @@ create view accounting_info as
   where
     j.grid <> 'Metajob';
 
+create table accounting_info_metajob (
+  metajobid   char(36),
+  id          char(36),
+  start_time  int(11),
+  stop_time   int(11),
+  wallclock_time
+	      bigint(12),
+  cpu_time    double,
+  memory      double,
+  host_flops  double,
+  host_intops double,
+  host_ncpus  int(11),
 
--- cg_job --[gridid<>name]-- workunit 
+  index(metajobid),
+  foreign key (metajobid) references cg_job(id) on delete cascade
+);
+
+-- cg_job --[gridid<>name]-- workunit
 --                           |
 --                            \__[workunitid]__workunit
 --                                                    |
