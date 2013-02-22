@@ -10,15 +10,22 @@ require_once('basic_handlers.inc.php');
  */
 class AccinfoHandler extends cg_job_Handler
 {
+	protected function where($ids)
+	{
+		if ($ids == "'*'")
+			return $this->auth_sql_filter(' WHERE ');
+		else
+			return "WHERE id in ({$ids})" . $this->auth_sql_filter(' AND ');
+	}
+
 	protected function handleGet() {
 		$ids = $this->get_selected_ids();
 		$field = $this->get_selected_attrs();
 
 		$r = new ResWrapper(
 			DB::q("SELECT {$field} FROM accounting_info "
-			      . "WHERE id in ({$ids})"
-			      . $this->auth_sql_filter(' AND ')));
-		
+			      . $this->where($ids)));
+
 		while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC))
 			$this->output_dataitem($line);
 	}
