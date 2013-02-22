@@ -1,3 +1,20 @@
+create table accounting_info_metajob (
+  metajobid   char(36),
+  id          char(36),
+  start_time  int(11),
+  stop_time   int(11),
+  wallclock_time
+              bigint(12),
+  cpu_time    double,
+  memory      double,
+  host_flops  double,
+  host_intops double,
+  host_ncpus  int(11),
+
+  index(metajobid),
+  foreign key (metajobid) references cg_job(id) on delete cascade
+);
+
 create view accounting_info as
   select
     j.id            "id",
@@ -32,23 +49,6 @@ union
     sum(host_ncpus)  "host_ncpus"
   from accounting_info_metajob
   group by metajobid;
-
-create table accounting_info_metajob (
-  metajobid   char(36),
-  id          char(36),
-  start_time  int(11),
-  stop_time   int(11),
-  wallclock_time
-              bigint(12),
-  cpu_time    double,
-  memory      double,
-  host_flops  double,
-  host_intops double,
-  host_ncpus  int(11),
-
-  index(metajobid),
-  foreign key (metajobid) references cg_job(id) on delete cascade
-);
 
 \d//
 create trigger save_subjob_accounting_info
