@@ -4,10 +4,10 @@ create view accounting_info as
     r.sent_time     "start_time",
     r.received_time "stop_time",
     r.received_time-r.sent_time
-		    "wallclock_time",
+                    "wallclock_time",
     r.cpu_time      "cpu_time",
     w.rsc_memory_bound
-		    "memory",
+                    "memory",
     h.p_fpops       "host_flops",
     h.p_iops        "host_intops",
     h.p_ncpus       "host_ncpus"
@@ -25,7 +25,7 @@ create table accounting_info_metajob (
   start_time  int(11),
   stop_time   int(11),
   wallclock_time
-	      bigint(12),
+              bigint(12),
   cpu_time    double,
   memory      double,
   host_flops  double,
@@ -35,6 +35,17 @@ create table accounting_info_metajob (
   index(metajobid),
   foreign key (metajobid) references cg_job(id) on delete cascade
 );
+
+\d//
+create trigger save_subjob_accounting_info
+before delete on cg_job
+for each row begin
+  if old.metajobid is not null then
+    insert into accounting_info_metajob
+      select old.metajobid, a.* from accounting_info where id=old.id;
+  end if;
+end//
+\d;
 
 -- cg_job --[gridid<>name]-- workunit
 --                           |
