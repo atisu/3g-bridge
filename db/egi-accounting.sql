@@ -42,7 +42,7 @@ before delete on cg_job
 for each row begin
   if old.metajobid is not null then
     insert into accounting_info_metajob
-      select old.metajobid, a.* from accounting_info where id=old.id;
+      select old.metajobid, a.* from accounting_info a where id=old.id;
   end if;
 end//
 \d;
