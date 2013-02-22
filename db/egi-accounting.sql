@@ -14,17 +14,17 @@ create view accounting_info as
   from
     cg_job j
     join workunit w on w.name=j.gridid
-    join result r on r.workunitid = w.id and r.outcome=1
+    join result r on r.id = w.canonical_resultid
     join host h on h.id = r.hostid;
 
 
 -- cg_job --[gridid<>name]-- workunit 
---                            |
+--                           |
 --                            \__[workunitid]__workunit
 --                                                    |
---                              result__[workunitid]__/
---                              |
---                              \__[hostid]__host
+--                     result__[canonical_resultid]__/
+--                     |
+--                      \__[hostid]__host
 --
 -- start time ? result.sent_time
 -- stop time  ? result.received_time
