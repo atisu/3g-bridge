@@ -14,8 +14,10 @@ class AccinfoHandler extends cg_job_Handler
 	{
 		if ($ids == "'*'")
 			return $this->auth_sql_filter(' WHERE ');
-		else
+		elseif (strpos($ids, ',') !== FALSE)
 			return "WHERE id in ({$ids})" . $this->auth_sql_filter(' AND ');
+                else
+                        return "WHERE id = {$ids}" . $this->auth_sql_filter(' AND ');
 	}
 
 	protected function handleGet() {
