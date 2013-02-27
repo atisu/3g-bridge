@@ -21,10 +21,16 @@ class AccinfoHandler extends cg_job_Handler
 	protected function handleGet() {
 		$ids = $this->get_selected_ids();
 		$field = $this->get_selected_attrs();
+                $w = $this->where($ids);
 
 		$r = new ResWrapper(
-			DB::q("SELECT {$field} FROM accounting_info "
-			      . $this->where($ids)));
+			DB::q("SELECT {$field} "
+                              . " FROM accounting_info_metajob "
+			      . $w
+                              . " UNION "
+                              . " SELECT {$field} "
+                              . " FROM accounting_info_nonmetajob "
+			      . $w));
 
 		while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC))
 			$this->output_dataitem($line);

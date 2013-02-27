@@ -1,4 +1,4 @@
-create table accounting_info_metajob (
+create table accounting_info_subjobs (
   metajobid   char(36),
   id          char(36),
   start_time  int(11),
@@ -15,7 +15,7 @@ create table accounting_info_metajob (
   foreign key (metajobid) references cg_job(id) on delete cascade
 );
 
-create view accounting_info as
+create view accounting_info_nonmetajob as
   select
     j.id            "id",
     r.sent_time     "start_time",
@@ -34,8 +34,8 @@ create view accounting_info as
     join result r on r.id = w.canonical_resultid
     join host h on h.id = r.hostid
   where
-    j.grid <> 'Metajob'
-union
+    j.grid <> 'Metajob';
+create view accounting_info_metajob as
   select
     metajobid        "id",
     min(start_time)  "start_time",
@@ -47,7 +47,7 @@ union
     sum(host_flops)  "host_flops",
     sum(host_intops) "host_intops",
     sum(host_ncpus)  "host_ncpus"
-  from accounting_info_metajob
+  from accounting_info_subjobs
   group by metajobid;
 
 \d//
@@ -55,8 +55,8 @@ create trigger save_subjob_accounting_info
 before delete on cg_job
 for each row begin
   if old.metajobid is not null then
-    insert into accounting_info_metajob
-      select old.metajobid, a.* from accounting_info a where id=old.id;
+    insert into accounting_info_subjobs
+      select old.metajobid, a.* from accounting_info_nonmetajob a where id=old.id;
   end if;
 end//
 \d;
