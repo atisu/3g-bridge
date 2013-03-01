@@ -44,8 +44,10 @@ create view accounting_info_metajob as
                      "wallclock_time",
     sum(cpu_time)    "cpu_time",
     sum(memory)      "memory",
-    sum(host_flops)  "host_flops",
-    sum(host_intops) "host_intops",
+    sum(cpu_time*host_flops)/sum(cpu_time)
+                     "host_flops",
+    sum(cpu_time*host_intops)/sum(cpu_time)
+                     "host_intops",
     sum(host_ncpus)  "host_ncpus"
   from accounting_info_subjobs
   group by metajobid;
