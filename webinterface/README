@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Create the interface directory
+
+DDIR="$HOME/project/download/wss"
+mkdir -p "$DDIR"
+
+# Copy all these files there
+cp * .htaccess "$DDIR" 
+
+cd "$DDIR"
+
+# Change .htaccess to enable pretty URLs
+# Setup security
+editor .htaccess
+
+# Create a *hard*link to the 3G Bridge configuration
+ln "$HOME/master/3g-bridge/3g-bridge.conf"
+
+# Set the base URL of this interface in 3gb.php.
+# Check other values are correct.
+editor 3gb.php
+
+# Enable RewriteEngine 
+sudo a2enmod rewrite
+
+# Make sure that the necessary overrides are allowed:
+# in <Directory .../project/html/user>
+#   AllowOverride AuthConfig FileInfo Limit
+editor "$HOME/project/*.httpd.conf"
+
+# Restart Apache for these setting
+sudo service apache2 restart
+
+# Check whether it works
+wget http://<PROJECT_URL>/download/wss/version -O-
+
+# For details check out
+# http://doc.desktopgrid.hu/doku.php?id=manual:restif
