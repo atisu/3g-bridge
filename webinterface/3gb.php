@@ -23,10 +23,12 @@ require_once('rest_base.inc.php');
 require_once('db.inc.php');
 require_once('auth.inc.php');
 require_once('basic_handlers.inc.php');
+require_once('egi_accounting.inc.php');
 
 function err_logger($errcode, $msg) {
 }
 
+RESTHandler::addHandler('AccinfoHandler');
 RESTHandler::addHandler('JobsHandler');
 RESTHandler::addHandler('JobHandler');
 RESTHandler::addHandler('FinishedJobsHandler');
