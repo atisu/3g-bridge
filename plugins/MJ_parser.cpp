@@ -41,6 +41,8 @@ static CSTR_C KW_ID = "%JobId";
 static CSTR_C KW_COMMENT = "%Comment";
 static CSTR_C KW_REQ = "%Required";
 static CSTR_C KW_SUCCAT = "%SuccessAt";
+static CSTR_C KW_REQ_2 = "%Minimum";
+static CSTR_C KW_SUCCAT_2 = "%Maximum";
 
 // Range for %Required keywords
 static CSTR_C REQ_ALL = "All";
@@ -223,8 +225,8 @@ namespace _3gbridgeParser
 
 	void saveMJ(ostream &output, const MetaJobDef &mjd)
 	{
-		output << KW_REQ <<' '<< mjd.required << endl
-		       << KW_SUCCAT<<' '<< mjd.successAt << endl
+		output << KW_REQ_2 <<' '<< mjd.required << endl
+		       << KW_SUCCAT_2 <<' '<< mjd.successAt << endl
 		       << "# Total generated: " << mjd.count << endl
 		       << endl;
 	}
@@ -305,14 +307,14 @@ static int parseLine(int lineNum,
 	{
 		jd.comment = string(value);
 	}
-	else if (keyword == KW_REQ)
+	else if (keyword == KW_REQ || keyword == KW_REQ_2)
 	{
 		if (!mjd.strRequired.empty())
 			throw ParserException(lineNum, ERR_REQD_SPECD_MULT);
 		parsePcArg(lineNum, value, REQ_RNG);
 		mjd.strRequired = value;
 	}
-	else if (keyword == KW_SUCCAT)
+	else if (keyword == KW_SUCCAT || keyword == KW_SUCCAT_2)
 	{
 		if (!mjd.strSuccessAt.empty())
 		 	throw ParserException(lineNum, ERR_SUCCAT_SPECD_MULT);
