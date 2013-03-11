@@ -13,7 +13,7 @@ create table accounting_info_subjobs (
 
   index(metajobid),
   foreign key (metajobid) references cg_job(id) on delete cascade
-);
+) ENGINE=InnoDB;
 
 create view accounting_info_nonmetajob as
   select
