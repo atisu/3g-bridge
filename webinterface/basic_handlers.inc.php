@@ -159,7 +159,14 @@ class JobsHandler extends cg_job_Handler
 	private function output_files($p) {
 		$id=$p['id'];
 		$outdir = "{$this->output_directory}/" . C::hash_dir($id);
-		mkdir($outdir, 0755, true);
+		if (!@mkdir($outdir, 0777, true)) {
+                        $err = error_get_last();
+                        throw new ServerError("Could not create output directory '$outdir'. " . $err['message']);
+                }
+                if (!@chmod($outdir, 01777)) {
+                        $err = error_get_last();
+                        throw new ServerError("Error setting permission on directory '$outdir'. " . $err['message']);
+                }
 		$outfiles = array();
 		foreach ($p['output'] as $logicalName) {
 			$outfiles[$logicalName] =
