@@ -40,6 +40,8 @@ try {
         $hndlr->handle();
 }
 catch (HTTPException $ex) {
+        try { Log::log('CRITICAL', "Exeception occured: ($ex->code) $ex->what"); }
+        catch (Exception $ex) {}
         $ex->render($r);
         exit(1);
 }
