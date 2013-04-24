@@ -39,6 +39,11 @@ try {
         $hndlr = RESTHandler::create($r);
         $hndlr->handle();
 }
+catch (ClientError $ex) {
+        Log::log('ERROR', "Client error: ($ex->code) $ex->what");
+        $ex->render($r);
+        exit(0);
+}
 catch (HTTPException $ex) {
         try { Log::log('CRITICAL', "Exeception occured: ($ex->code) $ex->what"); }
         catch (Exception $ex) {}

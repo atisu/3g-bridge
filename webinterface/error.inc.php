@@ -37,6 +37,11 @@ class HTTPException extends Exception {
 		}
 	}
 }
+class ClientError extends HTTPException {
+        public function __construct($code, $what=Null) {
+                parent::__construct($code, $what);
+	}
+}
 
 class NotImplemented extends HTTPException {
 	public function __construct($what) {
@@ -44,7 +49,7 @@ class NotImplemented extends HTTPException {
 						      $what));
 	}
 }
-class NotSupported extends HTTPException {
+class NotSupported extends ClientError {
 	public $allowed;
 	public $what;
 	public function __construct($what, $allowed) {
@@ -58,7 +63,7 @@ class NotSupported extends HTTPException {
 	}
 }
 
-class NotFound extends HTTPException {
+class NotFound extends ClientError {
 	public function __construct($what=Null) {
 		parent::__construct(
 			404,
@@ -67,13 +72,13 @@ class NotFound extends HTTPException {
 				$what));
 	}
 }
-class AuthorizationError extends HTTPException {
+class AuthorizationError extends ClientError {
 	public function __construct($what=Null) {
 		parent::__construct(403, C::cond_join("Not authorized",
 						      $what));
 	}
 }
-class BadRequest extends HTTPException {
+class BadRequest extends ClientError {
 	public function __construct($what=Null) {
 		parent::__construct(400, C::cond_join("Bad request",
 						      $what));
