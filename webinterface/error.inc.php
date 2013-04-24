@@ -18,7 +18,7 @@ class HTTPException extends Exception {
 		$t = RESTRequest::get_output_format();
 
 		header('Status: '.$code);
-		header('X-PHP-Response-Code: $code', true, $code);
+		header("X-PHP-Response-Code: $code", true, $code);
 		switch ($t) {
 		case 'html':
 			header("Content-Type: text/html");
