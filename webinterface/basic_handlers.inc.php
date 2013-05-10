@@ -95,9 +95,10 @@ class JobsHandler extends cg_job_Handler
                         C::cond_push($ids, $this->submit_job($p));
 
                 $cnt = count($ids);
+                $idss = join(', ', $ids);
                 $jbs = $this->ismetajob ? 'metajob' : 'job';
                 $s = $cnt > 1 ? 's' : '';
-                Log::log('AUDIT', "Submitted $cnt $jbs$s $this->auth_audit");
+                Log::log('AUDIT', "Submitted $cnt $jbs$s: $idss $this->auth_audit");
 
                 // Simply print newly generated job ids or redirect to a page
                 // fully describing them, as requested.
