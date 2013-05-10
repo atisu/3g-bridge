@@ -46,9 +46,19 @@ class JobsHandler extends cg_job_Handler
 {
         private $ismetajob;
 
+        protected function timefilter() {
+                if (isset($_GET['last'])) {
+                        return " ORDER BY creation_time DESC LIMIT {$_GET['last']}";
+                }
+                else
+                        return '';
+        }
+
         protected function handleGet() {
                 Log::log('AUDIT', "Querying all jobs $this->auth_audit");
-                $q = 'SELECT * FROM cg_job' . $this->auth_sql_filter(' WHERE ');
+                $authfilter = $this->auth_sql_filter(' WHERE ');
+                $timefilter = $this->timefilter();
+                $q = 'SELECT * FROM cg_job' . $authfilter . $timefilter;
                 $r = mysql_query($q);
                 while ($line = mysql_fetch_array($r, MYSQL_ASSOC)) {
                         $this->output_dataitem($line, $line['id']);
