@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Job submission to edgidemo</title>
+    <link rel="stylesheet" type="text/css" href="bridge.css">
+    <script type="text/javascript" src="jquery-2.0.0.min.js"></script>
+    <script type="text/javascript" src="timer.js"></script>
+    <script type="text/javascript">
+
+    var wsurl = "http://mishra.lpds.sztaki.hu/edgidemo/download/wss/"
+    var jobs = {};
+    var maxjobs = 50;
+    var updateInterval = 5000;
+
+   handleError = function (jqXHR, textStatus, errorThrown) {
+       $('#error').append('<div class=error>' + errorThrown + '</div>')
+   }
+
+    wsget = function (path, callback) {
+        $.ajax({
+            type: "GET",
+            url: wsurl + path,
+            dataType: "json",
+            success: callback,
+            contentType: "application/json",
+            error: handleError
+        });
+    };
+
+    updateBridgeInfo = function () {
+        $('#info #url').val(wsurl);
+        wsget("version", function (data) {
+            $('#info #version').val(data[0]['version']);
+        });
+    }
+
+    cancel = function () {
+        $.ajax({
+            type: "DELETE",
+            url: wsurl + "jobs/" + $(this).attr('jobid'),
+            dataType: "json",
+            data: $('textarea#json').val(),
+            success: function (data) {
+                updateJobs(maxjobs);
+            },
+            contentType: "application/json",
+            error: handleError
+        });
+    };
+
+    updateJobs = function(cnt){
+        wsget("jobs?last=" + cnt, function (data) {
+            jls = $('ul#joblist');
+            jls.children().remove();
+            for (i in data) {
+                j=data[i];
+                jobid=j['id'];
+                st = j['status'];
+                jli = $("<li/>", {class: "job " + st.toLowerCase()});
+                delbtn = $('<input/>', {
+                    type: "submit",
+                    jobid: jobid,
+                    value: 'X'
+                });
+                delbtn.appendTo(jli);
+                delbtn.click(cancel);
+                $("<span/>", {class: "jobid", text: jobid}).appendTo(jli);
+                $("<span/>", {class: "jobstatus", text: st}).appendTo(jli);
+                $("<span/>", {class: "jobcrtime", text: j['creation_time']}).appendTo(jli);
+                tag=j['tag'];
+                tag = (tag==null) ? '' : tag.substring(0, 20);
+                $("<span/>", {class: "jobtag", text: tag}).appendTo(jli);
+                jls.append(jli);
+            }
+        });
+        timer.set({time: updateInterval, autostart:true});
+    };
+
+    var timer = $.timer(function () { updateJobs(maxjobs); });
+
+    dosubmit = function () {
+        $.ajax({
+            type: "POST",
+            url: wsurl + "jobs?redir=0",
+            dataType: "json",
+            data: $('textarea#json').val(),
+            success: function (data) {
+                updateJobs(maxjobs);
+            },
+            contentType: "application/json",
+            error: handleError
+        });
+    };
+
+    $('document').ready(function () {
+        updateBridgeInfo();
+        updateJobs(maxjobs);
+
+        $.ajax({
+            type: "GET",
+            url: "pub.json",
+            dataType: "text",
+            success: function (data) {
+                $('textarea#json').val(data);
+            },
+            error: handleError
+        });
+
+        $('input#submit').click(dosubmit);
+    });
+    </script>
+  </head>
+  <body>
+    <div id="joblist">
+      <ul id="joblist">
+      </ul>
+    </div>
+
+    <div id="error">
+    </div>
+    <div id="info">
+      <div><label for="url">Bridge URL</label> <input id="url" type="text" /></div>
+      <div><label for="version">Bridge version</label> <input id="version" type="text" /></div>
+      <hr/>
+    </div>
+    <div id="submit">
+      <div id="json"><textarea id="json" cols="70" rows="20"></textarea></div>
+      <div id="button"><input id="submit" type="submit" value="Submit" /></div>
+    </div>
+  </body>
+</html>

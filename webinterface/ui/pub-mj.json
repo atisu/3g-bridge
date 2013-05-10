@@ -1,0 +1,28 @@
+[
+    {
+        "name": "public_autodock_4_2_3",
+        "grid": "home",
+        "args": "",
+        "tag": "Test job",
+        "input": {
+	    "_3gb-metajob": {
+	        "url": "http://mishra.lpds.sztaki.hu/edgidemo/download/inputs/publicautodock423/_3gb-metajob-10000-All",
+		"md5": "08647fac613c24df3b1d568575e3823a",
+		"size": 320
+	    },
+            "docking.dpf": {
+                "url": "http://mishra.lpds.sztaki.hu/edgidemo/download/inputs/publicautodock423/docking.dpf",
+                "md5": "a7bac5a941a85660cd87bf83f93b852a",
+                "size": 2933
+            },
+            "inputs.zip": {
+                "url": "http://mishra.lpds.sztaki.hu/edgidemo/download/inputs/publicautodock423/inputs.zip",
+                "md5": "cbb8c0ada8e197d6db707e6ce4f03ca6",
+                "size": 3270896
+            }
+        },
+        "output": [
+            "log.dlg"
+        ]
+    }
+]

@@ -1,0 +1,18 @@
+[
+    {
+        "name": "dsp",
+        "grid": "edgidemo",
+        "args": "-i 0 -n pools.txt -f 22 -p 723",
+        "tag": "Test job",
+        "input": {
+            "pools.txt": {
+                "url": "http://mishra.lpds.sztaki.hu/edgidemo/download/dsp_inputs/pools.txt",
+                "md5": "7b7eb86bf50c58cbf92dc12ff5adf7f4",
+                "size": 9652
+            }
+        },
+        "output": [
+            "cost.txt"
+        ]
+    }
+]

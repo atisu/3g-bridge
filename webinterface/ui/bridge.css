@@ -1,0 +1,75 @@
+ul#joblist {
+    display: table;
+}
+
+ul#joblist li {
+    display: table-row;
+    background: lavender;
+}
+
+ul#joblist li.error {
+    background: lightsalmon;
+}
+
+ul#joblist li.finished {
+    background: PaleGreen;
+}
+
+ul#joblist li.cancel {
+    background: SandyBrown;
+}
+
+li.job {
+    font-family: monospace;
+    font-size: 9pt;
+}
+
+ul#joblist li.init {
+    background: gold;
+}
+
+ul#joblist li span {
+    padding: 5px 5px 0 5px;
+    display: table-cell;
+}
+
+#info {
+    display: table;
+}
+
+#info div {
+    display: table-row;
+}
+
+#info div label {
+    padding: 0 5px 0 0;
+    display: table-cell;
+}
+
+#info div input {
+    display: table-cell;
+}
+
+.filler {
+    height = 100%;
+}
+
+div#joblist {
+    float: right;
+}
+
+div#error {
+}
+
+div#info {
+    float:left;
+}
+
+div#info #url,#version {
+    width: 350px;
+}
+
+div#submit {
+    float: left;
+    clear: left;
+}
