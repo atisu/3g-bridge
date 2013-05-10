@@ -34,6 +34,7 @@ class RESTRequest {
 	public $path_elements;
 	public $verb;
 	public $parameters;
+        public $contentType = 'text/plain';
 
 	private static $inst = Null;
 	/*
@@ -61,9 +62,20 @@ class RESTRequest {
 			: $default;
 	}
 
-	public static function get_output_format() {
-		return RESTRequest::getpar('format', 'plain');
+	public static function get_output_format($defval = 'plain') {
+		return RESTRequest::getpar('format', $defval);
 	}
+        public static function get_content_type() {
+                $ct='plain';
+		if (isset($_SERVER['CONTENT_TYPE']))
+			$ct = preg_replace('|([^;]+);.*|', '\\1',
+					   $_SERVER['CONTENT_TYPE']);
+                Log::log('INFO', "Request content type: '$ct'");
+		if (array_key_exists($ct, RESTParser::$handlers))
+			return $ct;
+		else
+			throw new NotImplemented("request format: '{$ct}'");
+        }
 
 	private function __construct($cfg) {
 		$this->verb = $_SERVER['REQUEST_METHOD'];
@@ -72,7 +84,8 @@ class RESTRequest {
 		$this->cfg=$cfg;
 
 		// Parse GET parameters
-		$this->format = RESTRequest::get_output_format();
+                $this->contentType = RESTRequest::get_content_type();
+		$this->format = RESTRequest::get_output_format($this->contentType);
 		$this->redirect_after_submit = RESTRequest::getpar('redir', 1);
 		$this->field_separator = RESTRequest::getpar('sep', ' ');
 		$this->record_separator = RESTRequest::getpar('rsep', "\n");
@@ -215,19 +228,12 @@ abstract class RESTHandler {
  */
 
 class RESTParser {
-	private static $handlers=array();
+	public static $handlers=array();
 	public static function register_handler($content_type, $handler_type) {
 		RESTParser::$handlers[$content_type] = $handler_type;
 	}
 	public static function create($request) {
-		$ct='plain';
-		if (isset($_SERVER['CONTENT_TYPE']))
-			$ct = preg_replace('|([^;]+);.*|', '\\1',
-					   $_SERVER['CONTENT_TYPE']);
-		if (array_key_exists($ct, RESTParser::$handlers))
-			return new RESTParser::$handlers[$ct]($request);
-		else
-			throw new NotImplemented("request format: '{$ct}'");
+                return new RESTParser::$handlers[$request->contentType]($request);
 	}
 
 	public function __construct($request) {
@@ -306,6 +312,7 @@ abstract class RESTRenderer {
 	}
 	public static function create($request) {
 		$format=$request->format;
+                Log::log("DEBUG", "Output format: $format");
 		if (array_key_exists($format, RESTRenderer::$handlers))
 			return new RESTRenderer::$handlers[$format]($request);
 		else
@@ -425,6 +432,7 @@ class PlainRenderer extends RESTRenderer {
 RESTRenderer::register_handler('', 'PlainRenderer');
 RESTRenderer::register_handler('plain', 'PlainRenderer');
 RESTRenderer::register_handler('json', 'JSONRenderer');
+RESTRenderer::register_handler('application/json', 'JSONRenderer');
 RESTRenderer::register_handler('html', 'HTMLRenderer');
 
 ?>
