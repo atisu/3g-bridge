@@ -169,7 +169,8 @@ else
 	if test "$with_gsoap" = auto; then
 		PKG_CHECK_MODULES([GSOAP], [gsoap++], [], [no_gsoap=yes])
 		if test "$no_gsoap" != yes; then
-			GSOAP_IMPORT="`pkg-config --variable includedir gsoap++`/gsoap"
+			GSOAP_BASE="`pkg-config --variable prefix gsoap++`"
+			GSOAP_IMPORT="$GSOAP_BASE/gsoap/import:$GSOAP_BASE/share/gsoap/import"
 		fi
 	else
 		GSOAP_CFLAGS="-I$with_gsoap/include"
