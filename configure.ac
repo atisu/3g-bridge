@@ -85,7 +85,7 @@ if test "$with_dcapi" != no; then
 #         LIBS="$save_LIBS"
 
 	AC_CHECK_HEADERS([dc.h],, [no_boinc=yes])
-	AC_SEARCH_LIBS([DC_initMaster], [dcapi-${with_dcapi_flavor}], [true], [dcapi_master=no], [-lmysqlclient -lboinc_crypt])
+	AC_SEARCH_LIBS([DC_initMaster], [dcapi-${with_dcapi_flavor}], [true], [dcapi_master=no], [-lsched -lmysqlclient -lboinc_crypt])
 	if test $dcapi_master = no; then
 		AC_MSG_ERROR([DC-API master libraries not found])
 	fi
