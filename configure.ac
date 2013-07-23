@@ -89,6 +89,11 @@ if test "$with_dcapi" != no; then
 	if test $dcapi_master = no; then
 		AC_MSG_ERROR([DC-API master libraries not found])
 	fi
+
+	DCAPI_MASTER_CFLAGS=`pkg-config --cflags dcapi-${with_dcapi_flavor}-master`
+	DCAPI_MASTER_LIBS=`pkg-config --libs dcapi-${with_dcapi_flavor}-master`
+	AC_SUBST([DCAPI_MASTER_CFLAGS])
+	AC_SUBST([DCAPI_MASTER_LIBS])
 fi
 if test "$with_dcapi" != no; then
 	AC_DEFINE([HAVE_DCAPI], [1], [Define if DC-API is requested.])
