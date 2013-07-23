@@ -77,22 +77,14 @@ AC_ARG_WITH([dcapi_flavor], AS_HELP_STRING([--with-dcapi-flavor],
 AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@no@:>@]),
 	[], [with_dcapi=no])
 if test "$with_dcapi" != no; then
-#	save_CPPFLAGS="$CPPFLAGS"
-# 	CPPFLAGS="$CPPFLAGS $DCAPI_MASTER_CFLAGS"
-#        save_LIBS="$LIBS"
-#        LIBS="$LIBS $DCAPI_MASTER_LIBS"
-#        AC_LANG_PUSH([C])
-#        AC_CHECK_HEADERS([dc.h], [], [dcapi_master=no])
-#        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <dc.h>]],
-#                       [[(void)DC_initMaster((char *)0)]])],
-#                       [true],
-#                       [dcapi_master=no])
-#         AC_LANG_POP([C])
-#         CPPFLAGS="$save_CPPFLAGS"
-#         LIBS="$save_LIBS"
-
 	AC_CHECK_HEADERS([dc.h],, [no_boinc=yes])
+
+	save_CPPFLAGS="$CPPFLAGS"
+	save_LIBS="$LIBS"
 	AC_SEARCH_LIBS([DC_initMaster], [dcapi-${with_dcapi_flavor}], [true], [dcapi_master=no], [-lsched -lmysqlclient -lboinc_crypt])
+	CPPFLAGS="$save_CPPFLAGS"
+	LIBS="$save_LIBS"
+
 	if test $dcapi_master = no; then
 		AC_MSG_ERROR([DC-API master libraries not found])
 	fi
