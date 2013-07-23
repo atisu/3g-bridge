@@ -28,6 +28,7 @@
  */
 
 #include "LogMonMsg.h"
+#include <unistd.h>
 #include <glib/gstdio.h>
 #include <memory>
 #include <fstream>

@@ -29,6 +29,7 @@
 #define FILEREF_H
 
 #include <string>
+#include <unistd.h>
 
 using namespace std;
 
