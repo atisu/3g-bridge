@@ -63,10 +63,32 @@ dnl -------------------------------------------------------------------
 dnl DC-API
 dnl -------------------------------------------------------------------
 
+AC_ARG_WITH([dcapi_flavor], AS_HELP_STRING([--with-dcapi-flavor],
+            [DCAPI flavor to use @<:@boinc@:>@]),,
+            [with_dcapi_flavor=boinc])
+
 AC_ARG_WITH([dcapi], AS_HELP_STRING([--with-dcapi], [Enable DC-API backend @<:@no@:>@]),
 	[], [with_dcapi=no])
 if test "$with_dcapi" != no; then
-	SZDG_DCAPI_MASTER([], [AC_MSG_ERROR([DC-API master libraries are missing])])
+#	save_CPPFLAGS="$CPPFLAGS"
+# 	CPPFLAGS="$CPPFLAGS $DCAPI_MASTER_CFLAGS"
+#        save_LIBS="$LIBS"
+#        LIBS="$LIBS $DCAPI_MASTER_LIBS"
+#        AC_LANG_PUSH([C])
+#        AC_CHECK_HEADERS([dc.h], [], [dcapi_master=no])
+#        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <dc.h>]],
+#                       [[(void)DC_initMaster((char *)0)]])],
+#                       [true],
+#                       [dcapi_master=no])
+#         AC_LANG_POP([C])
+#         CPPFLAGS="$save_CPPFLAGS"
+#         LIBS="$save_LIBS"
+
+	AC_CHECK_HEADERS([dc.h],, [no_boinc=yes])
+	AC_SEARCH_LIBS([DC_initMaster], [dcapi-${with_dcapi_flavor}], [true], [dcapi_master=no], [-lmysqlclient -lboinc_crypt])
+	if test $dcapi_master = no; then
+		AC_MSG_ERROR([DC-API master libraries not found])
+	fi
 fi
 if test "$with_dcapi" != no; then
 	AC_DEFINE([HAVE_DCAPI], [1], [Define if DC-API is requested.])
