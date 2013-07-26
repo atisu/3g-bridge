@@ -10,6 +10,7 @@ create table accounting_info_subjobs (
   host_flops  double,
   host_intops double,
   host_ncpus  int(11),
+  credit      double,
 
   index(metajobid),
   foreign key (metajobid) references cg_job(id) on delete cascade
@@ -27,7 +28,8 @@ create view accounting_info_nonmetajob as
                     "memory",
     h.p_fpops       "host_flops",
     h.p_iops        "host_intops",
-    h.p_ncpus       "host_ncpus"
+    h.p_ncpus       "host_ncpus",
+    r.granted_credit "credit"
   from
     cg_job j
     join workunit w on w.name=concat(j.gridid, "_", j.id)
@@ -48,7 +50,8 @@ create view accounting_info_metajob as
                      "host_flops",
     sum(cpu_time*host_intops)/sum(cpu_time)
                      "host_intops",
-    sum(host_ncpus)  "host_ncpus"
+    sum(host_ncpus)  "host_ncpus",
+    sum(credit)      "credit"
   from accounting_info_subjobs
   group by metajobid;
 
