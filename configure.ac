@@ -184,16 +184,16 @@ else
 		AC_SUBST([GSOAP_LIBS])
 	fi
 fi
-if test "$no_gsoap" != yes; then
-	PKG_CHECK_MODULES([CURL], [libcurl >= 7.12.0], [], [AC_MSG_ERROR([CURL development files are missing])])
 
-	AC_PATH_PROG([SOAPCPP2], [soapcpp2], [false], "$with_gsoap/bin:$PATH")
-	AC_PATH_PROG([WSDL2H], [wsdl2h], [false], "$with_gsoap/bin:$PATH")
-	if test "$SOAPCPP2" = false -o "$WSDL2H" = false; then
-		no_gsoap=yes
-	fi
-	AC_SUBST([GSOAP_IMPORT])
+PKG_CHECK_MODULES([CURL], [libcurl >= 7.12.0], [], [AC_MSG_ERROR([CURL development files are missing])])
+
+AC_PATH_PROG([SOAPCPP2], [soapcpp2], [false], "$with_gsoap/bin:$PATH")
+AC_PATH_PROG([WSDL2H], [wsdl2h], [false], "$with_gsoap/bin:$PATH")
+if test "$SOAPCPP2" = false -o "$WSDL2H" = false; then
+	no_gsoap=yes
 fi
+AC_SUBST([GSOAP_IMPORT])
+
 if test "$with_gsoap" = yes -a "$no_gsoap" = yes; then
 	AC_MSG_ERROR([gsoap was not found])
 fi
