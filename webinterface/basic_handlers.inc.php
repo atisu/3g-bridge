@@ -376,6 +376,59 @@ class FinishedJobsHandler extends JobsHandler
 }
 
 /*
+  Handle listing of finished jobs of a specific application. Also handles normal job submission,
+  but it's irrelevant.
+ */
+class AppFinishedJobsHandler extends JobsHandler
+{
+        protected function handleGet() {
+                Log::log('DEBUG', 'Querying finished jobs');
+
+                $appname = $this->matches['app'];
+
+                $field = $this->get_selected_attrs();
+                if ($field == 'output') {
+                        Log::log('AUDIT', "Querying output of finished jobs of app '$appname' $this->auth_audit");
+                        $this->handleGetOutput($ids);
+                }
+                else {
+                        Log::log('AUDIT', "Querying finished jobs of app '$appname' $this->auth_audit");
+
+                        $q = "SELECT {$field} FROM cg_job WHERE status='FINISHED' AND alg='$appname' "
+                                . $this->auth_sql_filter(' AND ');
+                        Log::log('DEBUG', $q);
+                        $r = mysql_query($q);
+                        while ($line = mysql_fetch_array($r, MYSQL_ASSOC)) {
+                                $this->output_dataitem($line, $line['id']);
+                        }
+                }
+        }
+        private function handleGetOutput($ids) {
+                $c = $this->request->cfg;
+                $urlprefix = $c['wssubmitter']['output-url-prefix'];
+                if (!$urlprefix)
+                        throw new ConfigError('wssubmitter/output-url-prefix');
+                $r = new ResWrapper(
+                        DB::q("SELECT j.id, concat('{$urlprefix}/', "
+                              .                  "substr(j.id, 1, 2), "
+                              .                  "'/', j.id, "
+                              .                  " '/', localname) URL "
+                              . "FROM cg_outputs o "
+                              . "  JOIN cg_job j ON o.id=j.id "
+                              . "WHERE status='FINISHED' AND alg='$appname' "
+                              . $this->auth_sql_filter(' AND ')
+                                . " ORDER by j.id"));
+
+                while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC))
+                        $this->output_dataitem($line);
+        }
+        public static function pathRegex() {
+                return '|^/apps/(?<app>[^/]+)/finished(/(?<attr>[^/]*)/?)?$|';
+        }
+}
+
+
+/*
   Handles querying individual jobs and attribute (field) selection.
   Also handles job deletion.
  */

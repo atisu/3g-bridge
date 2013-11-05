@@ -21,6 +21,7 @@ RESTHandler::addHandler('AccinfoHandler');
 RESTHandler::addHandler('JobsHandler');
 RESTHandler::addHandler('JobHandler');
 RESTHandler::addHandler('FinishedJobsHandler');
+RESTHandler::addHandler('AppFinishedJobsHandler');
 RESTHandler::addHandler('VersionHandler');
 RESTHandler::addHandler('GridsHandler');
 RESTHandler::addHandler('GridHandler');
