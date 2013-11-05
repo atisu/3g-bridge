@@ -16,6 +16,10 @@ class ResWrapper {
 	}
 }
 
+function stringify($str, $empty_as_null = TRUE) {
+        return DB::stringify($str, $empty_as_null);
+}
+
 /*
   3GBridge related related methods with safe close.
   Needs 3g-bridge.conf to work.

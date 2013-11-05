@@ -37,6 +37,39 @@ class cg_job_Handler extends RESTHandler {
 
                 return "{$prefix} (userid <=> {$uid}) {$postfix}";
         }
+
+        protected function auth_check_ids($ids) {
+                $ai = AuthInfo::instance();
+                if ($ai->do_authorization())
+                {
+                        $this->auth_audit = '(authenticated user: $uid)';
+
+                        $uid = DB::stringify($ai->userid());
+                        $r = new ResWrapper(
+                                DB::q("SELECT COUNT(*) FROM cg_job "
+                                      . "WHERE id IN ({$ids})"
+                                      . $this->auth_sql_filter(' AND NOT ')));
+                        if (!($line = mysql_fetch_array($r->res))) {
+                                DB::derr();
+                        }
+
+                        if ($line[0]) //exists
+                                throw new AuthorizationError;
+                }
+        }
+
+        protected function cancel_jobs($ids) {
+                $ids_arr = explode(", ", $ids);
+
+                if (count($ids_arr) == 0) return;
+
+                $this->auth_check_ids($ids);
+
+                $s = count($ids_arr) == 1 ? '' : 's';
+                Log::log('AUDIT', "Canceling job$s $ids $this->auth_audit");
+
+                DB::q("UPDATE cg_job SET status='CANCEL' WHERE id in ({$ids})");
+        }
 }
 
 /*
@@ -63,6 +96,13 @@ class JobsHandler extends cg_job_Handler
                 while ($line = mysql_fetch_array($r, MYSQL_ASSOC)) {
                         $this->output_dataitem($line, $line['id']);
                 }
+        }
+        protected function handleDelete() {
+                Log::log('DEBUG', 'Canceling jobs');
+
+                $ids = join(", ", array_map(stringify, $this->request->parameters));
+
+                $this->cancel_jobs($ids);
         }
         protected function handlePost() {
                 Log::log('DEBUG', 'Submitting job(s)');
@@ -115,7 +155,7 @@ class JobsHandler extends cg_job_Handler
                                 $this->output_dataitem(array('id'=>$i));
         }
         protected function allowed() {
-                return "GET, POST";
+                return "GET, POST, DELETE";
         }
         protected function renderform()
         {
@@ -477,32 +517,7 @@ class JobHandler extends cg_job_Handler
         protected function handleDelete() {
                 Log::log('DEBUG', 'Canceling jobs');
                 $ids = $this->get_selected_ids();
-                $ids_arr = explode(", ", $ids);
-
-                if (count($ids_arr) == 0) return;
-
-                $ai = AuthInfo::instance();
-                if ($ai->do_authorization())
-                {
-                        $this->auth_audit = '(authenticated user: $uid)';
-
-                        $uid = DB::stringify($ai->userid());
-                        $r = new ResWrapper(
-                                DB::q("SELECT COUNT(*) FROM cg_job "
-                                      . "WHERE id IN ({$ids})"
-                                      . $this->auth_sql_filter(' AND NOT ')));
-                        if (!($line = mysql_fetch_array($r->res))) {
-                                DB::derr();
-                        }
-
-                        if ($line[0]) //exists
-                                throw new AuthorizationError;
-                }
-
-                $s = count($ids_arr) > 1 ? 's' : '';
-                Log::log('AUDIT', "Canceling job$s $ids $this->auth_audit");
-
-                DB::q("UPDATE cg_job SET status='CANCEL' WHERE id in ({$ids})");
+                $this->cancel_jobs($ids);
         }
         protected function allowed() {
                 return "GET, DELETE";

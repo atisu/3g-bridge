@@ -240,7 +240,8 @@ class RESTParser {
 		$this->request = $request;
 	}
 	public function parse() {
-		return array();
+                $body = file_get_contents("php://input");
+		return explode(PHP_EOL, $body);
 	}
 }
 
@@ -284,6 +285,7 @@ class FormPostParser extends RESTParser {
 
 
 RESTParser::register_handler('plain', 'RESTParser');
+RESTParser::register_handler('text/plain', 'RESTParser');
 RESTParser::register_handler('application/json', 'JSONParser');
 RESTParser::register_handler('application/x-www-form-urlencoded',
 			     'FormPostParser');
@@ -430,6 +432,7 @@ class PlainRenderer extends RESTRenderer {
 }
 
 RESTRenderer::register_handler('', 'PlainRenderer');
+RESTRenderer::register_handler('text/plain', 'PlainRenderer');
 RESTRenderer::register_handler('plain', 'PlainRenderer');
 RESTRenderer::register_handler('json', 'JSONRenderer');
 RESTRenderer::register_handler('application/json', 'JSONRenderer');
