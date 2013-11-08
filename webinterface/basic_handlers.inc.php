@@ -502,7 +502,7 @@ class JobHandler extends cg_job_Handler
                 if (!$urlprefix)
                         throw new ConfigError('wssubmitter/output-url-prefix');
                 $r = new ResWrapper(
-                        DB::q("SELECT j.id, concat('{$urlprefix}/', "
+                        DB::q("SELECT j.id, localname, concat('{$urlprefix}/', "
                               .                  "substr(j.id, 1, 2), "
                               .                  "'/', j.id, "
                               .                  " '/', localname) URL "
