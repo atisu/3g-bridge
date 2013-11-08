@@ -434,7 +434,8 @@ class AppFinishedJobsHandler extends JobsHandler
                 else {
                         Log::log('AUDIT', "Querying finished jobs of app '$appname' $this->auth_audit");
 
-                        $q = "SELECT {$field} FROM cg_job WHERE status='FINISHED' AND alg='$appname' "
+                        $status = strtoupper($this->matches['status']);
+                        $q = "SELECT {$field} FROM cg_job WHERE status='{$status}' AND alg='$appname' "
                                 . $this->auth_sql_filter(' AND ');
                         Log::log('DEBUG', $q);
                         $r = mysql_query($q);
@@ -463,7 +464,7 @@ class AppFinishedJobsHandler extends JobsHandler
                         $this->output_dataitem($line);
         }
         public static function pathRegex() {
-                return '|^/apps/(?<app>[^/]+)/finished(/(?<attr>[^/]*)/?)?$|';
+                return '@^/apps/(?<app>[^/]+)/(?<status>finished|error)(/(?<attr>[^/]*)/?)?$@';
         }
 }
 
