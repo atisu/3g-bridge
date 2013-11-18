@@ -70,6 +70,10 @@ class cg_job_Handler extends RESTHandler {
 
                 DB::q("UPDATE cg_job SET status='CANCEL' WHERE id in ({$ids})");
         }
+
+        protected function allowedFields() {
+                return array("id", "grid", "alg", "status", "gridid", "args", "griddata", "tag", "creation_time", "metajobid", "userid", "error_info");
+        }
 }
 
 /*
@@ -549,6 +553,9 @@ class QueuesHandler extends RESTHandler
         protected function allowed() {
                 return "GET";
         }
+        protected function allowedFields() {
+                return array("grid", "alg", "batchsize", "statistics");
+        }
         public static function pathRegex() {
                 return '|^/queues(/(?<attr>[^/]*)/?)?$|';
         }
@@ -601,6 +608,9 @@ class GridHandler extends RESTHandler
         }
         protected function allowed() {
                 return "GET";
+        }
+        protected function allowedFields() {
+                return array("grid", "alg", "batchsize", "statistics");
         }
         public static function pathRegex() {
                 return '|^/grids/(?<id>[^/]+)(/(?<attr>[^/]*)/?)?$|';

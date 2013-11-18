@@ -157,19 +157,28 @@ abstract class RESTHandler {
 	protected function handleDelete() {
 		throw new NotSupported('DELETE', $this->allowed()); }
 	protected function allowed() { return ""; }
+        protected function allowedFields() { return array(); }
 
 	public static function pathRegex() { return '|^.*$|'; }
 	public function render_html_form() { /* NOOP; to be overridden */ }
 
 	protected function get_selected_attrs() {
-		// TODO: make this DB safe
 		$lsep = $this->request->list_separator;
 		if (array_key_exists('attr', $this->matches)
 		    and $this->matches['attr'])
 		{
-			return join(', ',
-				    explode($lsep,
-					    $this->matches['attr']));
+                        $attrs = explode($lsep, $this->matches['attr']);
+                        $allowed = $this->allowedFields();
+                        foreach ($attrs as $k) {
+                                Log::log('DEBUG', "Checking field: '{$k}'");
+                                if (!in_array($k, $allowed)) {
+                                        $allowed_s = join(', ', $allowed);
+                                        throw new BadRequest(
+                                                "Invalid field specified: '{$k}'. Available fields: {$allowed_s}");
+                                }
+                        }
+
+			return join(', ', $attrs);
 		}
 		return '*';
 	}
