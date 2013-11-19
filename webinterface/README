@@ -19,7 +19,7 @@ ln "$HOME/master/3g-bridge/3g-bridge.conf"
 
 # Set the base URL of this interface in 3gb.php.
 # Check other values are correct.
-editor 3gb.php
+editor config.inc.php
 
 # Enable RewriteEngine 
 sudo a2enmod rewrite
