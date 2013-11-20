@@ -76,10 +76,10 @@ void NullHandler::submitJobs(JobVector &jobs) throw (BackendException *)
                 DLException *dle = NULL;
                 for (vector<string>::iterator it = inputs->begin(); it != inputs->end(); it++)
                 {
+                        FileRef fr = job->getInputRef(*it);
                         string url = fr.getURL();
 
                         if ('/' != url[0]) {
-                                FileRef fr = job->getInputRef(*it);
                                 string md5 = fr.getMD5();
                                 int size = fr.getSize();
 
