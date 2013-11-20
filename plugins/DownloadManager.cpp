@@ -276,11 +276,18 @@ try
         }
 
         long os_errno;
-        char errdesc[256];
         curl_easy_getinfo(curl, CURLINFO_OS_ERRNO, &os_errno);
-        strerror_r(os_errno, errdesc, 255);
+
+        char buf[256];
+#if (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && ! _GNU_SOURCE
+        strerror_r(EINVAL, buf, 255);
+        char *errstr = buf;
+#else
+        char *errstr = strerror_r(EINVAL, buf, 255);
+#endif
+
         LOG(LOG_DEBUG, "[DlMgr] OS errno when downloading '%s' is %ld, meaning '%s'",
-            s_lf, os_errno, errdesc);
+            s_lf, os_errno, errstr);
 
         long http_response;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_response);
