@@ -280,10 +280,10 @@ try
 
         char buf[256];
 #if (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && ! _GNU_SOURCE
-        strerror_r(EINVAL, buf, 255);
+        strerror_r(os_errno, buf, 255);
         char *errstr = buf;
 #else
-        char *errstr = strerror_r(EINVAL, buf, 255);
+        char *errstr = strerror_r(os_errno, buf, 255);
 #endif
 
         LOG(LOG_DEBUG, "[DlMgr] OS errno when downloading '%s' is %ld, meaning '%s'",
