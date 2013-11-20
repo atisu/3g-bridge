@@ -37,6 +37,7 @@
 #include "DBHandler.h"
 #include "Conf.h"
 #include "FileRef.h"
+#include <string.h>
 
 #include <openssl/conf.h>
 #include <openssl/crypto.h>
