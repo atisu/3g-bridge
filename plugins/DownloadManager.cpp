@@ -275,9 +275,11 @@ try
         }
 
         long os_errno;
+        char errdesc[256];
         curl_easy_getinfo(curl, CURLINFO_OS_ERRNO, &os_errno);
-        LOG(LOG_DEBUG, "[DlMgr] OS errno when downloading '%s' is %ld",
-            s_lf, os_errno);
+        strerror_r(os_errno, errdesc, 255);
+        LOG(LOG_DEBUG, "[DlMgr] OS errno when downloading '%s' is %ld, meaning '%s'",
+            s_lf, os_errno, errdesc);
 
         long http_response;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_response);
