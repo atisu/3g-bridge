@@ -483,13 +483,16 @@ class JobHandler extends cg_job_Handler
                 Log::log('DEBUG', 'Querying job information');
 
                 $ids = $this->get_selected_ids();
-                $field = $this->get_selected_attrs();
-                $s = count(explode(", ", $ids)) != 1 ? 's' : '';
-                if ($field == 'output') {
+
+                if (array_key_exists('attr', $this->matches)
+                    and $this->matches['attr'] == 'output')
+                {
                         Log::log('AUDIT', "Querying output of job$s $ids $this->auth_audit");
                         $this->handleGetOutput($ids);
                 }
                 else {
+                        $field = $this->get_selected_attrs();
+                        $s = count(explode(", ", $ids)) != 1 ? 's' : '';
                         Log::log('AUDIT', "Querying information on job$s $ids $this->auth_audit");
 
                         $r = new ResWrapper(
