@@ -318,7 +318,7 @@ try
 #else
                                 char *errstr = strerror_r(os_errno, buf, 255);
 #endif
-                                dlerror = MkStr() << "Connection error ("
+                                dlerror = MKStr() << "Connection error ("
                                                   << os_error << "): '"
                                                   << errstr << "'";
                         }
