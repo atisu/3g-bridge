@@ -275,16 +275,8 @@ try
                 dlerror = MKStr() << "Birdge error: " << ex->what();
         }
 
-        long os_errno;
+        long os_errno = 0;
         curl_easy_getinfo(curl, CURLINFO_OS_ERRNO, &os_errno);
-
-        char buf[256];
-#if (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && ! _GNU_SOURCE
-        strerror_r(os_errno, buf, 255);
-        char *errstr = buf;
-#else
-        char *errstr = strerror_r(os_errno, buf, 255);
-#endif
 
         LOG(LOG_DEBUG, "[DlMgr] OS errno when downloading '%s' is %ld, meaning '%s'",
             s_lf, os_errno, errstr);
@@ -317,7 +309,20 @@ try
                 }
                 else
                 {
-                        if (http_response >= 400 && http_response < 600)
+                        if (os_errno)
+                        {
+                                char buf[256];
+#if (_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && ! _GNU_SOURCE
+                                strerror_r(os_errno, buf, 255);
+                                char *errstr = buf;
+#else
+                                char *errstr = strerror_r(os_errno, buf, 255);
+#endif
+                                dlerror = MkStr() << "Connection error ("
+                                                  << os_error << "): '"
+                                                  << errstr << "'";
+                        }
+                        else if (http_response >= 400 && http_response < 600)
                                 //TODO: retry if code==5xx
                         {
                                 dlerror = MKStr()
