@@ -67,9 +67,9 @@ void NullHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 {
 	if (!jobs.size())
 		return;
-	for (JobVector::iterator it = jobs.begin(); it != jobs.end(); it++)
+	for (JobVector::iterator jit = jobs.begin(); jit != jobs.end(); jit++)
 	{
-		Job *actJ = *it;
+		Job *actJ = *jit;
 		actJ->setStatus(Job::RUNNING);
 	}
 	LOG(LOG_DEBUG, "NULL Handler (%s): set %zd jobs' status to RUNNING.",
