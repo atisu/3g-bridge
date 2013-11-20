@@ -37,6 +37,7 @@
 #include "GridHandler.h"
 #include "Job.h"
 #include "Util.h"
+#include "DLException.h"
 
 using namespace std;
 
@@ -69,8 +70,27 @@ void NullHandler::submitJobs(JobVector &jobs) throw (BackendException *)
 		return;
 	for (JobVector::iterator jit = jobs.begin(); jit != jobs.end(); jit++)
 	{
-		Job *actJ = *jit;
-		actJ->setStatus(Job::RUNNING);
+		Job *job = *jit;
+                auto_ptr< vector<string> > inputs = job->getInputs();
+
+                DLException *dle = NULL;
+                for (vector<string>::iterator it = inputs->begin(); it != inputs->end(); it++)
+                {
+                        FileRef fr = job->getInputRef(*it);
+                        string url = fr.getURL();
+                        string md5 = fr.getMD5();
+                        int size = fr.getSize();
+
+                        if (!dle)
+                                dle = new DLException(job->getId());
+                        dle->addInput(*it);
+                }
+                if (dle)
+                {
+                        throw dle;
+                }
+
+		job->setStatus(Job::RUNNING);
 	}
 	LOG(LOG_DEBUG, "NULL Handler (%s): set %zd jobs' status to RUNNING.",
 	    name.c_str(), jobs.size());
