@@ -316,7 +316,7 @@ try
                                 char *errstr = strerror_r(os_errno, buf, 255);
 #endif
                                 dlerror = MKStr() << "Connection error ("
-                                                  << os_error << "): '"
+                                                  << os_errno << "): '"
                                                   << errstr << "'";
                         }
                         else if (http_response >= 400 && http_response < 600)
