@@ -400,16 +400,16 @@ class FinishedJobsHandler extends JobsHandler
                 $urlprefix = $c['wssubmitter']['output-url-prefix'];
                 if (!$urlprefix)
                         throw new ConfigError('wssubmitter/output-url-prefix');
-                $r = new ResWrapper(
-                        DB::q("SELECT j.id, concat('{$urlprefix}/', "
-                              .                  "substr(j.id, 1, 2), "
-                              .                  "'/', j.id, "
-                              .                  " '/', localname) URL "
-                              . "FROM cg_outputs o "
-                              . "  JOIN cg_job j ON o.id=j.id "
-                              . "WHERE status='FINISHED' "
-                              . $this->auth_sql_filter(' AND ')
-                                . " ORDER by j.id"));
+                $query = "SELECT j.id, concat('{$urlprefix}/', "
+                        .                  "substr(j.id, 1, 2), "
+                        .                  "'/', j.id, "
+                        .                  " '/', localname) URL "
+                        . "FROM cg_outputs o "
+                        . "  JOIN cg_job j ON o.id=j.id "
+                        . "WHERE status='FINISHED' "
+                        . $this->auth_sql_filter(' AND ')
+                        . " ORDER by j.id";
+                $r = new ResWrapper(DB::q($query));
 
                 while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC))
                         $this->output_dataitem($line);
@@ -442,8 +442,8 @@ class AppFinishedJobsHandler extends JobsHandler
                         $q = "SELECT {$field} FROM cg_job WHERE status='{$status}' AND alg='$appname' "
                                 . $this->auth_sql_filter(' AND ');
                         Log::log('DEBUG', $q);
-                        $r = mysql_query($q);
-                        while ($line = mysql_fetch_array($r, MYSQL_ASSOC)) {
+                        $r = new ResWrapper(DB::q($q));
+                        while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC)) {
                                 $this->output_dataitem($line, $line['id']);
                         }
                 }
@@ -571,8 +571,8 @@ class GridsHandler extends RESTHandler
 {
         protected function handleGet() {
                 Log::log('AUDIT', 'Querying all grids');
-                $r = DB::q('SELECT DISTINCT grid FROM cg_algqueue');
-                while ($line = mysql_fetch_array($r, MYSQL_ASSOC))
+                $r = new ResWrapper(DB::q('SELECT DISTINCT grid FROM cg_algqueue'));
+                while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC))
                         $this->output_dataitem($line);
         }
         protected function allowed() {
