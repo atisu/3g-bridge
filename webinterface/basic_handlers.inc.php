@@ -58,6 +58,14 @@ class cg_job_Handler extends RESTHandler {
                 }
         }
 
+        protected function limit_clause() {
+                $l = $this->request->select_limit;
+                if ($l == Null)
+                        return '';
+                else
+                        return " limit {$l}";
+        }
+
         protected function cancel_jobs($ids) {
                 $ids_arr = explode(", ", $ids);
 
@@ -95,7 +103,10 @@ class JobsHandler extends cg_job_Handler
                 Log::log('AUDIT', "Querying all jobs $this->auth_audit");
                 $authfilter = $this->auth_sql_filter(' WHERE ');
                 $timefilter = $this->timefilter();
-                $q = 'SELECT * FROM cg_job' . $authfilter . $timefilter;
+                $q = 'SELECT * FROM cg_job'
+                        . $authfilter
+                        . $timefilter
+                        . $this->limit_clause();
                 $r = mysql_query($q);
                 while ($line = mysql_fetch_array($r, MYSQL_ASSOC)) {
                         $this->output_dataitem($line, $line['id']);
@@ -388,7 +399,8 @@ class FinishedJobsHandler extends JobsHandler
                         Log::log('AUDIT', "Querying all finished jobs $this->auth_audit");
 
                         $q = "SELECT {$field} FROM cg_job WHERE status='FINISHED'"
-                                . $this->auth_sql_filter(' AND ');
+                                . $this->auth_sql_filter(' AND ')
+                                . $this->limit_clause();
                         $r = mysql_query($q);
                         while ($line = mysql_fetch_array($r, MYSQL_ASSOC)) {
                                 $this->output_dataitem($line, $line['id']);
@@ -408,7 +420,8 @@ class FinishedJobsHandler extends JobsHandler
                         . "  JOIN cg_job j ON o.id=j.id "
                         . "WHERE status='FINISHED' "
                         . $this->auth_sql_filter(' AND ')
-                        . " ORDER by j.id";
+                        . " ORDER by j.id"
+                        . $this->limit_clause();
                 $r = new ResWrapper(DB::q($query));
 
                 while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC))
@@ -440,7 +453,8 @@ class AppFinishedJobsHandler extends JobsHandler
 
                         $status = strtoupper($this->matches['status']);
                         $q = "SELECT {$field} FROM cg_job WHERE status='{$status}' AND alg='$appname' "
-                                . $this->auth_sql_filter(' AND ');
+                                . $this->auth_sql_filter(' AND ')
+                                . $this->limit_clause();
                         Log::log('DEBUG', $q);
                         $r = new ResWrapper(DB::q($q));
                         while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC)) {
@@ -462,7 +476,8 @@ class AppFinishedJobsHandler extends JobsHandler
                               . "  JOIN cg_job j ON o.id=j.id "
                               . "WHERE status='FINISHED' AND alg='$appname' "
                               . $this->auth_sql_filter(' AND ')
-                                . " ORDER by j.id"));
+                              . " ORDER by j.id"
+                              . $this->limit_clause()));
 
                 while ($line = mysql_fetch_array($r->res, MYSQL_ASSOC))
                         $this->output_dataitem($line);

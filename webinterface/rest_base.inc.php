@@ -77,6 +77,18 @@ class RESTRequest {
 			throw new NotImplemented("request format: '{$ct}'");
         }
 
+        private function checked_int($key, $default) {
+                $val = RESTRequest::getpar($key, $default);
+                //Default value is accepted whatever it is; e.g. Null
+                Log::log('DEBUG', "VAL={$val}");
+                if ($val == $default) return $val;
+
+                if (!is_numeric($val))
+                        throw new BadRequest("Invalid value for GET parameter '{$key}'");
+
+                return intval($val);
+        }
+
 	private function __construct($cfg) {
 		$this->verb = $_SERVER['REQUEST_METHOD'];
 		$this->path = preg_replace('|/+$|', '', $_SERVER['PATH_INFO']);
@@ -92,7 +104,8 @@ class RESTRequest {
 		$this->list_separator = RESTRequest::getpar('lsep', '+');
 		$this->header = RESTRequest::getpar(
 			'hdr', $this->format == 'html' ? TRUE : FALSE);
-
+                $this->select_limit =
+                        $this->checked_int('limit', Null);
 		$this->parser = RESTParser::create($this);
 		$this->renderer = RESTRenderer::create($this);
 		$this->parameters = $this->parser->parse();
