@@ -80,7 +80,9 @@ class cg_job_Handler extends RESTHandler {
         }
 
         protected function allowedFields() {
-                return array("id", "grid", "alg", "status", "gridid", "args", "griddata", "tag", "creation_time", "metajobid", "userid", "error_info");
+                return array("id", "grid", "alg", "status", "gridid", "args", "griddata", "tag", "creation_time", "metajobid", "userid", "error_info",
+			     "mjrunning",
+			     "mjerror");
         }
 }
 
@@ -507,6 +509,8 @@ class JobHandler extends cg_job_Handler
                 }
                 else {
                         $field = $this->get_selected_attrs();
+			$field = preg_replace("/mjrunning/", "(select count(*) from cg_job as j2 where j2.metajobid=cg_job.id and j2.status='RUNNING') as mjrunning", $field);
+			$field = preg_replace("/mjerror/", "(select count(*) from cg_job as j2 where j2.metajobid=cg_job.id and j2.status='ERROR') as mjerror", $field);
                         $s = count(explode(", ", $ids)) != 1 ? 's' : '';
                         Log::log('AUDIT', "Querying information on job$s $ids $this->auth_audit");
 
