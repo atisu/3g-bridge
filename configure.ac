@@ -262,7 +262,7 @@ if test "${with_boinc}" != no; then
 	CPPFLAGS="-pthread $CPPFLAGS $BOINC_CPPFLAGS"
 	save_LIBS="$LIBS"
 	LIBS="$LIBS $BOINC_LDFLAGS"
-	AC_CHECK_HEADERS([boinc_api.h],,[with_boinc=no])
+	AC_CHECK_HEADERS([boinc/boinc_api.h],,[with_boinc=no])
 	AC_LANG_PUSH([C++])
 	AC_CHECK_LIB([boinc_api],[boinc_init_options],,[with_boinc=no],[-lboinc])
 	AC_LANG_POP([C++])
