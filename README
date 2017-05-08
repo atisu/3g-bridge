@@ -2,6 +2,8 @@
 Generic Grid-Grid (3G) Bridge
 -----------------------------
 
+Original from https://sourceforge.net/projects/edges-3g-bridge/ .
+
 License
 -------
 
@@ -33,7 +35,7 @@ this exception statement from your version.
 
 The full text of the GPL can be found in the file COPYING.
 
-Prerequisites
+Prerequisites [OUTDATED]
 -------------
 
 See below the list of 3rd party software requried for building the 3G Bridge.
@@ -64,7 +66,7 @@ buinding and installation instructions, but in a nutshell:
 See the output of "./configure --help" for more information about the available
 configuration options.
 
-Deploying the bridge under a BOINC project
+Deploying the bridge under a BOINC project [OUTDATED]
 ------------------------------------------
 
 If you want to deploy the 3G-Bridge under BOINC, make sure to pass the
